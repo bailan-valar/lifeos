@@ -1,0 +1,349 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900;
+    @apply text-white;
+    @apply font-sans;
+    @apply antialiased;
+    @apply min-h-screen;
+    @apply overflow-x-hidden;
+  }
+
+  /* iOS 16 Safe Area Support */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* iOS 16 Typography */
+  .title-large {
+    font-size: 34px;
+    line-height: 41px;
+    font-weight: 700;
+    letter-spacing: 0.37px;
+  }
+
+  .title1 {
+    font-size: 28px;
+    line-height: 34px;
+    font-weight: 700;
+    letter-spacing: 0.36px;
+  }
+
+  .title2 {
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 700;
+    letter-spacing: 0.35px;
+  }
+
+  .title3 {
+    font-size: 20px;
+    line-height: 25px;
+    font-weight: 600;
+    letter-spacing: 0.38px;
+  }
+
+  .headline {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 600;
+    letter-spacing: -0.43px;
+  }
+
+  .body {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 400;
+    letter-spacing: -0.43px;
+  }
+
+  .callout {
+    font-size: 16px;
+    line-height: 21px;
+    font-weight: 400;
+    letter-spacing: -0.32px;
+  }
+
+  .subheadline {
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 400;
+    letter-spacing: -0.24px;
+  }
+
+  .footnote {
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 400;
+    letter-spacing: -0.08px;
+  }
+
+  .caption1 {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  .caption2 {
+    font-size: 11px;
+    line-height: 13px;
+    font-weight: 400;
+    letter-spacing: 0.06px;
+  }
+}
+
+@layer components {
+  /* Liquid Glass Card */
+  .glass-card {
+    @apply backdrop-blur-xl;
+    @apply bg-white/10;
+    @apply border border-white/20;
+    @apply rounded-3xl;
+    @apply shadow-2xl;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-card-pressed {
+    @apply backdrop-blur-xl;
+    @apply bg-white/5;
+    @apply border border-white/10;
+    @apply rounded-3xl;
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* iOS 16 Button */
+  .ios-button {
+    @apply rounded-2xl;
+    @apply font-semibold;
+    @apply transition-all;
+    @apply duration-200;
+    @apply active:scale-95;
+    @apply select-none;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .ios-button-primary {
+    @apply ios-button;
+    @apply bg-blue-500;
+    @apply text-white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  }
+
+  .ios-button-secondary {
+    @apply ios-button;
+    @apply bg-white/10;
+    @apply backdrop-blur-xl;
+    @apply border border-white/20;
+    @apply text-white;
+  }
+
+  .ios-button-destructive {
+    @apply ios-button;
+    @apply bg-red-500;
+    @apply text-white;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  }
+
+  /* iOS 16 Navigation Bar */
+  .ios-navbar {
+    @apply backdrop-blur-xl;
+    @apply bg-black/30;
+    @apply border-b;
+    @apply border-white/10;
+    @apply safe-top;
+    min-height: 88px;
+  }
+
+  /* iOS 16 Tab Bar */
+  .ios-tabbar {
+    @apply backdrop-blur-xl;
+    @apply bg-black/30;
+    @apply border-t;
+    @apply border-white/10;
+    @apply safe-bottom;
+    min-height: 83px;
+  }
+
+  /* iOS 16 List Item */
+  .ios-list-item {
+    @apply flex items-center;
+    @apply px-4;
+    @apply py-3;
+    @apply backdrop-blur-md;
+    @apply bg-white/5;
+    @apply border-b;
+    @apply border-white/10;
+    @apply active:bg-white/10;
+    @apply transition-colors;
+    @apply duration-150;
+    min-height: 44px;
+  }
+
+  /* iOS 16 Search Bar */
+  .ios-searchbar {
+    @apply rounded-xl;
+    @apply backdrop-blur-xl;
+    @apply bg-white/10;
+    @apply border;
+    @apply border-white/20;
+    @apply px-4;
+    @apply py-3;
+    @apply text-white;
+    @apply placeholder-white/50;
+    min-height: 36px;
+  }
+
+  /* iOS 16 Modal/Sheet */
+  .ios-sheet {
+    @apply glass-card;
+    @apply rounded-t-[32px];
+    @apply border-t;
+    @apply border-white/30;
+    @apply safe-bottom;
+    box-shadow:
+      0 -8px 32px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  /* iOS 16 Floating Action Button */
+  .ios-fab {
+    @apply rounded-full;
+    @apply w-14;
+    @apply h-14;
+    @apply flex;
+    @apply items-center;
+    @apply justify-center;
+    @apply backdrop-blur-xl;
+    @apply bg-blue-500;
+    @apply shadow-2xl;
+    box-shadow:
+      0 8px 24px rgba(59, 130, 246, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    @apply active:scale-90;
+    @apply transition-transform;
+    @apply duration-200;
+  }
+
+  /* iOS 16 Toggle Switch */
+  .ios-toggle {
+    @apply w-12;
+    @apply h-7;
+    @apply rounded-full;
+    @apply p-1;
+    @apply transition-colors;
+    @apply duration-200;
+    @apply cursor-pointer;
+  }
+
+  .ios-toggle-on {
+    @apply bg-green-500;
+  }
+
+  .ios-toggle-off {
+    @apply bg-white/30;
+  }
+
+  .ios-toggle-knob {
+    @apply w-5;
+    @apply h-5;
+    @apply bg-white;
+    @apply rounded-full;
+    @apply shadow-md;
+    @apply transition-transform;
+    @apply duration-200;
+  }
+
+  /* Shimmer Loading Effect */
+  .shimmer {
+    @apply relative;
+    @apply overflow-hidden;
+    @apply bg-white/10;
+  }
+
+  .shimmer::after {
+    content: '';
+    @apply absolute;
+    @apply top-0;
+    @apply left-0;
+    @apply w-full;
+    @apply h-full;
+    @apply bg-gradient-to-r;
+    @apply from-transparent;
+    @apply via-white/20;
+    @apply to-transparent;
+    @apply animate-shimmer;
+  }
+}
+
+@layer utilities {
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* iOS 16 System Colors */
+  .bg-ios-blue { background-color: rgb(0, 122, 255); }
+  .bg-ios-green { background-color: rgb(52, 199, 89); }
+  .bg-ios-red { background-color: rgb(255, 59, 48); }
+  .bg-ios-yellow { background-color: rgb(255, 204, 0); }
+  .bg-ios-orange { background-color: rgb(255, 149, 0); }
+  .bg-ios-purple { background-color: rgb(175, 82, 222); }
+  .bg-ios-pink { background-color: rgb(255, 45, 85); }
+  .bg-ios-indigo { background-color: rgb(94, 92, 230); }
+  .bg-ios-teal { background-color: rgb(89, 173, 196); }
+  .bg-ios-gray { background-color: rgb(142, 142, 147); }
+  .bg-ios-gray2 { background-color: rgb(99, 99, 102); }
+  .bg-ios-gray3 { background-color: rgb(72, 72, 74); }
+  .bg-ios-gray4 { background-color: rgb(58, 58, 60); }
+  .bg-ios-gray5 { background-color: rgb(44, 44, 46); }
+  .bg-ios-gray6 { background-color: rgb(28, 28, 30); }
+
+  .text-ios-blue { color: rgb(0, 122, 255); }
+  .text-ios-green { color: rgb(52, 199, 89); }
+  .text-ios-red { color: rgb(255, 59, 48); }
+  .text-ios-yellow { color: rgb(255, 204, 0); }
+  .text-ios-orange { color: rgb(255, 149, 0); }
+}
