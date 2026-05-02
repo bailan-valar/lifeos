@@ -70,6 +70,44 @@ export interface BlockLink {
   isSynced: boolean
 }
 
+export type ClassFieldType = 'text' | 'number' | 'date' | 'select' | 'multiSelect' | 'checkbox' | 'url' | 'email'
+
+export interface Class {
+  id: string
+  userId: string
+  name: string
+  icon: string
+  color: string
+  description: string
+  order: number
+  createdAt: string
+  updatedAt: string
+  isSynced: boolean
+}
+
+export interface ClassField {
+  id: string
+  classId: string
+  name: string
+  type: ClassFieldType
+  options: string[]
+  required: boolean
+  order: number
+  createdAt: string
+  updatedAt: string
+  isSynced: boolean
+}
+
+export interface NoteClassBinding {
+  id: string
+  noteId: string
+  classId: string
+  values: Record<string, any>
+  createdAt: string
+  updatedAt: string
+  isSynced: boolean
+}
+
 export interface BlockNoteSystem {
   folders: Folder[]
   notes: Note[]
@@ -77,4 +115,7 @@ export interface BlockNoteSystem {
   tags: Tag[]
   noteTags: NoteTag[]
   blockLinks: BlockLink[]
+  classes: Class[]
+  classFields: ClassField[]
+  noteClassBindings: NoteClassBinding[]
 }

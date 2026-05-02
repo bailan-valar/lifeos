@@ -1,45 +1,45 @@
-# Git Commit Message Convention
+# Git 提交信息规范
 
-## Format
+## 格式
 
 ```
 <type>: <subject>
 
-<body> (optional)
+<body> (可选)
 ```
 
-## Types
+## 类型
 
-| Type | Meaning |
-|------|---------|
-| `feat` | New feature or capability |
-| `fix` | Bug fix |
-| `refactor` | Code change that neither fixes a bug nor adds a feature |
-| `style` | Formatting, missing semicolons, etc; no code change |
-| `chore` | Build process, dependencies, tooling |
-| `docs` | Documentation only |
-| `test` | Adding or updating tests |
-| `perf` | Performance improvement |
-| `revert` | Revert a previous commit |
+| 类型 | 含义 |
+|------|------|
+| `feat` | 新功能 |
+| `fix` | 修复 bug |
+| `refactor` | 重构（既不修复 bug 也不添加功能） |
+| `style` | 格式调整（空格、分号等），不涉及代码逻辑变更 |
+| `chore` | 构建流程、依赖、工具链 |
+| `docs` | 仅文档变更 |
+| `test` | 添加或更新测试 |
+| `perf` | 性能优化 |
+| `revert` | 回滚之前的提交 |
 
-## Rules
+## 规则
 
-1. **Subject** is required, starts with lowercase after the colon
-2. **No period** at the end of the subject line
-3. **Imperative mood**: "add" not "added", "fix" not "fixed"
-4. **Body** is optional; use it to explain *why* a change was made
-5. Keep subject under 72 characters when possible
+1. **主题**必填，冒号后使用中文描述
+2. 主题行**末尾不加句号**
+3. 使用**动词原形**开头："添加"不是"添加了"，"修复"不是"修复了"
+4. **正文**可选；用于解释变更的*原因*
+5. 主题尽量控制在 72 个字符以内
 
-## Examples
+## 示例
 
 ```
-feat: add todo block type to block editor
+feat: 添加块编辑器的 todo 块类型
 
-feat: implement nested note tree with drag-and-drop reordering
+feat: 实现笔记树形结构与拖拽排序
 
-fix: prevent rxdb proxy errors on null folderId values
+fix: 修复 folderId 为 null 时的 RxDB 代理错误
 
-refactor: extract block focus logic into useBlockFocus composable
+refactor: 将块聚焦逻辑提取为 useBlockFocus composable
 
-chore: migrate rxdb schema from v4 to v7
+chore: 将 RxDB schema 从 v4 迁移至 v7
 ```

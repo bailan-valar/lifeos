@@ -16,7 +16,7 @@ const storage = wrappedValidateAjvStorage({
 })
 
 const DB_NAME = 'lifeos-notes-v3'
-const SCHEMA_VERSION = 7
+const SCHEMA_VERSION = 8
 
 export async function initRxDB() {
   if (db) return db
@@ -85,7 +85,8 @@ async function doInitRxDB() {
         4: (doc: any) => doc,
         5: (doc: any) => doc,
         6: (doc: any) => doc,
-        7: (doc: any) => doc
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
       }
     },
     notes: {
@@ -131,7 +132,8 @@ async function doInitRxDB() {
           ...doc,
           parentId: doc.parentId || ''
         }),
-        7: (doc: any) => doc
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
       }
     },
     folders: {
@@ -171,7 +173,8 @@ async function doInitRxDB() {
         4: (doc: any) => doc,
         5: (doc: any) => doc,
         6: (doc: any) => doc,
-        7: (doc: any) => doc
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
       }
     },
     tags: {
@@ -202,7 +205,8 @@ async function doInitRxDB() {
         4: (doc: any) => doc,
         5: (doc: any) => doc,
         6: (doc: any) => doc,
-        7: (doc: any) => doc
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
       }
     },
     noteTags: {
@@ -235,7 +239,8 @@ async function doInitRxDB() {
         4: (doc: any) => doc,
         5: (doc: any) => doc,
         6: (doc: any) => doc,
-        7: (doc: any) => doc
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
       }
     },
     blockLinks: {
@@ -268,7 +273,115 @@ async function doInitRxDB() {
         4: (doc: any) => doc,
         5: (doc: any) => doc,
         6: (doc: any) => doc,
-        7: (doc: any) => doc
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
+      }
+    },
+    classes: {
+      schema: {
+        version: SCHEMA_VERSION,
+        primaryKey: 'id',
+        type: 'object',
+        properties: {
+          id: { type: 'string', maxLength: 100 },
+          userId: { type: 'string', maxLength: 100 },
+          name: { type: 'string', maxLength: 100 },
+          icon: { type: 'string', maxLength: 50 },
+          color: { type: 'string', maxLength: 20 },
+          description: { type: 'string', maxLength: 500 },
+          order: { type: 'number', multipleOf: 1, minimum: 0, maximum: 999999 },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          isSynced: { type: 'boolean' }
+        },
+        required: ['id', 'userId', 'name', 'icon', 'color', 'description', 'order', 'createdAt', 'updatedAt', 'isSynced'],
+        indexes: [
+          ['userId'],
+          ['isSynced']
+        ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => doc,
+        3: (doc: any) => doc,
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
+      }
+    },
+    classFields: {
+      schema: {
+        version: SCHEMA_VERSION,
+        primaryKey: 'id',
+        type: 'object',
+        properties: {
+          id: { type: 'string', maxLength: 100 },
+          classId: { type: 'string', maxLength: 100 },
+          name: { type: 'string', maxLength: 100 },
+          type: { type: 'string', enum: ['text', 'number', 'date', 'select', 'multiSelect', 'checkbox', 'url', 'email'], maxLength: 20 },
+          options: {
+            type: 'array',
+            items: { type: 'string', maxLength: 100 }
+          },
+          required: { type: 'boolean' },
+          order: { type: 'number', multipleOf: 1, minimum: 0, maximum: 999999 },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          isSynced: { type: 'boolean' }
+        },
+        required: ['id', 'classId', 'name', 'type', 'options', 'required', 'order', 'createdAt', 'updatedAt', 'isSynced'],
+        indexes: [
+          ['classId'],
+          ['isSynced']
+        ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => doc,
+        3: (doc: any) => doc,
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
+      }
+    },
+    noteClassBindings: {
+      schema: {
+        version: SCHEMA_VERSION,
+        primaryKey: 'id',
+        type: 'object',
+        properties: {
+          id: { type: 'string', maxLength: 100 },
+          noteId: { type: 'string', maxLength: 100 },
+          classId: { type: 'string', maxLength: 100 },
+          values: {
+            type: 'object',
+            additionalProperties: true
+          },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          isSynced: { type: 'boolean' }
+        },
+        required: ['id', 'noteId', 'classId', 'values', 'createdAt', 'updatedAt', 'isSynced'],
+        indexes: [
+          ['noteId'],
+          ['classId'],
+          ['noteId', 'classId'],
+          ['isSynced']
+        ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => doc,
+        3: (doc: any) => doc,
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc,
+        8: (doc: any) => doc
       }
     }
   })

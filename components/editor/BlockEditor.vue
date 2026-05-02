@@ -11,6 +11,25 @@
         @blur="flushTitleSave"
         @keydown.enter.prevent="onTitleEnter"
       />
+      <button
+        v-if="noteClassBadge"
+        class="title-class-badge"
+        :style="{ background: noteClassBadge.color + '18', color: noteClassBadge.color, border: `0.5px solid ${noteClassBadge.color}30` }"
+        type="button"
+        @click="drawerVisible = true"
+      >
+        <Icon :name="noteClassBadge.icon" />
+        <span>{{ noteClassBadge.name }}</span>
+      </button>
+      <button
+        v-else
+        class="title-class-badge undefined"
+        type="button"
+        @click="drawerVisible = true"
+      >
+        <Icon name="solar:question-circle-linear" />
+        <span>未定义</span>
+      </button>
     </div>
 
     <div class="editor-toolbar">
@@ -80,6 +99,14 @@
         </button>
       </div>
 
+      <div class="toolbar-divider" />
+
+      <div class="toolbar-group">
+        <button class="toolbar-btn" @click="drawerVisible = true" title="属性" type="button">
+          <Icon name="solar:menu-dots-square-linear" />
+        </button>
+      </div>
+
       <div class="toolbar-spacer" />
 
       <div class="toolbar-hint">
@@ -109,6 +136,13 @@
       @select="onSlashSelect"
       @close="slash.close"
     />
+
+    <ClassDrawer
+      v-model:visible="drawerVisible"
+      :note-id="props.noteId"
+      user-id="default-user"
+      @open-class-manager="$emit('open-class-manager')"
+    />
   </div>
 </template>
 
@@ -116,9 +150,11 @@
 import type { BlockType } from '~/types/block'
 import BlockList from './BlockList.vue'
 import SlashMenu, { type SlashMenuItem } from './SlashMenu.vue'
+import ClassDrawer from '~/components/class/ClassDrawer.vue'
 import { useBlockEditor } from '~/composables/useBlockEditor'
 import { useSlashCommand } from '~/composables/useSlashCommand'
 import { getRxDB, now } from '~/services/rxdb'
+import { getClassForNote } from '~/composables/useNoteClasses'
 
 interface Props {
   noteId: string
@@ -126,6 +162,7 @@ interface Props {
 
 interface Emits {
   (e: 'title-update', noteId: string, title: string): void
+  (e: 'open-class-manager'): void
 }
 
 const props = defineProps<Props>()
@@ -152,6 +189,8 @@ const slash = useSlashCommand()
 const activeBlockType = ref<BlockType>('text')
 const titleDraft = ref('')
 const titleDraftNoteId = ref('')
+const drawerVisible = ref(false)
+const noteClassBadge = ref<{ name: string; icon: string; color: string } | null>(null)
 let titleSaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const loadNoteTitle = async () => {
@@ -160,6 +199,19 @@ const loadNoteTitle = async () => {
   const doc = await db.notes.findOne(targetId).exec()
   titleDraft.value = doc?.title || ''
   titleDraftNoteId.value = targetId
+}
+
+const loadNoteClassBadge = async () => {
+  const data = await getClassForNote(props.noteId)
+  if (data) {
+    noteClassBadge.value = {
+      name: data.class.name,
+      icon: data.class.icon,
+      color: data.class.color
+    }
+  } else {
+    noteClassBadge.value = null
+  }
 }
 
 const flushTitleSave = async () => {
@@ -197,6 +249,7 @@ const onTitleEnter = async () => {
 onMounted(async () => {
   await initEditor()
   await loadNoteTitle()
+  await loadNoteClassBadge()
 })
 
 watch(() => props.noteId, async (newNoteId, oldNoteId) => {
@@ -204,6 +257,7 @@ watch(() => props.noteId, async (newNoteId, oldNoteId) => {
     await flushTitleSave()
     await initEditor()
     await loadNoteTitle()
+    await loadNoteClassBadge()
   }
 })
 
@@ -327,6 +381,39 @@ watch(activeBlockId, (newId) => {
 .editor-title-bar {
   padding: 18px 28px 6px;
   background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-class-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 0.5px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.title-class-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.title-class-badge.undefined {
+  background: rgba(142, 142, 147, 0.12);
+  color: rgba(60, 60, 67, 0.78);
+  border-color: rgba(60, 60, 67, 0.16);
+}
+
+.title-class-badge.undefined:hover {
+  background: rgba(142, 142, 147, 0.18);
 }
 
 .note-title-input {

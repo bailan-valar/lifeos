@@ -21,7 +21,7 @@
 
       <main class="notes-main">
         <div v-if="activeNoteId" class="editor-shell">
-          <BlockEditor :note-id="activeNoteId" @title-update="onTitleUpdate" />
+          <BlockEditor :note-id="activeNoteId" @title-update="onTitleUpdate" @open-class-manager="openClassManager" />
         </div>
 
         <div v-else class="empty-state">
@@ -52,6 +52,11 @@ let db: any = null
 const notes = ref<Note[]>([])
 const activeNoteId = ref<string | null>(null)
 const userId = ref('default-user')
+const classManagerVisible = inject<Ref<boolean>>('classManagerVisible', ref(false))
+
+const openClassManager = () => {
+  classManagerVisible.value = true
+}
 
 onMounted(async () => {
   console.log('[Notes] Component mounted, initializing database...')
@@ -247,7 +252,7 @@ const handleReorder = async (payload: {
 <style scoped>
 .notes-page {
   position: relative;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
   background:
     radial-gradient(ellipse 100% 80% at 0% 0%, rgba(255, 175, 207, 0.55) 0%, transparent 60%),
