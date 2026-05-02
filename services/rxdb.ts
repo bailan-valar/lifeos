@@ -16,7 +16,7 @@ const storage = wrappedValidateAjvStorage({
 })
 
 const DB_NAME = 'lifeos-notes-v3'
-const SCHEMA_VERSION = 8
+const SCHEMA_VERSION = 9
 
 export async function initRxDB() {
   if (db) return db
@@ -86,7 +86,8 @@ async function doInitRxDB() {
         5: (doc: any) => doc,
         6: (doc: any) => doc,
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     },
     notes: {
@@ -206,7 +207,8 @@ async function doInitRxDB() {
         5: (doc: any) => doc,
         6: (doc: any) => doc,
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     },
     noteTags: {
@@ -240,7 +242,8 @@ async function doInitRxDB() {
         5: (doc: any) => doc,
         6: (doc: any) => doc,
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     },
     blockLinks: {
@@ -274,7 +277,8 @@ async function doInitRxDB() {
         5: (doc: any) => doc,
         6: (doc: any) => doc,
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     },
     classes: {
@@ -381,7 +385,80 @@ async function doInitRxDB() {
         5: (doc: any) => doc,
         6: (doc: any) => doc,
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
+      }
+    },
+    module_config: {
+      schema: {
+        version: 9,
+        primaryKey: 'id',
+        type: 'object',
+        properties: {
+          id: { type: 'string', maxLength: 100 },
+          noteId: { type: 'string', maxLength: 100 },
+          moduleId: { type: 'string', maxLength: 100 },
+          enabled: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          isSynced: { type: 'boolean' }
+        },
+        required: ['id', 'noteId', 'moduleId', 'enabled', 'createdAt', 'updatedAt', 'isSynced'],
+        indexes: [
+          ['noteId'],
+          ['moduleId'],
+          ['noteId', 'moduleId'],
+          ['isSynced']
+        ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => doc,
+        3: (doc: any) => doc,
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc,
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
+      }
+    },
+    module_data: {
+      schema: {
+        version: 9,
+        primaryKey: 'id',
+        type: 'object',
+        properties: {
+          id: { type: 'string', maxLength: 100 },
+          noteId: { type: 'string', maxLength: 100 },
+          moduleId: { type: 'string', maxLength: 100 },
+          data: {
+            type: 'object',
+            additionalProperties: true
+          },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          version: { type: 'number', multipleOf: 1, minimum: 1, maximum: 999999 },
+          isSynced: { type: 'boolean' }
+        },
+        required: ['id', 'noteId', 'moduleId', 'data', 'createdAt', 'updatedAt', 'version', 'isSynced'],
+        indexes: [
+          ['noteId'],
+          ['moduleId'],
+          ['noteId', 'moduleId'],
+          ['isSynced']
+        ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => doc,
+        3: (doc: any) => doc,
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc,
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     }
   })

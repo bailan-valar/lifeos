@@ -32,6 +32,21 @@
       </button>
     </div>
 
+    <div class="editor-scroll">
+      <BlockList
+        :blocks="blocks"
+        :active-block-id="activeBlockId"
+        @focus="handleBlockFocus"
+        @update="handleBlockUpdate"
+        @delete="handleBlockDelete"
+        @enter="handleBlockEnter"
+        @move="handleBlockMove"
+        @reorder="handleBlockReorder"
+        @duplicate="handleBlockDuplicate"
+        @create="handleCreateBlock"
+      />
+    </div>
+
     <div class="editor-toolbar">
       <div class="toolbar-group">
         <button
@@ -112,21 +127,6 @@
       <div class="toolbar-hint">
         输入 <kbd>/</kbd> 唤起命令
       </div>
-    </div>
-
-    <div class="editor-scroll">
-      <BlockList
-        :blocks="blocks"
-        :active-block-id="activeBlockId"
-        @focus="handleBlockFocus"
-        @update="handleBlockUpdate"
-        @delete="handleBlockDelete"
-        @enter="handleBlockEnter"
-        @move="handleBlockMove"
-        @reorder="handleBlockReorder"
-        @duplicate="handleBlockDuplicate"
-        @create="handleCreateBlock"
-      />
     </div>
 
     <SlashMenu
@@ -442,7 +442,7 @@ watch(activeBlockId, (newId) => {
   background: rgba(255, 255, 255, 0.42);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+  border-top: 0.5px solid rgba(60, 60, 67, 0.12);
   position: relative;
   z-index: 2;
 }
