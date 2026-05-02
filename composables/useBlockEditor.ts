@@ -1,20 +1,20 @@
-import type { Block, BlockType } from '~/types/block'
+import type { Block, BlockType, BlockMetadata } from '~/types/block'
 import { getRxDB, generateId, now } from '~/services/rxdb'
 
 export function useBlockEditor(noteId: string) {
   const blocks = ref<Block[]>([])
   const activeBlockId = ref<string | null>(null)
-  const db = ref<any>(null)
+  let db: any = null
 
   const initEditor = async () => {
-    db.value = await getRxDB()
+    db = await getRxDB()
     await loadBlocks()
   }
 
   const loadBlocks = async () => {
-    if (!db.value) return
+    if (!db) return
 
-    const query = db.value.blocks.find({
+    const query = db.blocks.find({
       selector: {
         noteId
       },
@@ -26,7 +26,7 @@ export function useBlockEditor(noteId: string) {
   }
 
   const createBlock = async (type: BlockType = 'text', afterId?: string): Promise<Block> => {
-    if (!db.value) throw new Error('Database not initialized')
+    if (!db) throw new Error('Database not initialized')
 
     const newOrder = afterId
       ? (blocks.value.find(b => b.id === afterId)?.order || 0) + 1
@@ -38,14 +38,13 @@ export function useBlockEditor(noteId: string) {
       type,
       content: '',
       order: newOrder,
-      metadata: type === 'heading' ? { level: 1 } : {},
       createdAt: now(),
       updatedAt: now(),
       version: 1,
-      synced: false
+      isSynced: false
     }
 
-    await db.value.blocks.insert(newBlock)
+    await db.blocks.insert(newBlock)
 
     const newBlocks = [...blocks.value]
     const insertIndex = afterId
@@ -60,9 +59,9 @@ export function useBlockEditor(noteId: string) {
   }
 
   const updateBlock = async (block: Block) => {
-    if (!db.value) return
+    if (!db) return
 
-    await db.value.blocks.upsert({
+    await db.blocks.upsert({
       ...block,
       updatedAt: now()
     })
@@ -74,9 +73,9 @@ export function useBlockEditor(noteId: string) {
   }
 
   const deleteBlock = async (blockId: string) => {
-    if (!db.value) return
+    if (!db) return
 
-    await db.value.blocks.findOne(blockId).remove()
+    await db.blocks.findOne(blockId).remove()
 
     blocks.value = blocks.value.filter(b => b.id !== blockId)
 
@@ -115,16 +114,22 @@ export function useBlockEditor(noteId: string) {
     }
   }
 
-  const changeBlockType = async (blockId: string, newType: BlockType) => {
+  const changeBlockType = async (
+    blockId: string,
+    newType: BlockType,
+    metadata?: BlockMetadata
+  ) => {
     const block = blocks.value.find(b => b.id === blockId)
     if (!block) return
 
-    const metadata = newType === 'heading' ? { level: 1 } : {}
+    const nextMetadata = metadata
+      ? { ...(block.metadata || {}), ...metadata }
+      : block.metadata
 
     await updateBlock({
       ...block,
       type: newType,
-      metadata
+      metadata: nextMetadata
     })
   }
 

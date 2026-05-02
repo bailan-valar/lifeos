@@ -5,9 +5,14 @@
     @click="$emit('focus', block.id)"
   >
     <div class="code-header">
+      <div class="code-dots">
+        <span class="dot dot-red" />
+        <span class="dot dot-yellow" />
+        <span class="dot dot-green" />
+      </div>
       <select
         class="language-selector"
-        v-model="language"
+        :value="block.metadata?.language || ''"
         @change="onLanguageChange"
         @click.stop
       >
@@ -23,20 +28,21 @@
         <option value="css">CSS</option>
         <option value="sql">SQL</option>
         <option value="bash">Bash</option>
+        <option value="json">JSON</option>
+        <option value="markdown">Markdown</option>
       </select>
     </div>
-    <pre
-      class="code-content"
-      :class="{ 'is-empty': !block.content }"
-    >
+    <pre class="code-content">
       <code
-        :contenteditable="true"
+        contenteditable="true"
         @input="onInput"
         @keydown="onKeydown"
+        @focus="onFocus"
         @blur="onBlur"
         ref="contentRef"
         spellcheck="false"
-      >{{ block.content }}</code>
+        data-placeholder="// 输入代码..."
+      />
     </pre>
     <div class="block-handle" v-if="isActive">
       <slot name="handle" />
@@ -65,20 +71,42 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const contentRef = ref<HTMLElement | null>(null)
+const isFocused = ref(false)
 
-const language = computed({
-  get: () => props.block.metadata.language || '',
-  set: (value: string) => value
+const setContent = (text: string) => {
+  if (contentRef.value && contentRef.value.textContent !== text) {
+    contentRef.value.textContent = text || ''
+  }
+}
+
+onMounted(() => {
+  setContent(props.block.content)
+  if (props.isActive) {
+    nextTick(() => contentRef.value?.focus())
+  }
+})
+
+watch(() => props.block.id, () => {
+  setContent(props.block.content)
+})
+
+watch(() => props.block.content, (newVal) => {
+  if (!isFocused.value) {
+    setContent(newVal)
+  }
+})
+
+watch(() => props.isActive, (active) => {
+  if (active) {
+    nextTick(() => contentRef.value?.focus())
+  }
 })
 
 const onLanguageChange = (e: Event) => {
   const target = e.target as HTMLSelectElement
   emit('update', {
     ...props.block,
-    metadata: {
-      ...props.block.metadata,
-      language: target.value
-    },
+    metadata: { ...(props.block.metadata || {}), language: target.value },
     updatedAt: new Date().toISOString()
   })
 }
@@ -96,75 +124,107 @@ const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Tab') {
     e.preventDefault()
     document.execCommand('insertText', false, '  ')
-  } else if (e.key === 'Enter') {
+  } else if (e.key === 'Backspace' && !contentRef.value?.textContent) {
     e.preventDefault()
-    document.execCommand('insertText', false, '\n')
+    emit('delete', props.block.id)
   }
+}
+
+const onFocus = () => {
+  isFocused.value = true
 }
 
 const onBlur = () => {
-  if (contentRef.value) {
-    contentRef.value.textContent = props.block.content
-  }
+  isFocused.value = false
 }
-
-watch(() => props.isActive, (active) => {
-  if (active && contentRef.value) {
-    contentRef.value.focus()
-  }
-})
 </script>
 
 <style scoped>
 .code-block {
   position: relative;
   margin: 8px 0;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
   overflow: hidden;
-  transition: all 0.2s;
+  background: rgba(28, 28, 30, 0.92);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: all 0.18s ease;
 }
 
 .code-block:hover {
-  border-color: rgba(0, 122, 255, 0.3);
+  border-color: rgba(0, 122, 255, 0.35);
 }
 
 .code-block.is-active {
-  border-color: rgba(0, 122, 255, 0.6);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  border-color: rgba(0, 122, 255, 0.55);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.22),
+    0 0 0 3px rgba(0, 122, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .code-header {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.03);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
 }
+
+.code-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-red { background: rgb(255, 95, 86); }
+.dot-yellow { background: rgb(255, 189, 46); }
+.dot-green { background: rgb(39, 201, 63); }
 
 .language-selector {
-  padding: 4px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-  background: white;
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   outline: none;
+  font-family: 'SF Mono', 'Menlo', monospace;
 }
 
-.language-selector:focus {
-  border-color: rgb(0, 122, 255);
+.language-selector:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.language-selector option {
+  background: rgb(28, 28, 30);
+  color: white;
 }
 
 .code-content {
   margin: 0;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.01);
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  padding: 14px 18px;
+  background: transparent;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Ubuntu Mono', monospace;
+  font-size: 13.5px;
+  line-height: 1.65;
   overflow-x: auto;
-  min-height: 60px;
+  min-height: 64px;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .code-content code {
@@ -172,23 +232,26 @@ watch(() => props.isActive, (active) => {
   outline: none;
   white-space: pre-wrap;
   word-wrap: break-word;
+  min-height: 1.65em;
 }
 
-.code-content.is-empty::before {
-  content: 'Type code here...';
-  color: rgba(0, 0, 0, 0.4);
+.code-content code:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.32);
+  pointer-events: none;
 }
 
 .block-handle {
   position: absolute;
-  left: -24px;
+  left: -28px;
   top: 50%;
   transform: translateY(-50%);
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s ease;
 }
 
-.code-block:hover .block-handle {
+.code-block:hover .block-handle,
+.code-block.is-active .block-handle {
   opacity: 1;
 }
 </style>

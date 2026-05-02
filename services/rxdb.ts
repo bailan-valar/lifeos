@@ -1,174 +1,257 @@
-import { createRxDatabase } from 'rxdb'
+import { createRxDatabase, addRxPlugin } from 'rxdb'
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
-import { wrappedKeyEncryptionCryptoJsStorage } from 'rxdb/plugins/encryption-crypto-js'
-import type {
-  Block,
-  Note,
-  Folder,
-  Tag,
-  NoteTag,
-  BlockLink
-} from '~/types/block'
+import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv'
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
+import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode'
+
+addRxPlugin(RxDBDevModePlugin)
+addRxPlugin(RxDBMigrationSchemaPlugin)
 
 let db: any = null
+let initPromise: Promise<any> | null = null
+
+// Storage must be cached at module level for ignoreDuplicate to work
+const storage = wrappedValidateAjvStorage({
+  storage: getRxStorageDexie()
+})
+
+const DB_NAME = 'lifeos-notes-v3'
+const SCHEMA_VERSION = 4
 
 export async function initRxDB() {
   if (db) return db
+  if (initPromise) return initPromise
 
-  const { addRxPlugin } = await import('rxdb')
-  const { RxDBReplicationPlugin } = await import('rxdb/plugins/replication')
-  addRxPlugin(RxDBReplicationPlugin)
+  initPromise = doInitRxDB()
 
-  const schemaVersion = 1
+  try {
+    db = await initPromise
+    return db
+  } catch (error) {
+    initPromise = null
+    throw error
+  }
+}
 
-  db = await createRxDatabase({
-    name: 'lifeos-notes',
-    storage: wrappedKeyEncryptionCryptoJsStorage({
-      storage: getRxStorageDexie(),
-      password: 'default-password'
-    }),
-    multiInstance: true,
+async function doInitRxDB() {
+  const database = await createRxDatabase({
+    name: DB_NAME,
+    storage,
+    multiInstance: false,
     ignoreDuplicate: true
   })
 
-  await db.addCollections({
+  await database.addCollections({
     blocks: {
       schema: {
-        version: schemaVersion,
+        version: SCHEMA_VERSION,
         primaryKey: 'id',
         type: 'object',
         properties: {
           id: { type: 'string', maxLength: 100 },
-          noteId: { type: 'string' },
-          type: { type: 'string', enum: ['text', 'heading', 'list', 'code', 'quote', 'divider', 'image', 'callout'] },
-          content: { type: 'string' },
-          order: { type: 'number' },
-          metadata: { type: 'object' },
-          createdAt: { type: 'string', format: 'date-time' },
-          updatedAt: { type: 'string', format: 'date-time' },
-          version: { type: 'number' },
-          synced: { type: 'boolean' }
+          noteId: { type: 'string', maxLength: 100 },
+          type: { type: 'string', enum: ['text', 'heading', 'list', 'code', 'quote', 'divider', 'image', 'callout'], maxLength: 20 },
+          content: { type: 'string', maxLength: 10000 },
+          metadata: {
+            type: 'object',
+            properties: {
+              level: { type: 'number' },
+              language: { type: 'string', maxLength: 50 },
+              align: { type: 'string', maxLength: 10 },
+              color: { type: 'string', maxLength: 30 },
+              checked: { type: 'boolean' }
+            }
+          },
+          order: { type: 'number', multipleOf: 1, minimum: 0, maximum: 999999 },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          version: { type: 'number', multipleOf: 1, minimum: 1, maximum: 999999 },
+          isSynced: { type: 'boolean' }
         },
-        required: ['id', 'noteId', 'type', 'order', 'createdAt', 'updatedAt', 'version', 'synced'],
+        required: ['id', 'noteId', 'type', 'content', 'order', 'createdAt', 'updatedAt', 'version', 'isSynced'],
         indexes: [
           ['noteId'],
           ['noteId', 'order'],
-          ['synced']
+          ['isSynced']
         ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => {
+          const { _deleted, _rev, _meta, _attachments, ...cleanedDoc } = doc
+          return cleanedDoc
+        },
+        3: (doc: any) => doc,
+        4: (doc: any) => doc
       }
     },
     notes: {
       schema: {
-        version: schemaVersion,
+        version: SCHEMA_VERSION,
         primaryKey: 'id',
         type: 'object',
         properties: {
           id: { type: 'string', maxLength: 100 },
-          userId: { type: 'string' },
-          title: { type: 'string' },
-          folderId: { type: ['string', 'null'] },
-          order: { type: 'number' },
-          createdAt: { type: 'string', format: 'date-time' },
-          updatedAt: { type: 'string', format: 'date-time' },
-          version: { type: 'number' },
-          synced: { type: 'boolean' }
+          userId: { type: 'string', maxLength: 100 },
+          title: { type: 'string', maxLength: 500 },
+          folderId: { type: 'string', maxLength: 100 },
+          order: { type: 'number', multipleOf: 1, minimum: 0, maximum: 999999 },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          version: { type: 'number', multipleOf: 1, minimum: 1, maximum: 999999 },
+          isSynced: { type: 'boolean' }
         },
-        required: ['id', 'userId', 'title', 'order', 'createdAt', 'updatedAt', 'version', 'synced'],
+        required: ['id', 'userId', 'title', 'folderId', 'order', 'createdAt', 'updatedAt', 'version', 'isSynced'],
         indexes: [
           ['userId'],
-          ['folderId'],
           ['createdAt'],
-          ['synced']
+          ['isSynced']
         ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => {
+          return {
+            ...doc,
+            folderId: doc.folderId || '',
+            _deleted: undefined,
+            _rev: undefined,
+            _meta: undefined,
+            _attachments: undefined
+          }
+        },
+        3: (doc: any) => doc,
+        4: (doc: any) => doc
       }
     },
     folders: {
       schema: {
-        version: schemaVersion,
+        version: SCHEMA_VERSION,
         primaryKey: 'id',
         type: 'object',
         properties: {
           id: { type: 'string', maxLength: 100 },
-          userId: { type: 'string' },
-          name: { type: 'string' },
-          parentId: { type: ['string', 'null'] },
-          order: { type: 'number' },
-          createdAt: { type: 'string', format: 'date-time' },
-          updatedAt: { type: 'string', format: 'date-time' },
-          synced: { type: 'boolean' }
+          userId: { type: 'string', maxLength: 100 },
+          name: { type: 'string', maxLength: 200 },
+          parentId: { type: 'string', maxLength: 100 },
+          order: { type: 'number', multipleOf: 1, minimum: 0, maximum: 999999 },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          isSynced: { type: 'boolean' }
         },
-        required: ['id', 'userId', 'name', 'order', 'createdAt', 'updatedAt', 'synced'],
+        required: ['id', 'userId', 'name', 'parentId', 'order', 'createdAt', 'updatedAt', 'isSynced'],
         indexes: [
           ['userId'],
-          ['parentId'],
-          ['synced']
+          ['isSynced']
         ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => {
+          return {
+            ...doc,
+            parentId: doc.parentId || '',
+            _deleted: undefined,
+            _rev: undefined,
+            _meta: undefined,
+            _attachments: undefined
+          }
+        },
+        3: (doc: any) => doc,
+        4: (doc: any) => doc
       }
     },
     tags: {
       schema: {
-        version: schemaVersion,
+        version: SCHEMA_VERSION,
         primaryKey: 'id',
         type: 'object',
         properties: {
           id: { type: 'string', maxLength: 100 },
-          name: { type: 'string' },
-          color: { type: 'string' },
-          createdAt: { type: 'string', format: 'date-time' },
-          synced: { type: 'boolean' }
+          name: { type: 'string', maxLength: 100 },
+          color: { type: 'string', maxLength: 20 },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          isSynced: { type: 'boolean' }
         },
-        required: ['id', 'name', 'color', 'createdAt', 'synced'],
+        required: ['id', 'name', 'color', 'createdAt', 'isSynced'],
         indexes: [
           ['name'],
-          ['synced']
+          ['isSynced']
         ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => {
+          const { _deleted, _rev, _meta, _attachments, ...cleanedDoc } = doc
+          return cleanedDoc
+        },
+        3: (doc: any) => doc,
+        4: (doc: any) => doc
       }
     },
     noteTags: {
       schema: {
-        version: schemaVersion,
+        version: SCHEMA_VERSION,
         primaryKey: 'id',
         type: 'object',
         properties: {
           id: { type: 'string', maxLength: 100 },
-          noteId: { type: 'string' },
-          tagId: { type: 'string' },
-          createdAt: { type: 'string', format: 'date-time' },
-          synced: { type: 'boolean' }
+          noteId: { type: 'string', maxLength: 100 },
+          tagId: { type: 'string', maxLength: 100 },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          isSynced: { type: 'boolean' }
         },
-        required: ['id', 'noteId', 'tagId', 'createdAt', 'synced'],
+        required: ['id', 'noteId', 'tagId', 'createdAt', 'isSynced'],
         indexes: [
           ['noteId'],
           ['tagId'],
           ['noteId', 'tagId'],
-          ['synced']
+          ['isSynced']
         ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => {
+          const { _deleted, _rev, _meta, _attachments, ...cleanedDoc } = doc
+          return cleanedDoc
+        },
+        3: (doc: any) => doc,
+        4: (doc: any) => doc
       }
     },
     blockLinks: {
       schema: {
-        version: schemaVersion,
+        version: SCHEMA_VERSION,
         primaryKey: 'id',
         type: 'object',
         properties: {
           id: { type: 'string', maxLength: 100 },
-          sourceBlockId: { type: 'string' },
-          targetBlockId: { type: 'string' },
-          createdAt: { type: 'string', format: 'date-time' },
-          synced: { type: 'boolean' }
+          sourceBlockId: { type: 'string', maxLength: 100 },
+          targetBlockId: { type: 'string', maxLength: 100 },
+          createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
+          isSynced: { type: 'boolean' }
         },
-        required: ['id', 'sourceBlockId', 'targetBlockId', 'createdAt', 'synced'],
+        required: ['id', 'sourceBlockId', 'targetBlockId', 'createdAt', 'isSynced'],
         indexes: [
           ['sourceBlockId'],
           ['targetBlockId'],
           ['sourceBlockId', 'targetBlockId'],
-          ['synced']
+          ['isSynced']
         ]
+      },
+      migrationStrategies: {
+        1: (doc: any) => doc,
+        2: (doc: any) => {
+          const { _deleted, _rev, _meta, _attachments, ...cleanedDoc } = doc
+          return cleanedDoc
+        },
+        3: (doc: any) => doc,
+        4: (doc: any) => doc
       }
     }
   })
 
-  return db
+  return database
 }
 
 export async function getRxDB() {
@@ -179,7 +262,7 @@ export async function getRxDB() {
 }
 
 export function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
 }
 
 export function now(): string {

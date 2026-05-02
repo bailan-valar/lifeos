@@ -17,6 +17,8 @@
             class="action-btn"
             @click.stop="moveBlock(block.id, 'up')"
             :disabled="block.order === 0"
+            title="上移"
+            type="button"
           >
             <Icon name="solar:arrow-up-linear" />
           </button>
@@ -24,12 +26,16 @@
             class="action-btn"
             @click.stop="moveBlock(block.id, 'down')"
             :disabled="block.order === blocks.length - 1"
+            title="下移"
+            type="button"
           >
             <Icon name="solar:arrow-down-linear" />
           </button>
           <button
             class="action-btn delete-btn"
             @click.stop="deleteBlock(block.id)"
+            title="删除"
+            type="button"
           >
             <Icon name="solar:trash-bin-trash-linear" />
           </button>
@@ -38,10 +44,14 @@
     </component>
 
     <div v-if="blocks.length === 0" class="empty-state">
-      <p>开始输入来创建你的第一个块...</p>
-      <button class="add-block-btn" @click="createBlock()">
+      <div class="empty-icon">
+        <Icon name="solar:document-add-linear" />
+      </div>
+      <p class="empty-title">这里空空如也</p>
+      <p class="empty-hint">点击下方按钮开始书写，或输入 <kbd>/</kbd> 快速插入块</p>
+      <button class="add-block-btn" @click="createBlock()" type="button">
         <Icon name="solar:add-circle-linear" />
-        添加文本块
+        <span>添加文本块</span>
       </button>
     </div>
   </div>
@@ -69,7 +79,7 @@ interface Emits {
   (e: 'create', type: 'text' | 'heading' | 'code' | 'quote' | 'divider'): void
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const getBlockComponent = (type: string) => {
@@ -99,44 +109,57 @@ const createBlock = () => emit('create', 'text')
 .block-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 16px;
+  gap: 2px;
+  padding: 4px 0 24px;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 .block-actions {
   display: flex;
+  flex-direction: column;
   gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 0.5px solid rgba(60, 60, 67, 0.14);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  width: 24px;
+  height: 24px;
+  border: none;
   border-radius: 6px;
-  background: white;
-  color: rgb(0, 122, 255);
+  background: transparent;
+  color: rgba(60, 60, 67, 0.7);
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .action-btn:hover:not(:disabled) {
-  background: rgb(0, 122, 255);
-  color: white;
-  border-color: rgb(0, 122, 255);
+  background: rgba(0, 122, 255, 0.14);
+  color: rgb(0, 102, 230);
+}
+
+.action-btn:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
 .action-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.32;
   cursor: not-allowed;
 }
 
-.delete-btn:hover {
-  background: rgb(255, 59, 48);
-  color: white;
-  border-color: rgb(255, 59, 48);
+.delete-btn:hover:not(:disabled) {
+  background: rgba(255, 59, 48, 0.14);
+  color: rgb(255, 59, 48);
 }
 
 .empty-state {
@@ -144,33 +167,86 @@ const createBlock = () => emit('create', 'text')
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
-  color: rgba(0, 0, 0, 0.4);
+  padding: 64px 24px;
+  text-align: center;
 }
 
-.empty-state p {
+.empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
   margin-bottom: 16px;
-  font-size: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 0.5px solid rgba(60, 60, 67, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 4px 16px rgba(0, 0, 0, 0.04);
+  color: rgb(0, 122, 255);
+  font-size: 28px;
+}
+
+.empty-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(0, 0, 0, 0.86);
+}
+
+.empty-hint {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(60, 60, 67, 0.6);
+  max-width: 320px;
+}
+
+.empty-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 0.5px solid rgba(60, 60, 67, 0.18);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.78);
 }
 
 .add-block-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 24px;
-  background: rgb(0, 122, 255);
+  padding: 10px 20px;
+  background: linear-gradient(180deg, rgb(10, 132, 255) 0%, rgb(0, 102, 230) 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  transition: all 0.2s;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.32) inset,
+    0 4px 14px rgba(0, 122, 255, 0.32);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .add-block-btn:hover {
-  background: rgb(0, 105, 217);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.32) inset,
+    0 6px 20px rgba(0, 122, 255, 0.4);
+}
+
+.add-block-btn:active {
+  transform: scale(0.97);
 }
 </style>

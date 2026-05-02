@@ -1,4 +1,4 @@
-import { getRxDB } from './rxdb'
+import { getRxDB } from '~/services/rxdb'
 import type { Block, Note, Folder, Tag } from '~/types/block'
 
 export interface SyncStatus {
@@ -10,7 +10,7 @@ export interface SyncStatus {
 }
 
 export function useOfflineSync(userId: string) {
-  const db = ref<any>(null)
+  let db: any = null
   const isOnline = ref(navigator.onLine)
   const isSyncing = ref(false)
   const lastSyncAt = ref<Date | null>(null)
@@ -26,7 +26,7 @@ export function useOfflineSync(userId: string) {
   }))
 
   const init = async () => {
-    db.value = await getRxDB()
+    db = await getRxDB()
 
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
@@ -44,25 +44,25 @@ export function useOfflineSync(userId: string) {
   }
 
   const countPendingOperations = async () => {
-    if (!db.value) return
+    if (!db) return
 
     const [
-      unsyncedBlocks,
-      unsyncedNotes,
-      unsyncedFolders,
-      unsyncedTags
+      unisSyncedBlocks,
+      unisSyncedNotes,
+      unisSyncedFolders,
+      unisSyncedTags
     ] = await Promise.all([
-      db.value.blocks.find({ selector: { synced: false } }).exec(),
-      db.value.notes.find({ selector: { synced: false } }).exec(),
-      db.value.folders.find({ selector: { synced: false } }).exec(),
-      db.value.tags.find({ selector: { synced: false } }).exec()
+      db.blocks.find({ selector: { isSynced: false } }).exec(),
+      db.notes.find({ selector: { isSynced: false } }).exec(),
+      db.folders.find({ selector: { isSynced: false } }).exec(),
+      db.tags.find({ selector: { isSynced: false } }).exec()
     ])
 
     pendingOperations.value =
-      unsyncedBlocks.length +
-      unsyncedNotes.length +
-      unsyncedFolders.length +
-      unsyncedTags.length
+      unisSyncedBlocks.length +
+      unisSyncedNotes.length +
+      unisSyncedFolders.length +
+      unisSyncedTags.length
   }
 
   const sync = async () => {
@@ -83,15 +83,15 @@ export function useOfflineSync(userId: string) {
   }
 
   const pushLocalChanges = async () => {
-    if (!db.value) return
+    if (!db) return
 
     const collections = ['blocks', 'notes', 'folders', 'tags'] as const
 
     for (const collectionName of collections) {
-      const collection = db.value[collectionName]
-      const unsyncedDocs = await collection.find({ selector: { synced: false } }).exec()
+      const collection = db[collectionName]
+      const unisSyncedDocs = await collection.find({ selector: { isSynced: false } }).exec()
 
-      for (const doc of unsyncedDocs) {
+      for (const doc of unisSyncedDocs) {
         const data = doc.toJSON()
         try {
           const response = await $fetch(`/api/${collectionName}/${data.id}`, {
@@ -101,7 +101,7 @@ export function useOfflineSync(userId: string) {
 
           await doc.update({
             $set: {
-              synced: true,
+              isSynced: true,
               version: (data.version || 0) + 1
             }
           })
@@ -113,14 +113,14 @@ export function useOfflineSync(userId: string) {
   }
 
   const pullRemoteChanges = async () => {
-    if (!db.value) return
+    if (!db) return
 
     const lastSync = lastSyncAt.value || new Date(0)
     const collections = ['blocks', 'notes', 'folders', 'tags'] as const
 
     for (const collectionName of collections) {
       try {
-        const remoteDocs = await $fetch(`/api/${collectionName}`, {
+        const remoteDocs = await $fetch<any[]>(`/api/${collectionName}`, {
           query: {
             userId,
             updatedAt: lastSync.toISOString()
@@ -128,23 +128,23 @@ export function useOfflineSync(userId: string) {
         })
 
         for (const remoteDoc of remoteDocs) {
-          const localDoc = await db.value[collectionName].findOne(remoteDoc.id).exec()
+          const localDoc = await db[collectionName].findOne(remoteDoc.id).exec()
 
           if (localDoc) {
             if (remoteDoc.version > localDoc.version) {
               await localDoc.update({
                 $set: {
                   ...remoteDoc,
-                  synced: true
+                  isSynced: true
                 }
               })
             } else if (remoteDoc.version < localDoc.version) {
               hasConflicts.value = true
             }
           } else {
-            await db.value[collectionName].insert({
+            await db[collectionName].insert({
               ...remoteDoc,
-              synced: true
+              isSynced: true
             })
           }
         }

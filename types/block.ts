@@ -14,35 +14,35 @@ export interface Block {
   noteId: string
   type: BlockType
   content: string
+  metadata?: BlockMetadata
   order: number
-  metadata: BlockMetadata
   createdAt: string
   updatedAt: string
   version: number
-  synced: boolean
+  isSynced: boolean
 }
 
 export interface Note {
   id: string
   userId: string
   title: string
-  folderId: string | null
+  folderId: string // Changed from string | null to string to avoid RxDB proxy issues
   order: number
   createdAt: string
   updatedAt: string
   version: number
-  synced: boolean
+  isSynced: boolean
 }
 
 export interface Folder {
   id: string
   userId: string
   name: string
-  parentId: string | null
+  parentId: string // Changed from string | null to string to avoid RxDB proxy issues
   order: number
   createdAt: string
   updatedAt: string
-  synced: boolean
+  isSynced: boolean
 }
 
 export interface Tag {
@@ -50,7 +50,7 @@ export interface Tag {
   name: string
   color: string
   createdAt: string
-  synced: boolean
+  isSynced: boolean
 }
 
 export interface NoteTag {
@@ -58,7 +58,7 @@ export interface NoteTag {
   noteId: string
   tagId: string
   createdAt: string
-  synced: boolean
+  isSynced: boolean
 }
 
 export interface BlockLink {
@@ -66,7 +66,7 @@ export interface BlockLink {
   sourceBlockId: string
   targetBlockId: string
   createdAt: string
-  synced: boolean
+  isSynced: boolean
 }
 
 export interface BlockNoteSystem {
