@@ -16,7 +16,7 @@ const storage = wrappedValidateAjvStorage({
 })
 
 const DB_NAME = 'lifeos-notes-v3'
-const SCHEMA_VERSION = 4
+const SCHEMA_VERSION = 7
 
 export async function initRxDB() {
   if (db) return db
@@ -37,7 +37,7 @@ async function doInitRxDB() {
   const database = await createRxDatabase({
     name: DB_NAME,
     storage,
-    multiInstance: false,
+    multiInstance: true,
     ignoreDuplicate: true
   })
 
@@ -50,7 +50,7 @@ async function doInitRxDB() {
         properties: {
           id: { type: 'string', maxLength: 100 },
           noteId: { type: 'string', maxLength: 100 },
-          type: { type: 'string', enum: ['text', 'heading', 'list', 'code', 'quote', 'divider', 'image', 'callout'], maxLength: 20 },
+          type: { type: 'string', enum: ['text', 'heading', 'list', 'todo', 'code', 'quote', 'divider', 'image', 'callout'], maxLength: 20 },
           content: { type: 'string', maxLength: 10000 },
           metadata: {
             type: 'object',
@@ -82,7 +82,10 @@ async function doInitRxDB() {
           return cleanedDoc
         },
         3: (doc: any) => doc,
-        4: (doc: any) => doc
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc
       }
     },
     notes: {
@@ -95,13 +98,14 @@ async function doInitRxDB() {
           userId: { type: 'string', maxLength: 100 },
           title: { type: 'string', maxLength: 500 },
           folderId: { type: 'string', maxLength: 100 },
+          parentId: { type: 'string', maxLength: 100 },
           order: { type: 'number', multipleOf: 1, minimum: 0, maximum: 999999 },
           createdAt: { type: 'string', format: 'date-time', maxLength: 50 },
           updatedAt: { type: 'string', format: 'date-time', maxLength: 50 },
           version: { type: 'number', multipleOf: 1, minimum: 1, maximum: 999999 },
           isSynced: { type: 'boolean' }
         },
-        required: ['id', 'userId', 'title', 'folderId', 'order', 'createdAt', 'updatedAt', 'version', 'isSynced'],
+        required: ['id', 'userId', 'title', 'folderId', 'parentId', 'order', 'createdAt', 'updatedAt', 'version', 'isSynced'],
         indexes: [
           ['userId'],
           ['createdAt'],
@@ -121,7 +125,13 @@ async function doInitRxDB() {
           }
         },
         3: (doc: any) => doc,
-        4: (doc: any) => doc
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => ({
+          ...doc,
+          parentId: doc.parentId || ''
+        }),
+        7: (doc: any) => doc
       }
     },
     folders: {
@@ -158,7 +168,10 @@ async function doInitRxDB() {
           }
         },
         3: (doc: any) => doc,
-        4: (doc: any) => doc
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc
       }
     },
     tags: {
@@ -186,7 +199,10 @@ async function doInitRxDB() {
           return cleanedDoc
         },
         3: (doc: any) => doc,
-        4: (doc: any) => doc
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc
       }
     },
     noteTags: {
@@ -216,7 +232,10 @@ async function doInitRxDB() {
           return cleanedDoc
         },
         3: (doc: any) => doc,
-        4: (doc: any) => doc
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc
       }
     },
     blockLinks: {
@@ -246,7 +265,10 @@ async function doInitRxDB() {
           return cleanedDoc
         },
         3: (doc: any) => doc,
-        4: (doc: any) => doc
+        4: (doc: any) => doc,
+        5: (doc: any) => doc,
+        6: (doc: any) => doc,
+        7: (doc: any) => doc
       }
     }
   })

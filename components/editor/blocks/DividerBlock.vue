@@ -5,9 +5,6 @@
     @click="$emit('focus', block.id)"
   >
     <div class="divider-line" />
-    <div class="block-handle" v-if="isActive">
-      <slot name="handle" />
-    </div>
   </div>
 </template>
 
@@ -60,19 +57,5 @@ defineEmits<Emits>()
     rgba(60, 60, 67, 0.18) 85%,
     transparent 100%
   );
-}
-
-.block-handle {
-  position: absolute;
-  left: -28px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.divider-block:hover .block-handle,
-.divider-block.is-active .block-handle {
-  opacity: 1;
 }
 </style>

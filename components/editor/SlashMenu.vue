@@ -68,7 +68,7 @@ const allItems: SlashMenuItem[] = [
     type: 'text',
     label: '文本',
     description: '普通段落文本',
-    icon: 'solar:text-bubble-linear',
+    icon: 'solar:text-linear',
     shortcut: 'Text'
   },
   {
@@ -76,7 +76,7 @@ const allItems: SlashMenuItem[] = [
     type: 'heading',
     label: '标题 1',
     description: '一级大标题',
-    icon: 'solar:text-field-bold-linear',
+    icon: 'solar:text-field-linear',
     metadata: { level: 1 },
     shortcut: 'H1'
   },
@@ -85,7 +85,7 @@ const allItems: SlashMenuItem[] = [
     type: 'heading',
     label: '标题 2',
     description: '二级标题',
-    icon: 'solar:text-field-bold-linear',
+    icon: 'solar:text-field-linear',
     metadata: { level: 2 },
     shortcut: 'H2'
   },
@@ -94,7 +94,7 @@ const allItems: SlashMenuItem[] = [
     type: 'heading',
     label: '标题 3',
     description: '三级标题',
-    icon: 'solar:text-field-bold-linear',
+    icon: 'solar:text-field-linear',
     metadata: { level: 3 },
     shortcut: 'H3'
   },
@@ -107,11 +107,19 @@ const allItems: SlashMenuItem[] = [
     shortcut: 'List'
   },
   {
+    id: 'todo',
+    type: 'todo',
+    label: '待办',
+    description: '可勾选的待办事项',
+    icon: 'solar:checklist-minimalistic-linear',
+    shortcut: 'Todo'
+  },
+  {
     id: 'quote',
     type: 'quote',
     label: '引用',
     description: '引用一段重要内容',
-    icon: 'solar:quote-up-linear',
+    icon: 'solar:chat-square-linear',
     shortcut: 'Quote'
   },
   {

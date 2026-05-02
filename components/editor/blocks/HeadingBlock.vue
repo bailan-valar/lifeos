@@ -29,15 +29,13 @@
       ref="contentRef"
       spellcheck="false"
     />
-    <div class="block-handle" v-if="isActive">
-      <slot name="handle" />
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Block } from '~/types/block'
 import { useSlashCommand } from '~/composables/useSlashCommand'
+import { useBlockFocus } from '~/composables/useBlockFocus'
 
 interface Props {
   block: Block
@@ -58,6 +56,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const slash = useSlashCommand()
+const focusBus = useBlockFocus()
 
 const contentRef = ref<HTMLElement | null>(null)
 const isFocused = ref(false)
@@ -181,6 +180,12 @@ const clearSlashQuery = () => {
 watch(() => slash.state.clearRequestId, () => {
   if (slash.state.blockId === props.block.id) {
     clearSlashQuery()
+  }
+})
+
+watch(() => focusBus.state.endRequestId, () => {
+  if (focusBus.state.targetId === props.block.id && props.isActive) {
+    nextTick(() => placeCaretAtEnd(contentRef.value!))
   }
 })
 
@@ -316,19 +321,5 @@ defineExpose({ clearSlashQuery })
 .heading-level-3 .block-content {
   font-size: 20px;
   line-height: 1.3;
-}
-
-.block-handle {
-  position: absolute;
-  left: -28px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.heading-block:hover .block-handle,
-.heading-block.is-active .block-handle {
-  opacity: 1;
 }
 </style>

@@ -1,5 +1,18 @@
 <template>
   <div class="block-editor">
+    <div class="editor-title-bar">
+      <input
+        v-model="titleDraft"
+        class="note-title-input"
+        type="text"
+        placeholder="无标题"
+        spellcheck="false"
+        @input="scheduleTitleSave"
+        @blur="flushTitleSave"
+        @keydown.enter.prevent="onTitleEnter"
+      />
+    </div>
+
     <div class="editor-toolbar">
       <div class="toolbar-group">
         <button
@@ -9,7 +22,7 @@
           title="文本"
           type="button"
         >
-          <Icon name="solar:text-bubble-linear" />
+          <Icon name="solar:text-linear" />
         </button>
         <button
           class="toolbar-btn"
@@ -18,7 +31,7 @@
           title="标题"
           type="button"
         >
-          <Icon name="solar:text-field-bold-linear" />
+          <Icon name="solar:text-field-linear" />
         </button>
         <button
           class="toolbar-btn"
@@ -36,7 +49,7 @@
           title="引用"
           type="button"
         >
-          <Icon name="solar:quote-up-linear" />
+          <Icon name="solar:chat-square-linear" />
         </button>
         <button
           class="toolbar-btn"
@@ -83,6 +96,8 @@
         @delete="handleBlockDelete"
         @enter="handleBlockEnter"
         @move="handleBlockMove"
+        @reorder="handleBlockReorder"
+        @duplicate="handleBlockDuplicate"
         @create="handleCreateBlock"
       />
     </div>
@@ -103,12 +118,19 @@ import BlockList from './BlockList.vue'
 import SlashMenu, { type SlashMenuItem } from './SlashMenu.vue'
 import { useBlockEditor } from '~/composables/useBlockEditor'
 import { useSlashCommand } from '~/composables/useSlashCommand'
+import { getRxDB, now } from '~/services/rxdb'
 
 interface Props {
   noteId: string
 }
 
+interface Emits {
+  (e: 'title-update', noteId: string, title: string): void
+}
+
 const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+const noteIdRef = toRef(props, 'noteId')
 
 const {
   blocks,
@@ -116,19 +138,77 @@ const {
   initEditor,
   createBlock,
   moveBlock,
+  reorderBlock,
+  duplicateBlock,
   changeBlockType,
   handleBlockFocus,
   handleBlockUpdate,
   handleBlockDelete,
   handleBlockEnter
-} = useBlockEditor(props.noteId)
+} = useBlockEditor(noteIdRef)
 
 const slash = useSlashCommand()
 
 const activeBlockType = ref<BlockType>('text')
+const titleDraft = ref('')
+const titleDraftNoteId = ref('')
+let titleSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+const loadNoteTitle = async () => {
+  const db = await getRxDB()
+  const targetId = props.noteId
+  const doc = await db.notes.findOne(targetId).exec()
+  titleDraft.value = doc?.title || ''
+  titleDraftNoteId.value = targetId
+}
+
+const flushTitleSave = async () => {
+  if (titleSaveTimer) {
+    clearTimeout(titleSaveTimer)
+    titleSaveTimer = null
+  }
+  const id = titleDraftNoteId.value
+  if (!id) return
+  const db = await getRxDB()
+  const doc = await db.notes.findOne(id).exec()
+  if (!doc) return
+  const trimmed = titleDraft.value
+  if (doc.title === trimmed) return
+  await doc.patch({ title: trimmed, updatedAt: now() })
+  emit('title-update', id, trimmed)
+}
+
+const scheduleTitleSave = () => {
+  if (titleSaveTimer) clearTimeout(titleSaveTimer)
+  titleSaveTimer = setTimeout(() => {
+    flushTitleSave()
+  }, 500)
+}
+
+const onTitleEnter = async () => {
+  await flushTitleSave()
+  if (blocks.value.length > 0) {
+    activeBlockId.value = blocks.value[0].id
+  } else {
+    await createBlock('text')
+  }
+}
 
 onMounted(async () => {
   await initEditor()
+  await loadNoteTitle()
+})
+
+watch(() => props.noteId, async (newNoteId, oldNoteId) => {
+  if (newNoteId && newNoteId !== oldNoteId) {
+    await flushTitleSave()
+    await initEditor()
+    await loadNoteTitle()
+  }
+})
+
+onBeforeUnmount(() => {
+  flushTitleSave()
 })
 
 const insertBlockType = async (type: BlockType) => {
@@ -144,19 +224,32 @@ const handleBlockMove = async (id: string, direction: 'up' | 'down') => {
   await moveBlock(id, direction)
 }
 
+const handleBlockReorder = async (id: string, newIndex: number) => {
+  await reorderBlock(id, newIndex)
+}
+
+const handleBlockDuplicate = async (id: string) => {
+  await duplicateBlock(id)
+}
+
 const handleCreateBlock = async (type: BlockType) => {
   await createBlock(type)
 }
 
 const onSlashSelect = async (item: SlashMenuItem) => {
   const blockId = slash.state.blockId
-  slash.requestClear()
-  await nextTick()
-  if (blockId) {
-    await changeBlockType(blockId, item.type, item.metadata)
-    activeBlockType.value = item.type
-  }
   slash.close()
+  if (blockId) {
+    const block = blocks.value.find(b => b.id === blockId)
+    if (block) {
+      const temp = document.createElement('div')
+      temp.innerHTML = block.content
+      const text = temp.textContent || ''
+      const cleared = text.replace(/(^|\s)\/[^\s/]*$/, '$1')
+      await changeBlockType(blockId, item.type, item.metadata, cleared)
+      activeBlockType.value = item.type
+    }
+  }
 }
 
 const handleUndo = () => {
@@ -187,6 +280,10 @@ const handleExportMarkdown = () => {
         return '---'
       case 'list':
         return `- ${text}`
+      case 'todo': {
+        const mark = block.metadata?.checked ? 'x' : ' '
+        return `- [${mark}] ${text}`
+      }
       default:
         return text
     }
@@ -225,6 +322,29 @@ watch(activeBlockId, (newId) => {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.editor-title-bar {
+  padding: 18px 28px 6px;
+  background: transparent;
+}
+
+.note-title-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: rgba(0, 0, 0, 0.92);
+  padding: 4px 0;
+  caret-color: rgb(0, 122, 255);
+}
+
+.note-title-input::placeholder {
+  color: rgba(60, 60, 67, 0.32);
+  font-weight: 700;
 }
 
 .editor-toolbar {

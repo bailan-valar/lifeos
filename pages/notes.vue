@@ -14,12 +14,14 @@
           :active-note-id="activeNoteId"
           @select="selectNote"
           @create="createNote"
+          @create-child="createChildNote"
+          @reorder="handleReorder"
         />
       </aside>
 
       <main class="notes-main">
         <div v-if="activeNoteId" class="editor-shell">
-          <BlockEditor :note-id="activeNoteId" />
+          <BlockEditor :note-id="activeNoteId" @title-update="onTitleUpdate" />
         </div>
 
         <div v-else class="empty-state">
@@ -77,16 +79,24 @@ const selectNote = async (noteId: string) => {
   activeNoteId.value = noteId
 }
 
+const onTitleUpdate = (noteId: string, title: string) => {
+  const idx = notes.value.findIndex(n => n.id === noteId)
+  if (idx === -1) return
+  notes.value[idx] = { ...notes.value[idx], title, updatedAt: now() }
+}
+
 const createNote = async () => {
   if (!db) return
 
   console.log('[Notes] Creating new note...')
+  const rootSiblings = notes.value.filter(n => !n.parentId)
   const newNote: Note = {
     id: generateId(),
     userId: userId.value,
     title: '新笔记',
     folderId: '', // Changed from null to string to avoid RxDB proxy issues
-    order: 0,
+    parentId: '',
+    order: rootSiblings.length,
     createdAt: now(),
     updatedAt: now(),
     version: 1,
@@ -130,6 +140,107 @@ const createNote = async () => {
 
   await loadNotes()
   activeNoteId.value = newNote.id
+}
+
+const createChildNote = async (parentId: string) => {
+  if (!db) return
+  const childSiblings = notes.value.filter(n => n.parentId === parentId)
+  const newNote: Note = {
+    id: generateId(),
+    userId: userId.value,
+    title: '新笔记',
+    folderId: '',
+    parentId,
+    order: childSiblings.length,
+    createdAt: now(),
+    updatedAt: now(),
+    version: 1,
+    isSynced: false
+  }
+  await db.notes.insert(newNote)
+
+  const newBlock: Block = {
+    id: generateId(),
+    noteId: newNote.id,
+    type: 'text',
+    content: '',
+    order: 0,
+    createdAt: now(),
+    updatedAt: now(),
+    version: 1,
+    isSynced: false
+  }
+  await db.blocks.insert(newBlock)
+
+  await loadNotes()
+  activeNoteId.value = newNote.id
+}
+
+const handleReorder = async (payload: {
+  id: string
+  targetId: string | null
+  position: 'before' | 'after' | 'child' | 'root-end'
+}) => {
+  if (!db) return
+  const moved = notes.value.find(n => n.id === payload.id)
+  if (!moved) return
+
+  let newParentId = ''
+  let insertIndex = 0
+
+  if (payload.position === 'root-end') {
+    newParentId = ''
+    insertIndex = notes.value.filter(n => !n.parentId && n.id !== payload.id).length
+  } else if (payload.position === 'child') {
+    if (!payload.targetId) return
+    newParentId = payload.targetId
+    insertIndex = notes.value.filter(n => n.parentId === payload.targetId && n.id !== payload.id).length
+  } else {
+    if (!payload.targetId) return
+    const target = notes.value.find(n => n.id === payload.targetId)
+    if (!target) return
+    newParentId = target.parentId || ''
+    const siblingsExcl = notes.value
+      .filter(n => (n.parentId || '') === newParentId && n.id !== payload.id)
+      .sort((a, b) => a.order - b.order)
+    const targetIdx = siblingsExcl.findIndex(n => n.id === payload.targetId)
+    if (targetIdx === -1) return
+    insertIndex = payload.position === 'before' ? targetIdx : targetIdx + 1
+  }
+
+  const oldParentId = moved.parentId || ''
+
+  const newSiblings = notes.value
+    .filter(n => (n.parentId || '') === newParentId && n.id !== payload.id)
+    .sort((a, b) => a.order - b.order)
+  newSiblings.splice(insertIndex, 0, moved)
+
+  for (let i = 0; i < newSiblings.length; i++) {
+    const row = newSiblings[i]
+    const isMoved = row.id === payload.id
+    const needsParentChange = isMoved && (row.parentId || '') !== newParentId
+    const needsOrderChange = row.order !== i
+    if (!needsParentChange && !needsOrderChange) continue
+    const doc = await db.notes.findOne(row.id).exec()
+    if (!doc) continue
+    const patch: Record<string, any> = { order: i, updatedAt: now() }
+    if (needsParentChange) patch.parentId = newParentId
+    await doc.patch(patch)
+  }
+
+  if (oldParentId !== newParentId) {
+    const oldSiblings = notes.value
+      .filter(n => (n.parentId || '') === oldParentId && n.id !== payload.id)
+      .sort((a, b) => a.order - b.order)
+    for (let i = 0; i < oldSiblings.length; i++) {
+      if (oldSiblings[i].order === i) continue
+      const doc = await db.notes.findOne(oldSiblings[i].id).exec()
+      if (!doc) continue
+      await doc.patch({ order: i, updatedAt: now() })
+    }
+  }
+
+  await loadNotes()
 }
 </script>
 

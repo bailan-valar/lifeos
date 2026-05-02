@@ -30,3 +30,6 @@ lerna-debug.log*
 
 # Prisma
 prisma/migrations/*_*/migration.sql
+
+# Claude local settings
+.claude/

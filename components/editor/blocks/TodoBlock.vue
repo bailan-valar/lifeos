@@ -1,15 +1,25 @@
 <template>
   <div
-    class="text-block"
-    :class="{ 'is-active': isActive }"
+    class="todo-block"
+    :class="{ 'is-active': isActive, 'is-checked': checked }"
     @click="onContainerClick"
   >
+    <button
+      class="todo-checkbox"
+      :class="{ checked }"
+      type="button"
+      :aria-pressed="checked"
+      @click.stop="toggleChecked"
+      @mousedown.stop
+    >
+      <Icon v-if="checked" name="solar:check-circle-bold" class="check-icon" />
+      <span v-else class="check-empty" />
+    </button>
+
     <div
       contenteditable="true"
       class="block-content"
-      :class="alignClass"
-      :style="contentStyle"
-      data-placeholder="输入 / 唤起命令，或开始书写..."
+      data-placeholder="待办事项..."
       @input="onInput"
       @keydown="onKeydown"
       @focus="onFocus"
@@ -49,15 +59,7 @@ const focusBus = useBlockFocus()
 const contentRef = ref<HTMLElement | null>(null)
 const isFocused = ref(false)
 
-const alignClass = computed(() => {
-  const align = props.block.metadata?.align || 'left'
-  return `text-${align}`
-})
-
-const contentStyle = computed(() => {
-  const color = props.block.metadata?.color
-  return color ? { color } : {}
-})
+const checked = computed(() => props.block.metadata?.checked === true)
 
 const setContent = (html: string) => {
   if (contentRef.value && contentRef.value.innerHTML !== html) {
@@ -87,6 +89,14 @@ watch(() => props.isActive, (active) => {
     nextTick(() => contentRef.value?.focus())
   }
 })
+
+const toggleChecked = () => {
+  emit('update', {
+    ...props.block,
+    metadata: { ...(props.block.metadata || {}), checked: !checked.value },
+    updatedAt: new Date().toISOString()
+  })
+}
 
 const getTextBeforeCaret = (el: HTMLElement): string => {
   const sel = window.getSelection()
@@ -210,23 +220,69 @@ defineExpose({ clearSlashQuery })
 </script>
 
 <style scoped>
-.text-block {
+.todo-block {
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   padding: 6px 12px;
   border-radius: 12px;
   transition: background-color 0.18s ease;
 }
 
-.text-block:hover {
+.todo-block:hover {
   background-color: rgba(120, 120, 128, 0.08);
 }
 
-.text-block.is-active {
+.todo-block.is-active {
   background-color: rgba(0, 122, 255, 0.06);
   box-shadow: inset 0 0 0 0.5px rgba(0, 122, 255, 0.18);
 }
 
+.todo-checkbox {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-top: 4px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s ease;
+}
+
+.todo-checkbox:hover {
+  transform: scale(1.06);
+}
+
+.todo-checkbox:active {
+  transform: scale(0.94);
+}
+
+.check-empty {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(60, 60, 67, 0.32);
+  background: rgba(255, 255, 255, 0.6);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.todo-checkbox:hover .check-empty {
+  border-color: rgba(0, 122, 255, 0.6);
+}
+
+.check-icon {
+  font-size: 22px;
+  color: rgb(0, 122, 255);
+}
+
 .block-content {
+  flex: 1;
   outline: none;
   min-height: 28px;
   line-height: 1.65;
@@ -235,6 +291,14 @@ defineExpose({ clearSlashQuery })
   color: rgba(0, 0, 0, 0.88);
   word-wrap: break-word;
   white-space: pre-wrap;
+  transition: color 0.18s ease, text-decoration-color 0.18s ease;
+}
+
+.todo-block.is-checked .block-content {
+  color: rgba(60, 60, 67, 0.45);
+  text-decoration: line-through;
+  text-decoration-color: rgba(60, 60, 67, 0.45);
+  text-decoration-thickness: 1.5px;
 }
 
 .block-content:empty::before {
@@ -242,8 +306,4 @@ defineExpose({ clearSlashQuery })
   color: rgba(60, 60, 67, 0.36);
   pointer-events: none;
 }
-
-.text-left { text-align: left; }
-.text-center { text-align: center; }
-.text-right { text-align: right; }
 </style>

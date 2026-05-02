@@ -1,4 +1,4 @@
-export type BlockType = 'text' | 'heading' | 'list' | 'code' | 'quote' | 'divider' | 'image' | 'callout'
+export type BlockType = 'text' | 'heading' | 'list' | 'todo' | 'code' | 'quote' | 'divider' | 'image' | 'callout'
 
 export interface BlockMetadata {
   level?: number
@@ -27,6 +27,7 @@ export interface Note {
   userId: string
   title: string
   folderId: string // Changed from string | null to string to avoid RxDB proxy issues
+  parentId: string // '' = root level; otherwise the id of the parent note
   order: number
   createdAt: string
   updatedAt: string

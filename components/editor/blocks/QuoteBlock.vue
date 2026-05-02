@@ -17,14 +17,12 @@
       ref="contentRef"
       spellcheck="false"
     />
-    <div class="block-handle" v-if="isActive">
-      <slot name="handle" />
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Block } from '~/types/block'
+import { useBlockFocus } from '~/composables/useBlockFocus'
 
 interface Props {
   block: Block
@@ -43,9 +41,20 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+const focusBus = useBlockFocus()
 
 const contentRef = ref<HTMLElement | null>(null)
 const isFocused = ref(false)
+
+const placeCaretAtEnd = (el: HTMLElement) => {
+  el.focus()
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  range.collapse(false)
+  const sel = window.getSelection()
+  sel?.removeAllRanges()
+  sel?.addRange(range)
+}
 
 const setContent = (html: string) => {
   if (contentRef.value && contentRef.value.innerHTML !== html) {
@@ -73,6 +82,12 @@ watch(() => props.block.content, (newVal) => {
 watch(() => props.isActive, (active) => {
   if (active) {
     nextTick(() => contentRef.value?.focus())
+  }
+})
+
+watch(() => focusBus.state.endRequestId, () => {
+  if (focusBus.state.targetId === props.block.id && props.isActive) {
+    nextTick(() => placeCaretAtEnd(contentRef.value!))
   }
 })
 
@@ -183,19 +198,5 @@ const onContainerClick = () => {
   color: rgba(60, 60, 67, 0.36);
   font-style: italic;
   pointer-events: none;
-}
-
-.block-handle {
-  position: absolute;
-  left: -28px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.quote-block:hover .block-handle,
-.quote-block.is-active .block-handle {
-  opacity: 1;
 }
 </style>

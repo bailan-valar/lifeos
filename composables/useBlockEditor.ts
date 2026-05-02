@@ -1,9 +1,23 @@
 import type { Block, BlockType, BlockMetadata } from '~/types/block'
 import { getRxDB, generateId, now } from '~/services/rxdb'
+import type { MaybeRef } from 'vue'
+import { useBlockFocus } from '~/composables/useBlockFocus'
 
-export function useBlockEditor(noteId: string) {
+const NON_FOCUSABLE_TYPES: ReadonlySet<BlockType> = new Set(['divider'])
+
+const stripTypeSpecificMetadata = (
+  metadata: BlockMetadata | undefined
+): BlockMetadata | undefined => {
+  if (!metadata) return undefined
+  const { level, language, checked, ...rest } = metadata
+  return Object.keys(rest).length > 0 ? rest : undefined
+}
+
+export function useBlockEditor(noteId: MaybeRef<string>) {
+  const _noteId = () => toValue(noteId)
   const blocks = ref<Block[]>([])
   const activeBlockId = ref<string | null>(null)
+  const focusBus = useBlockFocus()
   let db: any = null
 
   const initEditor = async () => {
@@ -16,7 +30,7 @@ export function useBlockEditor(noteId: string) {
 
     const query = db.blocks.find({
       selector: {
-        noteId
+        noteId: _noteId()
       },
       sort: [{ order: 'asc' }]
     })
@@ -34,7 +48,7 @@ export function useBlockEditor(noteId: string) {
 
     const newBlock: Block = {
       id: generateId(),
-      noteId,
+      noteId: _noteId(),
       type,
       content: '',
       order: newOrder,
@@ -75,14 +89,16 @@ export function useBlockEditor(noteId: string) {
   const deleteBlock = async (blockId: string) => {
     if (!db) return
 
+    const oldIndex = blocks.value.findIndex(b => b.id === blockId)
+    if (oldIndex === -1) return
+
     await db.blocks.findOne(blockId).remove()
 
     blocks.value = blocks.value.filter(b => b.id !== blockId)
 
     if (activeBlockId.value === blockId) {
-      const index = blocks.value.findIndex(b => b.id === blockId)
-      if (index > 0) {
-        activeBlockId.value = blocks.value[index - 1].id
+      if (oldIndex > 0 && blocks.value[oldIndex - 1]) {
+        activeBlockId.value = blocks.value[oldIndex - 1].id
       } else if (blocks.value.length > 0) {
         activeBlockId.value = blocks.value[0].id
       } else {
@@ -114,10 +130,70 @@ export function useBlockEditor(noteId: string) {
     }
   }
 
+  const reorderBlock = async (blockId: string, newIndex: number) => {
+    const oldIndex = blocks.value.findIndex(b => b.id === blockId)
+    if (oldIndex === -1) return
+
+    const insertIndex = oldIndex < newIndex ? newIndex - 1 : newIndex
+    if (insertIndex === oldIndex || insertIndex < 0) return
+
+    const newBlocks = [...blocks.value]
+    const [moved] = newBlocks.splice(oldIndex, 1)
+    newBlocks.splice(insertIndex, 0, moved)
+
+    newBlocks.forEach((block, i) => {
+      block.order = i
+    })
+
+    blocks.value = newBlocks
+
+    for (const block of newBlocks) {
+      await updateBlock(block)
+    }
+  }
+
+  const duplicateBlock = async (blockId: string) => {
+    if (!db) return
+    const source = blocks.value.find(b => b.id === blockId)
+    if (!source) return
+
+    const sourceIndex = blocks.value.findIndex(b => b.id === blockId)
+    const cloned: Block = {
+      id: generateId(),
+      noteId: _noteId(),
+      type: source.type,
+      content: source.content,
+      metadata: source.metadata ? { ...source.metadata } : undefined,
+      order: sourceIndex + 1,
+      createdAt: now(),
+      updatedAt: now(),
+      version: 1,
+      isSynced: false
+    }
+
+    await db.blocks.insert(cloned)
+
+    const newBlocks = [...blocks.value]
+    newBlocks.splice(sourceIndex + 1, 0, cloned)
+    newBlocks.forEach((block, i) => {
+      block.order = i
+    })
+    blocks.value = newBlocks
+
+    for (const block of newBlocks) {
+      if (block.id !== cloned.id) {
+        await updateBlock(block)
+      }
+    }
+
+    activeBlockId.value = cloned.id
+  }
+
   const changeBlockType = async (
     blockId: string,
     newType: BlockType,
-    metadata?: BlockMetadata
+    metadata?: BlockMetadata,
+    content?: string
   ) => {
     const block = blocks.value.find(b => b.id === blockId)
     if (!block) return
@@ -129,7 +205,8 @@ export function useBlockEditor(noteId: string) {
     await updateBlock({
       ...block,
       type: newType,
-      metadata: nextMetadata
+      metadata: nextMetadata,
+      ...(content !== undefined ? { content } : {})
     })
   }
 
@@ -138,6 +215,7 @@ export function useBlockEditor(noteId: string) {
       text: 'TextBlock',
       heading: 'HeadingBlock',
       list: 'TextBlock',
+      todo: 'TodoBlock',
       code: 'CodeBlock',
       quote: 'QuoteBlock',
       divider: 'DividerBlock',
@@ -156,8 +234,46 @@ export function useBlockEditor(noteId: string) {
   }
 
   const handleBlockDelete = async (blockId: string) => {
-    if (blocks.value.length > 1) {
-      await deleteBlock(blockId)
+    const block = blocks.value.find(b => b.id === blockId)
+    if (!block) return
+
+    if (block.type !== 'text') {
+      const nextMetadata = stripTypeSpecificMetadata(block.metadata)
+      await updateBlock({
+        ...block,
+        type: 'text',
+        metadata: nextMetadata
+      })
+      activeBlockId.value = blockId
+      return
+    }
+
+    if (blocks.value.length <= 1) return
+
+    const oldIndex = blocks.value.findIndex(b => b.id === blockId)
+    let targetId: string | null = null
+    for (let i = oldIndex - 1; i >= 0; i--) {
+      const candidate = blocks.value[i]
+      if (!NON_FOCUSABLE_TYPES.has(candidate.type)) {
+        targetId = candidate.id
+        break
+      }
+    }
+    if (!targetId) {
+      for (let i = oldIndex + 1; i < blocks.value.length; i++) {
+        const candidate = blocks.value[i]
+        if (!NON_FOCUSABLE_TYPES.has(candidate.type)) {
+          targetId = candidate.id
+          break
+        }
+      }
+    }
+
+    await deleteBlock(blockId)
+
+    if (targetId) {
+      activeBlockId.value = targetId
+      focusBus.focusEnd(targetId)
     }
   }
 
@@ -173,6 +289,8 @@ export function useBlockEditor(noteId: string) {
     updateBlock,
     deleteBlock,
     moveBlock,
+    reorderBlock,
+    duplicateBlock,
     changeBlockType,
     getBlockComponent,
     handleBlockFocus,
