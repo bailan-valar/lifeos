@@ -101,10 +101,18 @@ const allItems: SlashMenuItem[] = [
   {
     id: 'list',
     type: 'list',
-    label: '列表',
+    label: '无序列表',
     description: '无序项目列表',
     icon: 'solar:list-linear',
     shortcut: 'List'
+  },
+  {
+    id: 'ordered-list',
+    type: 'orderedList',
+    label: '有序列表',
+    description: '有序编号列表',
+    icon: 'solar:sort-vertical-linear',
+    shortcut: 'OL'
   },
   {
     id: 'todo',

@@ -43,6 +43,7 @@
         @move="handleBlockMove"
         @reorder="handleBlockReorder"
         @duplicate="handleBlockDuplicate"
+        @transform="handleBlockTransform"
         @create="handleCreateBlock"
       />
     </div>
@@ -147,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BlockType } from '~/types/block'
+import type { BlockType, BlockMetadata } from '~/types/block'
 import BlockList from './BlockList.vue'
 import SlashMenu, { type SlashMenuItem } from './SlashMenu.vue'
 import ClassDrawer from '~/components/class/ClassDrawer.vue'
@@ -286,6 +287,11 @@ const handleBlockDuplicate = async (id: string) => {
   await duplicateBlock(id)
 }
 
+const handleBlockTransform = async (id: string, type: BlockType, metadata?: BlockMetadata) => {
+  await changeBlockType(id, type, metadata)
+  activeBlockType.value = type
+}
+
 const handleCreateBlock = async (type: BlockType) => {
   await createBlock(type)
 }
@@ -319,6 +325,7 @@ const handleRedo = () => {
 }
 
 const handleExportMarkdown = () => {
+  let orderedListIndex = 0
   const markdown = blocks.value.map(block => {
     const text = block.content.replace(/<[^>]*>/g, '')
     switch (block.type) {
@@ -332,8 +339,15 @@ const handleExportMarkdown = () => {
         return `> ${text}`
       case 'divider':
         return '---'
-      case 'list':
-        return `- ${text}`
+      case 'list': {
+        const indent = '  '.repeat(block.metadata?.indent || 0)
+        return `${indent}- ${text}`
+      }
+      case 'orderedList': {
+        orderedListIndex++
+        const indent = '  '.repeat(block.metadata?.indent || 0)
+        return `${indent}${orderedListIndex}. ${text}`
+      }
       case 'todo': {
         const mark = block.metadata?.checked ? 'x' : ' '
         return `- [${mark}] ${text}`
@@ -367,15 +381,7 @@ watch(activeBlockId, (newId) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: rgba(255, 255, 255, 0.55);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  backdrop-filter: blur(40px) saturate(180%);
-  border-radius: 18px;
   overflow: hidden;
-  border: 0.5px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 8px 32px rgba(0, 0, 0, 0.06);
 }
 
 .editor-title-bar {

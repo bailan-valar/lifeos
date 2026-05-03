@@ -101,6 +101,7 @@ interface Emits {
   (e: 'create'): void
   (e: 'create-child', parentId: string): void
   (e: 'reorder', payload: { id: string; targetId: string | null; position: 'before' | 'after' | 'child' | 'root-end' }): void
+  (e: 'delete', id: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -248,7 +249,8 @@ provide('noteTreeContext', {
   },
   onDragEnd: () => {
     resetDragState()
-  }
+  },
+  onDelete: (id: string) => emit('delete', id)
 })
 
 const onRootDragOver = (e: DragEvent) => {

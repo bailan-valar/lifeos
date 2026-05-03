@@ -39,7 +39,7 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
     blocks.value = result.map((doc: any) => doc.toJSON())
   }
 
-  const createBlock = async (type: BlockType = 'text', afterId?: string): Promise<Block> => {
+  const createBlock = async (type: BlockType = 'text', afterId?: string, metadata?: BlockMetadata): Promise<Block> => {
     if (!db) throw new Error('Database not initialized')
 
     const newOrder = afterId
@@ -51,6 +51,7 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
       noteId: _noteId(),
       type,
       content: '',
+      metadata,
       order: newOrder,
       createdAt: now(),
       updatedAt: now(),
@@ -214,7 +215,8 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
     const components: Record<BlockType, string> = {
       text: 'TextBlock',
       heading: 'HeadingBlock',
-      list: 'TextBlock',
+      list: 'ListBlock',
+      orderedList: 'ListBlock',
       todo: 'TodoBlock',
       code: 'CodeBlock',
       quote: 'QuoteBlock',
@@ -278,7 +280,14 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
   }
 
   const handleBlockEnter = async (afterId: string) => {
-    await createBlock('text', afterId)
+    const currentBlock = blocks.value.find(b => b.id === afterId)
+    const newType = currentBlock?.type === 'list' || currentBlock?.type === 'orderedList'
+      ? currentBlock.type
+      : 'text'
+    const metadata = currentBlock?.metadata?.indent !== undefined
+      ? { indent: currentBlock.metadata.indent }
+      : undefined
+    await createBlock(newType, afterId, metadata)
   }
 
   return {

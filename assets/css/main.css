@@ -8,8 +8,8 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900;
-    @apply text-white;
+    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100;
+    @apply text-slate-900;
     @apply font-sans;
     @apply antialiased;
     @apply min-h-screen;

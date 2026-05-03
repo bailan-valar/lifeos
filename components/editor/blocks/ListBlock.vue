@@ -1,15 +1,20 @@
 <template>
   <div
-    class="text-block"
-    :class="{ 'is-active': isActive }"
+    class="list-block"
+    :class="{ 'is-active': isActive, 'is-ordered': block.type === 'orderedList' }"
+    :style="indentStyle"
     @click="onContainerClick"
   >
+    <div class="list-marker">
+      <span v-if="block.type === 'orderedList'">{{ listNumber }}.</span>
+      <span v-else class="bullet">•</span>
+    </div>
     <div
       contenteditable="true"
       class="block-content"
       :class="alignClass"
       :style="contentStyle"
-      data-placeholder="输入 / 唤起命令，或开始书写..."
+      data-placeholder="列表项..."
       @input="onInput"
       @keydown="onKeydown"
       @focus="onFocus"
@@ -28,6 +33,7 @@ import { useBlockFocus } from '~/composables/useBlockFocus'
 interface Props {
   block: Block
   isActive?: boolean
+  listNumber?: number
 }
 
 interface Emits {
@@ -38,7 +44,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isActive: false
+  isActive: false,
+  listNumber: 1
 })
 
 const emit = defineEmits<Emits>()
@@ -57,6 +64,13 @@ const alignClass = computed(() => {
 const contentStyle = computed(() => {
   const color = props.block.metadata?.color
   return color ? { color } : {}
+})
+
+const indentStyle = computed(() => {
+  const indent = props.block.metadata?.indent || 0
+  return {
+    paddingLeft: `${12 + indent * 24}px`
+  }
 })
 
 const setContent = (html: string) => {
@@ -163,26 +177,8 @@ watch(() => focusBus.state.endRequestId, () => {
   }
 })
 
-const detectShortcuts = (target: HTMLElement): boolean => {
-  const text = target.innerText
-  const match = text.match(/^(\d+)\.\s(.*)$/)
-  if (match) {
-    const remaining = match[2] || ''
-    target.innerHTML = remaining
-    emit('update', {
-      ...props.block,
-      type: 'orderedList',
-      content: remaining,
-      updatedAt: new Date().toISOString()
-    })
-    return true
-  }
-  return false
-}
-
 const onInput = (e: Event) => {
   const target = e.target as HTMLElement
-  if (detectShortcuts(target)) return
   emit('update', {
     ...props.block,
     content: target.innerHTML,
@@ -196,6 +192,24 @@ const onKeydown = (e: KeyboardEvent) => {
     if (['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
       return
     }
+  }
+
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    const currentIndent = props.block.metadata?.indent || 0
+    const delta = e.shiftKey ? -1 : 1
+    const nextIndent = Math.max(0, Math.min(5, currentIndent + delta))
+    if (nextIndent !== currentIndent) {
+      emit('update', {
+        ...props.block,
+        metadata: {
+          ...(props.block.metadata || {}),
+          indent: nextIndent
+        },
+        updatedAt: new Date().toISOString()
+      })
+    }
+    return
   }
 
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -228,23 +242,51 @@ defineExpose({ clearSlashQuery })
 </script>
 
 <style scoped>
-.text-block {
+.list-block {
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   padding: 6px 12px;
   border-radius: 12px;
   transition: background-color 0.18s ease;
 }
 
-.text-block:hover {
+.list-block:hover {
   background-color: rgba(120, 120, 128, 0.08);
 }
 
-.text-block.is-active {
+.list-block.is-active {
   background-color: rgba(0, 122, 255, 0.06);
   box-shadow: inset 0 0 0 0.5px rgba(0, 122, 255, 0.18);
 }
 
+.list-marker {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 28px;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.65);
+  user-select: none;
+}
+
+.list-block.is-ordered .list-marker {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.list-marker .bullet {
+  font-size: 18px;
+  line-height: 1;
+}
+
 .block-content {
+  flex: 1;
   outline: none;
   min-height: 28px;
   line-height: 1.65;

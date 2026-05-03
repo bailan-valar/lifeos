@@ -33,6 +33,7 @@
           :is="getBlockComponent(block.type)"
           :block="block"
           :is-active="activeBlockId === block.id"
+          :list-number="getListNumber(index)"
           @focus="handleBlockFocus"
           @update="handleBlockUpdate"
           @delete="handleBlockDelete"
@@ -98,6 +99,15 @@
           <Icon name="solar:copy-linear" />
           <span>复制</span>
         </button>
+        <button
+          class="menu-item"
+          @click="openTransformPanel"
+          type="button"
+        >
+          <Icon name="solar:sort-horizontal-linear" />
+          <span>转换</span>
+          <Icon name="solar:alt-arrow-right-linear" class="transform-arrow" />
+        </button>
         <div class="menu-divider" />
         <button
           class="menu-item danger"
@@ -108,19 +118,49 @@
           <Icon name="solar:trash-bin-trash-linear" />
           <span>删除</span>
         </button>
+
+        <Transition name="transform-panel">
+          <div
+            v-if="transformPanel.visible"
+            class="transform-panel"
+            @click.stop
+            @mousedown.stop
+          >
+            <button
+              class="menu-item"
+              @click="closeTransformPanel"
+              type="button"
+            >
+              <Icon name="solar:alt-arrow-left-linear" />
+              <span>返回</span>
+            </button>
+            <div class="menu-divider" />
+            <button
+              v-for="item in transformItems"
+              :key="item.type + (item.metadata?.level || '')"
+              class="menu-item"
+              @click="onMenuTransform(item)"
+              type="button"
+            >
+              <Icon :name="item.icon" />
+              <span>{{ item.label }}</span>
+            </button>
+          </div>
+        </Transition>
       </div>
     </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Block } from '~/types/block'
+import type { Block, BlockType, BlockMetadata } from '~/types/block'
 import TextBlock from './blocks/TextBlock.vue'
 import HeadingBlock from './blocks/HeadingBlock.vue'
 import CodeBlock from './blocks/CodeBlock.vue'
 import QuoteBlock from './blocks/QuoteBlock.vue'
 import DividerBlock from './blocks/DividerBlock.vue'
 import TodoBlock from './blocks/TodoBlock.vue'
+import ListBlock from './blocks/ListBlock.vue'
 
 interface Props {
   blocks: Block[]
@@ -135,17 +175,29 @@ interface Emits {
   (e: 'move', id: string, direction: 'up' | 'down'): void
   (e: 'reorder', id: string, newIndex: number): void
   (e: 'duplicate', id: string): void
+  (e: 'transform', id: string, type: BlockType, metadata?: BlockMetadata): void
   (e: 'create', type: 'text' | 'heading' | 'code' | 'quote' | 'divider'): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const getListNumber = (index: number): number => {
+  let count = 1
+  for (let i = 0; i < index; i++) {
+    if (props.blocks[i]?.type === 'orderedList') {
+      count++
+    }
+  }
+  return count
+}
+
 const getBlockComponent = (type: string) => {
   const components: Record<string, any> = {
     text: TextBlock,
     heading: HeadingBlock,
-    list: TextBlock,
+    list: ListBlock,
+    orderedList: ListBlock,
     todo: TodoBlock,
     code: CodeBlock,
     quote: QuoteBlock,
@@ -215,6 +267,44 @@ const menu = reactive({
   y: 0
 })
 
+const transformPanel = reactive({
+  visible: false
+})
+
+interface TransformItem {
+  type: BlockType
+  label: string
+  icon: string
+  metadata?: BlockMetadata
+}
+
+const transformItems: TransformItem[] = [
+  { type: 'text', label: '文本', icon: 'solar:text-linear' },
+  { type: 'heading', label: '标题 1', icon: 'solar:text-field-linear', metadata: { level: 1 } },
+  { type: 'heading', label: '标题 2', icon: 'solar:text-field-linear', metadata: { level: 2 } },
+  { type: 'heading', label: '标题 3', icon: 'solar:text-field-linear', metadata: { level: 3 } },
+  { type: 'list', label: '无序列表', icon: 'solar:list-linear' },
+  { type: 'orderedList', label: '有序列表', icon: 'solar:sort-vertical-linear' },
+  { type: 'todo', label: '待办', icon: 'solar:checklist-minimalistic-linear' },
+  { type: 'quote', label: '引用', icon: 'solar:chat-square-linear' },
+  { type: 'code', label: '代码块', icon: 'solar:code-2-linear' },
+  { type: 'divider', label: '分割线', icon: 'solar:minus-circle-linear' }
+]
+
+const openTransformPanel = () => {
+  transformPanel.visible = true
+}
+
+const closeTransformPanel = () => {
+  transformPanel.visible = false
+}
+
+const onMenuTransform = (item: TransformItem) => {
+  if (!menu.blockId) return
+  emit('transform', menu.blockId, item.type, item.metadata)
+  closeMenu()
+}
+
 const onHandleClick = (blockId: string, e: MouseEvent) => {
   if (menu.visible && menu.blockId === blockId) {
     closeMenu()
@@ -235,6 +325,7 @@ const closeMenu = () => {
   menu.visible = false
   menu.blockId = null
   menu.index = -1
+  transformPanel.visible = false
 }
 
 const onGlobalClick = () => {
@@ -446,6 +537,58 @@ const onMenuDelete = () => {
   height: 0.5px;
   margin: 4px 6px;
   background: rgba(60, 60, 67, 0.14);
+}
+
+.menu-item .transform-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.4);
+}
+
+.transform-panel {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 6px);
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 0.5px solid rgba(60, 60, 67, 0.14);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.16),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.7);
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(60, 60, 67, 0.2) transparent;
+}
+
+.transform-panel::-webkit-scrollbar {
+  width: 5px;
+}
+
+.transform-panel::-webkit-scrollbar-thumb {
+  background: rgba(60, 60, 67, 0.2);
+  border-radius: 3px;
+}
+
+.transform-panel-enter-active,
+.transform-panel-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.transform-panel-enter-from {
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+.transform-panel-leave-to {
+  opacity: 0;
+  transform: translateX(-6px);
 }
 
 .empty-state {

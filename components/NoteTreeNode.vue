@@ -86,6 +86,14 @@
             :style="menuPosition"
           >
             <div
+              class="menu-item menu-item-danger"
+              @click.stop="deleteNote"
+            >
+              <Icon name="solar:trash-bin-trash-linear" class="menu-item-icon" />
+              <span>删除</span>
+            </div>
+            <div class="menu-divider" />
+            <div
               class="menu-item has-submenu"
               @mouseenter="submenuOpen = true"
               @mouseleave="submenuOpen = false"
@@ -204,6 +212,12 @@ const openClassManager = () => {
   submenuOpen.value = false
 }
 
+const deleteNote = () => {
+  ctx.onDelete(props.note.id)
+  menuOpen.value = false
+  submenuOpen.value = false
+}
+
 const closeMenu = (e: MouseEvent) => {
   const target = e.target as HTMLElement
   if (menuRef.value && !menuRef.value.contains(target) && settingsBtnRef.value && !settingsBtnRef.value.contains(target)) {
@@ -237,6 +251,7 @@ interface TreeContext {
   onDragLeave: (targetId: string) => void
   onDrop: (targetId: string) => void
   onDragEnd: () => void
+  onDelete: (id: string) => void
 }
 
 const ctx = inject<TreeContext>('noteTreeContext')!
@@ -633,5 +648,25 @@ const formatDate = (dateString: string) => {
 
 .submenu-add:hover {
   background: rgba(0, 122, 255, 0.1);
+}
+
+.menu-divider {
+  height: 0.5px;
+  margin: 4px 10px;
+  background: rgba(60, 60, 67, 0.1);
+}
+
+.menu-item-danger {
+  color: rgb(255, 59, 48);
+  justify-content: flex-start;
+}
+
+.menu-item-danger:hover {
+  background: rgba(255, 59, 48, 0.1);
+}
+
+.menu-item-icon {
+  font-size: 14px;
+  margin-right: 4px;
 }
 </style>

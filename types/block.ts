@@ -1,4 +1,4 @@
-export type BlockType = 'text' | 'heading' | 'list' | 'todo' | 'code' | 'quote' | 'divider' | 'image' | 'callout'
+export type BlockType = 'text' | 'heading' | 'list' | 'orderedList' | 'todo' | 'code' | 'quote' | 'divider' | 'image' | 'callout'
 
 export interface BlockMetadata {
   level?: number
@@ -6,6 +6,7 @@ export interface BlockMetadata {
   language?: string
   align?: 'left' | 'center' | 'right'
   color?: string
+  indent?: number
   [key: string]: any
 }
 

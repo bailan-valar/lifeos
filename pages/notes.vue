@@ -8,7 +8,7 @@
     </div>
 
     <div class="notes-container">
-      <aside class="notes-sidebar">
+      <aside class="notes-sidebar" :class="{ collapsed: sidebarCollapsed }">
         <NoteList
           :notes="notes"
           :active-note-id="activeNoteId"
@@ -16,12 +16,17 @@
           @create="createNote"
           @create-child="createChildNote"
           @reorder="handleReorder"
+          @delete="deleteNote"
         />
       </aside>
 
+      <div class="sidebar-toggle" :class="{ collapsed: sidebarCollapsed }" @click="sidebarCollapsed = !sidebarCollapsed">
+        <Icon :name="sidebarCollapsed ? 'solar:alt-arrow-right-linear' : 'solar:alt-arrow-left-linear'" />
+      </div>
+
       <main class="notes-main">
         <div v-if="activeNoteId" class="editor-shell">
-          <BlockEditor :note-id="activeNoteId" @title-update="onTitleUpdate" @open-class-manager="openClassManager" />
+          <NoteViewSwitcher :note-id="activeNoteId" @title-update="onTitleUpdate" @open-class-manager="openClassManager" />
         </div>
 
         <div v-else class="empty-state">
@@ -46,12 +51,13 @@
 import { getRxDB, generateId, now } from '~/services/rxdb'
 import type { Note, Block } from '~/types/block'
 import NoteList from '~/components/NoteList.vue'
-import BlockEditor from '~/components/editor/BlockEditor.vue'
+import NoteViewSwitcher from '~/components/NoteViewSwitcher.vue'
 
 let db: any = null
 const notes = ref<Note[]>([])
 const activeNoteId = ref<string | null>(null)
 const userId = ref('default-user')
+const sidebarCollapsed = ref(false)
 const classManagerVisible = inject<Ref<boolean>>('classManagerVisible', ref(false))
 
 const openClassManager = () => {
@@ -99,7 +105,7 @@ const createNote = async () => {
     id: generateId(),
     userId: userId.value,
     title: '新笔记',
-    folderId: '', // Changed from null to string to avoid RxDB proxy issues
+    folderId: '',
     parentId: '',
     order: rootSiblings.length,
     createdAt: now(),
@@ -179,6 +185,39 @@ const createChildNote = async (parentId: string) => {
 
   await loadNotes()
   activeNoteId.value = newNote.id
+}
+
+const deleteNote = async (noteId: string) => {
+  if (!db) return
+
+  const idsToDelete = new Set<string>([noteId])
+  const collectDescendants = (parentId: string) => {
+    for (const note of notes.value) {
+      if (note.parentId === parentId) {
+        idsToDelete.add(note.id)
+        collectDescendants(note.id)
+      }
+    }
+  }
+  collectDescendants(noteId)
+
+  for (const id of idsToDelete) {
+    const doc = await db.notes.findOne(id).exec()
+    if (doc) await doc.remove()
+  }
+
+  const allBlocks = await db.blocks.find().exec()
+  for (const block of allBlocks) {
+    if (idsToDelete.has(block.noteId)) {
+      await block.remove()
+    }
+  }
+
+  if (activeNoteId.value && idsToDelete.has(activeNoteId.value)) {
+    activeNoteId.value = null
+  }
+
+  await loadNotes()
 }
 
 const handleReorder = async (payload: {
@@ -338,6 +377,48 @@ const handleReorder = async (payload: {
 .notes-sidebar {
   width: 320px;
   flex-shrink: 0;
+  transition: width 0.25s ease;
+  overflow: hidden;
+}
+
+.notes-sidebar.collapsed {
+  width: 0;
+}
+
+.sidebar-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 48px;
+  margin-top: auto;
+  margin-bottom: auto;
+  border-radius: 0 8px 8px 0;
+  background: rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 0.5px solid rgba(60, 60, 67, 0.12);
+  border-left: none;
+  color: rgba(60, 60, 67, 0.45);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  z-index: 10;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(0, 122, 255, 0.85);
+}
+
+.sidebar-toggle:active {
+  transform: scaleX(0.92);
+}
+
+.sidebar-toggle.collapsed {
+  border-radius: 0 8px 8px 0;
+  margin-left: 0;
 }
 
 .notes-main {

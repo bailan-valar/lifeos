@@ -15,8 +15,8 @@ const storage = wrappedValidateAjvStorage({
   storage: getRxStorageDexie()
 })
 
-const DB_NAME = 'lifeos-notes-v3'
-const SCHEMA_VERSION = 9
+const DB_NAME = 'lifeos-notes-v4'
+const SCHEMA_VERSION = 13
 
 export async function initRxDB() {
   if (db) return db
@@ -50,7 +50,7 @@ async function doInitRxDB() {
         properties: {
           id: { type: 'string', maxLength: 100 },
           noteId: { type: 'string', maxLength: 100 },
-          type: { type: 'string', enum: ['text', 'heading', 'list', 'todo', 'code', 'quote', 'divider', 'image', 'callout'], maxLength: 20 },
+          type: { type: 'string', enum: ['text', 'heading', 'list', 'orderedList', 'todo', 'code', 'quote', 'divider', 'image', 'callout'], maxLength: 20 },
           content: { type: 'string', maxLength: 10000 },
           metadata: {
             type: 'object',
@@ -59,7 +59,8 @@ async function doInitRxDB() {
               language: { type: 'string', maxLength: 50 },
               align: { type: 'string', maxLength: 10 },
               color: { type: 'string', maxLength: 30 },
-              checked: { type: 'boolean' }
+              checked: { type: 'boolean' },
+              indent: { type: 'number' }
             }
           },
           order: { type: 'number', multipleOf: 1, minimum: 0, maximum: 999999 },
@@ -87,7 +88,11 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     notes: {
@@ -135,7 +140,11 @@ async function doInitRxDB() {
         }),
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     folders: {
@@ -177,7 +186,11 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     tags: {
@@ -210,7 +223,11 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     noteTags: {
@@ -245,7 +262,11 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     blockLinks: {
@@ -280,7 +301,11 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     classes: {
@@ -315,7 +340,11 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     classFields: {
@@ -353,7 +382,11 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     noteClassBindings: {
@@ -390,12 +423,16 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     module_config: {
       schema: {
-        version: 9,
+        version: SCHEMA_VERSION,
         primaryKey: 'id',
         type: 'object',
         properties: {
@@ -424,12 +461,16 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     },
     module_data: {
       schema: {
-        version: 9,
+        version: SCHEMA_VERSION,
         primaryKey: 'id',
         type: 'object',
         properties: {
@@ -462,7 +503,11 @@ async function doInitRxDB() {
         6: (doc: any) => doc,
         7: (doc: any) => doc,
         8: (doc: any) => doc,
-        9: (doc: any) => doc
+        9: (doc: any) => doc,
+        10: (doc: any) => doc,
+        11: (doc: any) => doc,
+        12: (doc: any) => doc,
+        13: (doc: any) => doc
       }
     }
   })
