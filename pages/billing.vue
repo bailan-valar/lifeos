@@ -109,12 +109,15 @@ import type { Bill, Account, BillCategory, BillFormData, AccountFormData, Catego
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
+import { useToast } from '~/composables/useToast'
 import BillList from '~/app-modules/billing/components/BillList.vue'
 import BillForm from '~/app-modules/billing/components/BillForm.vue'
 import AccountList from '~/app-modules/billing/components/AccountList.vue'
 import AccountForm from '~/app-modules/billing/components/AccountForm.vue'
 import CategoryTree from '~/app-modules/billing/components/CategoryTree.vue'
 import CategoryForm from '~/app-modules/billing/components/CategoryForm.vue'
+
+const { success: showSuccess, error: showError } = useToast()
 
 const { bills, totalIncome, totalExpense, netBalance, loadBills, createBill, updateBill, deleteBill } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
@@ -204,13 +207,26 @@ function openCategoryDialog(category?: BillCategory) {
 async function submitDialog() {
   try {
     if (dialogType.value === 'bill') {
-      if (!billForm.value.title || billForm.value.amount <= 0) return
-      if (!billForm.value.fromAccountId || !billForm.value.toAccountId) {
-        alert('请同时选择出账账户和入账账户')
+      if (!billForm.value.title || billForm.value.amount <= 0) {
+        showError(!billForm.value.title ? '请输入标题' : '金额必须大于 0')
         return
       }
-      if (billForm.value.fromAccountId === billForm.value.toAccountId) {
-        alert('出账与入账不能是同一账户')
+      const t = billForm.value.type
+      if (t === 'expense' && !billForm.value.fromAccountId) {
+        showError('请选择出账账户')
+        return
+      }
+      if (t === 'income' && !billForm.value.toAccountId) {
+        showError('请选择入账账户')
+        return
+      }
+      if (t === 'transfer' && (!billForm.value.fromAccountId || !billForm.value.toAccountId)) {
+        showError('转账需要同时选择出账账户和入账账户')
+        return
+      }
+      if (billForm.value.fromAccountId && billForm.value.toAccountId &&
+          billForm.value.fromAccountId === billForm.value.toAccountId) {
+        showError('出账与入账不能是同一账户')
         return
       }
       if (editingBill.value) {
@@ -253,8 +269,9 @@ async function handleDeleteCategory(id: string) {
   if (!confirm('确定删除此分类？')) return
   try {
     await deleteCategory(id)
+    showSuccess('分类已删除')
   } catch (e) {
-    alert(e instanceof Error ? e.message : String(e))
+    showError(e instanceof Error ? e.message : String(e))
   }
 }
 

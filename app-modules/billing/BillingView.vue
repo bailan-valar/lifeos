@@ -121,6 +121,7 @@ const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?:
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
 
 const { markReady, handleError } = useModuleBase(props, emit)
+const { success: showSuccess, error: showError } = useToast()
 
 const { bills, totalIncome, totalExpense, netBalance, loadBills, createBill, updateBill, deleteBill } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
@@ -215,15 +216,34 @@ function openCategoryDialog(category?: BillCategory) {
 async function submitDialog() {
   try {
     if (dialogType.value === 'bill') {
-      if (!billForm.value.title || billForm.value.amount <= 0) return
-      if (!billForm.value.fromAccountId || !billForm.value.toAccountId) {
-        alert('请同时选择出账账户和入账账户')
+      if (!billForm.value.title) {
+        showError('请输入标题')
         return
       }
-      if (billForm.value.fromAccountId === billForm.value.toAccountId) {
-        alert('出账与入账不能是同一账户')
+      if (billForm.value.amount <= 0) {
+        showError('金额必须大于 0')
         return
       }
+
+      const t = billForm.value.type
+      if (t === 'expense' && !billForm.value.fromAccountId) {
+        showError('请选择出账账户')
+        return
+      }
+      if (t === 'income' && !billForm.value.toAccountId) {
+        showError('请选择入账账户')
+        return
+      }
+      if (t === 'transfer' && (!billForm.value.fromAccountId || !billForm.value.toAccountId)) {
+        showError('转账需要同时选择出账账户和入账账户')
+        return
+      }
+      if (billForm.value.fromAccountId && billForm.value.toAccountId &&
+          billForm.value.fromAccountId === billForm.value.toAccountId) {
+        showError('出账与入账不能是同一账户')
+        return
+      }
+
       if (editingBill.value) {
         await updateBill(editingBill.value.id, billForm.value)
       } else {
@@ -264,8 +284,9 @@ async function handleDeleteCategory(id: string) {
   if (!confirm('确定删除此分类？')) return
   try {
     await deleteCategory(id)
+    showSuccess('分类已删除')
   } catch (e) {
-    alert(e instanceof Error ? e.message : String(e))
+    showError(e instanceof Error ? e.message : String(e))
   }
 }
 

@@ -15,10 +15,12 @@
     </div>
 
     <ClassManager v-model:visible="classManagerVisible" user-id="default-user" />
+    <ToastContainer />
   </div>
 </template>
 
 <script setup lang="ts">
+import ToastContainer from '~/components/ui/toast/ToastContainer.vue'
 import ClassManager from '~/components/class/ClassManager.vue'
 
 const route = useRoute()
