@@ -1,5 +1,5 @@
 import type { Block, BlockType, BlockMetadata } from '~/types/block'
-import { getRxDB, generateId, now } from '~/services/rxdb'
+import { getDB, generateId, now } from '~/services/db'
 import type { MaybeRef } from 'vue'
 import { useBlockFocus } from '~/composables/useBlockFocus'
 
@@ -21,7 +21,7 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
   let db: any = null
 
   const initEditor = async () => {
-    db = await getRxDB()
+    db = await getDB()
     await loadBlocks()
   }
 
@@ -32,7 +32,7 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
       selector: {
         noteId: _noteId()
       },
-      sort: [{ order: 'asc' }]
+      sort: [{ noteId: 'asc' }, { order: 'asc' }]
     })
 
     const result = await query.exec()

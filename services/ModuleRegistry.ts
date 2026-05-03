@@ -1,5 +1,5 @@
 import type { Module, ModuleConfig, ModuleRegistry } from '~/types/module'
-import { getRxDB, generateId, now } from './rxdb'
+import { getDB, generateId, now } from './db'
 
 class ModuleRegistryImpl implements ModuleRegistry {
   private modules: Map<string, Module> = new Map()
@@ -65,7 +65,7 @@ class ModuleRegistryImpl implements ModuleRegistry {
   }
 
   async getEnabled(noteId: string): Promise<Module[]> {
-    const db = await getRxDB()
+    const db = await getDB()
 
     if (!this.enabledCache.has(noteId)) {
       await this.loadEnabledModules(noteId, db)
@@ -78,7 +78,7 @@ class ModuleRegistryImpl implements ModuleRegistry {
   }
 
   async isEnabled(moduleId: string, noteId: string): Promise<boolean> {
-    const db = await getRxDB()
+    const db = await getDB()
 
     if (!this.enabledCache.has(noteId)) {
       await this.loadEnabledModules(noteId, db)
@@ -93,7 +93,7 @@ class ModuleRegistryImpl implements ModuleRegistry {
       throw new Error(`Module ${moduleId} not found`)
     }
 
-    const db = await getRxDB()
+    const db = await getDB()
 
     const configDoc = await db.module_config.findOne({
       selector: {
@@ -135,7 +135,7 @@ class ModuleRegistryImpl implements ModuleRegistry {
       throw new Error(`Module ${moduleId} not found`)
     }
 
-    const db = await getRxDB()
+    const db = await getDB()
 
     const configDoc = await db.module_config.findOne({
       selector: {
@@ -162,7 +162,7 @@ class ModuleRegistryImpl implements ModuleRegistry {
   }
 
   async getModuleData(moduleId: string, noteId: string): Promise<unknown> {
-    const db = await getRxDB()
+    const db = await getDB()
 
     const dataDoc = await db.module_data.findOne({
       selector: {
@@ -180,7 +180,7 @@ class ModuleRegistryImpl implements ModuleRegistry {
   }
 
   async saveModuleData(moduleId: string, noteId: string, data: unknown): Promise<void> {
-    const db = await getRxDB()
+    const db = await getDB()
 
     const dataDoc = await db.module_data.findOne({
       selector: {

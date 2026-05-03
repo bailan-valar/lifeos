@@ -154,7 +154,7 @@ import SlashMenu, { type SlashMenuItem } from './SlashMenu.vue'
 import ClassDrawer from '~/components/class/ClassDrawer.vue'
 import { useBlockEditor } from '~/composables/useBlockEditor'
 import { useSlashCommand } from '~/composables/useSlashCommand'
-import { getRxDB, now } from '~/services/rxdb'
+import { getDB, now } from '~/services/db'
 import { getClassForNote } from '~/composables/useNoteClasses'
 
 interface Props {
@@ -195,7 +195,7 @@ const noteClassBadge = ref<{ name: string; icon: string; color: string } | null>
 let titleSaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const loadNoteTitle = async () => {
-  const db = await getRxDB()
+  const db = await getDB()
   const targetId = props.noteId
   const doc = await db.notes.findOne(targetId).exec()
   titleDraft.value = doc?.title || ''
@@ -222,7 +222,7 @@ const flushTitleSave = async () => {
   }
   const id = titleDraftNoteId.value
   if (!id) return
-  const db = await getRxDB()
+  const db = await getDB()
   const doc = await db.notes.findOne(id).exec()
   if (!doc) return
   const trimmed = titleDraft.value

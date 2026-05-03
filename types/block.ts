@@ -27,7 +27,7 @@ export interface Note {
   id: string
   userId: string
   title: string
-  folderId: string // Changed from string | null to string to avoid RxDB proxy issues
+  folderId: string
   parentId: string // '' = root level; otherwise the id of the parent note
   order: number
   createdAt: string
@@ -40,7 +40,7 @@ export interface Folder {
   id: string
   userId: string
   name: string
-  parentId: string // Changed from string | null to string to avoid RxDB proxy issues
+  parentId: string // '' = root level
   order: number
   createdAt: string
   updatedAt: string

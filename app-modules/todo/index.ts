@@ -3,7 +3,7 @@ import { getModuleRegistry } from '~/services/ModuleRegistry'
 
 const todoModuleConfig: ModuleConfig = {
   id: 'todo',
-  name: '待办',
+  name: '目标',
   icon: 'solar:check-read-linear',
   description: '管理笔记中的待办事项',
   version: '1.0.0',

@@ -46,48 +46,32 @@ chore: 将 RxDB schema 从 v4 迁移至 v7
 
 ---
 
-# RxDB Schema 迁移规范
+# PouchDB 数据层规范
 
-## 迁移策略键规则（重要）
+项目使用 PouchDB（`pouchdb-browser` + `pouchdb-find`）作为本地数据层。封装在 [services/db.ts](services/db.ts) 中，对外暴露 RxDB-风格的 wrapper（`find/findOne/insert/upsert` + `doc.toJSON/get/patch/update/remove`）以减少调用点改动。
 
-RxDB 的 `migrationStrategies` 键是**目标版本号**，不是源版本号。
+## 集合（数据库）
 
-- Schema `version: N` 需要策略键 `1, 2, ..., N`
-- 策略 `1` = 将数据从版本 0 迁移到版本 1
-- 策略 `N` = 将数据从版本 N-1 迁移到版本 N
+每个集合是一个独立的 PouchDB 实例，命名前缀 `lifeos-`（例：`lifeos-blocks`、`lifeos-notes`）。在 [services/db.ts](services/db.ts) 的 `COLLECTION_INDEXES` 中声明集合及其 mango 索引。
 
-**常见错误**：
+## 添加新集合
 
-```ts
-// 错误：以为键是 0..version-1
-migrationStrategies: {
-  0: (doc) => doc,  // ❌ 不需要
-  1: (doc) => doc,
-  ...
-  12: (doc) => doc   // ❌ 漏了 13
-}
+1. 在 `COLLECTION_INDEXES` 中添加 `<集合名>: [...索引字段组]`
+2. 在 [types/](types/) 下定义对应 TypeScript 类型（无 schema 校验，类型即契约）
+3. 写一个 composable 封装 CRUD（参考 [composables/useBills.ts](composables/useBills.ts)）
 
-// 正确：schema version 13 需要键 1..13
-migrationStrategies: {
-  1: (doc) => doc,
-  2: (doc) => doc,
-  ...
-  12: (doc) => doc,
-  13: (doc) => doc   // ✓ 新增策略对应新版本
-}
-```
+## 索引规则
 
-## 升级 Schema 时的检查清单
+- 用于 `find({ selector: { fieldA: ..., fieldB: ... } })` 的字段需建索引
+- 用于 `sort: [{ fieldX: 'asc' }]` 的字段也需建索引（wrapper 会自动把 sort 字段加进 selector）
+- 复合索引顺序敏感：`['noteId', 'order']` 仅对包含 `noteId` 等值条件的查询有效
 
-1. 修改 `SCHEMA_VERSION` 常量（所有 collection 共用）
-2. 为**每个 collection** 添加新的迁移策略键（值为 `(doc) => doc` 或实际迁移逻辑）
-3. **不需要**在 schema 定义中手动添加 RxDB 内部字段（`_deleted`、`_rev`、`_meta`、`_attachments`），RxDB 会自动注入这些字段，手动添加反而会导致 hash 不匹配
-4. 如果仅修改了 schema 结构（如添加字段、调整 indexes）但数据格式兼容，使用 `(doc) => doc` 即可
+## 文档字段
 
-## 错误码速查
+- `id`（业务字段）会被 wrapper 同步到 PouchDB 的 `_id`；不要手写 `_id`
+- `_rev` 由 PouchDB 内部维护，`toJSON()` 已剥离；不要在业务对象里出现
+- 业务侧可保留 `version` 字段作乐观锁计数，与 PouchDB `_rev` 互不冲突
 
-| 错误码 | 含义 | 常见原因 |
-|--------|------|----------|
-| `DB6` | Schema hash 不匹配 | 修改了 schema 但未升级 version，或手动添加了 RxDB 内部字段 |
-| `COL12` | 迁移策略数量不对 | 策略键范围错误（如少了最后一个或多了 0） |
-| `COL13` | 迁移策略不是函数 | 策略值为 `undefined`（通常是键范围错误导致 RxDB 查不到对应策略） |
+## 旧 RxDB 数据清理
+
+[plugins/pouchdb.client.ts](plugins/pouchdb.client.ts) 在首次加载时清理 `rxdb-dexie-*` / `lifeos-notes-*` 旧 IndexedDB 数据库，幂等性靠 `localStorage['lifeos:legacy-rxdb-cleared']` 控制。

@@ -1,4 +1,4 @@
-import { getRxDB } from '~/services/rxdb'
+import { getDB } from '~/services/db'
 import type { Block, Note, Folder, Tag } from '~/types/block'
 
 export interface SyncStatus {
@@ -26,7 +26,7 @@ export function useOfflineSync(userId: string) {
   }))
 
   const init = async () => {
-    db = await getRxDB()
+    db = await getDB()
 
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)

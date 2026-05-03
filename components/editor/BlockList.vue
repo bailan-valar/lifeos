@@ -183,9 +183,13 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const getListNumber = (index: number): number => {
+  const currentBlock = props.blocks[index]
+  if (!currentBlock || currentBlock.type !== 'orderedList') return 1
+  const currentIndent = currentBlock.metadata?.indent || 0
   let count = 1
   for (let i = 0; i < index; i++) {
-    if (props.blocks[i]?.type === 'orderedList') {
+    const block = props.blocks[i]
+    if (block?.type === 'orderedList' && (block.metadata?.indent || 0) === currentIndent) {
       count++
     }
   }

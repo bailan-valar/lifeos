@@ -13,6 +13,7 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@iconify-json/solar": "^1.2.1",
     "@nuxtjs/tailwindcss": "^6.12.1",
     "@pinia/nuxt": "^0.5.3",
     "@prisma/client": "^5.20.0",
@@ -55,8 +56,8 @@
     "jsonwebtoken": "^9.0.2",
     "nuxt": "^3.14.159",
     "pinia": "^2.2.6",
-    "rxdb": "^17.1.0",
-    "@iconify-json/solar": "^1.2.1",
+    "pouchdb-browser": "^9.0.0",
+    "pouchdb-find": "^9.0.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {
@@ -64,6 +65,8 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.9.3",
+    "@types/pouchdb-browser": "^6.1.5",
+    "@types/pouchdb-find": "^7.3.3",
     "prisma": "^5.20.0",
     "typescript": "^5.6.3",
     "vue-tsc": "^2.1.10"

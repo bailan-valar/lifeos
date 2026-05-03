@@ -204,7 +204,7 @@
 
 <script setup lang="ts">
 import type { Class, ClassField, ClassFieldType } from '~/types/block'
-import { generateId } from '~/services/rxdb'
+import { generateId } from '~/services/db'
 
 interface Props {
   visible: boolean

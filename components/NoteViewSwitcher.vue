@@ -43,7 +43,7 @@
 import BlockEditor from '~/components/editor/BlockEditor.vue'
 import TodoView from '~/app-modules/todo/TodoView.vue'
 import BillingView from '~/app-modules/billing/BillingView.vue'
-import { getRxDB, generateId, now } from '~/services/rxdb'
+import { getDB, generateId, now } from '~/services/db'
 
 interface Props {
   noteId: string
@@ -75,7 +75,7 @@ const onOpenClassManager = () => {
 }
 
 const loadModuleData = async (moduleId: 'todo' | 'billing') => {
-  const db = await getRxDB()
+  const db = await getDB()
   const doc = await db.module_data.findOne({
     selector: {
       noteId: props.noteId,
@@ -91,7 +91,7 @@ const loadModuleData = async (moduleId: 'todo' | 'billing') => {
 }
 
 const saveModuleData = async (moduleId: 'todo' | 'billing', data: unknown) => {
-  const db = await getRxDB()
+  const db = await getDB()
 
   const doc = await db.module_data.findOne({
     selector: {

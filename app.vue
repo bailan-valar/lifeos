@@ -29,7 +29,7 @@ const pageTitle = computed(() => {
   const titles: Record<string, string> = {
     '/notes': '笔记',
     '/billing': '账单',
-    '/todo': '任务',
+    '/todo': '目标',
   }
   return titles[route.path] || 'LifeOS'
 })

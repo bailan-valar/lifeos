@@ -1,5 +1,3 @@
-import type { RxJsonSchema } from 'rxdb'
-
 /**
  * 模块状态
  */
@@ -73,9 +71,9 @@ export interface ModuleConfig {
    */
   composable?: string
   /**
-   * RxDB Schema 定义
+   * Schema 定义（保留字段，无运行时校验）
    */
-  schema?: RxJsonSchema<Record<string, unknown>>
+  schema?: Record<string, unknown>
   /**
    * 数据迁移列表
    */
@@ -110,7 +108,7 @@ export interface Module {
   status: ModuleStatus
   component: string
   composable?: string
-  schema?: RxJsonSchema<Record<string, unknown>>
+  schema?: Record<string, unknown>
   migrations?: ModuleMigration[]
   hooks?: ModuleHooks
   dependencies?: string[]

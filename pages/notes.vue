@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { getRxDB, generateId, now } from '~/services/rxdb'
+import { getDB, generateId, now } from '~/services/db'
 import type { Note, Block } from '~/types/block'
 import NoteList from '~/components/NoteList.vue'
 import NoteViewSwitcher from '~/components/NoteViewSwitcher.vue'
@@ -64,11 +64,18 @@ const openClassManager = () => {
   classManagerVisible.value = true
 }
 
+const route = useRoute()
+
 onMounted(async () => {
   console.log('[Notes] Component mounted, initializing database...')
-  db = await getRxDB()
+  db = await getDB()
   console.log('[Notes] Database initialized:', db ? 'success' : 'failed')
   await loadNotes()
+
+  const noteIdFromQuery = route.query.note as string
+  if (noteIdFromQuery) {
+    activeNoteId.value = noteIdFromQuery
+  }
 })
 
 const loadNotes = async () => {

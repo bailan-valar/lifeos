@@ -1,5 +1,5 @@
 import type { Class, ClassField, NoteClassBinding, ClassFieldType } from '~/types/block'
-import { getRxDB, generateId, now } from '~/services/rxdb'
+import { getDB, generateId, now } from '~/services/db'
 
 let dbRef: any = null
 const classes = ref<Class[]>([])
@@ -7,7 +7,7 @@ const classFields = ref<ClassField[]>([])
 
 async function getDb() {
   if (!dbRef) {
-    dbRef = await getRxDB()
+    dbRef = await getDB()
   }
   return dbRef
 }

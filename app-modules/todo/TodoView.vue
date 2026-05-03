@@ -22,7 +22,7 @@
           @click="toggleTodo(todo.id)"
         >
           <Icon
-            :name="todo.completed ? 'solar:check-circle-linear' : 'solar:circle-linear'"
+            :name="todo.completed ? 'solar:check-circle-linear' : 'solar:round-linear'"
             size="20"
           />
         </button>

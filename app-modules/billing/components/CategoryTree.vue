@@ -1,0 +1,134 @@
+<template>
+  <div class="tree">
+    <div
+      v-for="node in nodes"
+      :key="node.id"
+      class="tree-node"
+    >
+      <div class="node-row" :style="{ paddingLeft: `${node.level * 20}px` }">
+        <button
+          v-if="node.children.length > 0"
+          type="button"
+          class="expand-btn"
+          @click="toggleExpand(node.id)"
+        >
+          <Icon
+            :name="expanded.has(node.id) ? 'solar:alt-arrow-down-linear' : 'solar:alt-arrow-right-linear'"
+            size="14"
+          />
+        </button>
+        <span v-else class="expand-placeholder" />
+        <span class="node-name">{{ node.name }}</span>
+        <div class="node-actions">
+          <button type="button" class="node-action" @click="$emit('edit', node)">
+            <Icon name="solar:pen-linear" size="14" />
+          </button>
+          <button type="button" class="node-action danger" @click="$emit('delete', node.id)">
+            <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
+          </button>
+        </div>
+      </div>
+      <CategoryTree
+        v-if="node.children.length > 0 && expanded.has(node.id)"
+        :nodes="node.children"
+        @edit="$emit('edit', $event)"
+        @delete="$emit('delete', $event)"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { CategoryTreeNode } from '~/types/bill'
+
+defineProps<{
+  nodes: CategoryTreeNode[]
+}>()
+
+defineEmits<{
+  (e: 'edit', node: CategoryTreeNode): void
+  (e: 'delete', id: string): void
+}>()
+
+const expanded = ref(new Set<string>())
+
+function toggleExpand(id: string) {
+  const next = new Set(expanded.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+  }
+  expanded.value = next
+}
+</script>
+
+<style scoped>
+.tree {
+  display: flex;
+  flex-direction: column;
+}
+.tree-node {
+  display: flex;
+  flex-direction: column;
+}
+.node-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+}
+.node-row:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+.expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.5);
+  cursor: pointer;
+}
+.expand-placeholder {
+  width: 20px;
+}
+.node-name {
+  flex: 1;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.92);
+}
+.node-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.node-row:hover .node-actions {
+  opacity: 1;
+}
+.node-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.5);
+  cursor: pointer;
+}
+.node-action:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.78);
+}
+.node-action.danger:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: rgb(255, 59, 48);
+}
+</style>
