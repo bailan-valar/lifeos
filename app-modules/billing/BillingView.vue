@@ -1,20 +1,21 @@
 <template>
   <div class="billing-view">
-    <div class="tabs">
+    <div class="sidebar">
       <button
         v-for="tab in tabs"
         :key="tab.id"
         type="button"
-        class="tab-btn"
+        class="sidebar-btn"
         :class="{ active: activeTab === tab.id }"
         @click="activeTab = tab.id"
       >
-        <Icon :name="tab.icon" size="16" />
-        {{ tab.name }}
+        <Icon :name="tab.icon" size="18" />
+        <span>{{ tab.name }}</span>
       </button>
     </div>
 
-    <div v-if="activeTab === 'bills'" class="tab-panel">
+    <div class="content">
+      <div v-if="activeTab === 'bills'" class="tab-panel">
       <div class="panel-header">
         <div class="stats-bar">
           <div class="stat-item">
@@ -69,6 +70,32 @@
       </div>
     </div>
 
+    <div v-if="activeTab === 'budgets'" class="tab-panel">
+      <div class="panel-header">
+        <h4>预算看板</h4>
+        <div class="budget-controls">
+          <select v-model.number="budgetYear" class="form-select year-select">
+            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}年</option>
+          </select>
+          <select v-model.number="budgetMonth" class="form-select month-select">
+            <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
+          </select>
+          <button type="button" class="add-btn" @click="openBudgetDialog()">
+            <Icon name="solar:add-circle-linear" size="18" />
+            设置预算
+          </button>
+        </div>
+      </div>
+      <BudgetDashboard
+        :bills="bills"
+        :budgets="budgets"
+        :categories="categories"
+        :year="budgetYear"
+        :month="budgetMonth"
+      />
+    </div>
+    </div>
+
     <div v-if="dialogVisible" class="dialog-overlay" @click="closeDialog">
       <div class="dialog" @click.stop>
         <div class="dialog-header">
@@ -94,6 +121,11 @@
             :categories="categories"
             :exclude-id="editingCategory?.id"
           />
+          <BudgetForm
+            v-if="dialogType === 'budget'"
+            v-model="budgetForm"
+            :categories="categories"
+          />
         </div>
         <div class="dialog-footer">
           <button type="button" class="cancel-btn" @click="closeDialog">取消</button>
@@ -105,17 +137,20 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData } from '~/types/bill'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
+import { useBudgets } from '~/composables/useBudgets'
 import BillList from './components/BillList.vue'
 import BillForm from './components/BillForm.vue'
 import AccountList from './components/AccountList.vue'
 import AccountForm from './components/AccountForm.vue'
 import CategoryTree from './components/CategoryTree.vue'
 import CategoryForm from './components/CategoryForm.vue'
+import BudgetForm from './components/BudgetForm.vue'
+import BudgetDashboard from './components/BudgetDashboard.vue'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -126,25 +161,35 @@ const { success: showSuccess, error: showError } = useToast()
 const { bills, totalIncome, totalExpense, netBalance, loadBills, createBill, updateBill, deleteBill } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree } = useBillCategories()
+const { budgets, loadBudgets, createBudget, updateBudget, deleteBudget: deleteBudgetEntry } = useBudgets()
 
 const activeTab = ref('bills')
+const budgetYear = ref(new Date().getFullYear())
+const budgetMonth = ref(new Date().getMonth() + 1)
+const yearOptions = computed(() => {
+  const current = new Date().getFullYear()
+  return [current - 1, current, current + 1]
+})
 const tabs = [
   { id: 'bills', name: '账单', icon: 'solar:wallet-money-linear' },
   { id: 'accounts', name: '账户', icon: 'solar:wallet-linear' },
-  { id: 'categories', name: '分类', icon: 'solar:folder-linear' }
+  { id: 'categories', name: '分类', icon: 'solar:folder-linear' },
+  { id: 'budgets', name: '预算', icon: 'solar:chart-2-linear' }
 ]
 
 const dialogVisible = ref(false)
-const dialogType = ref<'bill' | 'account' | 'category'>('bill')
+const dialogType = ref<'bill' | 'account' | 'category' | 'budget'>('bill')
 const dialogTitle = computed(() => {
   if (dialogType.value === 'bill') return editingBill.value ? '编辑账单' : '记一笔'
   if (dialogType.value === 'account') return editingAccount.value ? '编辑账户' : '添加账户'
-  return editingCategory.value ? '编辑分类' : '添加分类'
+  if (dialogType.value === 'category') return editingCategory.value ? '编辑分类' : '添加分类'
+  return editingBudget.value ? '编辑预算' : '设置预算'
 })
 
 const editingBill = ref<Bill | null>(null)
 const editingAccount = ref<Account | null>(null)
 const editingCategory = ref<BillCategory | null>(null)
+const editingBudget = ref<BudgetEntry | null>(null)
 
 const billForm = ref<BillFormData>({
   type: 'expense', amount: 0, currency: 'CNY',
@@ -155,13 +200,17 @@ const billForm = ref<BillFormData>({
 
 const accountForm = ref<AccountFormData>({ name: '', type: 'personal', currency: 'CNY', icon: '', color: '' })
 const categoryForm = ref<CategoryFormData>({ name: '', type: 'expense', parentId: '', icon: '', color: '' })
+const budgetForm = ref<BudgetFormData>({
+  categoryId: '', period: 'monthly', amount: 0,
+  year: new Date().getFullYear(), month: new Date().getMonth() + 1
+})
 
 const incomeTree = computed(() => buildTree('income'))
 const expenseTree = computed(() => buildTree('expense'))
 
 onMounted(async () => {
   try {
-    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId)])
+    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets()])
     markReady()
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
@@ -209,6 +258,23 @@ function openCategoryDialog(category?: BillCategory) {
     categoryForm.value = { name: category.name, type: category.type, parentId: category.parentId, icon: category.icon || '', color: category.color || '' }
   } else {
     categoryForm.value = { name: '', type: 'expense', parentId: '', icon: '', color: '' }
+  }
+  dialogVisible.value = true
+}
+
+function openBudgetDialog(budget?: BudgetEntry) {
+  dialogType.value = 'budget'
+  editingBudget.value = budget || null
+  if (budget) {
+    budgetForm.value = {
+      categoryId: budget.categoryId, period: budget.period, amount: budget.amount,
+      year: budget.year, month: budget.month
+    }
+  } else {
+    budgetForm.value = {
+      categoryId: '', period: 'monthly', amount: 0,
+      year: new Date().getFullYear(), month: new Date().getMonth() + 1
+    }
   }
   dialogVisible.value = true
 }
@@ -263,6 +329,20 @@ async function submitDialog() {
       } else {
         await createCategory(categoryForm.value)
       }
+    } else if (dialogType.value === 'budget') {
+      if (!budgetForm.value.categoryId) {
+        showError('请选择分类')
+        return
+      }
+      if (budgetForm.value.amount <= 0) {
+        showError('预算金额必须大于 0')
+        return
+      }
+      if (editingBudget.value) {
+        await updateBudget(editingBudget.value.id, budgetForm.value)
+      } else {
+        await createBudget(budgetForm.value)
+      }
     }
     closeDialog()
   } catch (e) {
@@ -290,49 +370,64 @@ async function handleDeleteCategory(id: string) {
   }
 }
 
+async function handleDeleteBudgetEntry(id: string) {
+  if (!confirm('确定删除此预算？')) return
+  await deleteBudgetEntry(id)
+}
+
 function closeDialog() {
   dialogVisible.value = false
   editingBill.value = null
   editingAccount.value = null
   editingCategory.value = null
+  editingBudget.value = null
 }
 </script>
 
 <style scoped>
 .billing-view {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100%;
-  padding: 16px;
-  gap: 12px;
+  gap: 0;
 }
-.tabs {
+.sidebar {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: 10px;
+  flex-direction: column;
+  gap: 2px;
+  width: 160px;
+  padding: 12px 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border-right: 0.5px solid rgba(60, 60, 67, 0.08);
+  flex-shrink: 0;
 }
-.tab-btn {
-  flex: 1;
+.sidebar-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 10px 12px;
   border: none;
   border-radius: 8px;
   background: transparent;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: rgba(60, 60, 67, 0.7);
   cursor: pointer;
   transition: all 0.15s ease;
+  text-align: left;
 }
-.tab-btn.active {
+.sidebar-btn.active {
   background: white;
   color: rgba(0, 0, 0, 0.92);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  overflow: hidden;
 }
 .tab-panel {
   flex: 1;
@@ -474,5 +569,26 @@ function closeDialog() {
 .confirm-btn {
   background: rgb(0, 122, 255);
   color: white;
+}
+.budget-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.budget-controls .form-select {
+  padding: 6px 10px;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.8);
+  color: rgba(0, 0, 0, 0.92);
+  outline: none;
+}
+.budget-controls .year-select {
+  min-width: 90px;
+}
+.budget-controls .month-select {
+  min-width: 70px;
 }
 </style>

@@ -125,3 +125,34 @@ export interface CategoryTreeNode extends BillCategory {
   children: CategoryTreeNode[]
   level: number
 }
+
+/**
+ * 预算周期
+ */
+export type BudgetPeriod = 'monthly' | 'yearly'
+
+/**
+ * 预算记录
+ */
+export interface BudgetEntry {
+  id: string
+  categoryId: string
+  period: BudgetPeriod
+  amount: number
+  year: number
+  month: number | null
+  createdAt: string
+  updatedAt: string
+  isSynced: boolean
+}
+
+/**
+ * 预算表单数据
+ */
+export interface BudgetFormData {
+  categoryId: string
+  period: BudgetPeriod
+  amount: number
+  year: number
+  month: number | null
+}

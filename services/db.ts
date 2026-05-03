@@ -33,7 +33,8 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   goals: [['status'], ['priority'], ['type'], ['plannedEndAt'], ['createdAt'], ['isSynced']],
   accounts: [['type'], ['createdAt'], ['isSynced']],
   billCategories: [['type'], ['parentId'], ['order'], ['isSynced']],
-  bills: [['noteId'], ['type'], ['date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['isSynced']]
+  bills: [['noteId'], ['type'], ['date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['isSynced']],
+  budgets: [['categoryId'], ['period'], ['year'], ['month'], ['isSynced']]
 }
 
 const DB_PREFIX = 'lifeos-'
