@@ -7,7 +7,7 @@ const billingModuleConfig: ModuleConfig = {
   icon: 'solar:wallet-money-linear',
   description: '管理笔记中的账单记录',
   version: '1.0.0',
-  component: 'modules/billing/BillingView.vue',
+  component: 'app-modules/billing/BillingView.vue',
   defaultEnabled: false,
   hooks: {
     async onLoad(noteId) {

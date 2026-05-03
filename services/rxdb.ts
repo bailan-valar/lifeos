@@ -134,7 +134,8 @@ async function doInitRxDB() {
           parentId: doc.parentId || ''
         }),
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     },
     folders: {
@@ -175,7 +176,8 @@ async function doInitRxDB() {
         5: (doc: any) => doc,
         6: (doc: any) => doc,
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     },
     tags: {
@@ -312,7 +314,8 @@ async function doInitRxDB() {
         5: (doc: any) => doc,
         6: (doc: any) => doc,
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     },
     classFields: {
@@ -349,7 +352,8 @@ async function doInitRxDB() {
         5: (doc: any) => doc,
         6: (doc: any) => doc,
         7: (doc: any) => doc,
-        8: (doc: any) => doc
+        8: (doc: any) => doc,
+        9: (doc: any) => doc
       }
     },
     noteClassBindings: {

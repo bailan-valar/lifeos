@@ -7,7 +7,7 @@ const todoModuleConfig: ModuleConfig = {
   icon: 'solar:check-read-linear',
   description: '管理笔记中的待办事项',
   version: '1.0.0',
-  component: 'modules/todo/TodoView.vue',
+  component: 'app-modules/todo/TodoView.vue',
   defaultEnabled: false,
   hooks: {
     async onLoad(noteId) {
