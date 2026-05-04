@@ -209,3 +209,75 @@ export interface StatementFormData {
   paidAmount: number
   status: StatementStatus
 }
+
+/**
+ * 导入来源
+ */
+export type ImportSource = 'alipay' | 'wechat'
+
+/**
+ * 规则匹配模式
+ */
+export type ImportRuleMatchMode = 'exact' | 'regex' | 'fuzzy'
+
+/**
+ * 导入规则
+ * 按 CSV 中"交易对方"字段匹配,命中后填充 categoryId / fromAccountId / toAccountId
+ */
+export interface ImportRule {
+  id: string
+  name: string
+  source: ImportSource | 'all'
+  matchMode: ImportRuleMatchMode
+  pattern: string
+  categoryId: string
+  fromAccountId: string
+  toAccountId: string
+  priority: number
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+  isSynced: boolean
+}
+
+/**
+ * 规则表单数据
+ */
+export interface ImportRuleFormData {
+  name: string
+  source: ImportSource | 'all'
+  matchMode: ImportRuleMatchMode
+  pattern: string
+  categoryId: string
+  fromAccountId: string
+  toAccountId: string
+  priority: number
+  enabled: boolean
+}
+
+/**
+ * CSV 原始解析结果(各列已映射到统一字段)
+ */
+export interface CsvParsedRow {
+  rawIndex: number
+  date: string
+  counterparty: string
+  description: string
+  amount: number
+  direction: 'in' | 'out'
+  rawType: string
+}
+
+/**
+ * 导入预览行(已应用规则,允许用户修改)
+ */
+export interface ImportPreviewRow extends CsvParsedRow {
+  selected: boolean
+  duplicate: boolean
+  matchedRuleId: string | null
+  type: BillType
+  categoryId: string
+  fromAccountId: string
+  toAccountId: string
+  title: string
+}

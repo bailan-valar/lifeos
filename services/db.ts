@@ -41,7 +41,8 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
     ['createdAt'],
     ['isSynced']
   ],
-  statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status'], ['isSynced']]
+  statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status'], ['isSynced']],
+  importRules: [['source'], ['matchMode'], ['priority'], ['enabled'], ['isSynced']]
 }
 
 const DB_PREFIX = 'lifeos-'

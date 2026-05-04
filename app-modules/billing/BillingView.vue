@@ -33,10 +33,16 @@
             </span>
           </div>
         </div>
-        <button type="button" class="add-btn" @click="openBillDialog()">
-          <Icon name="solar:add-circle-linear" size="18" />
-          记一笔
-        </button>
+        <div class="header-actions">
+          <button type="button" class="add-btn secondary" @click="openImportDialog()">
+            <Icon name="solar:upload-linear" size="18" />
+            导入
+          </button>
+          <button type="button" class="add-btn" @click="openBillDialog()">
+            <Icon name="solar:add-circle-linear" size="18" />
+            记一笔
+          </button>
+        </div>
       </div>
       <BillList :bills="bills" @edit="openBillDialog" @delete="handleDeleteBill" />
     </div>
@@ -95,10 +101,20 @@
         @category-contextmenu="openCategoryContextMenu"
       />
     </div>
+
+    <div v-if="activeTab === 'rules'" class="tab-panel">
+      <ImportRuleList
+        :rules="importRules"
+        @add="openRuleDialog()"
+        @edit="openRuleDialog"
+        @delete="handleDeleteRule"
+        @toggle="handleToggleRule"
+      />
+    </div>
     </div>
 
     <div v-if="dialogVisible" class="dialog-overlay" @click="closeDialog">
-      <div class="dialog" @click.stop>
+      <div class="dialog" :class="{ 'dialog-wide': dialogType === 'import' || dialogType === 'rule' }" @click.stop>
         <div class="dialog-header">
           <h3>{{ dialogTitle }}</h3>
           <button type="button" class="close-btn" @click="closeDialog">
@@ -139,10 +155,23 @@
             v-if="dialogType === 'statement'"
             v-model="statementForm"
           />
+          <BillImportDialog
+            v-if="dialogType === 'import'"
+            ref="importDialogRef"
+            :accounts="accounts"
+            :categories="categories"
+            :existing-fingerprints="existingFingerprints"
+          />
+          <ImportRuleForm
+            v-if="dialogType === 'rule'"
+            v-model="ruleForm"
+            :accounts="accounts"
+            :categories="categories"
+          />
         </div>
         <div class="dialog-footer">
           <button type="button" class="cancel-btn" @click="closeDialog">{{ dialogType === 'statement-list' ? '关闭' : '取消' }}</button>
-          <button v-if="dialogType !== 'statement-list'" type="button" class="confirm-btn" @click="submitDialog">保存</button>
+          <button v-if="dialogType !== 'statement-list'" type="button" class="confirm-btn" @click="submitDialog">{{ dialogType === 'import' ? '导入选中' : '保存' }}</button>
         </div>
       </div>
     </div>
@@ -169,14 +198,16 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData } from '~/types/bill'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useBudgets } from '~/composables/useBudgets'
 import { useStatements } from '~/composables/useStatements'
+import { useImportRules } from '~/composables/useImportRules'
 import { useConfirm } from '~/composables/useConfirm'
+import { dedupeKey } from '~/services/csvImport'
 import BillList from './components/BillList.vue'
 import BillForm from './components/BillForm.vue'
 import AccountList from './components/AccountList.vue'
@@ -187,6 +218,9 @@ import BudgetForm from './components/BudgetForm.vue'
 import BudgetDashboard from './components/BudgetDashboard.vue'
 import StatementList from './components/StatementList.vue'
 import StatementForm from './components/StatementForm.vue'
+import BillImportDialog from './components/BillImportDialog.vue'
+import ImportRuleList from './components/ImportRuleList.vue'
+import ImportRuleForm from './components/ImportRuleForm.vue'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -199,6 +233,7 @@ const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = 
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree } = useBillCategories()
 const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
+const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule } = useImportRules()
 
 const activeTab = ref('bills')
 const budgetYear = ref(new Date().getFullYear())
@@ -211,17 +246,20 @@ const tabs = [
   { id: 'bills', name: '账单', icon: 'solar:wallet-money-linear' },
   { id: 'accounts', name: '账户', icon: 'solar:wallet-linear' },
   { id: 'categories', name: '分类', icon: 'solar:folder-linear' },
-  { id: 'budgets', name: '预算', icon: 'solar:chart-2-linear' }
+  { id: 'budgets', name: '预算', icon: 'solar:chart-2-linear' },
+  { id: 'rules', name: '规则', icon: 'solar:filter-linear' }
 ]
 
 const dialogVisible = ref(false)
-const dialogType = ref<'bill' | 'account' | 'category' | 'budget' | 'statement-list' | 'statement'>('bill')
+const dialogType = ref<'bill' | 'account' | 'category' | 'budget' | 'statement-list' | 'statement' | 'import' | 'rule'>('bill')
 const dialogTitle = computed(() => {
   if (dialogType.value === 'bill') return editingBill.value ? '编辑账单' : '记一笔'
   if (dialogType.value === 'account') return editingAccount.value ? '编辑账户' : '添加账户'
   if (dialogType.value === 'category') return editingCategory.value ? '编辑分类' : '添加分类'
   if (dialogType.value === 'statement-list') return viewingAccount.value ? `${viewingAccount.value.name} 账单周期` : '账单周期'
   if (dialogType.value === 'statement') return '编辑账单周期'
+  if (dialogType.value === 'import') return '导入账单'
+  if (dialogType.value === 'rule') return editingRule.value ? '编辑规则' : '新建规则'
   return '设置预算'
 })
 
@@ -231,6 +269,23 @@ const editingCategory = ref<BillCategory | null>(null)
 const editingBudget = ref<BudgetEntry | null>(null)
 const viewingAccount = ref<Account | null>(null)
 const editingStatement = ref<Statement | null>(null)
+const editingRule = ref<ImportRule | null>(null)
+const ruleForm = ref<ImportRuleFormData>({
+  name: '',
+  source: 'all',
+  matchMode: 'fuzzy',
+  pattern: '',
+  categoryId: '',
+  fromAccountId: '',
+  toAccountId: '',
+  priority: 100,
+  enabled: true
+})
+const importDialogRef = ref<InstanceType<typeof BillImportDialog> | null>(null)
+
+const existingFingerprints = computed(
+  () => new Set(bills.value.map(b => dedupeKey(b.date, b.amount, b.title)))
+)
 
 const viewingAccountStatements = computed(() =>
   viewingAccount.value
@@ -275,7 +330,7 @@ const expenseTree = computed(() => buildTree('expense'))
 
 onMounted(async () => {
   try {
-    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets(), loadStatements()])
+    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets(), loadStatements(), loadImportRules()])
     markReady()
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
@@ -474,6 +529,36 @@ async function submitDialog() {
     } else if (dialogType.value === 'statement-list') {
       closeDialog()
       return
+    } else if (dialogType.value === 'import') {
+      const validBills = importDialogRef.value?.getValidBills() ?? []
+      if (validBills.length === 0) {
+        showError('未选中任何记录')
+        return
+      }
+      let successCount = 0
+      for (const data of validBills) {
+        try {
+          await createBill(data, props.noteId)
+          successCount++
+        } catch (e) {
+          console.error('Import failed:', e)
+        }
+      }
+      showSuccess(`已导入 ${successCount} 条`)
+    } else if (dialogType.value === 'rule') {
+      if (!ruleForm.value.name) {
+        showError('请输入规则名称')
+        return
+      }
+      if (!ruleForm.value.pattern) {
+        showError('请输入匹配关键字')
+        return
+      }
+      if (editingRule.value) {
+        await updateImportRule(editingRule.value.id, ruleForm.value)
+      } else {
+        await createImportRule(ruleForm.value)
+      }
     }
     closeDialog()
   } catch (e) {
@@ -516,6 +601,8 @@ function closeDialog() {
   editingBudget.value = null
   viewingAccount.value = null
   editingStatement.value = null
+  editingRule.value = null
+  importDialogRef.value?.reset()
 }
 
 function openCategoryContextMenu(payload: { node: CategoryTreeNode; x: number; y: number }) {
@@ -598,6 +685,60 @@ async function handleDashboardQuickAddCategory(name: string) {
       color: ''
     })
     showSuccess('已添加分类')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function openImportDialog() {
+  dialogType.value = 'import'
+  dialogVisible.value = true
+}
+
+function openRuleDialog(rule?: ImportRule) {
+  dialogType.value = 'rule'
+  editingRule.value = rule || null
+  if (rule) {
+    ruleForm.value = {
+      name: rule.name,
+      source: rule.source,
+      matchMode: rule.matchMode,
+      pattern: rule.pattern,
+      categoryId: rule.categoryId,
+      fromAccountId: rule.fromAccountId,
+      toAccountId: rule.toAccountId,
+      priority: rule.priority,
+      enabled: rule.enabled
+    }
+  } else {
+    ruleForm.value = {
+      name: '',
+      source: 'all',
+      matchMode: 'fuzzy',
+      pattern: '',
+      categoryId: '',
+      fromAccountId: '',
+      toAccountId: '',
+      priority: 100,
+      enabled: true
+    }
+  }
+  dialogVisible.value = true
+}
+
+async function handleDeleteRule(id: string) {
+  if (!await confirm('确定删除此规则？')) return
+  try {
+    await deleteImportRule(id)
+    showSuccess('规则已删除')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleToggleRule(id: string, enabled: boolean) {
+  try {
+    await updateImportRule(id, { enabled })
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
@@ -725,6 +866,18 @@ onBeforeUnmount(() => {
 .add-btn:hover {
   background: rgb(0, 110, 250);
 }
+.add-btn.secondary {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.92);
+}
+.add-btn.secondary:hover {
+  background: rgba(60, 60, 67, 0.18);
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .category-section {
   display: flex;
   flex-direction: column;
@@ -757,6 +910,9 @@ onBeforeUnmount(() => {
   border-radius: 16px;
   border: 0.5px solid rgba(255, 255, 255, 0.55);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+.dialog.dialog-wide {
+  max-width: 760px;
 }
 .dialog-header {
   display: flex;
