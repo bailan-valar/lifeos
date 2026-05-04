@@ -16,11 +16,13 @@
 
     <ClassManager v-model:visible="classManagerVisible" user-id="default-user" />
     <ToastContainer />
+    <ConfirmDialog />
   </div>
 </template>
 
 <script setup lang="ts">
 import ToastContainer from '~/components/ui/toast/ToastContainer.vue'
+import ConfirmDialog from '~/components/ui/confirm/ConfirmDialog.vue'
 import ClassManager from '~/components/class/ClassManager.vue'
 
 const route = useRoute()

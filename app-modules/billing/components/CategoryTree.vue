@@ -5,7 +5,11 @@
       :key="node.id"
       class="tree-node"
     >
-      <div class="node-row" :style="{ paddingLeft: `${node.level * 20}px` }">
+      <div
+        class="node-row"
+        :style="{ paddingLeft: `${node.level * 20}px` }"
+        @contextmenu.prevent="onContextMenu($event, node)"
+      >
         <button
           v-if="node.children.length > 0"
           type="button"
@@ -20,10 +24,13 @@
         <span v-else class="expand-placeholder" />
         <span class="node-name">{{ node.name }}</span>
         <div class="node-actions">
-          <button type="button" class="node-action" @click="$emit('edit', node)">
+          <button type="button" class="node-action" title="新增子分类" @click="$emit('add-child', node)">
+            <Icon name="solar:add-circle-linear" size="14" />
+          </button>
+          <button type="button" class="node-action" title="编辑" @click="$emit('edit', node)">
             <Icon name="solar:pen-linear" size="14" />
           </button>
-          <button type="button" class="node-action danger" @click="$emit('delete', node.id)">
+          <button type="button" class="node-action danger" title="删除" @click="$emit('delete', node.id)">
             <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
           </button>
         </div>
@@ -33,6 +40,8 @@
         :nodes="node.children"
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"
+        @add-child="$emit('add-child', $event)"
+        @contextmenu="$emit('contextmenu', $event)"
       />
     </div>
   </div>
@@ -45,9 +54,11 @@ defineProps<{
   nodes: CategoryTreeNode[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'edit', node: CategoryTreeNode): void
   (e: 'delete', id: string): void
+  (e: 'add-child', node: CategoryTreeNode): void
+  (e: 'contextmenu', payload: { node: CategoryTreeNode; x: number; y: number }): void
 }>()
 
 const expanded = ref(new Set<string>())
@@ -60,6 +71,10 @@ function toggleExpand(id: string) {
     next.add(id)
   }
   expanded.value = next
+}
+
+function onContextMenu(event: MouseEvent, node: CategoryTreeNode) {
+  emit('contextmenu', { node, x: event.clientX, y: event.clientY })
 }
 </script>
 

@@ -201,6 +201,7 @@
 
 <script setup lang="ts">
 import { getDB, generateId, now } from '~/services/db'
+import { useConfirm } from '~/composables/useConfirm'
 
 interface Goal {
   id: string
@@ -444,9 +445,11 @@ const saveGoal = async () => {
   closeModal()
 }
 
+const { confirm } = useConfirm()
+
 const deleteGoal = async (id: string) => {
   if (!db) return
-  if (!confirm('确定要删除这个目标吗？')) return
+  if (!await confirm('确定要删除这个目标吗？')) return
   const doc = await db.goals.findOne(id).exec()
   if (doc) await doc.remove()
   await loadGoals()

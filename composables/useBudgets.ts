@@ -1,4 +1,4 @@
-import type { BudgetEntry, BudgetFormData } from '~/types/bill'
+import type { BudgetEntry, BudgetFormData, BudgetCycleType } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
 let dbRef: any = null
@@ -10,7 +10,23 @@ async function getDb() {
   return dbRef
 }
 
-export function useBudgets() {
+interface BudgetsStore {
+  budgets: Ref<BudgetEntry[]>
+  loading: Ref<boolean>
+  error: Ref<string | null>
+  loadBudgets: () => Promise<void>
+  upsertBudget: (data: BudgetFormData) => Promise<BudgetEntry>
+  deleteBudget: (id: string) => Promise<void>
+  resolveBudget: (categoryId: string, year: number, month: number) => { cycleType: BudgetCycleType; amount: number } | null
+  resolveYear: (categoryId: string, year: number) => Array<{ month: number; cycleType: BudgetCycleType; amount: number } | null>
+  getYearCycleType: (categoryId: string, year: number) => BudgetCycleType | 'mixed' | null
+  getMonthlyEquivalent: (categoryId: string, year: number, month: number) => number
+  getCategoryBudgetEntries: (categoryId: string) => BudgetEntry[]
+}
+
+let store: BudgetsStore | null = null
+
+function createStore(): BudgetsStore {
   const budgets = ref<BudgetEntry[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -23,7 +39,33 @@ export function useBudgets() {
       const result = await db.budgets.find({
         sort: [{ createdAt: 'asc' }]
       }).exec()
-      budgets.value = result.map((doc: any) => doc.toJSON())
+
+      const raw = result.map((doc: any) => doc.toJSON())
+      const valid: BudgetEntry[] = []
+      const staleIds: string[] = []
+
+      for (const b of raw) {
+        if (
+          typeof b.effectiveFromYear === 'number' &&
+          typeof b.effectiveFromMonth === 'number' &&
+          (b.cycleType === 'monthly' || b.cycleType === 'yearly')
+        ) {
+          valid.push(b as BudgetEntry)
+        } else if (b.id) {
+          staleIds.push(b.id)
+        }
+      }
+
+      for (const id of staleIds) {
+        try {
+          const doc = await db.budgets.findOne(id).exec()
+          if (doc) await doc.remove()
+        } catch {
+          /* ignore */
+        }
+      }
+
+      budgets.value = valid
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       console.error('Failed to load budgets:', e)
@@ -32,15 +74,34 @@ export function useBudgets() {
     }
   }
 
-  async function createBudget(data: BudgetFormData): Promise<BudgetEntry> {
+  async function upsertBudget(data: BudgetFormData): Promise<BudgetEntry> {
     const db = await getDb()
+    const existing = budgets.value.find(
+      b =>
+        b.categoryId === data.categoryId &&
+        b.effectiveFromYear === data.effectiveFromYear &&
+        b.effectiveFromMonth === data.effectiveFromMonth
+    )
+
+    if (existing) {
+      const doc = await db.budgets.findOne(existing.id).exec()
+      if (doc) {
+        await doc.patch({ ...data, updatedAt: now() })
+        const idx = budgets.value.findIndex(b => b.id === existing.id)
+        if (idx !== -1) {
+          budgets.value[idx] = { ...budgets.value[idx], ...data, updatedAt: now() }
+        }
+        return budgets.value[idx]
+      }
+    }
+
     const budget: BudgetEntry = {
       id: generateId(),
       categoryId: data.categoryId,
-      period: data.period,
+      effectiveFromYear: data.effectiveFromYear,
+      effectiveFromMonth: data.effectiveFromMonth,
+      cycleType: data.cycleType,
       amount: data.amount,
-      year: data.year,
-      month: data.month ?? null,
       createdAt: now(),
       updatedAt: now(),
       isSynced: false
@@ -48,17 +109,6 @@ export function useBudgets() {
     await db.budgets.insert({ ...budget })
     budgets.value.push(budget)
     return budget
-  }
-
-  async function updateBudget(id: string, data: Partial<BudgetFormData>) {
-    const db = await getDb()
-    const doc = await db.budgets.findOne(id).exec()
-    if (!doc) return
-    await doc.patch({ ...data, updatedAt: now() })
-    const idx = budgets.value.findIndex(b => b.id === id)
-    if (idx !== -1) {
-      budgets.value[idx] = { ...budgets.value[idx], ...data, updatedAt: now() }
-    }
   }
 
   async function deleteBudget(id: string) {
@@ -69,33 +119,95 @@ export function useBudgets() {
     budgets.value = budgets.value.filter(b => b.id !== id)
   }
 
-  function getBudgetAmount(categoryId: string, year: number, month: number): number {
-    const monthly = budgets.value.find(b =>
-      b.categoryId === categoryId && b.period === 'monthly' && b.year === year && b.month === month
-    )
-    if (monthly) return monthly.amount
+  function resolveBudget(
+    categoryId: string,
+    year: number,
+    month: number
+  ): { cycleType: BudgetCycleType; amount: number } | null {
+    const entries = budgets.value
+      .filter(b => b.categoryId === categoryId)
+      .sort((a, b) => {
+        const aTime = a.effectiveFromYear * 12 + a.effectiveFromMonth
+        const bTime = b.effectiveFromYear * 12 + b.effectiveFromMonth
+        return aTime - bTime
+      })
 
-    const yearly = budgets.value.find(b =>
-      b.categoryId === categoryId && b.period === 'yearly' && b.year === year
-    )
-    if (yearly) return yearly.amount / 12
+    const target = year * 12 + month
+    let result: BudgetEntry | null = null
 
-    return 0
+    for (const entry of entries) {
+      const entryTime = entry.effectiveFromYear * 12 + entry.effectiveFromMonth
+      if (entryTime <= target) {
+        result = entry
+      } else {
+        break
+      }
+    }
+
+    if (!result) return null
+    return { cycleType: result.cycleType, amount: result.amount }
   }
 
-  const monthlyBudgets = computed(() => budgets.value.filter(b => b.period === 'monthly'))
-  const yearlyBudgets = computed(() => budgets.value.filter(b => b.period === 'yearly'))
+  function resolveYear(
+    categoryId: string,
+    year: number
+  ): Array<{ month: number; cycleType: BudgetCycleType; amount: number } | null> {
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1
+      const cfg = resolveBudget(categoryId, year, month)
+      return cfg ? { month, ...cfg } : null
+    })
+  }
+
+  function getYearCycleType(
+    categoryId: string,
+    year: number
+  ): BudgetCycleType | 'mixed' | null {
+    const configs = resolveYear(categoryId, year)
+    const hasMonthly = configs.some(c => c?.cycleType === 'monthly')
+    const hasYearly = configs.some(c => c?.cycleType === 'yearly')
+
+    if (hasMonthly && hasYearly) return 'mixed'
+    if (hasMonthly) return 'monthly'
+    if (hasYearly) return 'yearly'
+    return null
+  }
+
+  function getMonthlyEquivalent(categoryId: string, year: number, month: number): number {
+    const config = resolveBudget(categoryId, year, month)
+    if (!config) return 0
+    if (config.cycleType === 'yearly') return config.amount / 12
+    return config.amount
+  }
+
+  function getCategoryBudgetEntries(categoryId: string): BudgetEntry[] {
+    return budgets.value
+      .filter(b => b.categoryId === categoryId)
+      .sort((a, b) => {
+        const aTime = a.effectiveFromYear * 12 + a.effectiveFromMonth
+        const bTime = b.effectiveFromYear * 12 + b.effectiveFromMonth
+        return aTime - bTime
+      })
+  }
 
   return {
     budgets,
     loading,
     error,
     loadBudgets,
-    createBudget,
-    updateBudget,
+    upsertBudget,
     deleteBudget,
-    getBudgetAmount,
-    monthlyBudgets,
-    yearlyBudgets
+    resolveBudget,
+    resolveYear,
+    getYearCycleType,
+    getMonthlyEquivalent,
+    getCategoryBudgetEntries
   }
+}
+
+export function useBudgets(): BudgetsStore {
+  if (!store) {
+    store = createStore()
+  }
+  return store
 }

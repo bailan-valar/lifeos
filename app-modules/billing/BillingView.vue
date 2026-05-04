@@ -67,36 +67,32 @@
       </div>
       <div class="category-section">
         <div class="category-subtitle">收入分类</div>
-        <CategoryTree :nodes="incomeTree" @edit="openCategoryDialog" @delete="handleDeleteCategory" />
+        <CategoryTree
+          :nodes="incomeTree"
+          @edit="openCategoryDialog"
+          @delete="handleDeleteCategory"
+          @add-child="openAddChildCategoryDialog"
+          @contextmenu="openCategoryContextMenu"
+        />
       </div>
       <div class="category-section">
         <div class="category-subtitle">支出分类</div>
-        <CategoryTree :nodes="expenseTree" @edit="openCategoryDialog" @delete="handleDeleteCategory" />
+        <CategoryTree
+          :nodes="expenseTree"
+          @edit="openCategoryDialog"
+          @delete="handleDeleteCategory"
+          @add-child="openAddChildCategoryDialog"
+          @contextmenu="openCategoryContextMenu"
+        />
       </div>
     </div>
 
     <div v-if="activeTab === 'budgets'" class="tab-panel">
-      <div class="panel-header">
-        <h4>预算看板</h4>
-        <div class="budget-controls">
-          <select v-model.number="budgetYear" class="form-select year-select">
-            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}年</option>
-          </select>
-          <select v-model.number="budgetMonth" class="form-select month-select">
-            <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
-          </select>
-          <button type="button" class="add-btn" @click="openBudgetDialog()">
-            <Icon name="solar:add-circle-linear" size="18" />
-            设置预算
-          </button>
-        </div>
-      </div>
       <BudgetDashboard
-        :bills="bills"
-        :budgets="budgets"
-        :categories="categories"
         :year="budgetYear"
-        :month="budgetMonth"
+        @edit-cell="onBudgetCellEdit"
+        @quick-add-category="handleDashboardQuickAddCategory"
+        @category-contextmenu="openCategoryContextMenu"
       />
     </div>
     </div>
@@ -130,6 +126,7 @@
             v-if="dialogType === 'budget'"
             v-model="budgetForm"
             :categories="categories"
+            @quick-add-category="handleQuickAddCategory"
           />
           <StatementList
             v-if="dialogType === 'statement-list' && viewingAccount"
@@ -149,17 +146,37 @@
         </div>
       </div>
     </div>
+    <div
+      v-if="categoryMenu.visible && categoryMenu.node"
+      class="context-menu"
+      :style="{ top: `${categoryMenu.y}px`, left: `${categoryMenu.x}px` }"
+      @click.stop
+    >
+      <button type="button" class="context-menu-item" @click="onMenuAddChild">
+        <Icon name="solar:add-circle-linear" size="14" />
+        <span>新增子分类</span>
+      </button>
+      <button type="button" class="context-menu-item" @click="onMenuEdit">
+        <Icon name="solar:pen-linear" size="14" />
+        <span>编辑</span>
+      </button>
+      <button type="button" class="context-menu-item danger" @click="onMenuDelete">
+        <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
+        <span>删除</span>
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode } from '~/types/bill'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useBudgets } from '~/composables/useBudgets'
 import { useStatements } from '~/composables/useStatements'
+import { useConfirm } from '~/composables/useConfirm'
 import BillList from './components/BillList.vue'
 import BillForm from './components/BillForm.vue'
 import AccountList from './components/AccountList.vue'
@@ -180,7 +197,7 @@ const { success: showSuccess, error: showError } = useToast()
 const { bills, totalIncome, totalExpense, netBalance, loadBills, createBill, updateBill, deleteBill } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree } = useBillCategories()
-const { budgets, loadBudgets, createBudget, updateBudget, deleteBudget: deleteBudgetEntry } = useBudgets()
+const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
 
 const activeTab = ref('bills')
@@ -205,7 +222,7 @@ const dialogTitle = computed(() => {
   if (dialogType.value === 'category') return editingCategory.value ? '编辑分类' : '添加分类'
   if (dialogType.value === 'statement-list') return viewingAccount.value ? `${viewingAccount.value.name} 账单周期` : '账单周期'
   if (dialogType.value === 'statement') return '编辑账单周期'
-  return editingBudget.value ? '编辑预算' : '设置预算'
+  return '设置预算'
 })
 
 const editingBill = ref<Bill | null>(null)
@@ -221,6 +238,20 @@ const viewingAccountStatements = computed(() =>
     : []
 )
 
+interface CategoryMenuState {
+  visible: boolean
+  x: number
+  y: number
+  node: CategoryTreeNode | null
+}
+
+const categoryMenu = ref<CategoryMenuState>({
+  visible: false,
+  x: 0,
+  y: 0,
+  node: null
+})
+
 const billForm = ref<BillFormData>({
   type: 'expense', amount: 0, currency: 'CNY',
   fromAccountId: '', toAccountId: '', categoryId: '',
@@ -231,8 +262,8 @@ const billForm = ref<BillFormData>({
 const accountForm = ref<AccountFormData>({ name: '', type: 'personal', currency: 'CNY', icon: '', color: '' })
 const categoryForm = ref<CategoryFormData>({ name: '', type: 'expense', parentId: '', icon: '', color: '' })
 const budgetForm = ref<BudgetFormData>({
-  categoryId: '', period: 'monthly', amount: 0,
-  year: new Date().getFullYear(), month: new Date().getMonth() + 1
+  categoryId: '', cycleType: 'monthly', amount: 0,
+  effectiveFromYear: new Date().getFullYear(), effectiveFromMonth: new Date().getMonth() + 1
 })
 
 const statementForm = ref<StatementFormData>({
@@ -316,14 +347,28 @@ function openBudgetDialog(budget?: BudgetEntry) {
   editingBudget.value = budget || null
   if (budget) {
     budgetForm.value = {
-      categoryId: budget.categoryId, period: budget.period, amount: budget.amount,
-      year: budget.year, month: budget.month
+      categoryId: budget.categoryId, cycleType: budget.cycleType, amount: budget.amount,
+      effectiveFromYear: budget.effectiveFromYear, effectiveFromMonth: budget.effectiveFromMonth
     }
   } else {
     budgetForm.value = {
-      categoryId: '', period: 'monthly', amount: 0,
-      year: new Date().getFullYear(), month: new Date().getMonth() + 1
+      categoryId: '', cycleType: 'monthly', amount: 0,
+      effectiveFromYear: new Date().getFullYear(), effectiveFromMonth: new Date().getMonth() + 1
     }
+  }
+  dialogVisible.value = true
+}
+
+function onBudgetCellEdit(categoryId: string, year: number, month: number) {
+  const config = resolveBudget(categoryId, year, month)
+  dialogType.value = 'budget'
+  editingBudget.value = null
+  budgetForm.value = {
+    categoryId,
+    cycleType: config?.cycleType || 'monthly',
+    amount: config?.amount || 0,
+    effectiveFromYear: year,
+    effectiveFromMonth: month
   }
   dialogVisible.value = true
 }
@@ -415,11 +460,7 @@ async function submitDialog() {
         showError('预算金额必须大于 0')
         return
       }
-      if (editingBudget.value) {
-        await updateBudget(editingBudget.value.id, budgetForm.value)
-      } else {
-        await createBudget(budgetForm.value)
-      }
+      await upsertBudget(budgetForm.value)
     } else if (dialogType.value === 'statement') {
       if (!editingStatement.value) {
         closeDialog()
@@ -440,18 +481,20 @@ async function submitDialog() {
   }
 }
 
+const { confirm } = useConfirm()
+
 async function handleDeleteBill(id: string) {
-  if (!confirm('确定删除此账单？')) return
+  if (!await confirm('确定删除此账单？')) return
   await deleteBill(id)
 }
 
 async function handleDeleteAccount(id: string) {
-  if (!confirm('确定删除此账户？')) return
+  if (!await confirm('确定删除此账户？')) return
   await deleteAccount(id)
 }
 
 async function handleDeleteCategory(id: string) {
-  if (!confirm('确定删除此分类？')) return
+  if (!await confirm('确定删除此分类？')) return
   try {
     await deleteCategory(id)
     showSuccess('分类已删除')
@@ -461,8 +504,8 @@ async function handleDeleteCategory(id: string) {
 }
 
 async function handleDeleteBudgetEntry(id: string) {
-  if (!confirm('确定删除此预算？')) return
-  await deleteBudgetEntry(id)
+  if (!await confirm('确定删除此预算？')) return
+  await removeBudget(id)
 }
 
 function closeDialog() {
@@ -474,6 +517,109 @@ function closeDialog() {
   viewingAccount.value = null
   editingStatement.value = null
 }
+
+function openCategoryContextMenu(payload: { node: CategoryTreeNode; x: number; y: number }) {
+  const margin = 6
+  const menuWidth = 180
+  const menuHeight = 132
+  const maxX = window.innerWidth - menuWidth - margin
+  const maxY = window.innerHeight - menuHeight - margin
+  categoryMenu.value = {
+    visible: true,
+    x: Math.min(payload.x, maxX),
+    y: Math.min(payload.y, maxY),
+    node: payload.node
+  }
+}
+
+function closeCategoryMenu() {
+  if (!categoryMenu.value.visible) return
+  categoryMenu.value = { visible: false, x: 0, y: 0, node: null }
+}
+
+function openAddChildCategoryDialog(parent: CategoryTreeNode) {
+  dialogType.value = 'category'
+  editingCategory.value = null
+  categoryForm.value = {
+    name: '',
+    type: parent.type,
+    parentId: parent.id,
+    icon: '',
+    color: ''
+  }
+  dialogVisible.value = true
+}
+
+function onMenuAddChild() {
+  if (categoryMenu.value.node) {
+    openAddChildCategoryDialog(categoryMenu.value.node)
+  }
+  closeCategoryMenu()
+}
+
+function onMenuEdit() {
+  if (categoryMenu.value.node) {
+    openCategoryDialog(categoryMenu.value.node)
+  }
+  closeCategoryMenu()
+}
+
+function onMenuDelete() {
+  const node = categoryMenu.value.node
+  closeCategoryMenu()
+  if (node) {
+    handleDeleteCategory(node.id)
+  }
+}
+
+async function handleQuickAddCategory(name: string) {
+  try {
+    const created = await createCategory({
+      name,
+      type: 'expense',
+      parentId: '',
+      icon: '',
+      color: ''
+    })
+    budgetForm.value = { ...budgetForm.value, categoryId: created.id }
+    showSuccess('已添加分类')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleDashboardQuickAddCategory(name: string) {
+  try {
+    await createCategory({
+      name,
+      type: 'expense',
+      parentId: '',
+      icon: '',
+      color: ''
+    })
+    showSuccess('已添加分类')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function onGlobalKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeCategoryMenu()
+}
+
+onMounted(() => {
+  window.addEventListener('click', closeCategoryMenu)
+  window.addEventListener('contextmenu', closeCategoryMenu, true)
+  window.addEventListener('keydown', onGlobalKeydown)
+  window.addEventListener('resize', closeCategoryMenu)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('click', closeCategoryMenu)
+  window.removeEventListener('contextmenu', closeCategoryMenu, true)
+  window.removeEventListener('keydown', onGlobalKeydown)
+  window.removeEventListener('resize', closeCategoryMenu)
+})
 </script>
 
 <style scoped>
@@ -682,5 +828,40 @@ function closeDialog() {
 }
 .budget-controls .month-select {
   min-width: 70px;
+}
+.context-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 160px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 0.5px solid rgba(60, 60, 67, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.86);
+  cursor: pointer;
+  text-align: left;
+}
+.context-menu-item:hover {
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
+}
+.context-menu-item.danger:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: rgb(255, 59, 48);
 }
 </style>

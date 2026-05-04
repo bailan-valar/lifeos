@@ -205,6 +205,7 @@
 <script setup lang="ts">
 import type { Class, ClassField, ClassFieldType } from '~/types/block'
 import { generateId } from '~/services/db'
+import { useConfirm } from '~/composables/useConfirm'
 
 interface Props {
   visible: boolean
@@ -387,8 +388,10 @@ const saveClass = async () => {
   await loadClasses(props.userId)
 }
 
+const { confirm } = useConfirm()
+
 const confirmDeleteClass = async (cls: Class) => {
-  if (!confirm(`确定删除类「${cls.name}」？关联的笔记属性也会被移除。`)) return
+  if (!await confirm(`确定删除类「${cls.name}」？关联的笔记属性也会被移除。`)) return
   await deleteClass(cls.id)
   await loadClasses(props.userId)
 }

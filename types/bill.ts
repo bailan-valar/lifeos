@@ -145,15 +145,20 @@ export interface CategoryTreeNode extends BillCategory {
 export type BudgetPeriod = 'monthly' | 'yearly'
 
 /**
- * 预算记录
+ * 预算周期类型（时序模型）
+ */
+export type BudgetCycleType = 'monthly' | 'yearly'
+
+/**
+ * 预算记录（时序生效模型）
  */
 export interface BudgetEntry {
   id: string
   categoryId: string
-  period: BudgetPeriod
+  effectiveFromYear: number
+  effectiveFromMonth: number
+  cycleType: BudgetCycleType
   amount: number
-  year: number
-  month: number | null
   createdAt: string
   updatedAt: string
   isSynced: boolean
@@ -164,10 +169,10 @@ export interface BudgetEntry {
  */
 export interface BudgetFormData {
   categoryId: string
-  period: BudgetPeriod
+  effectiveFromYear: number
+  effectiveFromMonth: number
+  cycleType: BudgetCycleType
   amount: number
-  year: number
-  month: number | null
 }
 
 /**

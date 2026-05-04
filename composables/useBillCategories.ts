@@ -10,7 +10,9 @@ async function getDb() {
   return dbRef
 }
 
-export function useBillCategories() {
+let store: ReturnType<typeof createStore> | null = null
+
+function createStore() {
   const categories = ref<BillCategory[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -121,4 +123,11 @@ export function useBillCategories() {
     deleteCategory,
     buildTree
   }
+}
+
+export function useBillCategories() {
+  if (!store) {
+    store = createStore()
+  }
+  return store
 }
