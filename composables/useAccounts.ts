@@ -15,6 +15,13 @@ function clampDay(d: number | undefined): number | undefined {
   return Math.max(1, Math.min(28, Math.floor(d)))
 }
 
+function sanitizeAliases(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map(v => (typeof v === 'string' ? v.trim() : ''))
+    .filter(v => v.length > 0)
+}
+
 function withDefaultSubtype(raw: Account): Account {
   if (raw.type === 'personal' && !raw.subtype) {
     return { ...raw, subtype: 'cash' }
@@ -48,6 +55,7 @@ export function useAccounts() {
     const db = await getDb()
     const isPersonal = data.type === 'personal'
     const isCredit = isPersonal && data.subtype === 'credit_card'
+    const aliases = sanitizeAliases(data.aliases)
     const account: Account = {
       id: generateId(),
       name: data.name,
@@ -64,7 +72,8 @@ export function useAccounts() {
         creditLimit: typeof data.creditLimit === 'number' ? data.creditLimit : 0,
         billingDay: clampDay(data.billingDay) ?? 1,
         repaymentDay: clampDay(data.repaymentDay) ?? 1
-      } : {})
+      } : {}),
+      ...(aliases.length ? { aliases } : {})
     }
     await db.accounts.insert({ ...account })
     accounts.value.push(account)
@@ -78,6 +87,9 @@ export function useAccounts() {
     const patch: Record<string, any> = { ...data, updatedAt: now() }
     if (typeof patch.billingDay === 'number') patch.billingDay = clampDay(patch.billingDay)
     if (typeof patch.repaymentDay === 'number') patch.repaymentDay = clampDay(patch.repaymentDay)
+    if ('aliases' in patch) {
+      patch.aliases = sanitizeAliases(patch.aliases)
+    }
     await doc.patch(patch)
     const idx = accounts.value.findIndex(a => a.id === id)
     if (idx !== -1) {
@@ -110,8 +122,20 @@ export function useAccounts() {
     accounts.value.filter(a => a.type === 'personal')
   )
 
+  const merchantAccounts = computed(() =>
+    accounts.value.filter(a => a.type === 'merchant')
+  )
+
+  const contactAccounts = computed(() =>
+    accounts.value.filter(a => a.type === 'contact')
+  )
+
   const otherAccounts = computed(() =>
     accounts.value.filter(a => a.type === 'other')
+  )
+
+  const externalAccounts = computed(() =>
+    accounts.value.filter(a => a.type !== 'personal')
   )
 
   const cashAccounts = computed(() =>
@@ -133,7 +157,10 @@ export function useAccounts() {
   return {
     accounts,
     personalAccounts,
+    merchantAccounts,
+    contactAccounts,
     otherAccounts,
+    externalAccounts,
     cashAccounts,
     debitAccounts,
     creditAccounts,

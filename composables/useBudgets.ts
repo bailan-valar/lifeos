@@ -14,14 +14,14 @@ interface BudgetsStore {
   budgets: Ref<BudgetEntry[]>
   loading: Ref<boolean>
   error: Ref<string | null>
-  loadBudgets: () => Promise<void>
+  loadBudgets: (noteId?: string) => Promise<void>
   upsertBudget: (data: BudgetFormData) => Promise<BudgetEntry>
   deleteBudget: (id: string) => Promise<void>
-  resolveBudget: (categoryId: string, year: number, month: number) => { cycleType: BudgetCycleType; amount: number } | null
-  resolveYear: (categoryId: string, year: number) => Array<{ month: number; cycleType: BudgetCycleType; amount: number } | null>
-  getYearCycleType: (categoryId: string, year: number) => BudgetCycleType | 'mixed' | null
-  getMonthlyEquivalent: (categoryId: string, year: number, month: number) => number
-  getCategoryBudgetEntries: (categoryId: string) => BudgetEntry[]
+  resolveBudget: (categoryId: string, year: number, month: number, noteId?: string) => { cycleType: BudgetCycleType; amount: number } | null
+  resolveYear: (categoryId: string, year: number, noteId?: string) => Array<{ month: number; cycleType: BudgetCycleType; amount: number } | null>
+  getYearCycleType: (categoryId: string, year: number, noteId?: string) => BudgetCycleType | 'mixed' | null
+  getMonthlyEquivalent: (categoryId: string, year: number, month: number, noteId?: string) => number
+  getCategoryBudgetEntries: (categoryId: string, noteId?: string) => BudgetEntry[]
 }
 
 let store: BudgetsStore | null = null
@@ -31,12 +31,14 @@ function createStore(): BudgetsStore {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function loadBudgets() {
+  async function loadBudgets(noteId?: string) {
     loading.value = true
     error.value = null
     try {
       const db = await getDb()
+      const selector: Record<string, unknown> = noteId !== undefined ? { noteId: noteId || '' } : {}
       const result = await db.budgets.find({
+        selector,
         sort: [{ createdAt: 'asc' }]
       }).exec()
 
@@ -78,6 +80,7 @@ function createStore(): BudgetsStore {
     const db = await getDb()
     const existing = budgets.value.find(
       b =>
+        b.noteId === (data.noteId || '') &&
         b.categoryId === data.categoryId &&
         b.effectiveFromYear === data.effectiveFromYear &&
         b.effectiveFromMonth === data.effectiveFromMonth
@@ -97,6 +100,7 @@ function createStore(): BudgetsStore {
 
     const budget: BudgetEntry = {
       id: generateId(),
+      noteId: data.noteId || '',
       categoryId: data.categoryId,
       effectiveFromYear: data.effectiveFromYear,
       effectiveFromMonth: data.effectiveFromMonth,
@@ -122,10 +126,11 @@ function createStore(): BudgetsStore {
   function resolveBudget(
     categoryId: string,
     year: number,
-    month: number
+    month: number,
+    noteId?: string
   ): { cycleType: BudgetCycleType; amount: number } | null {
     const entries = budgets.value
-      .filter(b => b.categoryId === categoryId)
+      .filter(b => b.categoryId === categoryId && (noteId === undefined || b.noteId === noteId))
       .sort((a, b) => {
         const aTime = a.effectiveFromYear * 12 + a.effectiveFromMonth
         const bTime = b.effectiveFromYear * 12 + b.effectiveFromMonth
@@ -150,20 +155,22 @@ function createStore(): BudgetsStore {
 
   function resolveYear(
     categoryId: string,
-    year: number
+    year: number,
+    noteId?: string
   ): Array<{ month: number; cycleType: BudgetCycleType; amount: number } | null> {
     return Array.from({ length: 12 }, (_, i) => {
       const month = i + 1
-      const cfg = resolveBudget(categoryId, year, month)
+      const cfg = resolveBudget(categoryId, year, month, noteId)
       return cfg ? { month, ...cfg } : null
     })
   }
 
   function getYearCycleType(
     categoryId: string,
-    year: number
+    year: number,
+    noteId?: string
   ): BudgetCycleType | 'mixed' | null {
-    const configs = resolveYear(categoryId, year)
+    const configs = resolveYear(categoryId, year, noteId)
     const hasMonthly = configs.some(c => c?.cycleType === 'monthly')
     const hasYearly = configs.some(c => c?.cycleType === 'yearly')
 
@@ -173,16 +180,16 @@ function createStore(): BudgetsStore {
     return null
   }
 
-  function getMonthlyEquivalent(categoryId: string, year: number, month: number): number {
-    const config = resolveBudget(categoryId, year, month)
+  function getMonthlyEquivalent(categoryId: string, year: number, month: number, noteId?: string): number {
+    const config = resolveBudget(categoryId, year, month, noteId)
     if (!config) return 0
     if (config.cycleType === 'yearly') return config.amount / 12
     return config.amount
   }
 
-  function getCategoryBudgetEntries(categoryId: string): BudgetEntry[] {
+  function getCategoryBudgetEntries(categoryId: string, noteId?: string): BudgetEntry[] {
     return budgets.value
-      .filter(b => b.categoryId === categoryId)
+      .filter(b => b.categoryId === categoryId && (noteId === undefined || b.noteId === noteId))
       .sort((a, b) => {
         const aTime = a.effectiveFromYear * 12 + a.effectiveFromMonth
         const bTime = b.effectiveFromYear * 12 + b.effectiveFromMonth

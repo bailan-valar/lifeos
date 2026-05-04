@@ -20,6 +20,7 @@ async function updateAccountBalance(id: string, delta: number) {
 }
 
 async function applyBalanceChange(bill: Bill, reverse = false) {
+  if (bill.type === 'debt') return
   const m = reverse ? -1 : 1
   if (bill.fromAccountId) await updateAccountBalance(bill.fromAccountId, -bill.amount * m)
   if (bill.toAccountId) await updateAccountBalance(bill.toAccountId, bill.amount * m)
@@ -44,6 +45,31 @@ export function useBills() {
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       console.error('Failed to load bills:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadBillsForNotes(noteIds: string[]) {
+    loading.value = true
+    error.value = null
+    try {
+      const db = await getDb()
+      if (noteIds.length === 0) {
+        bills.value = []
+        return
+      }
+      const selector: Record<string, unknown> = noteIds.length === 1
+        ? { noteId: noteIds[0] }
+        : { noteId: { $in: noteIds } }
+      const result = await db.bills.find({
+        selector,
+        sort: [{ date: 'desc' }]
+      }).exec()
+      bills.value = result.map((doc: any) => doc.toJSON())
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      console.error('Failed to load bills for notes:', e)
     } finally {
       loading.value = false
     }
@@ -164,6 +190,7 @@ export function useBills() {
     totalTransfer,
     netBalance,
     loadBills,
+    loadBillsForNotes,
     createBill,
     updateBill,
     deleteBill,

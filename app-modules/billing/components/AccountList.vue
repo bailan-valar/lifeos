@@ -80,9 +80,19 @@ const groups = computed<AccountGroup[]>(() => {
   const debit: Account[] = []
   const credit: Account[] = []
   const online: Account[] = []
+  const merchants: Account[] = []
+  const contacts: Account[] = []
   const others: Account[] = []
 
   for (const a of props.accounts) {
+    if (a.type === 'merchant') {
+      merchants.push(a)
+      continue
+    }
+    if (a.type === 'contact') {
+      contacts.push(a)
+      continue
+    }
     if (a.type === 'other') {
       others.push(a)
       continue
@@ -99,7 +109,9 @@ const groups = computed<AccountGroup[]>(() => {
     { key: 'debit_card', label: '储蓄卡', items: debit },
     { key: 'credit_card', label: '信用卡', items: credit },
     { key: 'online_account', label: '网络账户', items: online },
-    { key: 'other', label: '他人账户', items: others }
+    { key: 'merchant', label: '商户', items: merchants },
+    { key: 'contact', label: '联系人', items: contacts },
+    { key: 'other', label: '其他', items: others }
   ]
 })
 
@@ -108,7 +120,9 @@ function isCreditCard(a: Account): boolean {
 }
 
 function badgeLabel(a: Account): string {
-  if (a.type === 'other') return '他人'
+  if (a.type === 'merchant') return '商户'
+  if (a.type === 'contact') return '联系人'
+  if (a.type === 'other') return '其他'
   const sub = effectiveSubtype(a)
   if (sub === 'debit_card') return '储蓄卡'
   if (sub === 'credit_card') return '信用卡'
@@ -117,6 +131,8 @@ function badgeLabel(a: Account): string {
 }
 
 function badgeClass(a: Account): string {
+  if (a.type === 'merchant') return 'merchant'
+  if (a.type === 'contact') return 'contact'
   if (a.type === 'other') return 'other'
   const sub = effectiveSubtype(a)
   if (sub === 'credit_card') return 'credit'
@@ -194,6 +210,14 @@ function formatBalance(n: number) {
 .account-badge.online {
   background: rgba(90, 200, 250, 0.12);
   color: rgb(0, 122, 255);
+}
+.account-badge.merchant {
+  background: rgba(255, 149, 0, 0.1);
+  color: rgb(255, 149, 0);
+}
+.account-badge.contact {
+  background: rgba(88, 86, 214, 0.1);
+  color: rgb(88, 86, 214);
 }
 .account-badge.other {
   background: rgba(175, 82, 222, 0.1);

@@ -10,8 +10,12 @@ export type DebtSubtype = 'lend' | 'borrow'
 
 /**
  * 账户类型
+ * - personal: 自己持有的资金账户(现金/储蓄卡/信用卡/网络账户)
+ * - merchant: 商户(超市/餐厅/电商等),CSV 导入对方多归此类
+ * - contact: 联系人(借贷对方,亲友/同事)
+ * - other: 兼容旧数据;新版 UI 默认不再创建此类
  */
-export type AccountType = 'personal' | 'other'
+export type AccountType = 'personal' | 'merchant' | 'contact' | 'other'
 
 /**
  * 资金账户子类型（仅 type=personal 时使用）
@@ -43,6 +47,7 @@ export interface Account {
   creditLimit?: number
   billingDay?: number
   repaymentDay?: number
+  aliases?: string[]
   createdAt: string
   updatedAt: string
   isSynced: boolean
@@ -118,6 +123,7 @@ export interface AccountFormData {
   creditLimit?: number
   billingDay?: number
   repaymentDay?: number
+  aliases?: string[]
 }
 
 /**
@@ -154,6 +160,7 @@ export type BudgetCycleType = 'monthly' | 'yearly'
  */
 export interface BudgetEntry {
   id: string
+  noteId: string
   categoryId: string
   effectiveFromYear: number
   effectiveFromMonth: number
@@ -168,6 +175,7 @@ export interface BudgetEntry {
  * 预算表单数据
  */
 export interface BudgetFormData {
+  noteId: string
   categoryId: string
   effectiveFromYear: number
   effectiveFromMonth: number
@@ -223,6 +231,7 @@ export type ImportRuleMatchMode = 'exact' | 'regex' | 'fuzzy'
 /**
  * 导入规则
  * 按 CSV 中"交易对方"字段匹配,命中后填充 categoryId / fromAccountId / toAccountId
+ * billType 可选,优先级高于按账户类型推断
  */
 export interface ImportRule {
   id: string
@@ -233,6 +242,7 @@ export interface ImportRule {
   categoryId: string
   fromAccountId: string
   toAccountId: string
+  billType?: BillType
   priority: number
   enabled: boolean
   createdAt: string
@@ -251,6 +261,7 @@ export interface ImportRuleFormData {
   categoryId: string
   fromAccountId: string
   toAccountId: string
+  billType?: BillType
   priority: number
   enabled: boolean
 }
@@ -275,7 +286,9 @@ export interface ImportPreviewRow extends CsvParsedRow {
   selected: boolean
   duplicate: boolean
   matchedRuleId: string | null
+  matchedAccountId: string | null
   type: BillType
+  debtSubtype: DebtSubtype
   categoryId: string
   fromAccountId: string
   toAccountId: string

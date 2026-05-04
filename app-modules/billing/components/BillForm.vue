@@ -40,26 +40,38 @@
     </div>
 
     <div class="account-row">
-      <div class="form-group">
+      <div v-if="showFrom" class="form-group">
         <label class="form-label">出账账户</label>
         <select v-model="form.fromAccountId" class="form-select">
           <option value="">请选择</option>
           <optgroup v-if="personalAccounts.length" label="我的账户">
             <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </optgroup>
-          <optgroup v-if="otherAccounts.length" label="外部账户">
+          <optgroup v-if="merchantAccounts.length" label="商户">
+            <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+          </optgroup>
+          <optgroup v-if="contactAccounts.length" label="联系人">
+            <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+          </optgroup>
+          <optgroup v-if="otherAccounts.length" label="其他">
             <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </optgroup>
         </select>
       </div>
-      <div class="form-group">
+      <div v-if="showTo" class="form-group">
         <label class="form-label">入账账户</label>
         <select v-model="form.toAccountId" class="form-select">
           <option value="">请选择</option>
           <optgroup v-if="personalAccounts.length" label="我的账户">
             <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </optgroup>
-          <optgroup v-if="otherAccounts.length" label="外部账户">
+          <optgroup v-if="merchantAccounts.length" label="商户">
+            <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+          </optgroup>
+          <optgroup v-if="contactAccounts.length" label="联系人">
+            <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+          </optgroup>
+          <optgroup v-if="otherAccounts.length" label="其他">
             <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </optgroup>
         </select>
@@ -134,11 +146,16 @@ const form = computed({
 })
 
 const personalAccounts = computed(() => props.accounts.filter(a => a.type === 'personal'))
+const merchantAccounts = computed(() => props.accounts.filter(a => a.type === 'merchant'))
+const contactAccounts = computed(() => props.accounts.filter(a => a.type === 'contact'))
 const otherAccounts = computed(() => props.accounts.filter(a => a.type === 'other'))
 
 const relevantCategories = computed(() =>
   props.categories.filter(c => c.type === form.value.type)
 )
+
+const showFrom = computed(() => form.value.type !== 'income')
+const showTo = computed(() => form.value.type !== 'expense')
 
 const sameAccountWarning = computed(() =>
   !!form.value.fromAccountId &&

@@ -2,7 +2,7 @@
   <div class="form-body">
     <div class="form-group">
       <label class="form-label">账户名称</label>
-      <input v-model="form.name" class="form-input" type="text" placeholder="如：现金、支付宝、张三" />
+      <input v-model="form.name" class="form-input" type="text" placeholder="如：现金、支付宝、张三、星巴克" />
     </div>
     <div class="form-group">
       <label class="form-label">账户类型</label>
@@ -18,6 +18,7 @@
           {{ t.label }}
         </button>
       </div>
+      <div class="form-hint">{{ typeHint }}</div>
     </div>
     <div v-if="form.type === 'personal'" class="form-group">
       <label class="form-label">资金账户形态</label>
@@ -73,6 +74,17 @@
         </div>
       </div>
     </template>
+    <div v-if="form.type !== 'personal'" class="form-group">
+      <label class="form-label">别名（每行一个，用于 CSV 导入自动匹配）</label>
+      <textarea
+        :value="aliasesText"
+        class="form-textarea"
+        rows="3"
+        :placeholder="aliasesPlaceholder"
+        @input="onAliasesInput(($event.target as HTMLTextAreaElement).value)"
+      ></textarea>
+      <div class="form-hint">如:支付宝商户名、对方真实姓名、昵称等</div>
+    </div>
     <div class="form-group">
       <label class="form-label">币种</label>
       <select v-model="form.currency" class="form-select">
@@ -95,9 +107,11 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: AccountFormData): void
 }>()
 
-const typeOptions = [
-  { value: 'personal' as AccountType, label: '个人账户' },
-  { value: 'other' as AccountType, label: '他人账户' }
+const typeOptions: Array<{ value: AccountType; label: string }> = [
+  { value: 'personal', label: '我的账户' },
+  { value: 'merchant', label: '商户' },
+  { value: 'contact', label: '联系人' },
+  { value: 'other', label: '其他' }
 ]
 
 const subtypeOptions: Array<{ value: AccountSubtype; label: string }> = [
@@ -112,6 +126,34 @@ const form = computed({
   set: (v) => emit('update:modelValue', v)
 })
 
+const typeHint = computed(() => {
+  switch (form.value.type) {
+    case 'personal':
+      return '我自己的资金账户(现金/银行卡/网络账户/信用卡)'
+    case 'merchant':
+      return '商家、平台或机构,导入收支时默认归为支出/收入'
+    case 'contact':
+      return '亲友或借贷对手,导入时默认归为借贷(借出/借入)'
+    case 'other':
+      return '不属于以上类别的账户'
+    default:
+      return ''
+  }
+})
+
+const aliasesPlaceholder = computed(() => {
+  switch (form.value.type) {
+    case 'merchant':
+      return '示例:\n星巴克咖啡\nStarbucks\n星巴克(国贸店)'
+    case 'contact':
+      return '示例:\n张三\nZhang San\n小张'
+    default:
+      return '一行一个'
+  }
+})
+
+const aliasesText = computed(() => (form.value.aliases ?? []).join('\n'))
+
 function clampDay(n: number): number {
   if (isNaN(n)) return 1
   return Math.max(1, Math.min(28, Math.floor(n)))
@@ -125,7 +167,7 @@ function onTypeChange(t: AccountType) {
       subtype: form.value.subtype || 'cash'
     })
   } else {
-    const next = { ...form.value, type: t }
+    const next: AccountFormData = { ...form.value, type: t }
     delete next.subtype
     delete next.creditLimit
     delete next.billingDay
@@ -171,6 +213,14 @@ function onRepaymentDayInput(raw: string) {
     repaymentDay: clampDay(v)
   })
 }
+
+function onAliasesInput(raw: string) {
+  const list = raw.split('\n').map(s => s.trim()).filter(Boolean)
+  emit('update:modelValue', {
+    ...form.value,
+    aliases: list
+  })
+}
 </script>
 
 <style scoped>
@@ -197,7 +247,8 @@ function onRepaymentDayInput(raw: string) {
   color: rgba(0, 0, 0, 0.92);
 }
 .form-input,
-.form-select {
+.form-select,
+.form-textarea {
   padding: 10px 12px;
   border: 0.5px solid rgba(60, 60, 67, 0.2);
   border-radius: 8px;
@@ -205,14 +256,22 @@ function onRepaymentDayInput(raw: string) {
   background: rgba(255, 255, 255, 0.8);
   color: rgba(0, 0, 0, 0.92);
   outline: none;
+  font-family: inherit;
+  resize: vertical;
 }
 .form-input:focus,
-.form-select:focus {
+.form-select:focus,
+.form-textarea:focus {
   border-color: rgb(0, 122, 255);
+}
+.form-hint {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.6);
 }
 .type-selector {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .subtype-grid {
   display: grid;
@@ -221,6 +280,7 @@ function onRepaymentDayInput(raw: string) {
 }
 .type-btn {
   flex: 1;
+  min-width: 80px;
   padding: 10px;
   border: 0.5px solid rgba(60, 60, 67, 0.2);
   border-radius: 8px;

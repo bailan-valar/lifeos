@@ -1,6 +1,14 @@
 <template>
   <div class="budget-dashboard">
     <div class="dashboard-header">
+      <div class="header-left">
+        <select v-model="selectedNoteId" class="note-select">
+          <option value="">全局</option>
+          <option v-for="n in noteOptions" :key="n.id" :value="n.id">
+            {{ '  '.repeat(n.level) }}{{ n.title }}
+          </option>
+        </select>
+      </div>
       <div class="year-nav">
         <button class="nav-btn" @click="currentYear--">
           <Icon name="solar:alt-arrow-left-linear" size="16" />
@@ -160,24 +168,27 @@
 </template>
 
 <script setup lang="ts">
-import type { BudgetCycleType, CategoryTreeNode } from '~/types/bill'
+import type { Bill, BudgetCycleType, CategoryTreeNode } from '~/types/bill'
 
 const props = defineProps<{ year?: number }>()
 
 const emit = defineEmits<{
-  (e: 'edit-cell', categoryId: string, year: number, month: number): void
+  (e: 'edit-cell', categoryId: string, year: number, month: number, noteId: string): void
   (e: 'quick-add-category', name: string): void
   (e: 'category-contextmenu', payload: { node: CategoryTreeNode; x: number; y: number }): void
 }>()
 
-const { bills, loadBills } = useBills()
+const { loadBills } = useBills()
 const { loadBudgets, resolveBudget, getMonthlyEquivalent } = useBudgets()
 const { loadCategories, buildTree } = useBillCategories()
+const { loadNotes, noteOptions, getDescendantNoteIds } = useNotes()
 
 const thisYear = new Date().getFullYear()
 const currentYear = ref(props.year ?? thisYear)
 const currentMonth = new Date().getMonth() + 1
 const expandedIds = ref<Set<string>>(new Set())
+const selectedNoteId = ref('')
+const scopedBills = ref<Bill[]>([])
 
 const showQuickAdd = ref(false)
 const quickAddName = ref('')
@@ -210,8 +221,41 @@ function onCategoryContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   emit('category-contextmenu', { node, x: event.clientX, y: event.clientY })
 }
 
+async function refreshData() {
+  await loadBudgets(selectedNoteId.value)
+  if (selectedNoteId.value) {
+    const noteIds = getDescendantNoteIds(selectedNoteId.value)
+    const db = await (async () => {
+      const { getDB } = await import('~/services/db')
+      return getDB()
+    })()
+    const selector: Record<string, unknown> = noteIds.length === 1
+      ? { noteId: noteIds[0] }
+      : { noteId: { $in: noteIds } }
+    const result = await (await db).bills.find({
+      selector,
+      sort: [{ date: 'desc' }]
+    }).exec()
+    scopedBills.value = result.map((doc: any) => doc.toJSON())
+  } else {
+    const db = await (async () => {
+      const { getDB } = await import('~/services/db')
+      return getDB()
+    })()
+    const result = await (await db).bills.find({
+      sort: [{ date: 'desc' }]
+    }).exec()
+    scopedBills.value = result.map((doc: any) => doc.toJSON())
+  }
+}
+
 onMounted(async () => {
-  await Promise.all([loadCategories(), loadBudgets(), loadBills()])
+  await Promise.all([loadCategories(), loadNotes()])
+  await refreshData()
+})
+
+watch(selectedNoteId, async () => {
+  await refreshData()
 })
 
 const expenseTree = computed(() => buildTree('expense'))
@@ -246,7 +290,7 @@ function toggleExpand(id: string) {
 
 function getDirectActual(categoryId: string, year: number, month: number): number {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
-  return bills.value
+  return scopedBills.value
     .filter(b => b.type === 'expense' && b.categoryId === categoryId && b.date.startsWith(prefix))
     .reduce((sum, b) => sum + b.amount, 0)
 }
@@ -281,8 +325,8 @@ function calcTree(nodes: CategoryTreeNode[], year: number, level = 0): TreeRow[]
 
     const ownMonthly: { budget: number; actual: number; config: ReturnType<typeof resolveBudget> }[] = []
     for (let month = 1; month <= 12; month++) {
-      const config = resolveBudget(node.id, year, month)
-      const budget = config ? getMonthlyEquivalent(node.id, year, month) : 0
+      const config = resolveBudget(node.id, year, month, selectedNoteId.value)
+      const budget = config ? getMonthlyEquivalent(node.id, year, month, selectedNoteId.value) : 0
       const actual = getDirectActual(node.id, year, month)
       ownMonthly.push({ budget, actual, config })
     }
@@ -342,7 +386,7 @@ function getCellBg(percentage: number, hasBudget: boolean): string {
 }
 
 function onCellClick(categoryId: string, month: number) {
-  emit('edit-cell', categoryId, currentYear.value, month)
+  emit('edit-cell', categoryId, currentYear.value, month, selectedNoteId.value)
 }
 </script>
 
@@ -359,6 +403,29 @@ function onCellClick(categoryId: string, month: number) {
   align-items: center;
   justify-content: center;
   position: relative;
+}
+
+.header-left {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.note-select {
+  padding: 6px 10px;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.8);
+  color: rgba(0, 0, 0, 0.92);
+  outline: none;
+  min-width: 140px;
+  max-width: 200px;
+}
+
+.note-select:focus {
+  border-color: rgb(0, 122, 255);
 }
 
 .header-actions {

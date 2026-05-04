@@ -60,6 +60,23 @@
       </select>
     </div>
 
+    <div class="form-group">
+      <label class="form-label">账单类型</label>
+      <div class="type-selector type-selector-wrap">
+        <button
+          v-for="t in billTypeOptions"
+          :key="t.value ?? 'auto'"
+          type="button"
+          class="type-btn"
+          :class="{ active: (form.billType ?? null) === t.value }"
+          @click="setBillType(t.value)"
+        >
+          {{ t.label }}
+        </button>
+      </div>
+      <div class="form-hint">不指定则按金额方向与账户类型自动推断</div>
+    </div>
+
     <div class="account-row">
       <div class="form-group">
         <label class="form-label">出账账户</label>
@@ -68,7 +85,13 @@
           <optgroup v-if="personalAccounts.length" label="我的账户">
             <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </optgroup>
-          <optgroup v-if="otherAccounts.length" label="外部账户">
+          <optgroup v-if="merchantAccounts.length" label="商户">
+            <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+          </optgroup>
+          <optgroup v-if="contactAccounts.length" label="联系人">
+            <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+          </optgroup>
+          <optgroup v-if="otherAccounts.length" label="其他">
             <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </optgroup>
         </select>
@@ -80,7 +103,13 @@
           <optgroup v-if="personalAccounts.length" label="我的账户">
             <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </optgroup>
-          <optgroup v-if="otherAccounts.length" label="外部账户">
+          <optgroup v-if="merchantAccounts.length" label="商户">
+            <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+          </optgroup>
+          <optgroup v-if="contactAccounts.length" label="联系人">
+            <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+          </optgroup>
+          <optgroup v-if="otherAccounts.length" label="其他">
             <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </optgroup>
         </select>
@@ -114,7 +143,8 @@ import type {
   ImportRuleMatchMode,
   ImportSource,
   Account,
-  BillCategory
+  BillCategory,
+  BillType
 } from '~/types/bill'
 
 type SourceValue = ImportSource | 'all'
@@ -141,12 +171,26 @@ const matchModeOptions: { value: ImportRuleMatchMode; label: string }[] = [
   { value: 'regex', label: '正则' }
 ]
 
+const billTypeOptions: { value: BillType | null; label: string }[] = [
+  { value: null, label: '不指定' },
+  { value: 'income', label: '收入' },
+  { value: 'expense', label: '支出' },
+  { value: 'transfer', label: '转账' },
+  { value: 'debt', label: '借贷' }
+]
+
 const form = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v)
 })
 
+function setBillType(value: BillType | null) {
+  emit('update:modelValue', { ...props.modelValue, billType: value ?? undefined })
+}
+
 const personalAccounts = computed(() => props.accounts.filter(a => a.type === 'personal'))
+const merchantAccounts = computed(() => props.accounts.filter(a => a.type === 'merchant'))
+const contactAccounts = computed(() => props.accounts.filter(a => a.type === 'contact'))
 const otherAccounts = computed(() => props.accounts.filter(a => a.type === 'other'))
 
 const incomeCategories = computed(() => props.categories.filter(c => c.type === 'income'))
@@ -200,6 +244,9 @@ const patternPlaceholder = computed(() => {
   display: flex;
   gap: 8px;
 }
+.type-selector-wrap {
+  flex-wrap: wrap;
+}
 .type-btn {
   flex: 1;
   padding: 10px;
@@ -215,6 +262,10 @@ const patternPlaceholder = computed(() => {
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
   font-weight: 600;
+}
+.form-hint {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.6);
 }
 .account-row,
 .form-row {

@@ -35,6 +35,7 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   billCategories: [['type'], ['parentId'], ['order'], ['isSynced']],
   bills: [['noteId'], ['type'], ['date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['isSynced']],
   budgets: [
+    ['noteId'],
     ['categoryId'],
     ['categoryId', 'effectiveFromYear', 'effectiveFromMonth'],
     ['cycleType'],

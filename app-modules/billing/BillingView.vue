@@ -142,6 +142,7 @@
             v-if="dialogType === 'budget'"
             v-model="budgetForm"
             :categories="categories"
+            :note-options="noteOptions"
             @quick-add-category="handleQuickAddCategory"
           />
           <StatementList
@@ -234,6 +235,7 @@ const { categories, loadCategories, createCategory, updateCategory, deleteCatego
 const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
 const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule } = useImportRules()
+const { loadNotes, noteOptions } = useNotes()
 
 const activeTab = ref('bills')
 const budgetYear = ref(new Date().getFullYear())
@@ -278,6 +280,7 @@ const ruleForm = ref<ImportRuleFormData>({
   categoryId: '',
   fromAccountId: '',
   toAccountId: '',
+  billType: undefined,
   priority: 100,
   enabled: true
 })
@@ -314,10 +317,10 @@ const billForm = ref<BillFormData>({
   debtSubtype: 'lend', relatedPersonId: ''
 })
 
-const accountForm = ref<AccountFormData>({ name: '', type: 'personal', currency: 'CNY', icon: '', color: '' })
+const accountForm = ref<AccountFormData>({ name: '', type: 'personal', currency: 'CNY', icon: '', color: '', aliases: [] })
 const categoryForm = ref<CategoryFormData>({ name: '', type: 'expense', parentId: '', icon: '', color: '' })
 const budgetForm = ref<BudgetFormData>({
-  categoryId: '', cycleType: 'monthly', amount: 0,
+  noteId: '', categoryId: '', cycleType: 'monthly', amount: 0,
   effectiveFromYear: new Date().getFullYear(), effectiveFromMonth: new Date().getMonth() + 1
 })
 
@@ -330,7 +333,7 @@ const expenseTree = computed(() => buildTree('expense'))
 
 onMounted(async () => {
   try {
-    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets(), loadStatements(), loadImportRules()])
+    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets(), loadStatements(), loadImportRules(), loadNotes()])
     markReady()
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
@@ -369,7 +372,8 @@ function openAccountDialog(account?: Account) {
       type: account.type,
       currency: account.currency,
       icon: account.icon || '',
-      color: account.color || ''
+      color: account.color || '',
+      aliases: Array.isArray(account.aliases) ? [...account.aliases] : []
     }
     if (account.type === 'personal') {
       base.subtype = account.subtype || 'cash'
@@ -381,7 +385,7 @@ function openAccountDialog(account?: Account) {
     }
     accountForm.value = base
   } else {
-    accountForm.value = { name: '', type: 'personal', currency: 'CNY', icon: '', color: '', subtype: 'cash' }
+    accountForm.value = { name: '', type: 'personal', currency: 'CNY', icon: '', color: '', subtype: 'cash', aliases: [] }
   }
   dialogVisible.value = true
 }
@@ -402,23 +406,24 @@ function openBudgetDialog(budget?: BudgetEntry) {
   editingBudget.value = budget || null
   if (budget) {
     budgetForm.value = {
-      categoryId: budget.categoryId, cycleType: budget.cycleType, amount: budget.amount,
+      noteId: budget.noteId, categoryId: budget.categoryId, cycleType: budget.cycleType, amount: budget.amount,
       effectiveFromYear: budget.effectiveFromYear, effectiveFromMonth: budget.effectiveFromMonth
     }
   } else {
     budgetForm.value = {
-      categoryId: '', cycleType: 'monthly', amount: 0,
+      noteId: '', categoryId: '', cycleType: 'monthly', amount: 0,
       effectiveFromYear: new Date().getFullYear(), effectiveFromMonth: new Date().getMonth() + 1
     }
   }
   dialogVisible.value = true
 }
 
-function onBudgetCellEdit(categoryId: string, year: number, month: number) {
-  const config = resolveBudget(categoryId, year, month)
+function onBudgetCellEdit(categoryId: string, year: number, month: number, noteId: string = '') {
+  const config = resolveBudget(categoryId, year, month, noteId)
   dialogType.value = 'budget'
   editingBudget.value = null
   budgetForm.value = {
+    noteId,
     categoryId,
     cycleType: config?.cycleType || 'monthly',
     amount: config?.amount || 0,
@@ -707,6 +712,7 @@ function openRuleDialog(rule?: ImportRule) {
       categoryId: rule.categoryId,
       fromAccountId: rule.fromAccountId,
       toAccountId: rule.toAccountId,
+      billType: rule.billType,
       priority: rule.priority,
       enabled: rule.enabled
     }
@@ -719,6 +725,7 @@ function openRuleDialog(rule?: ImportRule) {
       categoryId: '',
       fromAccountId: '',
       toAccountId: '',
+      billType: undefined,
       priority: 100,
       enabled: true
     }

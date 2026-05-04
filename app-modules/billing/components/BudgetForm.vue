@@ -1,6 +1,15 @@
 <template>
   <div class="form-body">
     <div class="form-group">
+      <label class="form-label">所属笔记</label>
+      <select v-model="form.noteId" class="form-select">
+        <option v-for="n in noteOptions" :key="n.id" :value="n.id">
+          {{ '  '.repeat(n.level) }}{{ n.title }}
+        </option>
+      </select>
+    </div>
+
+    <div class="form-group">
       <label class="form-label">预算周期</label>
       <div class="type-grid">
         <button
@@ -85,9 +94,16 @@
 <script setup lang="ts">
 import type { BudgetFormData, BillCategory } from '~/types/bill'
 
+interface NoteOption {
+  id: string
+  title: string
+  level: number
+}
+
 const props = defineProps<{
   modelValue: BudgetFormData
   categories: BillCategory[]
+  noteOptions: NoteOption[]
 }>()
 
 const emit = defineEmits<{

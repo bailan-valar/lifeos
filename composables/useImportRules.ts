@@ -1,4 +1,4 @@
-import type { ImportRule, ImportRuleFormData, CsvParsedRow, BillType } from '~/types/bill'
+import type { ImportRule, ImportRuleFormData, CsvParsedRow } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
 let dbRef: any = null
@@ -19,7 +19,6 @@ interface ImportRulesStore {
   updateImportRule: (id: string, data: Partial<ImportRuleFormData>) => Promise<void>
   deleteImportRule: (id: string) => Promise<void>
   applyRules: (row: CsvParsedRow, source: 'alipay' | 'wechat') => ImportRule | null
-  inferBillType: (direction: 'in' | 'out') => BillType
 }
 
 let store: ImportRulesStore | null = null
@@ -57,6 +56,7 @@ function createStore(): ImportRulesStore {
       categoryId: data.categoryId,
       fromAccountId: data.fromAccountId,
       toAccountId: data.toAccountId,
+      billType: data.billType,
       priority: data.priority,
       enabled: data.enabled,
       createdAt: now(),
@@ -120,13 +120,6 @@ function createStore(): ImportRulesStore {
     return null
   }
 
-  /**
-   * 推断 BillType:按金额方向。后续可扩展为按规则配置。
-   */
-  function inferBillType(direction: 'in' | 'out'): BillType {
-    return direction === 'in' ? 'income' : 'expense'
-  }
-
   return {
     rules,
     loading,
@@ -135,8 +128,7 @@ function createStore(): ImportRulesStore {
     createImportRule,
     updateImportRule,
     deleteImportRule,
-    applyRules,
-    inferBillType
+    applyRules
   }
 }
 
