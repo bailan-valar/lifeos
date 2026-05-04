@@ -18,35 +18,6 @@
           <Icon name="solar:alt-arrow-right-linear" size="16" />
         </button>
       </div>
-      <div class="header-actions">
-        <button type="button" class="add-category-btn" @click="toggleQuickAdd">
-          <Icon
-            :name="showQuickAdd ? 'solar:close-circle-linear' : 'solar:add-circle-linear'"
-            size="14"
-          />
-          {{ showQuickAdd ? '取消' : '新增分类' }}
-        </button>
-      </div>
-    </div>
-
-    <div v-if="showQuickAdd" class="quick-add-row">
-      <input
-        ref="quickAddInputRef"
-        v-model="quickAddName"
-        class="quick-add-input"
-        type="text"
-        placeholder="新分类名称（回车确认 / Esc 取消）"
-        @keyup.enter.prevent="submitQuickAdd"
-        @keyup.esc.prevent="cancelQuickAdd"
-      />
-      <button
-        type="button"
-        class="quick-add-confirm"
-        :disabled="!quickAddName.trim()"
-        @click="submitQuickAdd"
-      >
-        添加
-      </button>
     </div>
 
     <div class="table-wrapper">
@@ -174,7 +145,6 @@ const props = defineProps<{ year?: number }>()
 
 const emit = defineEmits<{
   (e: 'edit-cell', categoryId: string, year: number, month: number, noteId: string): void
-  (e: 'quick-add-category', name: string): void
   (e: 'category-contextmenu', payload: { node: CategoryTreeNode; x: number; y: number }): void
 }>()
 
@@ -189,33 +159,6 @@ const currentMonth = new Date().getMonth() + 1
 const expandedIds = ref<Set<string>>(new Set())
 const selectedNoteId = ref('')
 const scopedBills = ref<Bill[]>([])
-
-const showQuickAdd = ref(false)
-const quickAddName = ref('')
-const quickAddInputRef = ref<HTMLInputElement | null>(null)
-
-async function toggleQuickAdd() {
-  showQuickAdd.value = !showQuickAdd.value
-  if (showQuickAdd.value) {
-    await nextTick()
-    quickAddInputRef.value?.focus()
-  } else {
-    quickAddName.value = ''
-  }
-}
-
-function submitQuickAdd() {
-  const name = quickAddName.value.trim()
-  if (!name) return
-  emit('quick-add-category', name)
-  quickAddName.value = ''
-  showQuickAdd.value = false
-}
-
-function cancelQuickAdd() {
-  showQuickAdd.value = false
-  quickAddName.value = ''
-}
 
 function onCategoryContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   emit('category-contextmenu', { node, x: event.clientX, y: event.clientY })
@@ -426,73 +369,6 @@ function onCellClick(categoryId: string, month: number) {
 
 .note-select:focus {
   border-color: rgb(0, 122, 255);
-}
-
-.header-actions {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.add-category-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  border: 0.5px solid rgba(60, 60, 67, 0.15);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.6);
-  color: rgba(60, 60, 67, 0.78);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.add-category-btn:hover {
-  background: rgba(0, 122, 255, 0.08);
-  color: rgb(0, 122, 255);
-  border-color: rgba(0, 122, 255, 0.3);
-}
-
-.quick-add-row {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.quick-add-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 8px;
-  font-size: 13px;
-  background: rgba(255, 255, 255, 0.9);
-  color: rgba(0, 0, 0, 0.92);
-  outline: none;
-}
-
-.quick-add-input:focus {
-  border-color: rgb(0, 122, 255);
-}
-
-.quick-add-confirm {
-  padding: 0 16px;
-  border: none;
-  border-radius: 8px;
-  background: rgb(0, 122, 255);
-  color: white;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.quick-add-confirm:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .year-nav {

@@ -66,12 +66,23 @@
                 <span v-else class="expand-placeholder" />
                 <span class="item-name">{{ item.name }}</span>
               </div>
-              <Icon
-                v-if="modelValue === item.id"
-                name="solar:check-circle-linear"
-                size="14"
-                class="check-icon"
-              />
+              <div class="item-right">
+                <button
+                  v-if="!isDisabled(item)"
+                  type="button"
+                  class="add-child-btn"
+                  title="新增子分类"
+                  @click.stop="emit('open-form', { type: props.type || 'expense', defaultParentId: item.id })"
+                >
+                  <Icon name="solar:add-circle-linear" size="14" />
+                </button>
+                <Icon
+                  v-if="modelValue === item.id"
+                  name="solar:check-circle-linear"
+                  size="14"
+                  class="check-icon"
+                />
+              </div>
             </div>
           </template>
         </div>
@@ -555,6 +566,34 @@ onBeforeUnmount(() => {
 }
 .item-name {
   color: inherit;
+}
+.item-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.add-child-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.4);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.1s ease;
+}
+.picker-item:hover .add-child-btn {
+  opacity: 1;
+}
+.add-child-btn:hover {
+  background: rgba(0, 122, 255, 0.12);
+  color: rgb(0, 122, 255);
 }
 .check-icon {
   color: rgb(0, 122, 255);

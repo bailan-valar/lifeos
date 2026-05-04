@@ -4,13 +4,20 @@
       v-for="bill in bills"
       :key="bill.id"
       class="bill-row"
-      :class="`type-${bill.type}`"
+      :class="[`type-${bill.type}`, { selected: selectable && selectedIds?.includes(bill.id) }]"
     >
+      <div v-if="selectable" class="bill-checkbox">
+        <input
+          type="checkbox"
+          :checked="selectedIds?.includes(bill.id)"
+          @change="toggleSelect(bill.id)"
+        />
+      </div>
       <div class="bill-left">
         <div class="bill-type-badge" :class="bill.type">
           {{ typeLabel(bill.type) }}
         </div>
-        <div class="bill-title">{{ bill.title }}</div>
+        <div class="bill-title">{{ bill.description || '-' }}</div>
         <div class="bill-date">{{ formatDate(bill.date) }}</div>
       </div>
       <div class="bill-right">
@@ -18,7 +25,7 @@
           {{ amountPrefix(bill) }}{{ bill.amount.toFixed(2) }}
         </div>
         <div class="bill-currency">{{ bill.currency }}</div>
-        <div class="bill-actions">
+        <div v-if="!selectable" class="bill-actions">
           <button type="button" class="action-btn" @click="$emit('edit', bill)">
             <Icon name="solar:pen-linear" size="14" />
           </button>
@@ -41,12 +48,21 @@ import type { Bill, BillType } from '~/types/bill'
 
 defineProps<{
   bills: Bill[]
+  selectable?: boolean
+  selectedIds?: string[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'edit', bill: Bill): void
   (e: 'delete', id: string): void
+  (e: 'select', id: string): void
+  (e: 'select-all'): void
+  (e: 'unselect-all'): void
 }>()
+
+function toggleSelect(id: string) {
+  emit('select', id)
+}
 
 const typeLabels: Record<BillType, string> = {
   income: '收入',
@@ -96,6 +112,8 @@ function formatDate(dateStr: string) {
   border: 0.5px solid rgba(60, 60, 67, 0.12);
   border-radius: 10px;
   transition: background-color 0.15s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
 }
 .bill-row:hover {
   background: rgba(255, 255, 255, 0.7);
@@ -197,5 +215,20 @@ function formatDate(dateStr: string) {
   padding: 32px;
   color: rgba(60, 60, 67, 0.5);
   font-size: 14px;
+}
+.bill-checkbox {
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+}
+.bill-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: rgb(0, 122, 255);
+  cursor: pointer;
+}
+.bill-row.selected {
+  background: rgba(0, 122, 255, 0.08);
+  border-color: rgba(0, 122, 255, 0.25);
 }
 </style>

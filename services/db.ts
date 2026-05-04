@@ -10,6 +10,8 @@ type SortSpec = Array<Record<string, 'asc' | 'desc'>>
 interface FindOpts {
   selector?: Selector
   sort?: SortSpec
+  limit?: number
+  skip?: number
 }
 
 interface RawPouchDoc {
@@ -33,7 +35,7 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   goals: [['status'], ['priority'], ['type'], ['plannedEndAt'], ['createdAt'], ['isSynced']],
   accounts: [['type'], ['subtype'], ['createdAt'], ['isSynced']],
   billCategories: [['type'], ['parentId'], ['order'], ['isSynced']],
-  bills: [['noteId'], ['type'], ['date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['importBatchId'], ['isSynced']],
+  bills: [['noteId'], ['type'], ['date'], ['noteId', 'date'], ['status', 'date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['importBatchId'], ['isSynced']],
   budgets: [
     ['noteId'],
     ['categoryId'],
@@ -158,14 +160,15 @@ function createCollection(name: string): Collection {
     }
   })()
 
-  const runFind = async (opts: FindOpts, limit?: number): Promise<DBDoc[]> => {
+  const runFind = async (opts: FindOpts): Promise<DBDoc[]> => {
     await indexesReady
     const baseSelector = ensureSelectorForSort(opts.selector || {}, opts.sort)
     const selector = nonEmptySelector(baseSelector)
     const result = await pdb.find({
       selector,
       sort: opts.sort,
-      ...(limit ? { limit } : {})
+      ...(opts.limit ? { limit: opts.limit } : {}),
+      ...(opts.skip ? { skip: opts.skip } : {})
     })
     return result.docs.map((d) => makeDoc(pdb, d as RawPouchDoc))
   }
@@ -189,7 +192,7 @@ function createCollection(name: string): Collection {
         if (typeof idOrOpts === 'string') {
           return runGet(idOrOpts)
         }
-        const docs = await runFind(idOrOpts, 1)
+        const docs = await runFind({ ...idOrOpts, limit: 1 })
         return docs[0] || null
       })
     },

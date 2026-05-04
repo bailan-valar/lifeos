@@ -1,23 +1,35 @@
 <template>
   <div class="billing-view">
-    <div class="sidebar">
+    <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+      <button
+        type="button"
+        class="sidebar-toggle"
+        :title="sidebarCollapsed ? '展开' : '收起'"
+        @click="toggleSidebar"
+      >
+        <Icon
+          :name="sidebarCollapsed ? 'solar:double-alt-arrow-right-linear' : 'solar:double-alt-arrow-left-linear'"
+          size="16"
+        />
+      </button>
       <button
         v-for="tab in tabs"
         :key="tab.id"
         type="button"
         class="sidebar-btn"
         :class="{ active: activeTab === tab.id }"
+        :title="sidebarCollapsed ? tab.name : ''"
         @click="activeTab = tab.id"
       >
         <Icon :name="tab.icon" size="18" />
-        <span>{{ tab.name }}</span>
+        <span class="sidebar-btn-text">{{ tab.name }}</span>
       </button>
     </div>
 
     <div class="content">
       <div v-if="activeTab === 'bills'" class="tab-panel">
       <div class="panel-header">
-        <div class="stats-bar">
+        <div v-if="!batchMode" class="stats-bar">
           <div class="stat-item">
             <span class="stat-label">收入</span>
             <span class="stat-value positive">+{{ totalIncome.toFixed(2) }}</span>
@@ -33,7 +45,48 @@
             </span>
           </div>
         </div>
-        <div class="header-actions">
+        <BillBatchToolbar
+          v-else
+          :selected-count="selectedIds.length"
+          :total-count="bills.length"
+          @toggle-select-all="handleToggleSelectAll"
+          @batch-delete="handleBatchDelete"
+          @batch-edit="batchEditVisible = true"
+          @exit="exitBatchMode"
+        />
+        <div class="date-filter">
+          <select v-model="billYearFilter" class="filter-select" @change="refreshBills">
+            <option :value="null">全部年份</option>
+            <option v-for="y in billYearOptions" :key="y" :value="y">{{ y }}年</option>
+          </select>
+          <select v-model="billMonthFilter" class="filter-select" @change="refreshBills">
+            <option :value="null">全部月份</option>
+            <option v-for="m in billMonthOptions" :key="m" :value="m">{{ m }}月</option>
+          </select>
+        </div>
+        <div class="view-toggle">
+          <button
+            type="button"
+            class="toggle-btn"
+            :class="{ active: viewMode === 'card' }"
+            @click="viewMode = 'card'"
+          >
+            <Icon name="solar:widget-2-linear" size="16" />
+          </button>
+          <button
+            type="button"
+            class="toggle-btn"
+            :class="{ active: viewMode === 'table' }"
+            @click="viewMode = 'table'"
+          >
+            <Icon name="solar:clipboard-list-linear" size="16" />
+          </button>
+        </div>
+        <div v-if="!batchMode" class="header-actions">
+          <button type="button" class="add-btn secondary" @click="enterBatchMode">
+            <Icon name="solar:checklist-minimalistic-linear" size="18" />
+            批量
+          </button>
           <button type="button" class="add-btn secondary" @click="openImportDialog()">
             <Icon name="solar:upload-linear" size="18" />
             导入
@@ -44,7 +97,46 @@
           </button>
         </div>
       </div>
-      <BillList :bills="bills" @edit="openBillDialog" @delete="handleDeleteBill" />
+      <div class="list-container">
+        <div v-if="loading && bills.length === 0" class="skeleton-wrap">
+          <div v-for="i in 5" :key="i" class="skeleton-row" />
+        </div>
+        <BillList
+          v-else-if="viewMode === 'card'"
+          :bills="bills"
+          :selectable="batchMode"
+          :selected-ids="selectedIds"
+          @edit="openBillDialog"
+          @delete="handleDeleteBill"
+          @select="toggleBillSelect"
+          @select-all="selectAllBills"
+          @unselect-all="unselectAllBills"
+        />
+        <BillTable
+          v-else
+          :bills="bills"
+          :accounts="accounts"
+          :categories="categories"
+          :selectable="batchMode"
+          :selected-ids="selectedIds"
+          @edit="openBillDialog"
+          @delete="handleDeleteBill"
+          @select="toggleBillSelect"
+          @select-all="selectAllBills"
+          @unselect-all="unselectAllBills"
+        />
+      </div>
+      <div v-if="hasMore && !isDateFiltered && !batchMode" class="load-more-wrap">
+        <button
+          type="button"
+          class="load-more-btn"
+          :disabled="loading"
+          @click="handleLoadMore"
+        >
+          <span v-if="loading">加载中...</span>
+          <span v-else>加载更多</span>
+        </button>
+      </div>
     </div>
 
     <div v-if="activeTab === 'accounts'" class="tab-panel">
@@ -97,7 +189,6 @@
       <BudgetDashboard
         :year="budgetYear"
         @edit-cell="onBudgetCellEdit"
-        @quick-add-category="handleDashboardQuickAddCategory"
         @category-contextmenu="openCategoryContextMenu"
       />
     </div>
@@ -127,6 +218,7 @@
             v-model="billForm"
             :accounts="accounts"
             :categories="categories"
+            :note-options="noteOptions"
             @create-category="handleCreateCategory"
             @open-category-form="handleOpenCategoryForm"
             @create-account="handleCreateAccount"
@@ -207,6 +299,15 @@
         <span>删除</span>
       </button>
     </div>
+
+    <BillBatchEditDialog
+      v-if="batchEditVisible"
+      :selected-bills="selectedBills"
+      :accounts="accounts"
+      :categories="categories"
+      @confirm="handleBatchEdit"
+      @cancel="batchEditVisible = false"
+    />
   </div>
 </template>
 
@@ -223,6 +324,7 @@ import { useImportRecords } from '~/composables/useImportRecords'
 import { useConfirm } from '~/composables/useConfirm'
 import { dedupeKey } from '~/services/csvImport'
 import BillList from './components/BillList.vue'
+import BillTable from './components/BillTable.vue'
 import BillForm from './components/BillForm.vue'
 import AccountList from './components/AccountList.vue'
 import AccountForm from './components/AccountForm.vue'
@@ -235,6 +337,8 @@ import StatementForm from './components/StatementForm.vue'
 import BillImportDialog from './components/BillImportDialog.vue'
 import ImportRuleList from './components/ImportRuleList.vue'
 import ImportRuleForm from './components/ImportRuleForm.vue'
+import BillBatchToolbar from './components/BillBatchToolbar.vue'
+import BillBatchEditDialog from './components/BillBatchEditDialog.vue'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -242,7 +346,7 @@ const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void;
 const { markReady, handleError } = useModuleBase(props, emit)
 const { success: showSuccess, error: showError } = useToast()
 
-const { bills, totalIncome, totalExpense, netBalance, loadBills, createBill, createBillsBatch, updateBill, deleteBill } = useBills()
+const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, createBillsBatch, updateBill, updateBills, deleteBill, deleteBills } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree } = useBillCategories()
 const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
@@ -252,6 +356,59 @@ const { loadImportRecords, fingerprintsAcrossRecords } = useImportRecords()
 const { loadNotes, noteOptions } = useNotes()
 
 const activeTab = ref('bills')
+const viewMode = ref<'card' | 'table'>('card')
+const VIEW_MODE_KEY = 'lifeos:bill-view-mode'
+const SIDEBAR_COLLAPSED_KEY = 'lifeos:billing-sidebar-collapsed'
+const sidebarCollapsed = ref(false)
+
+const batchMode = ref(false)
+const selectedIds = ref<string[]>([])
+const batchEditVisible = ref(false)
+
+const billYearFilter = ref<number | null>(null)
+const billMonthFilter = ref<number | null>(null)
+const billYearOptions = computed(() => {
+  const current = new Date().getFullYear()
+  return [current - 2, current - 1, current, current + 1]
+})
+const billMonthOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+const isDateFiltered = computed(() => billYearFilter.value !== null || billMonthFilter.value !== null)
+
+function getDateRange() {
+  if (!isDateFiltered.value) return { start: undefined, end: undefined }
+  const year = billYearFilter.value ?? new Date().getFullYear()
+  const month = billMonthFilter.value
+  if (month) {
+    const start = `${year}-${String(month).padStart(2, '0')}-01T00:00:00.000Z`
+    const endMonth = month === 12 ? 1 : month + 1
+    const endYear = month === 12 ? year + 1 : year
+    const end = `${endYear}-${String(endMonth).padStart(2, '0')}-01T00:00:00.000Z`
+    return { start, end }
+  }
+  const start = `${year}-01-01T00:00:00.000Z`
+  const end = `${year + 1}-01-01T00:00:00.000Z`
+  return { start, end }
+}
+
+async function refreshBills() {
+  selectedIds.value = []
+  if (isDateFiltered.value) {
+    const { start, end } = getDateRange()
+    await loadBillsByDateRange(props.noteId, start, end)
+  } else {
+    await loadBillsPaginated(props.noteId, 1)
+  }
+}
+
+async function handleLoadMore() {
+  if (isDateFiltered.value) return
+  await loadMoreBills(props.noteId)
+}
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  localStorage.setItem(SIDEBAR_COLLAPSED_KEY, sidebarCollapsed.value ? '1' : '0')
+}
 const budgetYear = ref(new Date().getFullYear())
 const budgetMonth = ref(new Date().getMonth() + 1)
 const yearOptions = computed(() => {
@@ -305,7 +462,7 @@ const previousDialogType = ref<typeof dialogType.value | null>(null)
 const existingFingerprints = computed(() => {
   const set = new Set<string>()
   for (const b of bills.value) {
-    set.add(dedupeKey(b.date, b.amount, b.counterpartyRaw || b.title))
+    set.add(dedupeKey(b.date, b.amount, b.counterpartyRaw || b.description || ''))
   }
   for (const fp of fingerprintsAcrossRecords.value) set.add(fp)
   return set
@@ -332,9 +489,9 @@ const categoryMenu = ref<CategoryMenuState>({
 })
 
 const billForm = ref<BillFormData>({
-  type: 'expense', amount: 0, currency: 'CNY',
+  noteId: props.noteId, type: 'expense', amount: 0, currency: 'CNY',
   fromAccountId: '', toAccountId: '', categoryId: '',
-  title: '', description: '', date: new Date().toISOString().slice(0, 16),
+  description: '', date: new Date().toISOString().slice(0, 16),
   debtSubtype: 'lend', relatedPersonId: ''
 })
 
@@ -353,12 +510,24 @@ const incomeTree = computed(() => buildTree('income'))
 const expenseTree = computed(() => buildTree('expense'))
 
 onMounted(async () => {
+  const saved = localStorage.getItem(VIEW_MODE_KEY)
+  if (saved === 'card' || saved === 'table') {
+    viewMode.value = saved
+  }
+  const savedCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
+  if (savedCollapsed === '1') {
+    sidebarCollapsed.value = true
+  }
   try {
-    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets(), loadStatements(), loadImportRules(), loadImportRecords(props.noteId), loadNotes()])
+    await Promise.all([loadAccounts(), loadCategories(), refreshBills(), loadBudgets(), loadStatements(), loadImportRules(), loadImportRecords(props.noteId), loadNotes()])
     markReady()
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
   }
+})
+
+watch(viewMode, (mode) => {
+  localStorage.setItem(VIEW_MODE_KEY, mode)
 })
 
 function openBillDialog(bill?: Bill) {
@@ -366,18 +535,18 @@ function openBillDialog(bill?: Bill) {
   editingBill.value = bill || null
   if (bill) {
     billForm.value = {
-      type: bill.type, amount: bill.amount, currency: bill.currency,
+      noteId: bill.noteId, type: bill.type, amount: bill.amount, currency: bill.currency,
       fromAccountId: bill.fromAccountId, toAccountId: bill.toAccountId,
-      categoryId: bill.categoryId, title: bill.title,
+      categoryId: bill.categoryId,
       description: bill.description, date: bill.date.slice(0, 16),
       debtSubtype: bill.debtSubtype || 'lend',
       relatedPersonId: bill.relatedPersonId
     }
   } else {
     billForm.value = {
-      type: 'expense', amount: 0, currency: 'CNY',
+      noteId: props.noteId, type: 'expense', amount: 0, currency: 'CNY',
       fromAccountId: '', toAccountId: '', categoryId: '',
-      title: '', description: '', date: new Date().toISOString().slice(0, 16),
+      description: '', date: new Date().toISOString().slice(0, 16),
       debtSubtype: 'lend', relatedPersonId: ''
     }
   }
@@ -485,10 +654,6 @@ async function handleGenerateStatement(year: number, month: number) {
 async function submitDialog() {
   try {
     if (dialogType.value === 'bill') {
-      if (!billForm.value.title) {
-        showError('请输入标题')
-        return
-      }
       if (billForm.value.amount <= 0) {
         showError('金额必须大于 0')
         return
@@ -516,6 +681,9 @@ async function submitDialog() {
       if (editingBill.value) {
         await updateBill(editingBill.value.id, billForm.value)
       } else {
+        if (!billForm.value.noteId) {
+          billForm.value = { ...billForm.value, noteId: props.noteId }
+        }
         await createBill(billForm.value, props.noteId)
       }
     } else if (dialogType.value === 'account') {
@@ -609,6 +777,91 @@ async function submitDialog() {
 }
 
 const { confirm } = useConfirm()
+
+const selectedBills = computed(() => bills.value.filter(b => selectedIds.value.includes(b.id)))
+
+function enterBatchMode() {
+  batchMode.value = true
+  selectedIds.value = []
+}
+
+function exitBatchMode() {
+  batchMode.value = false
+  selectedIds.value = []
+}
+
+function toggleBillSelect(id: string) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx === -1) {
+    selectedIds.value.push(id)
+  } else {
+    selectedIds.value.splice(idx, 1)
+  }
+}
+
+function selectAllBills() {
+  selectedIds.value = bills.value.map(b => b.id)
+}
+
+function unselectAllBills() {
+  selectedIds.value = []
+}
+
+function handleToggleSelectAll(select: boolean) {
+  if (select) selectAllBills()
+  else unselectAllBills()
+}
+
+async function handleBatchDelete() {
+  if (selectedIds.value.length === 0) return
+  const count = selectedIds.value.length
+  if (!await confirm({ message: `确定删除选中的 ${count} 条账单？`, danger: true })) return
+  try {
+    const result = await deleteBills(selectedIds.value)
+    showSuccess(`已删除 ${result.deletedCount} 条账单`)
+    exitBatchMode()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleBatchEdit(data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix' }) {
+  if (selectedIds.value.length === 0) return
+
+  const patch: Partial<BillFormData> = {}
+  if (data.categoryId) patch.categoryId = data.categoryId
+  if (data.fromAccountId) patch.fromAccountId = data.fromAccountId
+  if (data.toAccountId) patch.toAccountId = data.toAccountId
+
+  try {
+    if (data.description && data.descMode) {
+      for (const id of selectedIds.value) {
+        const bill = bills.value.find(b => b.id === id)
+        if (!bill) continue
+        let newDesc = bill.description
+        if (data.descMode === 'replace') {
+          newDesc = data.description
+        } else if (data.descMode === 'prefix') {
+          newDesc = data.description + newDesc
+        } else if (data.descMode === 'suffix') {
+          newDesc = newDesc + data.description
+        }
+        await updateBill(id, { ...patch, description: newDesc })
+      }
+    } else if (Object.keys(patch).length > 0) {
+      const result = await updateBills(selectedIds.value, patch)
+      if (result.failedIds.length > 0) {
+        showError(`${result.failedIds.length} 条账单更新失败`)
+      }
+    }
+
+    showSuccess('批量修改完成')
+    batchEditVisible.value = false
+    exitBatchMode()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
 
 async function handleDeleteBill(id: string) {
   if (!await confirm('确定删除此账单？')) return
@@ -760,21 +1013,6 @@ async function handleCreateAccount(data: AccountFormData) {
   }
 }
 
-async function handleDashboardQuickAddCategory(name: string) {
-  try {
-    await createCategory({
-      name,
-      type: 'expense',
-      parentId: '',
-      icon: '',
-      color: ''
-    })
-    showSuccess('已添加分类')
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
 function openImportDialog() {
   dialogType.value = 'import'
   dialogVisible.value = true
@@ -866,6 +1104,35 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.03);
   border-right: 0.5px solid rgba(60, 60, 67, 0.08);
   flex-shrink: 0;
+  transition: width 0.2s ease;
+}
+.sidebar.collapsed {
+  width: 48px;
+  padding: 12px 6px;
+  align-items: center;
+}
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 4px;
+  align-self: flex-end;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.sidebar-toggle:hover {
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(60, 60, 67, 0.78);
+}
+.sidebar.collapsed .sidebar-toggle {
+  align-self: center;
+  margin-bottom: 8px;
 }
 .sidebar-btn {
   display: flex;
@@ -881,11 +1148,24 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
+  white-space: nowrap;
 }
 .sidebar-btn.active {
   background: white;
   color: rgba(0, 0, 0, 0.92);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.sidebar.collapsed .sidebar-btn {
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+.sidebar-btn-text {
+  transition: opacity 0.15s ease;
+}
+.sidebar.collapsed .sidebar-btn-text {
+  display: none;
 }
 .content {
   flex: 1;
@@ -900,7 +1180,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 .panel-header {
   display: flex;
@@ -964,6 +1244,90 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+.date-filter {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.filter-select {
+  padding: 6px 10px;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.8);
+  color: rgba(0, 0, 0, 0.92);
+  outline: none;
+  cursor: pointer;
+}
+.list-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+.load-more-btn {
+  padding: 8px 24px;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.78);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.load-more-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.skeleton-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+.skeleton-row {
+  height: 56px;
+  background: linear-gradient(90deg, rgba(60, 60, 67, 0.06) 25%, rgba(60, 60, 67, 0.1) 50%, rgba(60, 60, 67, 0.06) 75%);
+  background-size: 200% 100%;
+  border-radius: 10px;
+  animation: skeleton-shimmer 1.5s infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(60, 60, 67, 0.06);
+  border-radius: 8px;
+}
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.6);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.toggle-btn.active {
+  background: white;
+  color: rgba(0, 0, 0, 0.92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .category-section {
   display: flex;

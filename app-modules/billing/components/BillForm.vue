@@ -1,6 +1,16 @@
 <template>
   <div class="form-body">
     <div class="form-group">
+      <label class="form-label">所属笔记</label>
+      <NotePicker
+        v-model="form.noteId"
+        :options="noteOptions"
+        placeholder="请选择笔记"
+        clearable
+      />
+    </div>
+
+    <div class="form-group">
       <label class="form-label">账单类型</label>
       <div class="type-grid">
         <button
@@ -14,11 +24,6 @@
           {{ t.label }}
         </button>
       </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">标题</label>
-      <input v-model="form.title" class="form-input" type="text" placeholder="输入账单标题" />
     </div>
 
     <div class="form-group">
@@ -102,6 +107,7 @@
 import type { BillFormData, Account, BillCategory, BillType, DebtSubtype, CategoryType, AccountFormData } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
+import NotePicker from './NotePicker.vue'
 import AmountInput from './AmountInput.vue'
 import DateTimePicker from './DateTimePicker.vue'
 
@@ -109,6 +115,7 @@ const props = defineProps<{
   modelValue: BillFormData
   accounts: Account[]
   categories: BillCategory[]
+  noteOptions: { id: string; title: string; level: number }[]
 }>()
 
 const emit = defineEmits<{

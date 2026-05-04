@@ -364,8 +364,7 @@ function buildPreviewRow(parsed: CsvParsedRow): IPRow {
     debtSubtype,
     categoryId,
     fromAccountId,
-    toAccountId,
-    title: parsed.counterparty || parsed.description || '导入账单'
+    toAccountId
   }
 }
 

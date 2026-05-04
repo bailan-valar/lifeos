@@ -42,13 +42,13 @@ function toIsoMinutes(date: string): string {
 
 function rowToBillFormData(row: ImportPreviewRow): BillFormData {
   return {
+    noteId: '',
     type: row.type,
     amount: row.amount,
     currency: 'CNY',
     fromAccountId: row.fromAccountId,
     toAccountId: row.toAccountId,
     categoryId: row.categoryId,
-    title: row.title || row.counterparty || '导入账单',
     description: row.description,
     date: toIsoMinutes(row.date),
     debtSubtype: row.debtSubtype,
@@ -60,6 +60,9 @@ export function useBills() {
   const bills = ref<Bill[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const hasMore = ref(true)
+  const pageSize = ref(50)
+  const currentPage = ref(1)
 
   async function loadBills(noteId?: string) {
     loading.value = true
@@ -105,18 +108,90 @@ export function useBills() {
     }
   }
 
+  async function loadBillsPaginated(noteId?: string, page = 1) {
+    loading.value = true
+    error.value = null
+    try {
+      const db = await getDb()
+      const selector: Record<string, unknown> = noteId ? { noteId } : {}
+      const result = await db.bills.find({
+        selector,
+        sort: [{ date: 'desc' }],
+        limit: pageSize.value,
+        skip: (page - 1) * pageSize.value
+      }).exec()
+      const items = result.map((doc: any) => doc.toJSON())
+      if (page === 1) bills.value = items
+      else bills.value.push(...items)
+      hasMore.value = items.length === pageSize.value
+      currentPage.value = page
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      console.error('Failed to load bills paginated:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadMoreBills(noteId?: string) {
+    if (!hasMore.value || loading.value) return
+    await loadBillsPaginated(noteId, currentPage.value + 1)
+  }
+
+  async function loadBillsByDateRange(noteId?: string, startDate?: string, endDate?: string) {
+    loading.value = true
+    error.value = null
+    try {
+      const db = await getDb()
+      const selector: Record<string, unknown> = noteId ? { noteId } : {}
+      if (startDate || endDate) {
+        selector.date = {}
+        if (startDate) selector.date.$gte = startDate
+        if (endDate) selector.date.$lte = endDate
+      }
+      const result = await db.bills.find({
+        selector,
+        sort: [{ date: 'desc' }]
+      }).exec()
+      bills.value = result.map((doc: any) => doc.toJSON())
+      hasMore.value = false
+      currentPage.value = 1
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      console.error('Failed to load bills by date range:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadBillStats(noteId?: string, startDate?: string, endDate?: string) {
+    const db = await getDb()
+    const selector: Record<string, unknown> = { status: 'completed' }
+    if (noteId) selector.noteId = noteId
+    if (startDate || endDate) {
+      selector.date = {}
+      if (startDate) selector.date.$gte = startDate
+      if (endDate) selector.date.$lte = endDate
+    }
+    const result = await db.bills.find({ selector }).exec()
+    const items = result.map((doc: any) => doc.toJSON() as Bill)
+    const income = items.filter(b => b.type === 'income').reduce((sum, b) => sum + b.amount, 0)
+    const expense = items.filter(b => b.type === 'expense').reduce((sum, b) => sum + b.amount, 0)
+    const transfer = items.filter(b => b.type === 'transfer').reduce((sum, b) => sum + b.amount, 0)
+    return { income, expense, transfer, net: income - expense }
+  }
+
   async function createBill(data: BillFormData, noteId?: string): Promise<Bill> {
     const db = await getDb()
     const bill: Bill = {
       id: generateId(),
-      noteId: noteId || '',
+      noteId: data.noteId || noteId || '',
       type: data.type,
       amount: data.amount,
       currency: data.currency,
       fromAccountId: data.fromAccountId || '',
       toAccountId: data.toAccountId || '',
       categoryId: data.categoryId || '',
-      title: data.title,
       description: data.description || '',
       date: data.date,
       status: 'completed',
@@ -185,7 +260,6 @@ export function useBills() {
           fromAccountId: data.fromAccountId || '',
           toAccountId: data.toAccountId || '',
           categoryId: data.categoryId || '',
-          title: data.title,
           description: data.description || '',
           date: data.date,
           status: 'completed',
@@ -288,6 +362,45 @@ export function useBills() {
     }
   }
 
+  async function updateBills(ids: string[], data: Partial<BillFormData>) {
+    const db = await getDb()
+    let updatedCount = 0
+    const failedIds: string[] = []
+
+    for (const id of ids) {
+      try {
+        const doc = await db.bills.findOne(id).exec()
+        if (!doc) {
+          failedIds.push(id)
+          continue
+        }
+        const oldBill = doc.toJSON() as Bill
+
+        await applyBalanceChange(oldBill, true)
+
+        const patch: Partial<Bill> = {
+          ...data,
+          updatedAt: now()
+        }
+        await doc.patch(patch)
+
+        const newBill = { ...oldBill, ...patch } as Bill
+        await applyBalanceChange(newBill, false)
+
+        const idx = bills.value.findIndex(b => b.id === id)
+        if (idx !== -1) {
+          bills.value[idx] = newBill
+        }
+        updatedCount++
+      } catch (e) {
+        console.error(`Failed to update bill ${id}:`, e)
+        failedIds.push(id)
+      }
+    }
+
+    return { updatedCount, failedIds }
+  }
+
   async function deleteBill(id: string) {
     const db = await getDb()
     const doc = await db.bills.findOne(id).exec()
@@ -297,6 +410,30 @@ export function useBills() {
     await applyBalanceChange(bill, true)
     await doc.remove()
     bills.value = bills.value.filter(b => b.id !== id)
+  }
+
+  async function deleteBills(ids: string[]) {
+    const db = await getDb()
+    const docs: any[] = []
+    const validBills: Bill[] = []
+
+    for (const id of ids) {
+      const doc = await db.bills.findOne(id).exec()
+      if (doc) {
+        docs.push(doc)
+        validBills.push(doc.toJSON() as Bill)
+      }
+    }
+
+    if (validBills.length === 0) return { deletedCount: 0 }
+
+    await Promise.all(validBills.map(bill => applyBalanceChange(bill, true)))
+    await Promise.all(docs.map((doc: any) => doc.remove()))
+
+    const deletedIds = new Set(validBills.map(b => b.id))
+    bills.value = bills.value.filter(b => !deletedIds.has(b.id))
+
+    return { deletedCount: validBills.length }
   }
 
   async function settleDebt(id: string, settleAmount: number) {
@@ -347,16 +484,25 @@ export function useBills() {
     bills,
     loading,
     error,
+    hasMore,
+    pageSize,
+    currentPage,
     totalIncome,
     totalExpense,
     totalTransfer,
     netBalance,
     loadBills,
     loadBillsForNotes,
+    loadBillsPaginated,
+    loadMoreBills,
+    loadBillsByDateRange,
+    loadBillStats,
     createBill,
     createBillsBatch,
     updateBill,
+    updateBills,
     deleteBill,
+    deleteBills,
     settleDebt
   }
 }

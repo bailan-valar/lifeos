@@ -81,7 +81,6 @@ export interface Bill {
   fromAccountId: string
   toAccountId: string
   categoryId: string
-  title: string
   description: string
   date: string
   status: BillStatus
@@ -101,13 +100,13 @@ export interface Bill {
  * 账单表单数据（新建/编辑用）
  */
 export interface BillFormData {
+  noteId: string
   type: BillType
   amount: number
   currency: string
   fromAccountId: string
   toAccountId: string
   categoryId: string
-  title: string
   description: string
   date: string
   debtSubtype: DebtSubtype
@@ -296,7 +295,6 @@ export interface ImportPreviewRow extends CsvParsedRow {
   categoryId: string
   fromAccountId: string
   toAccountId: string
-  title: string
 }
 
 /**
