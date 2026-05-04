@@ -34,7 +34,8 @@ export function parseAlipayCsv(text: string): CsvParsedRow[] {
   return rows
     .filter(r => r.length >= 7 && r[0] && /\d{4}-\d{2}-\d{2}/.test(r[0]))
     .map((r, i) => {
-      const direction: 'in' | 'out' = r[5]?.includes('收') ? 'in' : 'out'
+      const rawPaymentDirection = (r[5] || '').trim()
+      const direction: 'in' | 'out' = rawPaymentDirection.includes('收') ? 'in' : 'out'
       return {
         rawIndex: i,
         date: r[0].trim(),
@@ -43,7 +44,9 @@ export function parseAlipayCsv(text: string): CsvParsedRow[] {
         amount: cleanAmount(r[6]),
         direction,
         rawType: (r[1] || '').trim(),
-        paymentMethod: (r[7] || '').trim() || undefined
+        paymentMethod: (r[7] || '').trim() || undefined,
+        rawPaymentDirection: rawPaymentDirection || undefined,
+        transactionStatus: (r[8] || '').trim() || undefined
       }
     })
 }
@@ -63,7 +66,8 @@ export function parseWechatCsv(text: string): CsvParsedRow[] {
   return rows
     .filter(r => r.length >= 6 && r[0] && /\d{4}-\d{2}-\d{2}/.test(r[0]))
     .map((r, i) => {
-      const direction: 'in' | 'out' = r[4]?.includes('收') ? 'in' : 'out'
+      const rawPaymentDirection = (r[4] || '').trim()
+      const direction: 'in' | 'out' = rawPaymentDirection.includes('收') ? 'in' : 'out'
       return {
         rawIndex: i,
         date: r[0].trim(),
@@ -72,7 +76,8 @@ export function parseWechatCsv(text: string): CsvParsedRow[] {
         amount: cleanAmount(r[5]),
         direction,
         rawType: (r[1] || '').trim(),
-        paymentMethod: (r[6] || '').trim() || undefined
+        paymentMethod: (r[6] || '').trim() || undefined,
+        rawPaymentDirection: rawPaymentDirection || undefined
       }
     })
 }

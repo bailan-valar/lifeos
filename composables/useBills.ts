@@ -232,6 +232,21 @@ export function useBills() {
     for (const row of payload.rows) {
       const fingerprint = dedupeKey(row.date, row.amount, row.counterparty)
 
+      if (row.skipped) {
+        skippedCount++
+        items.push({
+          rawIndex: row.rawIndex,
+          date: row.date,
+          counterparty: row.counterparty,
+          amount: row.amount,
+          direction: row.direction,
+          fingerprint,
+          status: 'skipped_unselected',
+          matchedRuleId: row.matchedRuleId
+        })
+        continue
+      }
+
       if (!row.selected) {
         skippedCount++
         items.push({

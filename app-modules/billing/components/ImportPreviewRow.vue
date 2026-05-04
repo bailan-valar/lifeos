@@ -1,10 +1,13 @@
 <template>
-  <div class="preview-row" :class="{ duplicate: row.duplicate, selected: row.selected }">
+  <div
+    class="preview-row"
+    :class="{ duplicate: row.duplicate, selected: row.selected, skipped: row.skipped }"
+  >
     <label class="select-cell">
       <input
         type="checkbox"
         :checked="row.selected"
-        :disabled="row.duplicate"
+        :disabled="row.duplicate || row.skipped"
         @change="updateField('selected', ($event.target as HTMLInputElement).checked)"
       />
     </label>
@@ -22,13 +25,18 @@
     </div>
 
     <div class="amount-cell" :class="amountClass">
-      {{ amountSign }}¥{{ formatAmount(row.amount) }}
+      <template v-if="row.skipped">
+        <span class="skip-label">跳过</span>
+      </template>
+      <template v-else>
+        {{ amountSign }}¥{{ formatAmount(row.amount) }}
+      </template>
     </div>
 
     <div class="actions-cell">
       <span class="badge" :class="badgeClass" :title="badgeTooltip">{{ badgeLabel }}</span>
       <button
-        v-if="!row.duplicate"
+        v-if="!row.duplicate && !row.skipped"
         type="button"
         class="action-btn"
         title="保存为规则"
@@ -146,6 +154,7 @@ const showFrom = computed(() => props.row.type !== 'income')
 const showTo = computed(() => props.row.type !== 'expense')
 
 const badgeLabel = computed(() => {
+  if (props.row.skipped) return props.row.skipReason || '跳过'
   if (props.row.duplicate) return '重复'
   if (props.row.matchedRuleId) return '已匹配规则'
   if (props.row.matchedAccountId) return '已匹配账户'
@@ -153,6 +162,7 @@ const badgeLabel = computed(() => {
 })
 
 const badgeClass = computed(() => {
+  if (props.row.skipped) return 'skipped'
   if (props.row.duplicate) return 'duplicate'
   if (props.row.matchedRuleId) return 'matched'
   if (props.row.matchedAccountId) return 'account'
@@ -160,6 +170,7 @@ const badgeClass = computed(() => {
 })
 
 const badgeTooltip = computed(() => {
+  if (props.row.skipped) return `跳过原因:${props.row.skipReason || '未知'}`
   if (props.row.duplicate) return '与已存在账单指纹重复,默认不导入'
   if (props.matchedRule) return `命中规则:${props.matchedRule.name}`
   if (props.row.matchedRuleId) return '命中规则'
@@ -175,8 +186,9 @@ function updateField<K extends keyof IPRow>(key: K, value: IPRow[K]) {
 }
 
 function onTypeChange(t: BillType) {
-  const matchedAcc = props.accounts.find(a => a.id === props.row.matchedAccountId) || null
-  const suggestion = suggestAccountIds(matchedAcc, props.row.direction, t)
+  const counterpartyAccount = props.accounts.find(a => a.id === props.row.matchedAccountId) || null
+  const myAccount = props.accounts.find(a => a.id === props.row.myAccountId) || null
+  const suggestion = suggestAccountIds(counterpartyAccount, myAccount, props.row.direction, t)
   const next: IPRow = { ...props.row, type: t }
   if (t === 'income') {
     next.fromAccountId = ''
@@ -191,7 +203,7 @@ function onTypeChange(t: BillType) {
   } else {
     next.categoryId = ''
   }
-  if (matchedAcc) {
+  if (counterpartyAccount || myAccount) {
     if (!next.fromAccountId && suggestion.fromAccountId) next.fromAccountId = suggestion.fromAccountId
     if (!next.toAccountId && suggestion.toAccountId) next.toAccountId = suggestion.toAccountId
   }
@@ -226,6 +238,19 @@ function formatAmount(n: number): string {
 }
 .preview-row.duplicate {
   opacity: 0.5;
+}
+.preview-row.skipped {
+  opacity: 0.5;
+  background: rgba(60, 60, 67, 0.04);
+}
+.skip-label {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.5);
+  font-weight: 500;
+}
+.badge.skipped {
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(60, 60, 67, 0.6);
 }
 .select-cell {
   grid-column: 1;

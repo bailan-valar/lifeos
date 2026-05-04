@@ -62,6 +62,7 @@ function createStore(): ImportRulesStore {
       pattern: data.pattern,
       categoryId: data.categoryId,
       accountId: data.accountId,
+      myAccountId: data.myAccountId,
       billType: data.billType,
       priority: data.priority,
       enabled: data.enabled,
@@ -79,7 +80,11 @@ function createStore(): ImportRulesStore {
     const db = await getDb()
     const doc = await db.importRules.findOne(id).exec()
     if (!doc) return
-    const patch = { ...data, updatedAt: now() }
+    const patch: Partial<ImportRule> = { ...data, updatedAt: now() }
+    // 显式处理 myAccountId:空字符串视为删除该字段
+    if (data.myAccountId === '') {
+      patch.myAccountId = undefined
+    }
     await doc.patch(patch)
     const idx = rules.value.findIndex(r => r.id === id)
     if (idx !== -1) {

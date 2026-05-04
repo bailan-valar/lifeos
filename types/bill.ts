@@ -247,6 +247,7 @@ export interface ImportRule {
   pattern: string
   categoryId: string
   accountId: string
+  myAccountId?: string
   billType?: BillType
   priority: number
   enabled: boolean
@@ -265,6 +266,7 @@ export interface ImportRuleFormData {
   pattern: string
   categoryId: string
   accountId: string
+  myAccountId?: string
   billType?: BillType
   priority: number
   enabled: boolean
@@ -282,6 +284,8 @@ export interface CsvParsedRow {
   direction: 'in' | 'out'
   rawType: string
   paymentMethod?: string
+  rawPaymentDirection?: string
+  transactionStatus?: string
 }
 
 /**
@@ -290,8 +294,11 @@ export interface CsvParsedRow {
 export interface ImportPreviewRow extends CsvParsedRow {
   selected: boolean
   duplicate: boolean
+  skipped: boolean
+  skipReason?: string
   matchedRuleId: string | null
   matchedAccountId: string | null
+  myAccountId: string | null
   type: BillType
   debtSubtype: DebtSubtype
   categoryId: string

@@ -191,6 +191,7 @@
 import type {
   Account,
   BillCategory,
+  BillType,
   ImportSource,
   ImportPreviewRow as IPRow,
   ImportRuleFormData,
@@ -208,7 +209,9 @@ import { useImportRecords } from '~/composables/useImportRecords'
 import { useConfirm } from '~/composables/useConfirm'
 import {
   matchAccountByCounterparty,
+  matchAccountByPaymentMethod,
   inferBillType,
+  inferAlipayBillType,
   inferDebtSubtype,
   suggestAccountIds
 } from '~/composables/useAccountMatcher'
@@ -264,17 +267,17 @@ const viewingRecord = computed<ImportRecord | null>(() =>
 
 const counts = computed(() => ({
   all: rows.value.length,
-  unmatched: rows.value.filter(r => !r.matchedRuleId && !r.matchedAccountId && !r.duplicate).length,
-  matched: rows.value.filter(r => (r.matchedRuleId || r.matchedAccountId) && !r.duplicate).length,
+  unmatched: rows.value.filter(r => !r.skipped && !r.matchedRuleId && !r.matchedAccountId && !r.duplicate).length,
+  matched: rows.value.filter(r => !r.skipped && (r.matchedRuleId || r.matchedAccountId) && !r.duplicate).length,
   duplicate: rows.value.filter(r => r.duplicate).length
 }))
 
 const filteredRows = computed(() => {
   switch (filter.value) {
     case 'unmatched':
-      return rows.value.filter(r => !r.matchedRuleId && !r.matchedAccountId && !r.duplicate)
+      return rows.value.filter(r => !r.skipped && !r.matchedRuleId && !r.matchedAccountId && !r.duplicate)
     case 'matched':
-      return rows.value.filter(r => (r.matchedRuleId || r.matchedAccountId) && !r.duplicate)
+      return rows.value.filter(r => !r.skipped && (r.matchedRuleId || r.matchedAccountId) && !r.duplicate)
     case 'duplicate':
       return rows.value.filter(r => r.duplicate)
     default:
@@ -283,7 +286,7 @@ const filteredRows = computed(() => {
 })
 
 const allSelected = computed(() => {
-  const eligible = filteredRows.value.filter(r => !r.duplicate)
+  const eligible = filteredRows.value.filter(r => !r.duplicate && !r.skipped)
   return eligible.length > 0 && eligible.every(r => r.selected)
 })
 
@@ -300,34 +303,66 @@ function rowToParsed(r: IPRow): CsvParsedRow {
     description: r.description,
     amount: r.amount,
     direction: r.direction,
-    rawType: r.rawType
+    rawType: r.rawType,
+    paymentMethod: r.paymentMethod,
+    rawPaymentDirection: r.rawPaymentDirection,
+    transactionStatus: r.transactionStatus
   }
 }
 
 function buildPreviewRow(parsed: CsvParsedRow): IPRow {
   const matchedRule = applyRules(parsed, source.value)
-  let matchedAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
-  // 规则指定了 accountId,优先使用规则的账户覆盖别名匹配结果
+
+  // 1. 匹配对方账户(交易对方)
+  let counterpartyAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
   if (matchedRule?.accountId) {
-    matchedAccount = props.accounts.find(a => a.id === matchedRule.accountId) || matchedAccount
+    counterpartyAccount = props.accounts.find(a => a.id === matchedRule.accountId) || counterpartyAccount
   }
-  const billType = inferBillType(matchedAccount, parsed.direction, matchedRule?.billType)
-  const debtSubtype = inferDebtSubtype(parsed.direction)
+
+  // 2. 匹配我的账户(收/付款方式)
+  let myAccount = matchAccountByPaymentMethod(parsed.paymentMethod || '', props.accounts)
+  if (matchedRule?.myAccountId) {
+    myAccount = props.accounts.find(a => a.id === matchedRule.myAccountId) || myAccount
+  }
+
+  // 3. 推断账单类型与方向
+  let billType: BillType
+  let direction = parsed.direction
+  let skipped = false
+  let skipReason: string | undefined
+
+  if (source.value === 'alipay' && parsed.rawPaymentDirection) {
+    const inferred = inferAlipayBillType(parsed, counterpartyAccount)
+    billType = matchedRule?.billType ?? inferred.type
+    direction = inferred.direction
+    skipped = inferred.skipped
+    skipReason = inferred.skipReason
+  } else {
+    billType = inferBillType(counterpartyAccount, parsed.direction, matchedRule?.billType)
+  }
+
+  const debtSubtype = inferDebtSubtype(direction)
   const fingerprint = dedupeKey(parsed.date, parsed.amount, parsed.counterparty)
   const isDuplicate = props.existingFingerprints.has(fingerprint)
-  const suggestion = suggestAccountIds(matchedAccount, parsed.direction, billType)
+
+  // 4. 推导 from/to
+  const suggestion = suggestAccountIds(counterpartyAccount, myAccount, direction, billType)
   const fromAccountId = suggestion.fromAccountId || ''
   const toAccountId = suggestion.toAccountId || ''
+
   const categoryId = matchedRule?.categoryId
-    || (matchedAccount?.type === 'merchant' ? matchedAccount.categoryId : undefined)
+    || (counterpartyAccount?.type === 'merchant' ? counterpartyAccount.categoryId : undefined)
     || ''
 
   return {
     ...parsed,
-    selected: !isDuplicate,
+    selected: !isDuplicate && !skipped,
     duplicate: isDuplicate,
+    skipped,
+    skipReason,
     matchedRuleId: matchedRule?.id ?? null,
-    matchedAccountId: matchedAccount?.id ?? null,
+    matchedAccountId: counterpartyAccount?.id ?? null,
+    myAccountId: myAccount?.id ?? null,
     type: billType,
     debtSubtype,
     categoryId,
@@ -367,7 +402,7 @@ function toggleAll() {
   const idsInFilter = new Set(filteredRows.value.map(r => r.rawIndex))
   rows.value = rows.value.map(r => {
     if (!idsInFilter.has(r.rawIndex)) return r
-    if (r.duplicate) return r
+    if (r.duplicate || r.skipped) return r
     return { ...r, selected: next }
   })
 }
@@ -381,6 +416,7 @@ function openRuleOverlay(row: IPRow) {
     pattern: counterparty,
     categoryId: row.categoryId,
     accountId: row.matchedAccountId || '',
+    myAccountId: row.myAccountId || undefined,
     billType: row.type,
     priority: 100,
     enabled: true
