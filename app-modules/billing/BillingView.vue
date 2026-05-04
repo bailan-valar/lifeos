@@ -127,6 +127,9 @@
             v-model="billForm"
             :accounts="accounts"
             :categories="categories"
+            @create-category="handleCreateCategory"
+            @open-category-form="handleOpenCategoryForm"
+            @create-account="handleCreateAccount"
           />
           <AccountForm
             v-if="dialogType === 'account'"
@@ -137,13 +140,15 @@
             v-model="categoryForm"
             :categories="categories"
             :exclude-id="editingCategory?.id"
+            @create-category="handleCreateCategory"
           />
           <BudgetForm
             v-if="dialogType === 'budget'"
             v-model="budgetForm"
             :categories="categories"
             :note-options="noteOptions"
-            @quick-add-category="handleQuickAddCategory"
+            @create-category="handleCreateCategory"
+            @open-category-form="handleOpenCategoryForm"
           />
           <StatementList
             v-if="dialogType === 'statement-list' && viewingAccount"
@@ -162,17 +167,24 @@
             :accounts="accounts"
             :categories="categories"
             :existing-fingerprints="existingFingerprints"
+            @create-category="handleCreateCategory"
+            @open-category-form="handleOpenCategoryForm"
+            @create-account="handleCreateAccount"
+            @tab-change="(tab) => (importDialogTab = tab)"
           />
           <ImportRuleForm
             v-if="dialogType === 'rule'"
             v-model="ruleForm"
             :accounts="accounts"
             :categories="categories"
+            @create-category="handleCreateCategory"
+            @open-category-form="handleOpenCategoryForm"
+            @create-account="handleCreateAccount"
           />
         </div>
         <div class="dialog-footer">
           <button type="button" class="cancel-btn" @click="closeDialog">{{ dialogType === 'statement-list' ? '关闭' : '取消' }}</button>
-          <button v-if="dialogType !== 'statement-list'" type="button" class="confirm-btn" @click="submitDialog">{{ dialogType === 'import' ? '导入选中' : '保存' }}</button>
+          <button v-if="dialogType !== 'statement-list' && !(dialogType === 'import' && importDialogTab === 'history')" type="button" class="confirm-btn" @click="submitDialog">{{ dialogType === 'import' ? '导入选中' : '保存' }}</button>
         </div>
       </div>
     </div>
@@ -199,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType } from '~/types/bill'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
@@ -207,6 +219,7 @@ import { useBillCategories } from '~/composables/useBillCategories'
 import { useBudgets } from '~/composables/useBudgets'
 import { useStatements } from '~/composables/useStatements'
 import { useImportRules } from '~/composables/useImportRules'
+import { useImportRecords } from '~/composables/useImportRecords'
 import { useConfirm } from '~/composables/useConfirm'
 import { dedupeKey } from '~/services/csvImport'
 import BillList from './components/BillList.vue'
@@ -229,12 +242,13 @@ const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void;
 const { markReady, handleError } = useModuleBase(props, emit)
 const { success: showSuccess, error: showError } = useToast()
 
-const { bills, totalIncome, totalExpense, netBalance, loadBills, createBill, updateBill, deleteBill } = useBills()
+const { bills, totalIncome, totalExpense, netBalance, loadBills, createBill, createBillsBatch, updateBill, deleteBill } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree } = useBillCategories()
 const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
 const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule } = useImportRules()
+const { loadImportRecords, fingerprintsAcrossRecords } = useImportRecords()
 const { loadNotes, noteOptions } = useNotes()
 
 const activeTab = ref('bills')
@@ -285,10 +299,17 @@ const ruleForm = ref<ImportRuleFormData>({
   enabled: true
 })
 const importDialogRef = ref<InstanceType<typeof BillImportDialog> | null>(null)
+const importDialogTab = ref<'import' | 'history'>('import')
+const previousDialogType = ref<typeof dialogType.value | null>(null)
 
-const existingFingerprints = computed(
-  () => new Set(bills.value.map(b => dedupeKey(b.date, b.amount, b.title)))
-)
+const existingFingerprints = computed(() => {
+  const set = new Set<string>()
+  for (const b of bills.value) {
+    set.add(dedupeKey(b.date, b.amount, b.counterpartyRaw || b.title))
+  }
+  for (const fp of fingerprintsAcrossRecords.value) set.add(fp)
+  return set
+})
 
 const viewingAccountStatements = computed(() =>
   viewingAccount.value
@@ -333,7 +354,7 @@ const expenseTree = computed(() => buildTree('expense'))
 
 onMounted(async () => {
   try {
-    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets(), loadStatements(), loadImportRules(), loadNotes()])
+    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets(), loadStatements(), loadImportRules(), loadImportRecords(props.noteId), loadNotes()])
     markReady()
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
@@ -506,11 +527,27 @@ async function submitDialog() {
       }
     } else if (dialogType.value === 'category') {
       if (!categoryForm.value.name) return
+      let createdId = ''
       if (editingCategory.value) {
         await updateCategory(editingCategory.value.id, categoryForm.value)
       } else {
-        await createCategory(categoryForm.value)
+        const created = await createCategory(categoryForm.value)
+        createdId = created.id
       }
+      if (createdId && previousDialogType.value && previousDialogType.value !== 'category') {
+        if (previousDialogType.value === 'bill') {
+          billForm.value = { ...billForm.value, categoryId: createdId }
+        } else if (previousDialogType.value === 'budget') {
+          budgetForm.value = { ...budgetForm.value, categoryId: createdId }
+        } else if (previousDialogType.value === 'rule') {
+          ruleForm.value = { ...ruleForm.value, categoryId: createdId }
+        }
+        dialogType.value = previousDialogType.value
+        previousDialogType.value = null
+        return
+      }
+      closeDialog()
+      return
     } else if (dialogType.value === 'budget') {
       if (!budgetForm.value.categoryId) {
         showError('请选择分类')
@@ -535,21 +572,21 @@ async function submitDialog() {
       closeDialog()
       return
     } else if (dialogType.value === 'import') {
-      const validBills = importDialogRef.value?.getValidBills() ?? []
-      if (validBills.length === 0) {
+      const payload = importDialogRef.value?.getImportPayload()
+      if (!payload || payload.rows.length === 0) {
+        showError('未解析任何记录')
+        return
+      }
+      if (!payload.rows.some(r => r.selected)) {
         showError('未选中任何记录')
         return
       }
-      let successCount = 0
-      for (const data of validBills) {
-        try {
-          await createBill(data, props.noteId)
-          successCount++
-        } catch (e) {
-          console.error('Import failed:', e)
-        }
+      const record = await createBillsBatch(payload, props.noteId)
+      if (record.failedCount > 0) {
+        showError(`已导入 ${record.successCount} 条 · 跳过 ${record.skippedCount} 条 · 失败 ${record.failedCount} 条`)
+      } else {
+        showSuccess(`已导入 ${record.successCount} 条 · 跳过 ${record.skippedCount} 条`)
       }
-      showSuccess(`已导入 ${successCount} 条`)
     } else if (dialogType.value === 'rule') {
       if (!ruleForm.value.name) {
         showError('请输入规则名称')
@@ -607,6 +644,7 @@ function closeDialog() {
   viewingAccount.value = null
   editingStatement.value = null
   editingRule.value = null
+  importDialogTab.value = 'import'
   importDialogRef.value?.reset()
 }
 
@@ -664,17 +702,59 @@ function onMenuDelete() {
   }
 }
 
-async function handleQuickAddCategory(name: string) {
+function handleOpenCategoryForm(data: { type: CategoryType; defaultParentId?: string }) {
+  previousDialogType.value = dialogType.value
+  categoryForm.value = {
+    name: '',
+    type: data.type,
+    parentId: data.defaultParentId || '',
+    icon: '',
+    color: ''
+  }
+  editingCategory.value = null
+  dialogType.value = 'category'
+  dialogVisible.value = true
+}
+
+async function handleCreateCategory(data: { name: string; type: 'income' | 'expense'; parentId?: string }) {
   try {
     const created = await createCategory({
-      name,
-      type: 'expense',
-      parentId: '',
+      name: data.name,
+      type: data.type,
+      parentId: data.parentId || '',
       icon: '',
       color: ''
     })
-    budgetForm.value = { ...budgetForm.value, categoryId: created.id }
     showSuccess('已添加分类')
+    if (dialogType.value === 'bill') {
+      billForm.value = { ...billForm.value, categoryId: created.id }
+    } else if (dialogType.value === 'budget') {
+      budgetForm.value = { ...budgetForm.value, categoryId: created.id }
+    } else if (dialogType.value === 'rule') {
+      ruleForm.value = { ...ruleForm.value, categoryId: created.id }
+    }
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleCreateAccount(data: AccountFormData) {
+  try {
+    const created = await createAccount(data)
+    showSuccess('已添加账户')
+    if (dialogType.value === 'bill') {
+      if (!billForm.value.fromAccountId) {
+        billForm.value = { ...billForm.value, fromAccountId: created.id }
+      } else if (!billForm.value.toAccountId) {
+        billForm.value = { ...billForm.value, toAccountId: created.id }
+      }
+    } else if (dialogType.value === 'rule') {
+      if (!ruleForm.value.fromAccountId) {
+        ruleForm.value = { ...ruleForm.value, fromAccountId: created.id }
+      } else if (!ruleForm.value.toAccountId) {
+        ruleForm.value = { ...ruleForm.value, toAccountId: created.id }
+      }
+    }
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }

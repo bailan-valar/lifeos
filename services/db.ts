@@ -20,7 +20,7 @@ interface RawPouchDoc {
 
 const COLLECTION_INDEXES: Record<string, string[][]> = {
   blocks: [['noteId'], ['noteId', 'order'], ['isSynced']],
-  notes: [['userId'], ['createdAt'], ['updatedAt'], ['isSynced']],
+  notes: [['userId'], ['order'], ['createdAt'], ['updatedAt'], ['isSynced']],
   folders: [['userId'], ['isSynced']],
   tags: [['name'], ['isSynced']],
   noteTags: [['noteId'], ['tagId'], ['noteId', 'tagId'], ['isSynced']],
@@ -33,7 +33,7 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   goals: [['status'], ['priority'], ['type'], ['plannedEndAt'], ['createdAt'], ['isSynced']],
   accounts: [['type'], ['subtype'], ['createdAt'], ['isSynced']],
   billCategories: [['type'], ['parentId'], ['order'], ['isSynced']],
-  bills: [['noteId'], ['type'], ['date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['isSynced']],
+  bills: [['noteId'], ['type'], ['date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['importBatchId'], ['isSynced']],
   budgets: [
     ['noteId'],
     ['categoryId'],
@@ -43,7 +43,8 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
     ['isSynced']
   ],
   statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status'], ['isSynced']],
-  importRules: [['source'], ['matchMode'], ['priority'], ['enabled'], ['isSynced']]
+  importRules: [['source'], ['matchMode'], ['priority'], ['enabled'], ['isSynced']],
+  importRecords: [['noteId'], ['createdAt'], ['source'], ['status'], ['noteId', 'createdAt'], ['isSynced']]
 }
 
 const DB_PREFIX = 'lifeos-'

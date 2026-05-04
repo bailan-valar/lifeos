@@ -46,15 +46,18 @@
         <option v-for="t in typeOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
       </select>
 
-      <select
+      <CategoryPicker
         v-if="showCategory"
-        class="form-select"
-        :value="row.categoryId"
-        @change="updateField('categoryId', ($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">未分类</option>
-        <option v-for="c in relevantCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-      </select>
+        :model-value="row.categoryId"
+        :categories="categories"
+        :type="row.type === 'income' ? 'income' : 'expense'"
+        placeholder="未分类"
+        clearable
+        class="compact-picker"
+        @update:model-value="updateField('categoryId', $event)"
+        @create="emit('create-category', $event)"
+        @open-form="emit('open-category-form', $event)"
+      />
 
       <select
         v-if="showDebtSubtype"
@@ -66,49 +69,27 @@
         <option value="borrow">借入</option>
       </select>
 
-      <select
+      <AccountPicker
         v-if="showFrom"
-        class="form-select"
-        :value="row.fromAccountId"
-        title="出账账户"
-        @change="updateField('fromAccountId', ($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">出账账户</option>
-        <optgroup v-if="personalAccounts.length" label="我的账户">
-          <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-        </optgroup>
-        <optgroup v-if="merchantAccounts.length" label="商户">
-          <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-        </optgroup>
-        <optgroup v-if="contactAccounts.length" label="联系人">
-          <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-        </optgroup>
-        <optgroup v-if="otherAccounts.length" label="其他">
-          <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-        </optgroup>
-      </select>
+        :model-value="row.fromAccountId"
+        :accounts="accounts"
+        placeholder="出账账户"
+        clearable
+        class="compact-picker"
+        @update:model-value="updateField('fromAccountId', $event)"
+        @create="emit('create-account', $event)"
+      />
 
-      <select
+      <AccountPicker
         v-if="showTo"
-        class="form-select"
-        :value="row.toAccountId"
-        title="入账账户"
-        @change="updateField('toAccountId', ($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">入账账户</option>
-        <optgroup v-if="personalAccounts.length" label="我的账户">
-          <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-        </optgroup>
-        <optgroup v-if="merchantAccounts.length" label="商户">
-          <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-        </optgroup>
-        <optgroup v-if="contactAccounts.length" label="联系人">
-          <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-        </optgroup>
-        <optgroup v-if="otherAccounts.length" label="其他">
-          <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-        </optgroup>
-      </select>
+        :model-value="row.toAccountId"
+        :accounts="accounts"
+        placeholder="入账账户"
+        clearable
+        class="compact-picker"
+        @update:model-value="updateField('toAccountId', $event)"
+        @create="emit('create-account', $event)"
+      />
     </div>
   </div>
 </template>
@@ -120,9 +101,13 @@ import type {
   BillType,
   DebtSubtype,
   ImportPreviewRow as IPRow,
-  ImportRule
+  ImportRule,
+  CategoryType,
+  AccountFormData
 } from '~/types/bill'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
+import CategoryPicker from './CategoryPicker.vue'
+import AccountPicker from './AccountPicker.vue'
 
 const props = defineProps<{
   row: IPRow
@@ -134,6 +119,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:row', value: IPRow): void
   (e: 'save-as-rule', row: IPRow): void
+  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
+  (e: 'create-account', data: AccountFormData): void
 }>()
 
 const typeOptions: { value: BillType; label: string }[] = [
@@ -142,11 +130,6 @@ const typeOptions: { value: BillType; label: string }[] = [
   { value: 'transfer', label: '转账' },
   { value: 'debt', label: '借贷' }
 ]
-
-const personalAccounts = computed(() => props.accounts.filter(a => a.type === 'personal'))
-const merchantAccounts = computed(() => props.accounts.filter(a => a.type === 'merchant'))
-const contactAccounts = computed(() => props.accounts.filter(a => a.type === 'contact'))
-const otherAccounts = computed(() => props.accounts.filter(a => a.type === 'other'))
 
 const relevantCategories = computed(() => {
   const t = props.row.type === 'income' ? 'income' : 'expense'
@@ -338,6 +321,19 @@ function formatAmount(n: number): string {
 }
 .form-select:focus {
   border-color: rgb(0, 122, 255);
+}
+.compact-picker {
+  flex: 1;
+  min-width: 110px;
+  max-width: 180px;
+}
+:deep(.compact-picker .picker-trigger) {
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+:deep(.compact-picker .picker-panel) {
+  width: 200px !important;
 }
 .badge {
   font-size: 10px;

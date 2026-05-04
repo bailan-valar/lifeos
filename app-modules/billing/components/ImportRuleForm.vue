@@ -49,15 +49,14 @@
 
     <div class="form-group">
       <label class="form-label">分类</label>
-      <select v-model="form.categoryId" class="form-select">
-        <option value="">不设置</option>
-        <optgroup v-if="incomeCategories.length" label="收入分类">
-          <option v-for="c in incomeCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </optgroup>
-        <optgroup v-if="expenseCategories.length" label="支出分类">
-          <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </optgroup>
-      </select>
+      <CategoryPicker
+        v-model="form.categoryId"
+        :categories="categories"
+        placeholder="不设置"
+        clearable
+        @create="emit('create-category', $event)"
+        @open-form="emit('open-category-form', $event)"
+      />
     </div>
 
     <div class="form-group">
@@ -80,39 +79,23 @@
     <div class="account-row">
       <div class="form-group">
         <label class="form-label">出账账户</label>
-        <select v-model="form.fromAccountId" class="form-select">
-          <option value="">不设置</option>
-          <optgroup v-if="personalAccounts.length" label="我的账户">
-            <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="merchantAccounts.length" label="商户">
-            <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="contactAccounts.length" label="联系人">
-            <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="otherAccounts.length" label="其他">
-            <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-        </select>
+        <AccountPicker
+          v-model="form.fromAccountId"
+          :accounts="accounts"
+          placeholder="不设置"
+          clearable
+          @create="emit('create-account', $event)"
+        />
       </div>
       <div class="form-group">
         <label class="form-label">入账账户</label>
-        <select v-model="form.toAccountId" class="form-select">
-          <option value="">不设置</option>
-          <optgroup v-if="personalAccounts.length" label="我的账户">
-            <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="merchantAccounts.length" label="商户">
-            <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="contactAccounts.length" label="联系人">
-            <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="otherAccounts.length" label="其他">
-            <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-        </select>
+        <AccountPicker
+          v-model="form.toAccountId"
+          :accounts="accounts"
+          placeholder="不设置"
+          clearable
+          @create="emit('create-account', $event)"
+        />
       </div>
     </div>
 
@@ -144,8 +127,12 @@ import type {
   ImportSource,
   Account,
   BillCategory,
-  BillType
+  BillType,
+  CategoryType,
+  AccountFormData
 } from '~/types/bill'
+import CategoryPicker from './CategoryPicker.vue'
+import AccountPicker from './AccountPicker.vue'
 
 type SourceValue = ImportSource | 'all'
 
@@ -157,6 +144,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: ImportRuleFormData): void
+  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
+  (e: 'create-account', data: AccountFormData): void
 }>()
 
 const sourceOptions: { value: SourceValue; label: string }[] = [
@@ -188,13 +178,6 @@ function setBillType(value: BillType | null) {
   emit('update:modelValue', { ...props.modelValue, billType: value ?? undefined })
 }
 
-const personalAccounts = computed(() => props.accounts.filter(a => a.type === 'personal'))
-const merchantAccounts = computed(() => props.accounts.filter(a => a.type === 'merchant'))
-const contactAccounts = computed(() => props.accounts.filter(a => a.type === 'contact'))
-const otherAccounts = computed(() => props.accounts.filter(a => a.type === 'other'))
-
-const incomeCategories = computed(() => props.categories.filter(c => c.type === 'income'))
-const expenseCategories = computed(() => props.categories.filter(c => c.type === 'expense'))
 
 const patternPlaceholder = computed(() => {
   switch (form.value.matchMode) {

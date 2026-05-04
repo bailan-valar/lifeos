@@ -24,13 +24,7 @@
     <div class="form-group">
       <label class="form-label">金额</label>
       <div class="amount-row">
-        <input
-          v-model.number="form.amount"
-          class="form-input amount-input"
-          type="number"
-          step="0.01"
-          placeholder="0.00"
-        />
+        <AmountInput v-model="form.amount" class="amount-input" />
         <select v-model="form.currency" class="form-select currency-select">
           <option value="CNY">CNY</option>
           <option value="USD">USD</option>
@@ -42,39 +36,23 @@
     <div class="account-row">
       <div v-if="showFrom" class="form-group">
         <label class="form-label">出账账户</label>
-        <select v-model="form.fromAccountId" class="form-select">
-          <option value="">请选择</option>
-          <optgroup v-if="personalAccounts.length" label="我的账户">
-            <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="merchantAccounts.length" label="商户">
-            <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="contactAccounts.length" label="联系人">
-            <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="otherAccounts.length" label="其他">
-            <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-        </select>
+        <AccountPicker
+          v-model="form.fromAccountId"
+          :accounts="accounts"
+          placeholder="请选择出账账户"
+          clearable
+          @create="emit('create-account', $event)"
+        />
       </div>
       <div v-if="showTo" class="form-group">
         <label class="form-label">入账账户</label>
-        <select v-model="form.toAccountId" class="form-select">
-          <option value="">请选择</option>
-          <optgroup v-if="personalAccounts.length" label="我的账户">
-            <option v-for="a in personalAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="merchantAccounts.length" label="商户">
-            <option v-for="a in merchantAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="contactAccounts.length" label="联系人">
-            <option v-for="a in contactAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-          <optgroup v-if="otherAccounts.length" label="其他">
-            <option v-for="a in otherAccounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-          </optgroup>
-        </select>
+        <AccountPicker
+          v-model="form.toAccountId"
+          :accounts="accounts"
+          placeholder="请选择入账账户"
+          clearable
+          @create="emit('create-account', $event)"
+        />
       </div>
     </div>
     <div v-if="sameAccountWarning" class="form-hint warn">出账与入账不能是同一账户</div>
@@ -97,15 +75,20 @@
 
     <div v-if="form.type === 'income' || form.type === 'expense'" class="form-group">
       <label class="form-label">分类</label>
-      <select v-model="form.categoryId" class="form-select">
-        <option value="">请选择</option>
-        <option v-for="c in relevantCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-      </select>
+      <CategoryPicker
+        v-model="form.categoryId"
+        :categories="categories"
+        :type="form.type === 'income' ? 'income' : 'expense'"
+        placeholder="请选择分类"
+        clearable
+        @create="emit('create-category', $event)"
+        @open-form="emit('open-category-form', $event)"
+      />
     </div>
 
     <div class="form-group">
       <label class="form-label">日期</label>
-      <input v-model="form.date" class="form-input" type="datetime-local" />
+      <DateTimePicker v-model="form.date" clearable />
     </div>
 
     <div class="form-group">
@@ -116,7 +99,11 @@
 </template>
 
 <script setup lang="ts">
-import type { BillFormData, Account, BillCategory, BillType, DebtSubtype } from '~/types/bill'
+import type { BillFormData, Account, BillCategory, BillType, DebtSubtype, CategoryType, AccountFormData } from '~/types/bill'
+import CategoryPicker from './CategoryPicker.vue'
+import AccountPicker from './AccountPicker.vue'
+import AmountInput from './AmountInput.vue'
+import DateTimePicker from './DateTimePicker.vue'
 
 const props = defineProps<{
   modelValue: BillFormData
@@ -126,6 +113,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: BillFormData): void
+  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
+  (e: 'create-account', data: AccountFormData): void
 }>()
 
 const typeOptions = [
@@ -144,15 +134,6 @@ const form = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v)
 })
-
-const personalAccounts = computed(() => props.accounts.filter(a => a.type === 'personal'))
-const merchantAccounts = computed(() => props.accounts.filter(a => a.type === 'merchant'))
-const contactAccounts = computed(() => props.accounts.filter(a => a.type === 'contact'))
-const otherAccounts = computed(() => props.accounts.filter(a => a.type === 'other'))
-
-const relevantCategories = computed(() =>
-  props.categories.filter(c => c.type === form.value.type)
-)
 
 const showFrom = computed(() => form.value.type !== 'income')
 const showTo = computed(() => form.value.type !== 'expense')

@@ -88,6 +88,10 @@ export interface Bill {
   debtSubtype: DebtSubtype
   relatedPersonId: string
   settledAmount: number
+  importBatchId?: string
+  importSource?: ImportSource
+  importFingerprint?: string
+  counterpartyRaw?: string
   createdAt: string
   updatedAt: string
   isSynced: boolean
@@ -293,4 +297,53 @@ export interface ImportPreviewRow extends CsvParsedRow {
   fromAccountId: string
   toAccountId: string
   title: string
+}
+
+/**
+ * 导入批次状态
+ * - success: 全部成功
+ * - partial: 部分成功(有失败但有写入)
+ * - failed: 全部失败/未写入
+ * - rolled_back: 已被一键回滚
+ */
+export type ImportRecordStatus = 'success' | 'partial' | 'failed' | 'rolled_back'
+
+/**
+ * 导入批次中单行明细
+ */
+export interface ImportRecordItem {
+  rawIndex: number
+  date: string
+  counterparty: string
+  amount: number
+  direction: 'in' | 'out'
+  fingerprint: string
+  status: 'created' | 'skipped_duplicate' | 'skipped_unselected' | 'failed'
+  billId?: string
+  matchedRuleId?: string | null
+  errorMessage?: string
+}
+
+/**
+ * 导入批次记录
+ */
+export interface ImportRecord {
+  id: string
+  noteId: string
+  source: ImportSource
+  fileName: string
+  fileSize: number
+  totalParsed: number
+  selectedCount: number
+  successCount: number
+  skippedCount: number
+  failedCount: number
+  status: ImportRecordStatus
+  billIds: string[]
+  items: ImportRecordItem[]
+  startedAt: string
+  finishedAt: string
+  createdAt: string
+  updatedAt: string
+  isSynced: boolean
 }

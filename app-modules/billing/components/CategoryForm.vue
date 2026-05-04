@@ -21,22 +21,22 @@
     </div>
     <div class="form-group">
       <label class="form-label">父分类</label>
-      <select v-model="form.parentId" class="form-select">
-        <option value="">无（顶级分类）</option>
-        <option
-          v-for="cat in availableParents"
-          :key="cat.id"
-          :value="cat.id"
-        >
-          {{ cat.name }}
-        </option>
-      </select>
+      <CategoryPicker
+        v-model="form.parentId"
+        :categories="categories"
+        :type="form.type"
+        placeholder="无（顶级分类）"
+        clearable
+        :exclude-id="excludeId"
+        @create="emit('create-category', $event)"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { CategoryFormData, CategoryType, BillCategory } from '~/types/bill'
+import CategoryPicker from './CategoryPicker.vue'
 
 const props = defineProps<{
   modelValue: CategoryFormData
@@ -46,6 +46,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: CategoryFormData): void
+  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
 }>()
 
 const typeOptions = [
@@ -57,10 +58,6 @@ const form = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v)
 })
-
-const availableParents = computed(() =>
-  props.categories.filter(c => c.type === form.value.type && c.id !== props.excludeId)
-)
 </script>
 
 <style scoped>

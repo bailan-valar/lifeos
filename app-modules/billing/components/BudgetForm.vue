@@ -26,43 +26,15 @@
     </div>
 
     <div class="form-group">
-      <div class="label-row">
-        <label class="form-label">分类</label>
-        <button
-          type="button"
-          class="quick-add-toggle"
-          @click="toggleQuickAdd"
-        >
-          <Icon
-            :name="showQuickAdd ? 'solar:close-circle-linear' : 'solar:add-circle-linear'"
-            size="14"
-          />
-          {{ showQuickAdd ? '取消' : '新增分类' }}
-        </button>
-      </div>
-      <select v-model="form.categoryId" class="form-select">
-        <option value="">请选择</option>
-        <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-      </select>
-      <div v-if="showQuickAdd" class="quick-add-row">
-        <input
-          ref="quickAddInputRef"
-          v-model="quickAddName"
-          class="form-input quick-add-input"
-          type="text"
-          placeholder="新分类名称（回车确认）"
-          @keyup.enter.prevent="submitQuickAdd"
-          @keyup.esc.prevent="cancelQuickAdd"
-        />
-        <button
-          type="button"
-          class="quick-add-confirm"
-          :disabled="!quickAddName.trim()"
-          @click="submitQuickAdd"
-        >
-          添加
-        </button>
-      </div>
+      <label class="form-label">分类</label>
+      <CategoryPicker
+        v-model="form.categoryId"
+        :categories="categories"
+        type="expense"
+        placeholder="请选择分类"
+        @create="emit('create-category', $event)"
+        @open-form="emit('open-category-form', $event)"
+      />
     </div>
 
     <div class="form-row">
@@ -92,7 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import type { BudgetFormData, BillCategory } from '~/types/bill'
+import type { BudgetFormData, BillCategory, CategoryType } from '~/types/bill'
+import CategoryPicker from './CategoryPicker.vue'
 
 interface NoteOption {
   id: string
@@ -108,7 +81,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: BudgetFormData): void
-  (e: 'quick-add-category', name: string): void
+  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
 }>()
 
 const cycleOptions = [
@@ -121,36 +95,6 @@ const form = computed({
   set: (v) => emit('update:modelValue', v)
 })
 
-const expenseCategories = computed(() =>
-  props.categories.filter(c => c.type === 'expense')
-)
-
-const showQuickAdd = ref(false)
-const quickAddName = ref('')
-const quickAddInputRef = ref<HTMLInputElement | null>(null)
-
-async function toggleQuickAdd() {
-  showQuickAdd.value = !showQuickAdd.value
-  if (showQuickAdd.value) {
-    await nextTick()
-    quickAddInputRef.value?.focus()
-  } else {
-    quickAddName.value = ''
-  }
-}
-
-function submitQuickAdd() {
-  const name = quickAddName.value.trim()
-  if (!name) return
-  emit('quick-add-category', name)
-  quickAddName.value = ''
-  showQuickAdd.value = false
-}
-
-function cancelQuickAdd() {
-  showQuickAdd.value = false
-  quickAddName.value = ''
-}
 </script>
 
 <style scoped>
@@ -173,49 +117,6 @@ function cancelQuickAdd() {
   font-size: 13px;
   font-weight: 500;
   color: rgba(0, 0, 0, 0.92);
-}
-.label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.quick-add-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: rgb(0, 122, 255);
-  font-size: 12px;
-  cursor: pointer;
-}
-.quick-add-toggle:hover {
-  background: rgba(0, 122, 255, 0.08);
-}
-.quick-add-row {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-.quick-add-input {
-  flex: 1;
-}
-.quick-add-confirm {
-  padding: 0 16px;
-  border: none;
-  border-radius: 8px;
-  background: rgb(0, 122, 255);
-  color: white;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.quick-add-confirm:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 .form-input,
 .form-select {

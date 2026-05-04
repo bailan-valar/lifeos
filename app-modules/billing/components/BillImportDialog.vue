@@ -1,61 +1,113 @@
 <template>
   <div class="form-body">
-    <div class="form-group">
-      <label class="form-label">来源</label>
-      <div class="type-selector">
-        <button
-          v-for="s in sourceOptions"
-          :key="s.value"
-          type="button"
-          class="type-btn"
-          :class="{ active: source === s.value }"
-          @click="source = s.value"
-        >
-          {{ s.label }}
-        </button>
-      </div>
+    <div class="tab-bar">
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeTab === 'import' }"
+        @click="setTab('import')"
+      >
+        导入
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeTab === 'history' }"
+        @click="setTab('history')"
+      >
+        历史
+        <span v-if="records.length" class="tab-badge">{{ records.length }}</span>
+      </button>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">CSV 文件</label>
-      <input ref="fileInput" type="file" accept=".csv" class="file-input" @change="onFileChange" />
-      <div v-if="parsing" class="form-hint">解析中...</div>
-      <div v-if="parseError" class="form-hint warn">{{ parseError }}</div>
-      <div v-if="rows.length" class="form-hint">
-        已解析 {{ rows.length }} 条记录,可在下方调整后保存。
-      </div>
-    </div>
-
-    <div v-if="rows.length" class="preview-wrap">
-      <div class="preview-summary">
-        <div class="filter-tabs">
+    <div v-if="activeTab === 'import'" class="tab-pane">
+      <div class="form-group">
+        <label class="form-label">来源</label>
+        <div class="type-selector">
           <button
-            v-for="f in filterOptions"
-            :key="f.value"
+            v-for="s in sourceOptions"
+            :key="s.value"
             type="button"
-            class="filter-tab"
-            :class="{ active: filter === f.value }"
-            @click="filter = f.value"
+            class="type-btn"
+            :class="{ active: source === s.value }"
+            @click="source = s.value"
           >
-            {{ f.label }} ({{ counts[f.value] }})
+            {{ s.label }}
           </button>
         </div>
-        <button type="button" class="btn-link" @click="toggleAll">
-          {{ allSelected ? '全不选' : '全选(跳过重复)' }}
-        </button>
       </div>
-      <div v-if="filteredRows.length === 0" class="empty-tip">当前筛选下无记录</div>
-      <div v-else class="preview-list">
-        <ImportPreviewRow
-          v-for="row in filteredRows"
-          :key="row.rawIndex"
-          :row="row"
-          :accounts="accounts"
-          :categories="categories"
-          :matched-rule="ruleById(row.matchedRuleId)"
-          @update:row="(v) => onRowUpdate(row.rawIndex, v)"
-          @save-as-rule="openRuleOverlay"
-        />
+
+      <div class="form-group">
+        <label class="form-label">CSV 文件</label>
+        <input ref="fileInput" type="file" accept=".csv" class="file-input" @change="onFileChange" />
+        <div v-if="parsing" class="form-hint">解析中...</div>
+        <div v-if="parseError" class="form-hint warn">{{ parseError }}</div>
+        <div v-if="rows.length" class="form-hint">
+          已解析 {{ rows.length }} 条记录,可在下方调整后保存。
+        </div>
+      </div>
+
+      <div v-if="rows.length" class="preview-wrap">
+        <div class="preview-summary">
+          <div class="filter-tabs">
+            <button
+              v-for="f in filterOptions"
+              :key="f.value"
+              type="button"
+              class="filter-tab"
+              :class="{ active: filter === f.value }"
+              @click="filter = f.value"
+            >
+              {{ f.label }} ({{ counts[f.value] }})
+            </button>
+          </div>
+          <button type="button" class="btn-link" @click="toggleAll">
+            {{ allSelected ? '全不选' : '全选(跳过重复)' }}
+          </button>
+        </div>
+        <div v-if="filteredRows.length === 0" class="empty-tip">当前筛选下无记录</div>
+        <div v-else class="preview-list">
+          <ImportPreviewRow
+            v-for="row in filteredRows"
+            :key="row.rawIndex"
+            :row="row"
+            :accounts="accounts"
+            :categories="categories"
+            :matched-rule="ruleById(row.matchedRuleId)"
+            @update:row="(v) => onRowUpdate(row.rawIndex, v)"
+            @save-as-rule="openRuleOverlay"
+            @create-category="emit('create-category', $event)"
+            @open-category-form="emit('open-category-form', $event)"
+            @create-account="emit('create-account', $event)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="activeTab === 'history'" class="tab-pane">
+      <div v-if="recordsLoading" class="empty-tip">加载中...</div>
+      <div v-else-if="records.length === 0" class="empty-tip">暂无导入记录</div>
+      <div v-else class="history-list">
+        <button
+          v-for="record in records"
+          :key="record.id"
+          type="button"
+          class="history-card"
+          :class="{ rolled: record.status === 'rolled_back' }"
+          @click="openRecord(record.id)"
+        >
+          <div class="history-row">
+            <span class="history-time">{{ formatDateTime(record.createdAt) }}</span>
+            <span class="history-source">{{ sourceLabel(record.source) }}</span>
+            <span class="history-status" :class="record.status">{{ statusLabel(record.status) }}</span>
+          </div>
+          <div class="history-row history-meta">
+            <span class="history-file" :title="record.fileName">{{ record.fileName || '-' }}</span>
+            <span class="history-stats">
+              成功 {{ record.successCount }} · 跳过 {{ record.skippedCount }} · 失败 {{ record.failedCount }}
+            </span>
+          </div>
+        </button>
       </div>
     </div>
 
@@ -72,11 +124,84 @@
             v-model="ruleOverlayForm"
             :accounts="accounts"
             :categories="categories"
+            @create-category="emit('create-category', $event)"
+            @open-category-form="emit('open-category-form', $event)"
+            @create-account="emit('create-account', $event)"
           />
         </div>
         <div class="rule-overlay-footer">
           <button type="button" class="cancel-btn" @click="closeRuleOverlay">取消</button>
           <button type="button" class="confirm-btn" @click="saveRuleOverlay">保存规则</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="viewingRecord" class="rule-overlay" @click="closeRecord">
+      <div class="rule-overlay-card record-card" @click.stop>
+        <div class="rule-overlay-header">
+          <h4>导入详情</h4>
+          <button type="button" class="close-btn" @click="closeRecord">
+            <Icon name="solar:close-circle-linear" size="18" />
+          </button>
+        </div>
+        <div class="rule-overlay-body">
+          <div class="record-meta">
+            <div class="meta-row">
+              <span class="meta-label">时间</span>
+              <span>{{ formatDateTime(viewingRecord.createdAt) }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">来源</span>
+              <span>{{ sourceLabel(viewingRecord.source) }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">文件</span>
+              <span>{{ viewingRecord.fileName || '-' }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">状态</span>
+              <span class="history-status" :class="viewingRecord.status">{{ statusLabel(viewingRecord.status) }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">统计</span>
+              <span>
+                总 {{ viewingRecord.totalParsed }} · 选中 {{ viewingRecord.selectedCount }} ·
+                成功 {{ viewingRecord.successCount }} · 跳过 {{ viewingRecord.skippedCount }} ·
+                失败 {{ viewingRecord.failedCount }}
+              </span>
+            </div>
+          </div>
+          <div class="record-items">
+            <div
+              v-for="item in viewingRecord.items"
+              :key="item.rawIndex"
+              class="record-item"
+              :class="item.status"
+            >
+              <div class="item-main">
+                <span class="item-counterparty">{{ item.counterparty || '-' }}</span>
+                <span class="item-amount" :class="item.direction">
+                  {{ item.direction === 'in' ? '+' : '-' }}{{ item.amount.toFixed(2) }}
+                </span>
+              </div>
+              <div class="item-meta">
+                <span>{{ item.date }}</span>
+                <span class="item-status">{{ itemStatusLabel(item.status) }}</span>
+              </div>
+              <div v-if="item.errorMessage" class="item-error">{{ item.errorMessage }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="rule-overlay-footer">
+          <button type="button" class="cancel-btn" @click="closeRecord">关闭</button>
+          <button
+            v-if="viewingRecord.status !== 'rolled_back' && viewingRecord.billIds.length > 0"
+            type="button"
+            class="confirm-btn danger"
+            @click="onRollback"
+          >
+            一键回滚
+          </button>
         </div>
       </div>
     </div>
@@ -92,10 +217,16 @@ import type {
   ImportRuleFormData,
   ImportRule,
   CsvParsedRow,
-  BillFormData
+  CategoryType,
+  AccountFormData,
+  ImportRecord,
+  ImportRecordItem,
+  ImportRecordStatus
 } from '~/types/bill'
 import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, dedupeKey } from '~/services/csvImport'
 import { useImportRules } from '~/composables/useImportRules'
+import { useImportRecords } from '~/composables/useImportRecords'
+import { useConfirm } from '~/composables/useConfirm'
 import {
   matchAccountByCounterparty,
   inferBillType,
@@ -112,12 +243,18 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'submit', bills: BillFormData[]): void
   (e: 'cancel'): void
   (e: 'rule-created', rule: ImportRule): void
+  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
+  (e: 'create-account', data: AccountFormData): void
+  (e: 'tab-change', tab: 'import' | 'history'): void
 }>()
 
 const { rules: importRules, applyRules, createImportRule } = useImportRules()
+const { records, loading: recordsLoading, getById, rollback } = useImportRecords()
+const { confirm } = useConfirm()
+const { success: showSuccess, error: showError } = useToast()
 
 const sourceOptions: { value: ImportSource; label: string }[] = [
   { value: 'alipay', label: '支付宝' },
@@ -146,6 +283,7 @@ function emptyRuleForm(): ImportRuleFormData {
   }
 }
 
+const activeTab = ref<'import' | 'history'>('import')
 const source = ref<ImportSource>('alipay')
 const rows = ref<IPRow[]>([])
 const parseError = ref('')
@@ -154,6 +292,13 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const filter = ref<FilterValue>('all')
 const ruleOverlayVisible = ref(false)
 const ruleOverlayForm = ref<ImportRuleFormData>(emptyRuleForm())
+const fileName = ref('')
+const fileSize = ref(0)
+const viewingRecordId = ref<string | null>(null)
+
+const viewingRecord = computed<ImportRecord | null>(() =>
+  viewingRecordId.value ? getById(viewingRecordId.value) : null
+)
 
 const counts = computed(() => ({
   all: rows.value.length,
@@ -232,6 +377,8 @@ async function onFileChange(event: Event) {
   parseError.value = ''
   parsing.value = true
   rows.value = []
+  fileName.value = file.name
+  fileSize.value = file.size
 
   try {
     const text = await decodeCsvFile(file, source.value)
@@ -301,30 +448,76 @@ async function saveRuleOverlay() {
   emit('rule-created', created)
 }
 
-function toIsoMinutes(date: string): string {
-  return date.length >= 16 ? date.slice(0, 16).replace(' ', 'T') : date
+function setTab(tab: 'import' | 'history') {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  emit('tab-change', tab)
 }
 
-function rowToBillFormData(row: IPRow): BillFormData {
-  return {
-    type: row.type,
-    amount: row.amount,
-    currency: 'CNY',
-    fromAccountId: row.fromAccountId,
-    toAccountId: row.toAccountId,
-    categoryId: row.categoryId,
-    title: row.title || row.counterparty || '导入账单',
-    description: row.description,
-    date: toIsoMinutes(row.date),
-    debtSubtype: row.debtSubtype,
-    relatedPersonId: ''
+function openRecord(id: string) {
+  viewingRecordId.value = id
+}
+
+function closeRecord() {
+  viewingRecordId.value = null
+}
+
+async function onRollback() {
+  const record = viewingRecord.value
+  if (!record) return
+  const ok = await confirm(`确定回滚此次导入?将删除 ${record.billIds.length} 条账单并恢复账户余额。`)
+  if (!ok) return
+  try {
+    const { rolledBack, missing } = await rollback(record.id)
+    if (missing > 0) {
+      showSuccess(`已回滚 ${rolledBack} 条,${missing} 条已不存在`)
+    } else {
+      showSuccess(`已回滚 ${rolledBack} 条`)
+    }
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
   }
 }
 
-function getValidBills(): BillFormData[] {
-  return rows.value
-    .filter(r => r.selected && !r.duplicate)
-    .map(rowToBillFormData)
+function formatDateTime(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function sourceLabel(s: ImportSource): string {
+  return s === 'alipay' ? '支付宝' : s === 'wechat' ? '微信' : s
+}
+
+function statusLabel(s: ImportRecordStatus): string {
+  switch (s) {
+    case 'success': return '成功'
+    case 'partial': return '部分成功'
+    case 'failed': return '失败'
+    case 'rolled_back': return '已回滚'
+    default: return s
+  }
+}
+
+function itemStatusLabel(s: ImportRecordItem['status']): string {
+  switch (s) {
+    case 'created': return '已写入'
+    case 'skipped_duplicate': return '跳过(重复)'
+    case 'skipped_unselected': return '跳过(未选)'
+    case 'failed': return '失败'
+    default: return s
+  }
+}
+
+function getImportPayload(): { rows: IPRow[]; fileName: string; fileSize: number; source: ImportSource } {
+  return {
+    rows: rows.value,
+    fileName: fileName.value,
+    fileSize: fileSize.value,
+    source: source.value
+  }
 }
 
 function reset() {
@@ -334,12 +527,17 @@ function reset() {
   filter.value = 'all'
   ruleOverlayVisible.value = false
   ruleOverlayForm.value = emptyRuleForm()
+  fileName.value = ''
+  fileSize.value = 0
+  viewingRecordId.value = null
+  activeTab.value = 'import'
   if (fileInput.value) fileInput.value.value = ''
 }
 
 defineExpose({
-  getValidBills,
-  reset
+  getImportPayload,
+  reset,
+  activeTab
 })
 </script>
 
@@ -349,6 +547,51 @@ defineExpose({
   flex-direction: column;
   gap: 16px;
   position: relative;
+}
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+}
+.tab-btn {
+  position: relative;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.6);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-btn:hover {
+  color: rgba(0, 0, 0, 0.86);
+}
+.tab-btn.active {
+  color: rgb(0, 122, 255);
+  border-bottom-color: rgb(0, 122, 255);
+}
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  background: rgba(0, 122, 255, 0.12);
+  color: rgb(0, 122, 255);
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .form-group {
   display: flex;
@@ -451,6 +694,83 @@ defineExpose({
   max-height: 50vh;
   overflow-y: auto;
 }
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.history-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 0.5px solid rgba(60, 60, 67, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.history-card:hover {
+  background: rgba(0, 122, 255, 0.04);
+  border-color: rgba(0, 122, 255, 0.3);
+}
+.history-card.rolled {
+  opacity: 0.6;
+}
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.history-time {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.86);
+}
+.history-source {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(60, 60, 67, 0.78);
+  font-size: 11px;
+}
+.history-status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.history-status.success {
+  background: rgba(52, 199, 89, 0.12);
+  color: rgb(52, 199, 89);
+}
+.history-status.partial {
+  background: rgba(255, 149, 0, 0.12);
+  color: rgb(255, 149, 0);
+}
+.history-status.failed {
+  background: rgba(255, 59, 48, 0.12);
+  color: rgb(255, 59, 48);
+}
+.history-status.rolled_back {
+  background: rgba(60, 60, 67, 0.12);
+  color: rgba(60, 60, 67, 0.6);
+}
+.history-meta {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.6);
+  justify-content: space-between;
+}
+.history-file {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
 .rule-overlay {
   position: absolute;
   inset: -20px;
@@ -472,6 +792,9 @@ defineExpose({
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
+}
+.record-card {
+  max-width: 600px;
 }
 .rule-overlay-header {
   display: flex;
@@ -498,6 +821,9 @@ defineExpose({
   padding: 16px 18px;
   max-height: 60vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .rule-overlay-footer {
   display: flex;
@@ -522,5 +848,84 @@ defineExpose({
 .confirm-btn {
   background: rgb(0, 122, 255);
   color: white;
+}
+.confirm-btn.danger {
+  background: rgb(255, 59, 48);
+}
+.record-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
+}
+.meta-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.86);
+}
+.meta-label {
+  flex-shrink: 0;
+  width: 56px;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 12px;
+}
+.record-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.record-item {
+  padding: 8px 10px;
+  border: 0.5px solid rgba(60, 60, 67, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.record-item.failed {
+  border-color: rgba(255, 59, 48, 0.3);
+  background: rgba(255, 59, 48, 0.04);
+}
+.record-item.skipped_duplicate,
+.record-item.skipped_unselected {
+  opacity: 0.7;
+}
+.item-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.item-counterparty {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.86);
+}
+.item-amount {
+  font-weight: 600;
+}
+.item-amount.in {
+  color: rgb(52, 199, 89);
+}
+.item-amount.out {
+  color: rgb(255, 59, 48);
+}
+.item-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.6);
+}
+.item-status {
+  font-weight: 500;
+}
+.item-error {
+  font-size: 11px;
+  color: rgb(255, 59, 48);
 }
 </style>
