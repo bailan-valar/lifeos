@@ -49,7 +49,12 @@
           添加账户
         </button>
       </div>
-      <AccountList :accounts="accounts" @edit="openAccountDialog" @delete="handleDeleteAccount" />
+      <AccountList
+        :accounts="accounts"
+        @edit="openAccountDialog"
+        @delete="handleDeleteAccount"
+        @view-statements="openStatementList"
+      />
     </div>
 
     <div v-if="activeTab === 'categories'" class="tab-panel">
@@ -126,10 +131,21 @@
             v-model="budgetForm"
             :categories="categories"
           />
+          <StatementList
+            v-if="dialogType === 'statement-list' && viewingAccount"
+            :account="viewingAccount"
+            :statements="viewingAccountStatements"
+            @edit="openStatementEdit"
+            @generate="handleGenerateStatement"
+          />
+          <StatementForm
+            v-if="dialogType === 'statement'"
+            v-model="statementForm"
+          />
         </div>
         <div class="dialog-footer">
-          <button type="button" class="cancel-btn" @click="closeDialog">取消</button>
-          <button type="button" class="confirm-btn" @click="submitDialog">保存</button>
+          <button type="button" class="cancel-btn" @click="closeDialog">{{ dialogType === 'statement-list' ? '关闭' : '取消' }}</button>
+          <button v-if="dialogType !== 'statement-list'" type="button" class="confirm-btn" @click="submitDialog">保存</button>
         </div>
       </div>
     </div>
@@ -137,12 +153,13 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData } from '~/types/bill'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useBudgets } from '~/composables/useBudgets'
+import { useStatements } from '~/composables/useStatements'
 import BillList from './components/BillList.vue'
 import BillForm from './components/BillForm.vue'
 import AccountList from './components/AccountList.vue'
@@ -151,6 +168,8 @@ import CategoryTree from './components/CategoryTree.vue'
 import CategoryForm from './components/CategoryForm.vue'
 import BudgetForm from './components/BudgetForm.vue'
 import BudgetDashboard from './components/BudgetDashboard.vue'
+import StatementList from './components/StatementList.vue'
+import StatementForm from './components/StatementForm.vue'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -162,6 +181,7 @@ const { bills, totalIncome, totalExpense, netBalance, loadBills, createBill, upd
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree } = useBillCategories()
 const { budgets, loadBudgets, createBudget, updateBudget, deleteBudget: deleteBudgetEntry } = useBudgets()
+const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
 
 const activeTab = ref('bills')
 const budgetYear = ref(new Date().getFullYear())
@@ -178,11 +198,13 @@ const tabs = [
 ]
 
 const dialogVisible = ref(false)
-const dialogType = ref<'bill' | 'account' | 'category' | 'budget'>('bill')
+const dialogType = ref<'bill' | 'account' | 'category' | 'budget' | 'statement-list' | 'statement'>('bill')
 const dialogTitle = computed(() => {
   if (dialogType.value === 'bill') return editingBill.value ? '编辑账单' : '记一笔'
   if (dialogType.value === 'account') return editingAccount.value ? '编辑账户' : '添加账户'
   if (dialogType.value === 'category') return editingCategory.value ? '编辑分类' : '添加分类'
+  if (dialogType.value === 'statement-list') return viewingAccount.value ? `${viewingAccount.value.name} 账单周期` : '账单周期'
+  if (dialogType.value === 'statement') return '编辑账单周期'
   return editingBudget.value ? '编辑预算' : '设置预算'
 })
 
@@ -190,6 +212,14 @@ const editingBill = ref<Bill | null>(null)
 const editingAccount = ref<Account | null>(null)
 const editingCategory = ref<BillCategory | null>(null)
 const editingBudget = ref<BudgetEntry | null>(null)
+const viewingAccount = ref<Account | null>(null)
+const editingStatement = ref<Statement | null>(null)
+
+const viewingAccountStatements = computed(() =>
+  viewingAccount.value
+    ? statements.value.filter(s => s.accountId === viewingAccount.value!.id)
+    : []
+)
 
 const billForm = ref<BillFormData>({
   type: 'expense', amount: 0, currency: 'CNY',
@@ -205,12 +235,16 @@ const budgetForm = ref<BudgetFormData>({
   year: new Date().getFullYear(), month: new Date().getMonth() + 1
 })
 
+const statementForm = ref<StatementFormData>({
+  statementAmount: 0, minimumPayment: 0, paidAmount: 0, status: 'pending'
+})
+
 const incomeTree = computed(() => buildTree('income'))
 const expenseTree = computed(() => buildTree('expense'))
 
 onMounted(async () => {
   try {
-    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets()])
+    await Promise.all([loadAccounts(), loadCategories(), loadBills(props.noteId), loadBudgets(), loadStatements()])
     markReady()
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
@@ -244,9 +278,24 @@ function openAccountDialog(account?: Account) {
   dialogType.value = 'account'
   editingAccount.value = account || null
   if (account) {
-    accountForm.value = { name: account.name, type: account.type, currency: account.currency, icon: account.icon || '', color: account.color || '' }
+    const base: AccountFormData = {
+      name: account.name,
+      type: account.type,
+      currency: account.currency,
+      icon: account.icon || '',
+      color: account.color || ''
+    }
+    if (account.type === 'personal') {
+      base.subtype = account.subtype || 'cash'
+      if (base.subtype === 'credit_card') {
+        base.creditLimit = account.creditLimit ?? 0
+        base.billingDay = account.billingDay ?? 1
+        base.repaymentDay = account.repaymentDay ?? 1
+      }
+    }
+    accountForm.value = base
   } else {
-    accountForm.value = { name: '', type: 'personal', currency: 'CNY', icon: '', color: '' }
+    accountForm.value = { name: '', type: 'personal', currency: 'CNY', icon: '', color: '', subtype: 'cash' }
   }
   dialogVisible.value = true
 }
@@ -277,6 +326,34 @@ function openBudgetDialog(budget?: BudgetEntry) {
     }
   }
   dialogVisible.value = true
+}
+
+function openStatementList(account: Account) {
+  dialogType.value = 'statement-list'
+  viewingAccount.value = account
+  dialogVisible.value = true
+}
+
+function openStatementEdit(stmt: Statement) {
+  dialogType.value = 'statement'
+  editingStatement.value = stmt
+  statementForm.value = {
+    statementAmount: stmt.statementAmount,
+    minimumPayment: stmt.minimumPayment,
+    paidAmount: stmt.paidAmount,
+    status: stmt.status
+  }
+  dialogVisible.value = true
+}
+
+async function handleGenerateStatement(year: number, month: number) {
+  if (!viewingAccount.value) return
+  try {
+    await generateForPeriod(viewingAccount.value, bills.value, year, month)
+    showSuccess('账单周期已生成')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
 }
 
 async function submitDialog() {
@@ -343,6 +420,19 @@ async function submitDialog() {
       } else {
         await createBudget(budgetForm.value)
       }
+    } else if (dialogType.value === 'statement') {
+      if (!editingStatement.value) {
+        closeDialog()
+        return
+      }
+      if (statementForm.value.statementAmount < 0 || statementForm.value.paidAmount < 0) {
+        showError('金额不能为负数')
+        return
+      }
+      await updateStatement(editingStatement.value.id, statementForm.value)
+    } else if (dialogType.value === 'statement-list') {
+      closeDialog()
+      return
     }
     closeDialog()
   } catch (e) {
@@ -381,6 +471,8 @@ function closeDialog() {
   editingAccount.value = null
   editingCategory.value = null
   editingBudget.value = null
+  viewingAccount.value = null
+  editingStatement.value = null
 }
 </script>
 

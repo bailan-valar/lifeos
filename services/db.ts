@@ -31,10 +31,11 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   module_config: [['noteId'], ['moduleId'], ['noteId', 'moduleId'], ['isSynced']],
   module_data: [['noteId'], ['moduleId'], ['noteId', 'moduleId'], ['isSynced']],
   goals: [['status'], ['priority'], ['type'], ['plannedEndAt'], ['createdAt'], ['isSynced']],
-  accounts: [['type'], ['createdAt'], ['isSynced']],
+  accounts: [['type'], ['subtype'], ['createdAt'], ['isSynced']],
   billCategories: [['type'], ['parentId'], ['order'], ['isSynced']],
   bills: [['noteId'], ['type'], ['date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['isSynced']],
-  budgets: [['categoryId'], ['period'], ['year'], ['month'], ['isSynced']]
+  budgets: [['categoryId'], ['period'], ['year'], ['month'], ['createdAt'], ['isSynced']],
+  statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status'], ['isSynced']]
 }
 
 const DB_PREFIX = 'lifeos-'

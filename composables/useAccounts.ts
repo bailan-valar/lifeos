@@ -10,6 +10,18 @@ async function getDb() {
   return dbRef
 }
 
+function clampDay(d: number | undefined): number | undefined {
+  if (typeof d !== 'number' || isNaN(d)) return undefined
+  return Math.max(1, Math.min(28, Math.floor(d)))
+}
+
+function withDefaultSubtype(raw: Account): Account {
+  if (raw.type === 'personal' && !raw.subtype) {
+    return { ...raw, subtype: 'cash' }
+  }
+  return raw
+}
+
 export function useAccounts() {
   const accounts = ref<Account[]>([])
   const loading = ref(false)
@@ -23,7 +35,7 @@ export function useAccounts() {
       const result = await db.accounts.find({
         sort: [{ createdAt: 'asc' }]
       }).exec()
-      accounts.value = result.map((doc: any) => doc.toJSON())
+      accounts.value = result.map((doc: any) => withDefaultSubtype(doc.toJSON()))
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       console.error('Failed to load accounts:', e)
@@ -34,6 +46,8 @@ export function useAccounts() {
 
   async function createAccount(data: AccountFormData): Promise<Account> {
     const db = await getDb()
+    const isPersonal = data.type === 'personal'
+    const isCredit = isPersonal && data.subtype === 'credit_card'
     const account: Account = {
       id: generateId(),
       name: data.name,
@@ -44,7 +58,13 @@ export function useAccounts() {
       color: data.color || '',
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false
+      isSynced: false,
+      ...(isPersonal ? { subtype: data.subtype || 'cash' } : {}),
+      ...(isCredit ? {
+        creditLimit: typeof data.creditLimit === 'number' ? data.creditLimit : 0,
+        billingDay: clampDay(data.billingDay) ?? 1,
+        repaymentDay: clampDay(data.repaymentDay) ?? 1
+      } : {})
     }
     await db.accounts.insert({ ...account })
     accounts.value.push(account)
@@ -55,10 +75,13 @@ export function useAccounts() {
     const db = await getDb()
     const doc = await db.accounts.findOne(id).exec()
     if (!doc) return
-    await doc.patch({ ...data, updatedAt: now() })
+    const patch: Record<string, any> = { ...data, updatedAt: now() }
+    if (typeof patch.billingDay === 'number') patch.billingDay = clampDay(patch.billingDay)
+    if (typeof patch.repaymentDay === 'number') patch.repaymentDay = clampDay(patch.repaymentDay)
+    await doc.patch(patch)
     const idx = accounts.value.findIndex(a => a.id === id)
     if (idx !== -1) {
-      accounts.value[idx] = { ...accounts.value[idx], ...data, updatedAt: now() }
+      accounts.value[idx] = { ...accounts.value[idx], ...patch }
     }
   }
 
@@ -91,10 +114,30 @@ export function useAccounts() {
     accounts.value.filter(a => a.type === 'other')
   )
 
+  const cashAccounts = computed(() =>
+    accounts.value.filter(a => a.type === 'personal' && (a.subtype || 'cash') === 'cash')
+  )
+
+  const debitAccounts = computed(() =>
+    accounts.value.filter(a => a.type === 'personal' && a.subtype === 'debit_card')
+  )
+
+  const creditAccounts = computed(() =>
+    accounts.value.filter(a => a.type === 'personal' && a.subtype === 'credit_card')
+  )
+
+  const onlineAccounts = computed(() =>
+    accounts.value.filter(a => a.type === 'personal' && a.subtype === 'online_account')
+  )
+
   return {
     accounts,
     personalAccounts,
     otherAccounts,
+    cashAccounts,
+    debitAccounts,
+    creditAccounts,
+    onlineAccounts,
     loading,
     error,
     loadAccounts,

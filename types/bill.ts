@@ -14,6 +14,11 @@ export type DebtSubtype = 'lend' | 'borrow'
 export type AccountType = 'personal' | 'other'
 
 /**
+ * 资金账户子类型（仅 type=personal 时使用）
+ */
+export type AccountSubtype = 'cash' | 'debit_card' | 'credit_card' | 'online_account'
+
+/**
  * 账单状态
  */
 export type BillStatus = 'pending' | 'completed' | 'cancelled'
@@ -34,6 +39,10 @@ export interface Account {
   currency: string
   icon?: string
   color?: string
+  subtype?: AccountSubtype
+  creditLimit?: number
+  billingDay?: number
+  repaymentDay?: number
   createdAt: string
   updatedAt: string
   isSynced: boolean
@@ -105,6 +114,10 @@ export interface AccountFormData {
   currency: string
   icon: string
   color: string
+  subtype?: AccountSubtype
+  creditLimit?: number
+  billingDay?: number
+  repaymentDay?: number
 }
 
 /**
@@ -155,4 +168,39 @@ export interface BudgetFormData {
   amount: number
   year: number
   month: number | null
+}
+
+/**
+ * 信用卡账单周期状态
+ */
+export type StatementStatus = 'pending' | 'partial' | 'paid' | 'overdue'
+
+/**
+ * 信用卡账单周期
+ */
+export interface Statement {
+  id: string
+  accountId: string
+  year: number
+  month: number
+  billingStartDate: string
+  billingEndDate: string
+  repaymentDate: string
+  statementAmount: number
+  minimumPayment: number
+  paidAmount: number
+  status: StatementStatus
+  createdAt: string
+  updatedAt: string
+  isSynced: boolean
+}
+
+/**
+ * 信用卡账单周期表单数据
+ */
+export interface StatementFormData {
+  statementAmount: number
+  minimumPayment: number
+  paidAmount: number
+  status: StatementStatus
 }
