@@ -150,8 +150,8 @@ const amountSign = computed(() => (props.row.direction === 'in' ? '+' : '-'))
 
 const showCategory = computed(() => props.row.type === 'income' || props.row.type === 'expense')
 const showDebtSubtype = computed(() => props.row.type === 'debt')
-const showFrom = computed(() => props.row.type !== 'income')
-const showTo = computed(() => props.row.type !== 'expense')
+const showFrom = computed(() => true)
+const showTo = computed(() => true)
 
 const badgeLabel = computed(() => {
   if (props.row.skipped) return props.row.skipReason || '跳过'
