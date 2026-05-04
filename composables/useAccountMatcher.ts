@@ -72,7 +72,7 @@ export function inferBillType(
   if (account) {
     if (account.type === 'personal') return 'transfer'
     if (account.type === 'contact') return 'debt'
-    if (account.type === 'merchant') return direction === 'in' ? 'income' : 'expense'
+    if (account.type === 'merchant') return 'expense'
   }
   return direction === 'in' ? 'income' : 'expense'
 }

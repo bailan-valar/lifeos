@@ -48,6 +48,7 @@ export interface Account {
   billingDay?: number
   repaymentDay?: number
   aliases?: string[]
+  categoryId?: string
   createdAt: string
   updatedAt: string
   isSynced: boolean
@@ -127,6 +128,7 @@ export interface AccountFormData {
   billingDay?: number
   repaymentDay?: number
   aliases?: string[]
+  categoryId?: string
 }
 
 /**
@@ -233,7 +235,8 @@ export type ImportRuleMatchMode = 'exact' | 'regex' | 'fuzzy'
 
 /**
  * 导入规则
- * 按 CSV 中"交易对方"字段匹配,命中后填充 categoryId / fromAccountId / toAccountId
+ * 按 CSV 中"交易对方"字段匹配,命中后填充 categoryId / accountId
+ * accountId 为匹配的对方账户,由 suggestAccountIds 自动推导 from/to
  * billType 可选,优先级高于按账户类型推断
  */
 export interface ImportRule {
@@ -243,8 +246,7 @@ export interface ImportRule {
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
-  fromAccountId: string
-  toAccountId: string
+  accountId: string
   billType?: BillType
   priority: number
   enabled: boolean
@@ -262,8 +264,7 @@ export interface ImportRuleFormData {
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
-  fromAccountId: string
-  toAccountId: string
+  accountId: string
   billType?: BillType
   priority: number
   enabled: boolean
@@ -280,6 +281,7 @@ export interface CsvParsedRow {
   amount: number
   direction: 'in' | 'out'
   rawType: string
+  paymentMethod?: string
 }
 
 /**

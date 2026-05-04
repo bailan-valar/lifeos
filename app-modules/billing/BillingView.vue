@@ -226,6 +226,7 @@
           <AccountForm
             v-if="dialogType === 'account'"
             v-model="accountForm"
+            :categories="categories"
           />
           <CategoryForm
             v-if="dialogType === 'category'"
@@ -262,6 +263,7 @@
             @create-category="handleCreateCategory"
             @open-category-form="handleOpenCategoryForm"
             @create-account="handleCreateAccount"
+            @open-rule-dialog="handleOpenImportRuleDialog"
             @tab-change="(tab) => (importDialogTab = tab)"
           />
           <ImportRuleForm
@@ -308,6 +310,18 @@
       @confirm="handleBatchEdit"
       @cancel="batchEditVisible = false"
     />
+
+    <ImportRuleDialog
+      v-if="importRuleDialogVisible"
+      v-model:form="importRuleDialogForm"
+      :accounts="accounts"
+      :categories="categories"
+      @confirm="handleSaveImportRule"
+      @cancel="importRuleDialogVisible = false"
+      @create-category="handleCreateCategory"
+      @open-category-form="handleOpenCategoryForm"
+      @create-account="handleCreateAccount"
+    />
   </div>
 </template>
 
@@ -339,6 +353,7 @@ import ImportRuleList from './components/ImportRuleList.vue'
 import ImportRuleForm from './components/ImportRuleForm.vue'
 import BillBatchToolbar from './components/BillBatchToolbar.vue'
 import BillBatchEditDialog from './components/BillBatchEditDialog.vue'
+import ImportRuleDialog from './components/ImportRuleDialog.vue'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -449,14 +464,18 @@ const ruleForm = ref<ImportRuleFormData>({
   matchMode: 'fuzzy',
   pattern: '',
   categoryId: '',
-  fromAccountId: '',
-  toAccountId: '',
+  accountId: '',
   billType: undefined,
   priority: 100,
   enabled: true
 })
 const importDialogRef = ref<InstanceType<typeof BillImportDialog> | null>(null)
 const importDialogTab = ref<'import' | 'history'>('import')
+const importRuleDialogVisible = ref(false)
+const importRuleDialogForm = ref<ImportRuleFormData>({
+  name: '', source: 'all', matchMode: 'fuzzy', pattern: '', categoryId: '',
+  accountId: '', priority: 100, enabled: true
+})
 const previousDialogType = ref<typeof dialogType.value | null>(null)
 
 const existingFingerprints = computed(() => {
@@ -563,7 +582,8 @@ function openAccountDialog(account?: Account) {
       currency: account.currency,
       icon: account.icon || '',
       color: account.color || '',
-      aliases: Array.isArray(account.aliases) ? [...account.aliases] : []
+      aliases: Array.isArray(account.aliases) ? [...account.aliases] : [],
+      categoryId: account.categoryId
     }
     if (account.type === 'personal') {
       base.subtype = account.subtype || 'cash'
@@ -889,6 +909,7 @@ async function handleDeleteBudgetEntry(id: string) {
 }
 
 function closeDialog() {
+  const wasImport = dialogType.value === 'import'
   dialogVisible.value = false
   editingBill.value = null
   editingAccount.value = null
@@ -898,7 +919,37 @@ function closeDialog() {
   editingStatement.value = null
   editingRule.value = null
   importDialogTab.value = 'import'
-  importDialogRef.value?.reset()
+  if (wasImport) {
+    importDialogRef.value?.reset()
+  }
+}
+
+function handleOpenImportRuleDialog(form: ImportRuleFormData) {
+  importRuleDialogForm.value = { ...form }
+  importRuleDialogVisible.value = true
+}
+
+async function handleSaveImportRule(form: ImportRuleFormData) {
+  if (!form.name.trim()) {
+    showError('请输入规则名称')
+    return
+  }
+  if (!form.pattern.trim()) {
+    showError('请输入匹配关键字')
+    return
+  }
+  try {
+    await createImportRule({
+      ...form,
+      name: form.name.trim(),
+      pattern: form.pattern.trim()
+    })
+    showSuccess('规则已保存')
+    importRuleDialogVisible.value = false
+    importDialogRef.value?.refreshRules()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
 }
 
 function openCategoryContextMenu(payload: { node: CategoryTreeNode; x: number; y: number }) {
@@ -1002,10 +1053,8 @@ async function handleCreateAccount(data: AccountFormData) {
         billForm.value = { ...billForm.value, toAccountId: created.id }
       }
     } else if (dialogType.value === 'rule') {
-      if (!ruleForm.value.fromAccountId) {
-        ruleForm.value = { ...ruleForm.value, fromAccountId: created.id }
-      } else if (!ruleForm.value.toAccountId) {
-        ruleForm.value = { ...ruleForm.value, toAccountId: created.id }
+      if (!ruleForm.value.accountId) {
+        ruleForm.value = { ...ruleForm.value, accountId: created.id }
       }
     }
   } catch (e) {
@@ -1028,8 +1077,7 @@ function openRuleDialog(rule?: ImportRule) {
       matchMode: rule.matchMode,
       pattern: rule.pattern,
       categoryId: rule.categoryId,
-      fromAccountId: rule.fromAccountId,
-      toAccountId: rule.toAccountId,
+      accountId: rule.accountId,
       billType: rule.billType,
       priority: rule.priority,
       enabled: rule.enabled
@@ -1041,8 +1089,7 @@ function openRuleDialog(rule?: ImportRule) {
       matchMode: 'fuzzy',
       pattern: '',
       categoryId: '',
-      fromAccountId: '',
-      toAccountId: '',
+      accountId: '',
       billType: undefined,
       priority: 100,
       enabled: true

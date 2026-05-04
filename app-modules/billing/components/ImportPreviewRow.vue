@@ -17,6 +17,7 @@
       <div class="meta-line">
         <span class="date">{{ formatDate(row.date) }}</span>
         <span v-if="row.rawType" class="raw-type">{{ row.rawType }}</span>
+        <span v-if="row.paymentMethod" class="payment-method">{{ row.paymentMethod }}</span>
       </div>
     </div>
 

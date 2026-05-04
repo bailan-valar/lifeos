@@ -42,7 +42,8 @@ export function parseAlipayCsv(text: string): CsvParsedRow[] {
         description: (r[4] || '').trim(),
         amount: cleanAmount(r[6]),
         direction,
-        rawType: (r[1] || '').trim()
+        rawType: (r[1] || '').trim(),
+        paymentMethod: (r[7] || '').trim() || undefined
       }
     })
 }
@@ -70,7 +71,8 @@ export function parseWechatCsv(text: string): CsvParsedRow[] {
         description: (r[3] || '').trim(),
         amount: cleanAmount(r[5]),
         direction,
-        rawType: (r[1] || '').trim()
+        rawType: (r[1] || '').trim(),
+        paymentMethod: (r[6] || '').trim() || undefined
       }
     })
 }

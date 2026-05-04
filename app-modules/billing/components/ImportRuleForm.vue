@@ -76,27 +76,16 @@
       <div class="form-hint">不指定则按金额方向与账户类型自动推断</div>
     </div>
 
-    <div class="account-row">
-      <div class="form-group">
-        <label class="form-label">出账账户</label>
-        <AccountPicker
-          v-model="form.fromAccountId"
-          :accounts="accounts"
-          placeholder="不设置"
-          clearable
-          @create="emit('create-account', $event)"
-        />
-      </div>
-      <div class="form-group">
-        <label class="form-label">入账账户</label>
-        <AccountPicker
-          v-model="form.toAccountId"
-          :accounts="accounts"
-          placeholder="不设置"
-          clearable
-          @create="emit('create-account', $event)"
-        />
-      </div>
+    <div class="form-group">
+      <label class="form-label">匹配账户</label>
+      <AccountPicker
+        v-model="form.accountId"
+        :accounts="accounts"
+        placeholder="不设置"
+        clearable
+        @create="emit('create-account', $event)"
+      />
+      <div class="form-hint">导入时将该交易对方视为此账户，自动推导出入账方向</div>
     </div>
 
     <div class="form-row">

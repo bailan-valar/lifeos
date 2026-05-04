@@ -111,100 +111,79 @@
       </div>
     </div>
 
-    <div v-if="ruleOverlayVisible" class="rule-overlay" @click="closeRuleOverlay">
-      <div class="rule-overlay-card" @click.stop>
-        <div class="rule-overlay-header">
-          <h4>保存为规则</h4>
-          <button type="button" class="close-btn" @click="closeRuleOverlay">
-            <Icon name="solar:close-circle-linear" size="18" />
-          </button>
-        </div>
-        <div class="rule-overlay-body">
-          <ImportRuleForm
-            v-model="ruleOverlayForm"
-            :accounts="accounts"
-            :categories="categories"
-            @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
-            @create-account="emit('create-account', $event)"
-          />
-        </div>
-        <div class="rule-overlay-footer">
-          <button type="button" class="cancel-btn" @click="closeRuleOverlay">取消</button>
-          <button type="button" class="confirm-btn" @click="saveRuleOverlay">保存规则</button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="viewingRecord" class="rule-overlay" @click="closeRecord">
-      <div class="rule-overlay-card record-card" @click.stop>
-        <div class="rule-overlay-header">
-          <h4>导入详情</h4>
-          <button type="button" class="close-btn" @click="closeRecord">
-            <Icon name="solar:close-circle-linear" size="18" />
-          </button>
-        </div>
-        <div class="rule-overlay-body">
-          <div class="record-meta">
-            <div class="meta-row">
-              <span class="meta-label">时间</span>
-              <span>{{ formatDateTime(viewingRecord.createdAt) }}</span>
+    <Teleport to="body">
+      <Transition name="record-modal">
+        <div v-if="viewingRecord" class="record-modal-overlay" @click="closeRecord">
+          <div class="record-modal-card" @click.stop>
+            <div class="record-modal-header">
+              <h4>导入详情</h4>
+              <button type="button" class="close-btn" @click="closeRecord">
+                <Icon name="solar:close-circle-linear" size="18" />
+              </button>
             </div>
-            <div class="meta-row">
-              <span class="meta-label">来源</span>
-              <span>{{ sourceLabel(viewingRecord.source) }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">文件</span>
-              <span>{{ viewingRecord.fileName || '-' }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">状态</span>
-              <span class="history-status" :class="viewingRecord.status">{{ statusLabel(viewingRecord.status) }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">统计</span>
-              <span>
-                总 {{ viewingRecord.totalParsed }} · 选中 {{ viewingRecord.selectedCount }} ·
-                成功 {{ viewingRecord.successCount }} · 跳过 {{ viewingRecord.skippedCount }} ·
-                失败 {{ viewingRecord.failedCount }}
-              </span>
-            </div>
-          </div>
-          <div class="record-items">
-            <div
-              v-for="item in viewingRecord.items"
-              :key="item.rawIndex"
-              class="record-item"
-              :class="item.status"
-            >
-              <div class="item-main">
-                <span class="item-counterparty">{{ item.counterparty || '-' }}</span>
-                <span class="item-amount" :class="item.direction">
-                  {{ item.direction === 'in' ? '+' : '-' }}{{ item.amount.toFixed(2) }}
-                </span>
+            <div class="record-modal-body">
+              <div class="record-meta">
+                <div class="meta-row">
+                  <span class="meta-label">时间</span>
+                  <span>{{ formatDateTime(viewingRecord.createdAt) }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">来源</span>
+                  <span>{{ sourceLabel(viewingRecord.source) }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">文件</span>
+                  <span>{{ viewingRecord.fileName || '-' }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">状态</span>
+                  <span class="history-status" :class="viewingRecord.status">{{ statusLabel(viewingRecord.status) }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">统计</span>
+                  <span>
+                    总 {{ viewingRecord.totalParsed }} · 选中 {{ viewingRecord.selectedCount }} ·
+                    成功 {{ viewingRecord.successCount }} · 跳过 {{ viewingRecord.skippedCount }} ·
+                    失败 {{ viewingRecord.failedCount }}
+                  </span>
+                </div>
               </div>
-              <div class="item-meta">
-                <span>{{ item.date }}</span>
-                <span class="item-status">{{ itemStatusLabel(item.status) }}</span>
+              <div class="record-items">
+                <div
+                  v-for="item in viewingRecord.items"
+                  :key="item.rawIndex"
+                  class="record-item"
+                  :class="item.status"
+                >
+                  <div class="item-main">
+                    <span class="item-counterparty">{{ item.counterparty || '-' }}</span>
+                    <span class="item-amount" :class="item.direction">
+                      {{ item.direction === 'in' ? '+' : '-' }}{{ item.amount.toFixed(2) }}
+                    </span>
+                  </div>
+                  <div class="item-meta">
+                    <span>{{ item.date }}</span>
+                    <span class="item-status">{{ itemStatusLabel(item.status) }}</span>
+                  </div>
+                  <div v-if="item.errorMessage" class="item-error">{{ item.errorMessage }}</div>
+                </div>
               </div>
-              <div v-if="item.errorMessage" class="item-error">{{ item.errorMessage }}</div>
+            </div>
+            <div class="record-modal-footer">
+              <button type="button" class="cancel-btn" @click="closeRecord">关闭</button>
+              <button
+                v-if="viewingRecord.status !== 'rolled_back' && viewingRecord.billIds.length > 0"
+                type="button"
+                class="confirm-btn danger"
+                @click="onRollback"
+              >
+                一键回滚
+              </button>
             </div>
           </div>
         </div>
-        <div class="rule-overlay-footer">
-          <button type="button" class="cancel-btn" @click="closeRecord">关闭</button>
-          <button
-            v-if="viewingRecord.status !== 'rolled_back' && viewingRecord.billIds.length > 0"
-            type="button"
-            class="confirm-btn danger"
-            @click="onRollback"
-          >
-            一键回滚
-          </button>
-        </div>
-      </div>
-    </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -234,7 +213,6 @@ import {
   suggestAccountIds
 } from '~/composables/useAccountMatcher'
 import ImportPreviewRow from './ImportPreviewRow.vue'
-import ImportRuleForm from './ImportRuleForm.vue'
 
 const props = defineProps<{
   accounts: Account[]
@@ -244,14 +222,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'cancel'): void
-  (e: 'rule-created', rule: ImportRule): void
+  (e: 'open-rule-dialog', form: ImportRuleFormData): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
   (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
   (e: 'create-account', data: AccountFormData): void
   (e: 'tab-change', tab: 'import' | 'history'): void
 }>()
 
-const { rules: importRules, applyRules, createImportRule } = useImportRules()
+const { rules: importRules, applyRules } = useImportRules()
 const { records, loading: recordsLoading, getById, rollback } = useImportRecords()
 const { confirm } = useConfirm()
 const { success: showSuccess, error: showError } = useToast()
@@ -269,20 +247,6 @@ const filterOptions: { value: FilterValue; label: string }[] = [
   { value: 'duplicate', label: '重复' }
 ]
 
-function emptyRuleForm(): ImportRuleFormData {
-  return {
-    name: '',
-    source: 'all',
-    matchMode: 'fuzzy',
-    pattern: '',
-    categoryId: '',
-    fromAccountId: '',
-    toAccountId: '',
-    priority: 100,
-    enabled: true
-  }
-}
-
 const activeTab = ref<'import' | 'history'>('import')
 const source = ref<ImportSource>('alipay')
 const rows = ref<IPRow[]>([])
@@ -290,8 +254,6 @@ const parseError = ref('')
 const parsing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const filter = ref<FilterValue>('all')
-const ruleOverlayVisible = ref(false)
-const ruleOverlayForm = ref<ImportRuleFormData>(emptyRuleForm())
 const fileName = ref('')
 const fileSize = ref(0)
 const viewingRecordId = ref<string | null>(null)
@@ -344,15 +306,21 @@ function rowToParsed(r: IPRow): CsvParsedRow {
 
 function buildPreviewRow(parsed: CsvParsedRow): IPRow {
   const matchedRule = applyRules(parsed, source.value)
-  const matchedAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
+  let matchedAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
+  // 规则指定了 accountId,优先使用规则的账户覆盖别名匹配结果
+  if (matchedRule?.accountId) {
+    matchedAccount = props.accounts.find(a => a.id === matchedRule.accountId) || matchedAccount
+  }
   const billType = inferBillType(matchedAccount, parsed.direction, matchedRule?.billType)
   const debtSubtype = inferDebtSubtype(parsed.direction)
   const fingerprint = dedupeKey(parsed.date, parsed.amount, parsed.counterparty)
   const isDuplicate = props.existingFingerprints.has(fingerprint)
   const suggestion = suggestAccountIds(matchedAccount, parsed.direction, billType)
-  const fromAccountId = matchedRule?.fromAccountId || suggestion.fromAccountId || ''
-  const toAccountId = matchedRule?.toAccountId || suggestion.toAccountId || ''
-  const categoryId = matchedRule?.categoryId || ''
+  const fromAccountId = suggestion.fromAccountId || ''
+  const toAccountId = suggestion.toAccountId || ''
+  const categoryId = matchedRule?.categoryId
+    || (matchedAccount?.type === 'merchant' ? matchedAccount.categoryId : undefined)
+    || ''
 
   return {
     ...parsed,
@@ -406,35 +374,20 @@ function toggleAll() {
 
 function openRuleOverlay(row: IPRow) {
   const counterparty = row.counterparty.trim()
-  ruleOverlayForm.value = {
+  emit('open-rule-dialog', {
     name: counterparty || '新规则',
     source: source.value,
     matchMode: 'fuzzy',
     pattern: counterparty,
     categoryId: row.categoryId,
-    fromAccountId: row.fromAccountId,
-    toAccountId: row.toAccountId,
+    accountId: row.matchedAccountId || '',
     billType: row.type,
     priority: 100,
     enabled: true
-  }
-  ruleOverlayVisible.value = true
-}
-
-function closeRuleOverlay() {
-  ruleOverlayVisible.value = false
-}
-
-async function saveRuleOverlay() {
-  const form = ruleOverlayForm.value
-  if (!form.name.trim() || !form.pattern.trim()) return
-  const created = await createImportRule({
-    ...form,
-    name: form.name.trim(),
-    pattern: form.pattern.trim()
   })
-  ruleOverlayVisible.value = false
-  ruleOverlayForm.value = emptyRuleForm()
+}
+
+function refreshRules() {
   rows.value = rows.value.map(r => {
     if (r.duplicate) return r
     const parsed = rowToParsed(r)
@@ -444,7 +397,6 @@ async function saveRuleOverlay() {
     }
     return r
   })
-  emit('rule-created', created)
 }
 
 function setTab(tab: 'import' | 'history') {
@@ -524,8 +476,6 @@ function reset() {
   parseError.value = ''
   parsing.value = false
   filter.value = 'all'
-  ruleOverlayVisible.value = false
-  ruleOverlayForm.value = emptyRuleForm()
   fileName.value = ''
   fileSize.value = 0
   viewingRecordId.value = null
@@ -536,6 +486,7 @@ function reset() {
 defineExpose({
   getImportPayload,
   reset,
+  refreshRules,
   activeTab
 })
 </script>
@@ -770,42 +721,45 @@ defineExpose({
   text-overflow: ellipsis;
   max-width: 60%;
 }
-.rule-overlay {
-  position: absolute;
-  inset: -20px;
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(20px);
+.record-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: 24px 12px;
-  z-index: 10;
   overflow-y: auto;
 }
-.rule-overlay-card {
+.record-modal-card {
   width: 100%;
-  max-width: 520px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 0.5px solid rgba(60, 60, 67, 0.16);
-  border-radius: 12px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
+  max-width: 600px;
+  max-height: 85vh;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.85) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
-.record-card {
-  max-width: 600px;
-}
-.rule-overlay-header {
+.record-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 18px;
+  padding: 16px 20px;
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
 }
-.rule-overlay-header h4 {
+.record-modal-header h4 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
 }
 .close-btn {
   border: none;
@@ -816,20 +770,37 @@ defineExpose({
   align-items: center;
   justify-content: center;
 }
-.rule-overlay-body {
-  padding: 16px 18px;
-  max-height: 60vh;
+.record-modal-body {
+  padding: 16px 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.rule-overlay-footer {
+.record-modal-footer {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  padding: 12px 18px;
+  padding: 12px 20px 16px;
   border-top: 0.5px solid rgba(60, 60, 67, 0.12);
+}
+/* Transition */
+.record-modal-enter-active,
+.record-modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+.record-modal-enter-active .record-modal-card,
+.record-modal-leave-active .record-modal-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+.record-modal-enter-from,
+.record-modal-leave-to {
+  opacity: 0;
+}
+.record-modal-enter-from .record-modal-card,
+.record-modal-leave-to .record-modal-card {
+  opacity: 0;
+  transform: scale(0.92) translateY(8px);
 }
 .cancel-btn,
 .confirm-btn {

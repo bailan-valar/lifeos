@@ -373,7 +373,7 @@ function submitQuickAdd() {
 }
 
 .picker-panel {
-  z-index: 1000;
+  z-index: 1002;
   display: flex;
   flex-direction: column;
   gap: 4px;

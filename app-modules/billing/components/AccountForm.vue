@@ -85,6 +85,17 @@
       ></textarea>
       <div class="form-hint">如:支付宝商户名、对方真实姓名、昵称等</div>
     </div>
+    <div v-if="form.type === 'merchant'" class="form-group">
+      <label class="form-label">默认分类（CSV 导入时自动填充）</label>
+      <CategoryPicker
+        :model-value="form.categoryId || ''"
+        :categories="categories || []"
+        type="expense"
+        placeholder="选择关联分类"
+        clearable
+        @update:model-value="onCategoryChange"
+      />
+    </div>
     <div class="form-group">
       <label class="form-label">币种</label>
       <select v-model="form.currency" class="form-select">
@@ -97,10 +108,12 @@
 </template>
 
 <script setup lang="ts">
-import type { AccountFormData, AccountType, AccountSubtype } from '~/types/bill'
+import type { AccountFormData, AccountType, AccountSubtype, BillCategory } from '~/types/bill'
+import CategoryPicker from './CategoryPicker.vue'
 
 const props = defineProps<{
   modelValue: AccountFormData
+  categories?: BillCategory[]
 }>()
 
 const emit = defineEmits<{
@@ -131,7 +144,7 @@ const typeHint = computed(() => {
     case 'personal':
       return '我自己的资金账户(现金/银行卡/网络账户/信用卡)'
     case 'merchant':
-      return '商家、平台或机构,导入收支时默认归为支出/收入'
+      return '商家、平台或机构,导入时归为支出,可关联默认分类'
     case 'contact':
       return '亲友或借贷对手,导入时默认归为借贷(借出/借入)'
     case 'other':
@@ -219,6 +232,13 @@ function onAliasesInput(raw: string) {
   emit('update:modelValue', {
     ...form.value,
     aliases: list
+  })
+}
+
+function onCategoryChange(id: string) {
+  emit('update:modelValue', {
+    ...form.value,
+    categoryId: id || undefined
   })
 }
 </script>

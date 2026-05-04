@@ -36,7 +36,14 @@ function createStore(): ImportRulesStore {
       const result = await db.importRules.find({
         sort: [{ priority: 'desc' }]
       }).exec()
-      rules.value = result.map((doc: any) => doc.toJSON())
+      rules.value = result.map((doc: any) => {
+        const raw = doc.toJSON()
+        // 迁移旧数据:fromAccountId/toAccountId → accountId
+        if (!raw.accountId && (raw.fromAccountId || raw.toAccountId)) {
+          raw.accountId = raw.toAccountId || raw.fromAccountId || ''
+        }
+        return raw
+      })
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       console.error('Failed to load import rules:', e)
@@ -54,8 +61,7 @@ function createStore(): ImportRulesStore {
       matchMode: data.matchMode,
       pattern: data.pattern,
       categoryId: data.categoryId,
-      fromAccountId: data.fromAccountId,
-      toAccountId: data.toAccountId,
+      accountId: data.accountId,
       billType: data.billType,
       priority: data.priority,
       enabled: data.enabled,
