@@ -14,13 +14,22 @@
 
     <div class="primary-cell">
       <div class="primary-line">
-        <span class="counterparty">{{ row.counterparty || '(无对方)' }}</span>
+        <span
+          class="counterparty"
+          :class="{ matched: row.matchedAccountId, clickable: !row.skipped }"
+          @click.stop="!row.skipped && emit('save-counterparty-rule', row)"
+        >{{ row.counterparty || '(无对方)' }}</span>
         <span v-if="row.description" class="description">{{ row.description }}</span>
       </div>
       <div class="meta-line">
         <span class="date">{{ formatDate(row.date) }}</span>
         <span v-if="row.rawType" class="raw-type">{{ row.rawType }}</span>
-        <span v-if="row.paymentMethod" class="payment-method">{{ row.paymentMethod }}</span>
+        <span
+          v-if="row.paymentMethod"
+          class="payment-method"
+          :class="{ matched: row.myAccountId, clickable: !row.skipped }"
+          @click.stop="!row.skipped && emit('save-payment-method-rule', row)"
+        >{{ row.paymentMethod }}</span>
       </div>
     </div>
 
@@ -128,6 +137,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:row', value: IPRow): void
   (e: 'save-as-rule', row: IPRow): void
+  (e: 'save-counterparty-rule', row: IPRow): void
+  (e: 'save-payment-method-rule', row: IPRow): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
   (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
   (e: 'create-account', data: AccountFormData): void
@@ -289,6 +300,17 @@ function formatAmount(n: number): string {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.counterparty.clickable {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.counterparty.clickable:hover {
+  color: rgb(0, 122, 255);
+  text-decoration: underline;
+}
+.counterparty.matched {
+  color: rgb(0, 122, 255);
+}
 .description {
   font-size: 12px;
   color: rgba(60, 60, 67, 0.78);
@@ -301,6 +323,17 @@ function formatAmount(n: number): string {
   gap: 8px;
   font-size: 11px;
   color: rgba(60, 60, 67, 0.5);
+}
+.payment-method.clickable {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.payment-method.clickable:hover {
+  color: rgb(0, 122, 255);
+  text-decoration: underline;
+}
+.payment-method.matched {
+  color: rgb(0, 122, 255);
 }
 .amount-cell {
   grid-column: 3;

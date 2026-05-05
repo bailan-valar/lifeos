@@ -76,6 +76,8 @@
             :matched-rule="ruleById(row.matchedRuleId)"
             @update:row="(v) => onRowUpdate(row.rawIndex, v)"
             @save-as-rule="openRuleOverlay"
+            @save-counterparty-rule="openCounterpartyRule"
+            @save-payment-method-rule="openPaymentMethodRule"
             @create-category="emit('create-category', $event)"
             @open-category-form="emit('open-category-form', $event)"
             @create-account="emit('create-account', $event)"
@@ -418,6 +420,38 @@ function openRuleOverlay(row: IPRow) {
     accountId: row.matchedAccountId || '',
     myAccountId: row.myAccountId || undefined,
     billType: row.type,
+    priority: 100,
+    enabled: true
+  })
+}
+
+function openCounterpartyRule(row: IPRow) {
+  const counterparty = row.counterparty.trim()
+  emit('open-rule-dialog', {
+    name: counterparty || '交易对方规则',
+    source: source.value,
+    matchMode: 'fuzzy',
+    pattern: counterparty,
+    categoryId: row.categoryId,
+    accountId: row.matchedAccountId || '',
+    myAccountId: undefined,
+    billType: row.type,
+    priority: 100,
+    enabled: true
+  })
+}
+
+function openPaymentMethodRule(row: IPRow) {
+  const paymentMethod = (row.paymentMethod || '').trim()
+  emit('open-rule-dialog', {
+    name: paymentMethod || '收付款方式规则',
+    source: source.value,
+    matchMode: 'fuzzy',
+    pattern: paymentMethod,
+    categoryId: '',
+    accountId: '',
+    myAccountId: row.myAccountId || undefined,
+    billType: undefined,
     priority: 100,
     enabled: true
   })
