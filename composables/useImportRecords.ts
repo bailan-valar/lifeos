@@ -7,6 +7,8 @@ interface ImportRecordsStore {
   error: Ref<string | null>
   loadImportRecords: (noteId?: string) => Promise<void>
   insertRecord: (record: ImportRecord) => Promise<void>
+  updateRecord: (id: string, patch: Partial<ImportRecord>) => Promise<void>
+  updateRecordItems: (id: string, items: ImportRecordItem[]) => Promise<void>
   deleteImportRecord: (id: string) => Promise<void>
   rollback: (id: string) => Promise<{ rolledBack: number; missing: number }>
   getById: (id: string) => ImportRecord | null
@@ -43,6 +45,22 @@ function createStore(): ImportRecordsStore {
     const db = await getDB()
     await db.importRecords.insert({ ...record })
     records.value = [record, ...records.value]
+  }
+
+  async function updateRecord(id: string, patch: Partial<ImportRecord>) {
+    const db = await getDB()
+    const doc = await db.importRecords.findOne(id).exec()
+    if (!doc) return
+    const updated = { ...patch, updatedAt: now() }
+    await doc.patch(updated)
+    const idx = records.value.findIndex(r => r.id === id)
+    if (idx !== -1) {
+      records.value[idx] = { ...records.value[idx], ...updated }
+    }
+  }
+
+  async function updateRecordItems(id: string, items: ImportRecordItem[]) {
+    await updateRecord(id, { items })
   }
 
   async function deleteImportRecord(id: string) {
@@ -113,6 +131,7 @@ function createStore(): ImportRecordsStore {
   const fingerprintsAcrossRecords = computed(() => {
     const set = new Set<string>()
     for (const record of records.value) {
+      if (record.status === 'rolled_back') continue
       for (const item of record.items) {
         if (item.fingerprint) set.add(item.fingerprint)
       }
@@ -126,6 +145,8 @@ function createStore(): ImportRecordsStore {
     error,
     loadImportRecords,
     insertRecord,
+    updateRecord,
+    updateRecordItems,
     deleteImportRecord,
     rollback,
     getById,

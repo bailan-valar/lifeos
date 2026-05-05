@@ -7,6 +7,7 @@ export interface Workspace {
   remotePrefix?: string
   createdAt: string
   updatedAt: string
+  remoteId?: string
 }
 
 export interface WorkspaceFormData {

@@ -42,47 +42,6 @@
         <input ref="fileInput" type="file" accept=".csv" class="file-input" @change="onFileChange" />
         <div v-if="parsing" class="form-hint">解析中...</div>
         <div v-if="parseError" class="form-hint warn">{{ parseError }}</div>
-        <div v-if="rows.length" class="form-hint">
-          已解析 {{ rows.length }} 条记录,可在下方调整后保存。
-        </div>
-      </div>
-
-      <div v-if="rows.length" class="preview-wrap">
-        <div class="preview-summary">
-          <div class="filter-tabs">
-            <button
-              v-for="f in filterOptions"
-              :key="f.value"
-              type="button"
-              class="filter-tab"
-              :class="{ active: filter === f.value }"
-              @click="filter = f.value"
-            >
-              {{ f.label }} ({{ counts[f.value] }})
-            </button>
-          </div>
-          <button type="button" class="btn-link" @click="toggleAll">
-            {{ allSelected ? '全不选' : '全选(跳过重复)' }}
-          </button>
-        </div>
-        <div v-if="filteredRows.length === 0" class="empty-tip">当前筛选下无记录</div>
-        <div v-else class="preview-list">
-          <ImportPreviewRow
-            v-for="row in filteredRows"
-            :key="row.rawIndex"
-            :row="row"
-            :accounts="accounts"
-            :categories="categories"
-            :matched-rule="ruleById(row.matchedRuleId)"
-            @update:row="(v) => onRowUpdate(row.rawIndex, v)"
-            @save-as-rule="openRuleOverlay"
-            @save-counterparty-rule="openCounterpartyRule"
-            @save-payment-method-rule="openPaymentMethodRule"
-            @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
-            @create-account="emit('create-account', $event)"
-          />
-        </div>
       </div>
     </div>
 
@@ -96,7 +55,7 @@
           type="button"
           class="history-card"
           :class="{ rolled: record.status === 'rolled_back' }"
-          @click="openRecord(record.id)"
+          @click="emit('view-record', record.id)"
         >
           <div class="history-row">
             <span class="history-time">{{ formatDateTime(record.createdAt) }}</span>
@@ -112,80 +71,6 @@
         </button>
       </div>
     </div>
-
-    <Teleport to="body">
-      <Transition name="record-modal">
-        <div v-if="viewingRecord" class="record-modal-overlay" @click="closeRecord">
-          <div class="record-modal-card" @click.stop>
-            <div class="record-modal-header">
-              <h4>导入详情</h4>
-              <button type="button" class="close-btn" @click="closeRecord">
-                <Icon name="solar:close-circle-linear" size="18" />
-              </button>
-            </div>
-            <div class="record-modal-body">
-              <div class="record-meta">
-                <div class="meta-row">
-                  <span class="meta-label">时间</span>
-                  <span>{{ formatDateTime(viewingRecord.createdAt) }}</span>
-                </div>
-                <div class="meta-row">
-                  <span class="meta-label">来源</span>
-                  <span>{{ sourceLabel(viewingRecord.source) }}</span>
-                </div>
-                <div class="meta-row">
-                  <span class="meta-label">文件</span>
-                  <span>{{ viewingRecord.fileName || '-' }}</span>
-                </div>
-                <div class="meta-row">
-                  <span class="meta-label">状态</span>
-                  <span class="history-status" :class="viewingRecord.status">{{ statusLabel(viewingRecord.status) }}</span>
-                </div>
-                <div class="meta-row">
-                  <span class="meta-label">统计</span>
-                  <span>
-                    总 {{ viewingRecord.totalParsed }} · 选中 {{ viewingRecord.selectedCount }} ·
-                    成功 {{ viewingRecord.successCount }} · 跳过 {{ viewingRecord.skippedCount }} ·
-                    失败 {{ viewingRecord.failedCount }}
-                  </span>
-                </div>
-              </div>
-              <div class="record-items">
-                <div
-                  v-for="item in viewingRecord.items"
-                  :key="item.rawIndex"
-                  class="record-item"
-                  :class="item.status"
-                >
-                  <div class="item-main">
-                    <span class="item-counterparty">{{ item.counterparty || '-' }}</span>
-                    <span class="item-amount" :class="item.direction">
-                      {{ item.direction === 'in' ? '+' : '-' }}{{ item.amount.toFixed(2) }}
-                    </span>
-                  </div>
-                  <div class="item-meta">
-                    <span>{{ item.date }}</span>
-                    <span class="item-status">{{ itemStatusLabel(item.status) }}</span>
-                  </div>
-                  <div v-if="item.errorMessage" class="item-error">{{ item.errorMessage }}</div>
-                </div>
-              </div>
-            </div>
-            <div class="record-modal-footer">
-              <button type="button" class="cancel-btn" @click="closeRecord">关闭</button>
-              <button
-                v-if="viewingRecord.status !== 'rolled_back' && viewingRecord.billIds.length > 0"
-                type="button"
-                class="confirm-btn danger"
-                @click="onRollback"
-              >
-                一键回滚
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
@@ -195,7 +80,6 @@ import type {
   BillCategory,
   BillType,
   ImportSource,
-  ImportPreviewRow as IPRow,
   ImportRuleFormData,
   ImportRule,
   CsvParsedRow,
@@ -208,7 +92,7 @@ import type {
 import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, dedupeKey } from '~/services/csvImport'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
-import { useConfirm } from '~/composables/useConfirm'
+import { generateId, now } from '~/services/db'
 import {
   matchAccountByCounterparty,
   matchAccountByPaymentMethod,
@@ -217,117 +101,51 @@ import {
   inferDebtSubtype,
   suggestAccountIds
 } from '~/composables/useAccountMatcher'
-import ImportPreviewRow from './ImportPreviewRow.vue'
 
 const props = defineProps<{
+  noteId: string
   accounts: Account[]
   categories: BillCategory[]
   existingFingerprints: Set<string>
 }>()
 
 const emit = defineEmits<{
-  (e: 'cancel'): void
+  (e: 'record-created', record: ImportRecord): void
+  (e: 'view-record', recordId: string): void
   (e: 'open-rule-dialog', form: ImportRuleFormData): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
   (e: 'create-account', data: AccountFormData): void
   (e: 'tab-change', tab: 'import' | 'history'): void
 }>()
 
 const { rules: importRules, applyRules } = useImportRules()
-const { records, loading: recordsLoading, getById, rollback } = useImportRecords()
-const { confirm } = useConfirm()
-const { success: showSuccess, error: showError } = useToast()
+const { records, loading: recordsLoading, insertRecord } = useImportRecords()
 
 const sourceOptions: { value: ImportSource; label: string }[] = [
   { value: 'alipay', label: '支付宝' },
   { value: 'wechat', label: '微信' }
 ]
 
-type FilterValue = 'all' | 'unmatched' | 'matched' | 'duplicate'
-const filterOptions: { value: FilterValue; label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: 'unmatched', label: '未匹配' },
-  { value: 'matched', label: '已匹配' },
-  { value: 'duplicate', label: '重复' }
-]
-
 const activeTab = ref<'import' | 'history'>('import')
 const source = ref<ImportSource>('alipay')
-const rows = ref<IPRow[]>([])
 const parseError = ref('')
 const parsing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
-const filter = ref<FilterValue>('all')
-const fileName = ref('')
-const fileSize = ref(0)
-const viewingRecordId = ref<string | null>(null)
 
-const viewingRecord = computed<ImportRecord | null>(() =>
-  viewingRecordId.value ? getById(viewingRecordId.value) : null
-)
-
-const counts = computed(() => ({
-  all: rows.value.length,
-  unmatched: rows.value.filter(r => !r.skipped && !r.matchedRuleId && !r.matchedAccountId && !r.duplicate).length,
-  matched: rows.value.filter(r => !r.skipped && (r.matchedRuleId || r.matchedAccountId) && !r.duplicate).length,
-  duplicate: rows.value.filter(r => r.duplicate).length
-}))
-
-const filteredRows = computed(() => {
-  switch (filter.value) {
-    case 'unmatched':
-      return rows.value.filter(r => !r.skipped && !r.matchedRuleId && !r.matchedAccountId && !r.duplicate)
-    case 'matched':
-      return rows.value.filter(r => !r.skipped && (r.matchedRuleId || r.matchedAccountId) && !r.duplicate)
-    case 'duplicate':
-      return rows.value.filter(r => r.duplicate)
-    default:
-      return rows.value
-  }
-})
-
-const allSelected = computed(() => {
-  const eligible = filteredRows.value.filter(r => !r.duplicate && !r.skipped)
-  return eligible.length > 0 && eligible.every(r => r.selected)
-})
-
-function ruleById(id: string | null): ImportRule | null {
-  if (!id) return null
-  return importRules.value.find(r => r.id === id) ?? null
-}
-
-function rowToParsed(r: IPRow): CsvParsedRow {
-  return {
-    rawIndex: r.rawIndex,
-    date: r.date,
-    counterparty: r.counterparty,
-    description: r.description,
-    amount: r.amount,
-    direction: r.direction,
-    rawType: r.rawType,
-    paymentMethod: r.paymentMethod,
-    rawPaymentDirection: r.rawPaymentDirection,
-    transactionStatus: r.transactionStatus
-  }
-}
-
-function buildPreviewRow(parsed: CsvParsedRow): IPRow {
+function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   const matchedRule = applyRules(parsed, source.value)
 
-  // 1. 匹配对方账户(交易对方)
   let counterpartyAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
   if (matchedRule?.accountId) {
     counterpartyAccount = props.accounts.find(a => a.id === matchedRule.accountId) || counterpartyAccount
   }
 
-  // 2. 匹配我的账户(收/付款方式)
   let myAccount = matchAccountByPaymentMethod(parsed.paymentMethod || '', props.accounts)
   if (matchedRule?.myAccountId) {
     myAccount = props.accounts.find(a => a.id === matchedRule.myAccountId) || myAccount
   }
 
-  // 3. 推断账单类型与方向
   let billType: BillType
   let direction = parsed.direction
   let skipped = false
@@ -347,17 +165,21 @@ function buildPreviewRow(parsed: CsvParsedRow): IPRow {
   const fingerprint = dedupeKey(parsed.date, parsed.amount, parsed.counterparty)
   const isDuplicate = props.existingFingerprints.has(fingerprint)
 
-  // 4. 推导 from/to
   const suggestion = suggestAccountIds(counterpartyAccount, myAccount, direction, billType)
-  const fromAccountId = suggestion.fromAccountId || ''
-  const toAccountId = suggestion.toAccountId || ''
 
   const categoryId = matchedRule?.categoryId
     || (counterpartyAccount?.type === 'merchant' ? counterpartyAccount.categoryId : undefined)
     || ''
 
   return {
-    ...parsed,
+    rawIndex: parsed.rawIndex,
+    date: parsed.date,
+    counterparty: parsed.counterparty,
+    description: parsed.description,
+    amount: parsed.amount,
+    direction,
+    fingerprint,
+    status: 'pending',
     selected: !isDuplicate && !skipped,
     duplicate: isDuplicate,
     skipped,
@@ -368,8 +190,10 @@ function buildPreviewRow(parsed: CsvParsedRow): IPRow {
     type: billType,
     debtSubtype,
     categoryId,
-    fromAccountId,
-    toAccountId
+    fromAccountId: suggestion.fromAccountId || '',
+    toAccountId: suggestion.toAccountId || '',
+    paymentMethod: parsed.paymentMethod,
+    rawType: parsed.rawType
   }
 }
 
@@ -380,14 +204,37 @@ async function onFileChange(event: Event) {
 
   parseError.value = ''
   parsing.value = true
-  rows.value = []
-  fileName.value = file.name
-  fileSize.value = file.size
 
   try {
     const text = await decodeCsvFile(file, source.value)
     const parsedRows = source.value === 'alipay' ? parseAlipayCsv(text) : parseWechatCsv(text)
-    rows.value = parsedRows.map(buildPreviewRow)
+    const items = parsedRows.map(buildImportRecordItem)
+
+    const record: ImportRecord = {
+      id: generateId(),
+      noteId: props.noteId,
+      source: source.value,
+      fileName: file.name,
+      fileSize: file.size,
+      totalParsed: items.length,
+      selectedCount: items.filter(i => i.selected && !i.skipped && !i.duplicate).length,
+      successCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+      status: 'pending',
+      billIds: [],
+      items,
+      startedAt: now(),
+      finishedAt: '',
+      createdAt: now(),
+      updatedAt: now(),
+      isSynced: false
+    }
+
+    await insertRecord(record)
+    emit('record-created', record)
+
+    if (fileInput.value) fileInput.value.value = ''
   } catch (e) {
     parseError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -395,109 +242,10 @@ async function onFileChange(event: Event) {
   }
 }
 
-function onRowUpdate(rawIndex: number, value: IPRow) {
-  rows.value = rows.value.map(r => (r.rawIndex === rawIndex ? value : r))
-}
-
-function toggleAll() {
-  const next = !allSelected.value
-  const idsInFilter = new Set(filteredRows.value.map(r => r.rawIndex))
-  rows.value = rows.value.map(r => {
-    if (!idsInFilter.has(r.rawIndex)) return r
-    if (r.duplicate || r.skipped) return r
-    return { ...r, selected: next }
-  })
-}
-
-function openRuleOverlay(row: IPRow) {
-  const counterparty = row.counterparty.trim()
-  emit('open-rule-dialog', {
-    name: counterparty || '新规则',
-    source: source.value,
-    matchMode: 'fuzzy',
-    pattern: counterparty,
-    categoryId: row.categoryId,
-    accountId: row.matchedAccountId || '',
-    myAccountId: row.myAccountId || undefined,
-    billType: row.type,
-    priority: 100,
-    enabled: true
-  })
-}
-
-function openCounterpartyRule(row: IPRow) {
-  const counterparty = row.counterparty.trim()
-  emit('open-rule-dialog', {
-    name: counterparty || '交易对方规则',
-    source: source.value,
-    matchMode: 'fuzzy',
-    pattern: counterparty,
-    categoryId: row.categoryId,
-    accountId: row.matchedAccountId || '',
-    myAccountId: undefined,
-    billType: row.type,
-    priority: 100,
-    enabled: true
-  })
-}
-
-function openPaymentMethodRule(row: IPRow) {
-  const paymentMethod = (row.paymentMethod || '').trim()
-  emit('open-rule-dialog', {
-    name: paymentMethod || '收付款方式规则',
-    source: source.value,
-    matchMode: 'fuzzy',
-    pattern: paymentMethod,
-    categoryId: '',
-    accountId: '',
-    myAccountId: row.myAccountId || undefined,
-    billType: undefined,
-    priority: 100,
-    enabled: true
-  })
-}
-
-function refreshRules() {
-  rows.value = rows.value.map(r => {
-    if (r.duplicate) return r
-    const parsed = rowToParsed(r)
-    const matched = applyRules(parsed, source.value)
-    if (matched && matched.id !== r.matchedRuleId) {
-      return buildPreviewRow(parsed)
-    }
-    return r
-  })
-}
-
 function setTab(tab: 'import' | 'history') {
   if (activeTab.value === tab) return
   activeTab.value = tab
   emit('tab-change', tab)
-}
-
-function openRecord(id: string) {
-  viewingRecordId.value = id
-}
-
-function closeRecord() {
-  viewingRecordId.value = null
-}
-
-async function onRollback() {
-  const record = viewingRecord.value
-  if (!record) return
-  const ok = await confirm(`确定回滚此次导入?将删除 ${record.billIds.length} 条账单并恢复账户余额。`)
-  if (!ok) return
-  try {
-    const { rolledBack, missing } = await rollback(record.id)
-    if (missing > 0) {
-      showSuccess(`已回滚 ${rolledBack} 条,${missing} 条已不存在`)
-    } else {
-      showSuccess(`已回滚 ${rolledBack} 条`)
-    }
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
 }
 
 function formatDateTime(iso: string): string {
@@ -514,6 +262,7 @@ function sourceLabel(s: ImportSource): string {
 
 function statusLabel(s: ImportRecordStatus): string {
   switch (s) {
+    case 'pending': return '待导入'
     case 'success': return '成功'
     case 'partial': return '部分成功'
     case 'failed': return '失败'
@@ -522,41 +271,15 @@ function statusLabel(s: ImportRecordStatus): string {
   }
 }
 
-function itemStatusLabel(s: ImportRecordItem['status']): string {
-  switch (s) {
-    case 'created': return '已写入'
-    case 'skipped_duplicate': return '跳过(重复)'
-    case 'skipped_unselected': return '跳过(未选)'
-    case 'failed': return '失败'
-    default: return s
-  }
-}
-
-function getImportPayload(): { rows: IPRow[]; fileName: string; fileSize: number; source: ImportSource } {
-  return {
-    rows: rows.value,
-    fileName: fileName.value,
-    fileSize: fileSize.value,
-    source: source.value
-  }
-}
-
 function reset() {
-  rows.value = []
   parseError.value = ''
   parsing.value = false
-  filter.value = 'all'
-  fileName.value = ''
-  fileSize.value = 0
-  viewingRecordId.value = null
   activeTab.value = 'import'
   if (fileInput.value) fileInput.value.value = ''
 }
 
 defineExpose({
-  getImportPayload,
   reset,
-  refreshRules,
   activeTab
 })
 </script>
@@ -654,65 +377,11 @@ defineExpose({
 .form-hint.warn {
   color: rgb(255, 59, 48);
 }
-.preview-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.preview-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: rgba(60, 60, 67, 0.78);
-  padding: 6px 0;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.filter-tabs {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.filter-tab {
-  padding: 4px 10px;
-  border: 0.5px solid rgba(60, 60, 67, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  color: rgba(60, 60, 67, 0.78);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.filter-tab.active {
-  background: rgba(0, 122, 255, 0.1);
-  border-color: rgba(0, 122, 255, 0.4);
-  color: rgb(0, 122, 255);
-  font-weight: 600;
-}
-.btn-link {
-  border: none;
-  background: transparent;
-  color: rgb(0, 122, 255);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 0;
-}
-.btn-link:hover {
-  text-decoration: underline;
-}
 .empty-tip {
   padding: 24px;
   text-align: center;
   color: rgba(60, 60, 67, 0.5);
   font-size: 12px;
-}
-.preview-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 50vh;
-  overflow-y: auto;
 }
 .history-list {
   display: flex;
@@ -764,6 +433,10 @@ defineExpose({
   font-size: 11px;
   font-weight: 600;
 }
+.history-status.pending {
+  background: rgba(0, 122, 255, 0.12);
+  color: rgb(0, 122, 255);
+}
 .history-status.success {
   background: rgba(52, 199, 89, 0.12);
   color: rgb(52, 199, 89);
@@ -790,182 +463,5 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 60%;
-}
-.record-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 12px;
-  overflow-y: auto;
-}
-.record-modal-card {
-  width: 100%;
-  max-width: 600px;
-  max-height: 85vh;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.85) 100%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.record-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
-}
-.record-modal-header h4 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.88);
-}
-.close-btn {
-  border: none;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.78);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.record-modal-body {
-  padding: 16px 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.record-modal-footer {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  padding: 12px 20px 16px;
-  border-top: 0.5px solid rgba(60, 60, 67, 0.12);
-}
-/* Transition */
-.record-modal-enter-active,
-.record-modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.record-modal-enter-active .record-modal-card,
-.record-modal-leave-active .record-modal-card {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
-}
-.record-modal-enter-from,
-.record-modal-leave-to {
-  opacity: 0;
-}
-.record-modal-enter-from .record-modal-card,
-.record-modal-leave-to .record-modal-card {
-  opacity: 0;
-  transform: scale(0.92) translateY(8px);
-}
-.cancel-btn,
-.confirm-btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.cancel-btn {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(60, 60, 67, 0.78);
-}
-.confirm-btn {
-  background: rgb(0, 122, 255);
-  color: white;
-}
-.confirm-btn.danger {
-  background: rgb(255, 59, 48);
-}
-.record-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-bottom: 8px;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
-}
-.meta-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.86);
-}
-.meta-label {
-  flex-shrink: 0;
-  width: 56px;
-  color: rgba(60, 60, 67, 0.6);
-  font-size: 12px;
-}
-.record-items {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.record-item {
-  padding: 8px 10px;
-  border: 0.5px solid rgba(60, 60, 67, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.6);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.record-item.failed {
-  border-color: rgba(255, 59, 48, 0.3);
-  background: rgba(255, 59, 48, 0.04);
-}
-.record-item.skipped_duplicate,
-.record-item.skipped_unselected {
-  opacity: 0.7;
-}
-.item-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-.item-counterparty {
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.86);
-}
-.item-amount {
-  font-weight: 600;
-}
-.item-amount.in {
-  color: rgb(52, 199, 89);
-}
-.item-amount.out {
-  color: rgb(255, 59, 48);
-}
-.item-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.6);
-}
-.item-status {
-  font-weight: 500;
-}
-.item-error {
-  font-size: 11px;
-  color: rgb(255, 59, 48);
 }
 </style>

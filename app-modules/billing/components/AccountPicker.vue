@@ -63,30 +63,12 @@
 
         <div class="picker-footer">
           <div v-if="showQuickAdd" class="quick-add-form">
-            <input
-              ref="quickAddInputRef"
-              v-model="quickAddName"
-              placeholder="账户名称"
-              @click.stop
-              @keyup.enter.prevent="submitQuickAdd"
-            />
-            <div v-if="needTypeSelect" class="quick-add-type">
-              <button
-                v-for="t in quickAddTypeOptions"
-                :key="t.value"
-                type="button"
-                class="type-btn"
-                :class="{ active: quickAddType === t.value }"
-                @click.stop="quickAddType = t.value"
-              >
-                {{ t.label }}
-              </button>
-            </div>
+            <AccountForm v-model="quickAddForm" :categories="categories" />
             <div class="quick-add-actions">
               <button
                 type="button"
                 class="btn-confirm"
-                :disabled="!quickAddName.trim()"
+                :disabled="!quickAddForm.name.trim()"
                 @click.stop="submitQuickAdd"
               >
                 添加
@@ -107,7 +89,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Account, AccountType, AccountFormData } from '~/types/bill'
+import type { Account, AccountType, AccountFormData, BillCategory } from '~/types/bill'
+import AccountForm from './AccountForm.vue'
 import { nextTick, onBeforeUnmount, onMounted } from 'vue'
 
 interface AccountGroup {
@@ -122,6 +105,7 @@ const props = defineProps<{
   allowedTypes?: AccountType[]
   placeholder?: string
   clearable?: boolean
+  categories?: BillCategory[]
 }>()
 
 const emit = defineEmits<{
@@ -270,53 +254,33 @@ onBeforeUnmount(() => {
 
 /* ---------- 快捷新增 ---------- */
 const showQuickAdd = ref(false)
-const quickAddName = ref('')
-const quickAddType = ref<AccountType>('personal')
-const quickAddInputRef = ref<HTMLInputElement>()
-
-const allTypeOptions: { value: AccountType; label: string }[] = [
-  { value: 'personal', label: '我的账户' },
-  { value: 'merchant', label: '商户' },
-  { value: 'contact', label: '联系人' },
-  { value: 'other', label: '其他' }
-]
-
-const needTypeSelect = computed(() => {
-  if (!props.allowedTypes || props.allowedTypes.length === 0) return true
-  return props.allowedTypes.length > 1
-})
-
-const quickAddTypeOptions = computed(() => {
-  if (props.allowedTypes && props.allowedTypes.length > 0) {
-    return allTypeOptions.filter(t => props.allowedTypes!.includes(t.value))
-  }
-  return allTypeOptions
+const quickAddForm = ref<AccountFormData>({
+  name: '',
+  type: 'personal',
+  currency: 'CNY',
+  icon: '',
+  color: '',
+  subtype: 'cash',
+  aliases: []
 })
 
 function startQuickAdd() {
   showQuickAdd.value = true
-  quickAddName.value = ''
-  if (quickAddTypeOptions.value.length > 0) {
-    quickAddType.value = quickAddTypeOptions.value[0].value
+  quickAddForm.value = {
+    name: searchQuery.value.trim(),
+    type: 'personal',
+    currency: 'CNY',
+    icon: '',
+    color: '',
+    subtype: 'cash',
+    aliases: []
   }
-  nextTick(() => quickAddInputRef.value?.focus())
 }
 
 function submitQuickAdd() {
-  const name = quickAddName.value.trim()
+  const name = quickAddForm.value.name.trim()
   if (!name) return
-  const data: AccountFormData = {
-    name,
-    type: quickAddType.value,
-    currency: 'CNY',
-    icon: '',
-    color: ''
-  }
-  if (quickAddType.value === 'personal') {
-    data.subtype = 'cash'
-  }
-  emit('create', data)
-  quickAddName.value = ''
+  emit('create', quickAddForm.value)
   showQuickAdd.value = false
   open.value = false
 }
@@ -373,7 +337,6 @@ function submitQuickAdd() {
 }
 
 .picker-panel {
-  z-index: 1002;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -515,41 +478,6 @@ function submitQuickAdd() {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-.quick-add-form input {
-  padding: 8px 10px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 6px;
-  font-size: 14px;
-  outline: none;
-  color: rgba(0, 0, 0, 0.92);
-  background: rgba(255, 255, 255, 0.8);
-}
-.quick-add-form input:focus {
-  border-color: rgb(0, 122, 255);
-}
-.quick-add-type {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.quick-add-type .type-btn {
-  flex: 1;
-  min-width: 60px;
-  padding: 6px 8px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  color: rgba(0, 0, 0, 0.92);
-}
-.quick-add-type .type-btn.active {
-  border-color: rgb(0, 122, 255);
-  background: rgba(0, 122, 255, 0.08);
-  color: rgb(0, 122, 255);
-  font-weight: 600;
 }
 .quick-add-actions {
   display: flex;

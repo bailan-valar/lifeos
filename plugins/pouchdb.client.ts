@@ -58,20 +58,10 @@ async function clearLegacyDatabases() {
 export default defineNuxtPlugin(async () => {
   await clearLegacyDatabases()
   try {
-    const config = useRuntimeConfig()
-    const pub = config.public as {
-      couchdbUrl?: string
-      couchdbUsername?: string
-      couchdbPassword?: string
-      couchdbPrefix?: string
+    const ws = await ensureBootstrapWorkspace()
+    if (ws) {
+      await initDB(ws.id)
     }
-    const ws = await ensureBootstrapWorkspace({
-      remoteUrl: pub.couchdbUrl,
-      remoteUsername: pub.couchdbUsername,
-      remotePassword: pub.couchdbPassword,
-      remotePrefix: pub.couchdbPrefix
-    })
-    await initDB(ws.id)
   } catch (error) {
     console.error('Failed to initialize PouchDB:', error)
   }

@@ -66,7 +66,7 @@
 
       <CategoryPicker
         v-if="showCategory"
-        :model-value="row.categoryId"
+        :model-value="row.categoryId || ''"
         :categories="categories"
         :type="row.type === 'income' ? 'income' : 'expense'"
         placeholder="未分类"
@@ -89,7 +89,7 @@
 
       <AccountPicker
         v-if="showFrom"
-        :model-value="row.fromAccountId"
+        :model-value="row.fromAccountId || ''"
         :accounts="accounts"
         placeholder="出账账户"
         clearable
@@ -100,7 +100,7 @@
 
       <AccountPicker
         v-if="showTo"
-        :model-value="row.toAccountId"
+        :model-value="row.toAccountId || ''"
         :accounts="accounts"
         placeholder="入账账户"
         clearable
@@ -118,7 +118,7 @@ import type {
   BillCategory,
   BillType,
   DebtSubtype,
-  ImportPreviewRow as IPRow,
+  ImportRecordItem,
   ImportRule,
   CategoryType,
   AccountFormData
@@ -128,19 +128,19 @@ import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
 
 const props = defineProps<{
-  row: IPRow
+  row: ImportRecordItem
   accounts: Account[]
   categories: BillCategory[]
   matchedRule?: ImportRule | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:row', value: IPRow): void
-  (e: 'save-as-rule', row: IPRow): void
-  (e: 'save-counterparty-rule', row: IPRow): void
-  (e: 'save-payment-method-rule', row: IPRow): void
+  (e: 'update:row', value: ImportRecordItem): void
+  (e: 'save-as-rule', row: ImportRecordItem): void
+  (e: 'save-counterparty-rule', row: ImportRecordItem): void
+  (e: 'save-payment-method-rule', row: ImportRecordItem): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
   (e: 'create-account', data: AccountFormData): void
 }>()
 
@@ -192,7 +192,7 @@ const badgeTooltip = computed(() => {
   return '未命中规则,也未匹配到账户别名'
 })
 
-function updateField<K extends keyof IPRow>(key: K, value: IPRow[K]) {
+function updateField<K extends keyof ImportRecordItem>(key: K, value: ImportRecordItem[K]) {
   emit('update:row', { ...props.row, [key]: value })
 }
 
@@ -200,7 +200,7 @@ function onTypeChange(t: BillType) {
   const counterpartyAccount = props.accounts.find(a => a.id === props.row.matchedAccountId) || null
   const myAccount = props.accounts.find(a => a.id === props.row.myAccountId) || null
   const suggestion = suggestAccountIds(counterpartyAccount, myAccount, props.row.direction, t)
-  const next: IPRow = { ...props.row, type: t }
+  const next: ImportRecordItem = { ...props.row, type: t }
   if (t === 'income') {
     next.fromAccountId = ''
     if (!relevantCategories.value.some(c => c.id === props.row.categoryId)) {

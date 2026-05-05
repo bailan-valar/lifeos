@@ -1,5 +1,6 @@
 <template>
-  <div class="dialog-overlay" @click="$emit('cancel')">
+  <Teleport to="body">
+    <div class="dialog-overlay" @click="$emit('cancel')">
     <div class="dialog" @click.stop>
       <div class="dialog-header">
         <h3>批量修改</h3>
@@ -87,6 +88,7 @@
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -177,7 +179,6 @@ function handleConfirm() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
 }
 .dialog {
   width: 100%;

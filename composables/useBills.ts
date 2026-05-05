@@ -1,11 +1,10 @@
 import type {
   Bill,
   BillFormData,
-  ImportPreviewRow,
   ImportRecord,
   ImportRecordItem,
-  ImportRecordStatus,
-  ImportSource
+  ImportRecordItemStatus,
+  ImportRecordStatus
 } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 import { dedupeKey } from '~/services/csvImport'
@@ -29,22 +28,6 @@ async function applyBalanceChange(bill: Bill, reverse = false) {
 
 function toIsoMinutes(date: string): string {
   return date.length >= 16 ? date.slice(0, 16).replace(' ', 'T') : date
-}
-
-function rowToBillFormData(row: ImportPreviewRow): BillFormData {
-  return {
-    noteId: '',
-    type: row.type,
-    amount: row.amount,
-    currency: 'CNY',
-    fromAccountId: row.fromAccountId,
-    toAccountId: row.toAccountId,
-    categoryId: row.categoryId,
-    description: row.description,
-    date: toIsoMinutes(row.date),
-    debtSubtype: row.debtSubtype,
-    relatedPersonId: ''
-  }
 }
 
 export function useBills() {
@@ -200,82 +183,56 @@ export function useBills() {
   }
 
   async function createBillsBatch(
-    payload: {
-      rows: ImportPreviewRow[]
-      fileName: string
-      fileSize: number
-      source: ImportSource
-    },
+    record: ImportRecord,
     noteId: string
   ): Promise<ImportRecord> {
     const db = await getDB()
-    const startedAt = now()
-    const batchId = generateId()
-    const items: ImportRecordItem[] = []
     const billIds: string[] = []
     let successCount = 0
     let skippedCount = 0
     let failedCount = 0
 
-    const selectedRows = payload.rows.filter(r => r.selected)
-    const selectedCount = selectedRows.length
+    const items: ImportRecordItem[] = []
 
-    for (const row of payload.rows) {
-      const fingerprint = dedupeKey(row.date, row.amount, row.counterparty)
+    for (const item of record.items) {
+      const fingerprint = item.fingerprint || dedupeKey(item.date, item.amount, item.counterparty)
+      const base = { ...item, fingerprint }
 
-      if (row.skipped) {
+      if (item.skipped) {
         skippedCount++
-        items.push({
-          rawIndex: row.rawIndex,
-          date: row.date,
-          counterparty: row.counterparty,
-          amount: row.amount,
-          direction: row.direction,
-          fingerprint,
-          status: 'skipped_unselected',
-          matchedRuleId: row.matchedRuleId
-        })
+        items.push({ ...base, status: 'skipped_unselected' as ImportRecordItemStatus })
         continue
       }
 
-      if (!row.selected) {
+      if (!item.selected) {
         skippedCount++
-        items.push({
-          rawIndex: row.rawIndex,
-          date: row.date,
-          counterparty: row.counterparty,
-          amount: row.amount,
-          direction: row.direction,
-          fingerprint,
-          status: row.duplicate ? 'skipped_duplicate' : 'skipped_unselected',
-          matchedRuleId: row.matchedRuleId
-        })
+        const status: ImportRecordItemStatus = item.duplicate ? 'skipped_duplicate' : 'skipped_unselected'
+        items.push({ ...base, status })
         continue
       }
 
       try {
-        const data = rowToBillFormData(row)
-        if (data.amount <= 0) throw new Error('金额必须大于 0')
+        if (item.amount <= 0) throw new Error('金额必须大于 0')
         const billId = generateId()
         const bill: Bill = {
           id: billId,
           noteId,
-          type: data.type,
-          amount: data.amount,
-          currency: data.currency,
-          fromAccountId: data.fromAccountId || '',
-          toAccountId: data.toAccountId || '',
-          categoryId: data.categoryId || '',
-          description: data.description || '',
-          date: data.date,
+          type: item.type || 'expense',
+          amount: item.amount,
+          currency: 'CNY',
+          fromAccountId: item.fromAccountId || '',
+          toAccountId: item.toAccountId || '',
+          categoryId: item.categoryId || '',
+          description: item.description || '',
+          date: toIsoMinutes(item.date),
           status: 'completed',
-          debtSubtype: data.debtSubtype || 'lend',
+          debtSubtype: item.debtSubtype || 'lend',
           relatedPersonId: '',
           settledAmount: 0,
-          importBatchId: batchId,
-          importSource: payload.source,
+          importBatchId: record.id,
+          importSource: record.source,
           importFingerprint: fingerprint,
-          counterpartyRaw: row.counterparty,
+          counterpartyRaw: item.counterparty,
           createdAt: now(),
           updatedAt: now(),
           isSynced: false
@@ -285,33 +242,18 @@ export function useBills() {
         bills.value.push(bill)
         billIds.push(billId)
         successCount++
-        items.push({
-          rawIndex: row.rawIndex,
-          date: row.date,
-          counterparty: row.counterparty,
-          amount: row.amount,
-          direction: row.direction,
-          fingerprint,
-          status: 'created',
-          billId,
-          matchedRuleId: row.matchedRuleId
-        })
+        items.push({ ...base, status: 'created' as ImportRecordItemStatus, billId })
       } catch (e) {
         failedCount++
         items.push({
-          rawIndex: row.rawIndex,
-          date: row.date,
-          counterparty: row.counterparty,
-          amount: row.amount,
-          direction: row.direction,
-          fingerprint,
-          status: 'failed',
-          matchedRuleId: row.matchedRuleId,
+          ...base,
+          status: 'failed' as ImportRecordItemStatus,
           errorMessage: e instanceof Error ? e.message : String(e)
         })
       }
     }
 
+    const selectedCount = record.items.filter(i => i.selected).length
     const finishedAt = now()
     const status: ImportRecordStatus =
       successCount === 0 && selectedCount > 0
@@ -320,29 +262,20 @@ export function useBills() {
           ? 'partial'
           : 'success'
 
-    const record: ImportRecord = {
-      id: batchId,
-      noteId,
-      source: payload.source,
-      fileName: payload.fileName,
-      fileSize: payload.fileSize,
-      totalParsed: payload.rows.length,
+    const patch: Partial<ImportRecord> = {
+      status,
+      billIds,
+      items,
       selectedCount,
       successCount,
       skippedCount,
       failedCount,
-      status,
-      billIds,
-      items,
-      startedAt,
       finishedAt,
-      createdAt: finishedAt,
-      updatedAt: finishedAt,
-      isSynced: false
+      updatedAt: finishedAt
     }
 
-    await useImportRecords().insertRecord(record)
-    return record
+    await useImportRecords().updateRecord(record.id, patch)
+    return { ...record, ...patch }
   }
 
   async function updateBill(id: string, data: Partial<BillFormData>) {

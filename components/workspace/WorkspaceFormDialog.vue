@@ -11,6 +11,16 @@
           </div>
 
           <div class="modal-body">
+            <div v-if="isEdit" class="form-group">
+              <label>空间 ID</label>
+              <input
+                :value="props.workspace?.id"
+                type="text"
+                class="form-input readonly"
+                readonly
+              />
+            </div>
+
             <div class="form-group">
               <label>名称 <span class="required">*</span></label>
               <input
@@ -22,61 +32,68 @@
               />
             </div>
 
-            <div class="form-group">
-              <label>CouchDB 地址</label>
-              <input
-                v-model="form.remoteUrl"
-                type="text"
-                class="form-input"
-                placeholder="https://user:pass@host:5984"
-              />
-              <p class="hint">留空则不启用同步,可在多设备间相互独立。</p>
-            </div>
+            <label v-if="canShowRemote" class="checkbox-row">
+              <input v-model="showRemote" type="checkbox" />
+              <span>自定义同步配置</span>
+            </label>
 
-            <div class="form-row">
+            <template v-if="showRemote">
               <div class="form-group">
-                <label>用户名</label>
+                <label>CouchDB 地址</label>
                 <input
-                  v-model="form.remoteUsername"
+                  v-model="form.remoteUrl"
                   type="text"
                   class="form-input"
-                  placeholder="admin"
-                  autocomplete="off"
+                  placeholder="https://user:pass@host:5984"
                 />
+                <p class="hint">留空则不启用同步,可在多设备间相互独立。</p>
               </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>用户名</label>
+                  <input
+                    v-model="form.remoteUsername"
+                    type="text"
+                    class="form-input"
+                    placeholder="admin"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>密码</label>
+                  <input
+                    v-model="form.remotePassword"
+                    type="password"
+                    class="form-input"
+                    placeholder="••••••"
+                    autocomplete="new-password"
+                  />
+                </div>
+              </div>
+              <p class="hint">用于 CouchDB Basic 认证,留空则匿名访问。</p>
+
               <div class="form-group">
-                <label>密码</label>
+                <label>远端 DB 前缀</label>
                 <input
-                  v-model="form.remotePassword"
-                  type="password"
+                  v-model="form.remotePrefix"
+                  type="text"
                   class="form-input"
-                  placeholder="••••••"
-                  autocomplete="new-password"
+                  placeholder="lifeos-"
                 />
+                <p class="hint">远端 db 名 = 前缀 + 集合名,默认 <code>lifeos-</code>。</p>
               </div>
-            </div>
-            <p class="hint">用于 CouchDB Basic 认证,留空则匿名访问。</p>
 
-            <div class="form-group">
-              <label>远端 DB 前缀</label>
-              <input
-                v-model="form.remotePrefix"
-                type="text"
-                class="form-input"
-                placeholder="lifeos-"
-              />
-              <p class="hint">远端 db 名 = 前缀 + 集合名,默认 <code>lifeos-</code>。</p>
-            </div>
-
-            <div class="test-row">
-              <button class="ghost-btn" type="button" :disabled="testing" @click="onTest">
-                <Icon name="solar:link-circle-linear" />
-                <span>{{ testing ? '测试中…' : '测试连接' }}</span>
-              </button>
-              <span v-if="testResult" class="test-result" :class="testResult.ok ? 'ok' : 'bad'">
-                {{ testResult.ok ? '连接成功' : testResult.error }}
-              </span>
-            </div>
+              <div class="test-row">
+                <button class="ghost-btn" type="button" :disabled="testing" @click="onTest">
+                  <Icon name="solar:link-circle-linear" />
+                  <span>{{ testing ? '测试中…' : '测试连接' }}</span>
+                </button>
+                <span v-if="testResult" class="test-result" :class="testResult.ok ? 'ok' : 'bad'">
+                  {{ testResult.ok ? '连接成功' : testResult.error }}
+                </span>
+              </div>
+            </template>
           </div>
 
           <div class="modal-footer">
@@ -101,6 +118,7 @@
 import { ref, reactive, watch, computed } from 'vue'
 import type { Workspace, WorkspaceFormData } from '~/types/workspace'
 import { useWorkspaces } from '~/composables/useWorkspaces'
+import { useAuthStore } from '~/stores/auth'
 import { testRemote } from '~/services/sync'
 
 const props = defineProps<{
@@ -126,6 +144,7 @@ const form = reactive<WorkspaceFormData>({
 const submitting = ref(false)
 const testing = ref(false)
 const testResult = ref<{ ok: true } | { ok: false; error: string } | null>(null)
+const showRemote = ref(false)
 
 watch(
   () => [props.visible, props.workspace],
@@ -136,6 +155,11 @@ watch(
       form.remoteUsername = props.workspace?.remoteUsername || ''
       form.remotePassword = props.workspace?.remotePassword || ''
       form.remotePrefix = props.workspace?.remotePrefix || 'lifeos-'
+      showRemote.value = !!(
+        props.workspace?.remoteUrl ||
+        props.workspace?.remoteUsername ||
+        props.workspace?.remotePassword
+      )
       testResult.value = null
     }
   },
@@ -145,6 +169,8 @@ watch(
 const canSubmit = computed(() => form.name.trim().length > 0)
 
 const ws = useWorkspaces()
+const authStore = useAuthStore()
+const canShowRemote = computed(() => !!authStore.user)
 
 function emitClose() {
   emit('update:visible', false)
@@ -169,11 +195,18 @@ async function onSubmit() {
   if (!canSubmit.value) return
   submitting.value = true
   try {
+    const payload: WorkspaceFormData = { ...form }
+    if (!showRemote.value || !canShowRemote.value) {
+      payload.remoteUrl = ''
+      payload.remoteUsername = ''
+      payload.remotePassword = ''
+      payload.remotePrefix = 'lifeos-'
+    }
     let saved: Workspace
     if (isEdit.value && props.workspace) {
-      saved = await ws.update(props.workspace.id, { ...form })
+      saved = await ws.update(props.workspace.id, payload)
     } else {
-      saved = await ws.create({ ...form })
+      saved = await ws.create(payload)
     }
     emit('saved', saved)
     emitClose()
@@ -350,6 +383,30 @@ async function onSubmit() {
 .ghost-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.85);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: rgb(0, 122, 255);
+  cursor: pointer;
+}
+
+.form-input.readonly {
+  background: rgba(120, 120, 128, 0.08);
+  color: rgba(60, 60, 67, 0.55);
+  cursor: default;
 }
 
 .modal-enter-active, .modal-leave-active {

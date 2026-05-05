@@ -18,10 +18,28 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  scenes    Scene[]
-  sessions  Session[]
-  folders   Folder[]
-  notes     Note[]
+  scenes     Scene[]
+  sessions   Session[]
+  folders    Folder[]
+  notes      Note[]
+  workspaces Workspace[]
+}
+
+model Workspace {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  remoteUrl      String?
+  remotePrefix   String   @default("lifeos-")
+  remoteUsername String?
+  remotePassword String?
+  localId        String   @unique @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Session {

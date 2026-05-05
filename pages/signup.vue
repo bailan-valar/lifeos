@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const authStore = useAuthStore()
+const workspaceStore = useWorkspaceStore()
 const router = useRouter()
 
 const name = ref('')
@@ -12,6 +13,10 @@ async function handleSignup() {
 
   try {
     await authStore.signup(email.value, password.value, name.value || undefined)
+    await workspaceStore.reload()
+    if (workspaceStore.list.length > 0 && !workspaceStore.currentId) {
+      await workspaceStore.switchTo(workspaceStore.list[0].id)
+    }
     await router.push('/')
   } catch (error: any) {
     errorMessage.value = error.data?.message || 'Signup failed'
@@ -26,7 +31,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center p-6 safe-top safe-bottom">
+  <div class="min-h-screen flex flex-col items-center justify-center p-6 safe-top safe-bottom bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
     <div class="glass-card w-full max-w-sm p-8 space-y-6">
       <div class="text-center space-y-2">
         <h1 class="title2 text-white">Create Account</h1>

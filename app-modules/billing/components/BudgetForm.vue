@@ -82,7 +82,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: BudgetFormData): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
 }>()
 
 const cycleOptions = [

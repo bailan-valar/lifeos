@@ -227,6 +227,22 @@ interface WorkspaceDB {
 const databases = new Map<string, WorkspaceDB>()
 const initPromises = new Map<string, Promise<WorkspaceDB>>()
 
+function createNoopDB(): Database {
+  const noopCollection: Collection = {
+    find() { return new Query<DBDoc[]>(() => Promise.resolve([])) },
+    findOne() { return new Query<DBDoc | null>(() => Promise.resolve(null)) },
+    async insert() {},
+    async upsert() {},
+  }
+  const db: Database = {}
+  for (const name of Object.keys(COLLECTION_INDEXES)) {
+    db[name] = noopCollection
+  }
+  return db
+}
+
+const NOOP_DB = createNoopDB()
+
 function resolveWorkspaceId(workspaceId?: string): string {
   if (workspaceId) return workspaceId
   const activeId = getActiveId()
@@ -269,10 +285,17 @@ export async function initDB(workspaceId?: string): Promise<Database> {
 }
 
 export async function getDB(workspaceId?: string): Promise<Database> {
-  const id = resolveWorkspaceId(workspaceId)
-  const cached = databases.get(id)
-  if (cached) return cached.database
-  return initDB(id)
+  try {
+    const id = resolveWorkspaceId(workspaceId)
+    const cached = databases.get(id)
+    if (cached) return cached.database
+    return initDB(id)
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('No active workspace')) {
+      return NOOP_DB
+    }
+    throw e
+  }
 }
 
 export async function getRawPouchDB(workspaceId: string, collection: string): Promise<PouchDB.Database | undefined> {

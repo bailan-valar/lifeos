@@ -1,28 +1,30 @@
 <template>
-  <div class="dialog-overlay" @click="emit('cancel')">
-    <div class="dialog" @click.stop>
-      <div class="dialog-header">
-        <h3>{{ editing ? '编辑规则' : '保存为规则' }}</h3>
-        <button type="button" class="close-btn" @click="emit('cancel')">
-          <Icon name="solar:close-circle-linear" size="20" />
-        </button>
-      </div>
-      <div class="dialog-body">
-        <ImportRuleForm
-          v-model="form"
-          :accounts="accounts"
-          :categories="categories"
-          @create-category="emit('create-category', $event)"
-          @open-category-form="emit('open-category-form', $event)"
-          @create-account="emit('create-account', $event)"
-        />
-      </div>
-      <div class="dialog-footer">
-        <button type="button" class="cancel-btn" @click="emit('cancel')">取消</button>
-        <button type="button" class="confirm-btn" @click="emit('confirm', form)">保存</button>
+  <Teleport to="body">
+    <div class="dialog-overlay" @click="emit('cancel')">
+      <div class="dialog" @click.stop>
+        <div class="dialog-header">
+          <h3>{{ editing ? '编辑规则' : '保存为规则' }}</h3>
+          <button type="button" class="close-btn" @click="emit('cancel')">
+            <Icon name="solar:close-circle-linear" size="20" />
+          </button>
+        </div>
+        <div class="dialog-body">
+          <ImportRuleForm
+            v-model="form"
+            :accounts="accounts"
+            :categories="categories"
+            @create-category="emit('create-category', $event)"
+            @open-category-form="emit('open-category-form', $event)"
+            @create-account="emit('create-account', $event)"
+          />
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="cancel-btn" @click="emit('cancel')">取消</button>
+          <button type="button" class="confirm-btn" @click="emit('confirm', form)">保存</button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -41,7 +43,7 @@ const emit = defineEmits<{
   (e: 'confirm', value: ImportRuleFormData): void
   (e: 'cancel'): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string }): void
+  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
   (e: 'create-account', data: AccountFormData): void
 }>()
 
@@ -60,7 +62,6 @@ const form = computed({
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1001;
 }
 .dialog {
   width: 100%;

@@ -1,24 +1,31 @@
 <template>
   <div class="app-root">
-    <AppSidebar @open-settings="classManagerVisible = true" />
+    <template v-if="!isAuthPage">
+      <AppSidebar @open-settings="classManagerVisible = true" />
 
-    <div class="app-main">
-      <header class="app-menubar">
-        <div class="menubar-left">
-          <span class="page-title">{{ pageTitle }}</span>
+      <div class="app-main">
+        <header class="app-menubar">
+          <div class="menubar-left">
+            <span class="page-title">{{ pageTitle }}</span>
+          </div>
+          <div class="menubar-right">
+            <WorkspaceSwitcher />
+          </div>
+        </header>
+        <div class="app-content">
+          <NuxtPage :key="workspaceStore.currentId || 'no-workspace'" />
         </div>
-        <div class="menubar-right">
-          <WorkspaceSwitcher />
-        </div>
-      </header>
-      <div class="app-content">
-        <NuxtPage :key="workspaceStore.currentId || 'no-workspace'" />
       </div>
-    </div>
 
-    <ClassManager v-model:visible="classManagerVisible" user-id="default-user" />
+      <ClassManager v-if="hasWorkspace" v-model:visible="classManagerVisible" user-id="default-user" />
+    </template>
+
+    <NuxtPage v-else class="flex-1 min-w-0" />
+
     <ToastContainer />
     <ConfirmDialog />
+
+    <WorkspaceOnboarding v-if="!hasWorkspace && !isAuthPage" @created="onWorkspaceCreated" />
   </div>
 </template>
 
@@ -27,6 +34,7 @@ import ToastContainer from '~/components/ui/toast/ToastContainer.vue'
 import ConfirmDialog from '~/components/ui/confirm/ConfirmDialog.vue'
 import ClassManager from '~/components/class/ClassManager.vue'
 import WorkspaceSwitcher from '~/components/workspace/WorkspaceSwitcher.vue'
+import WorkspaceOnboarding from '~/components/workspace/WorkspaceOnboarding.vue'
 import { useWorkspaceStore } from '~/stores/workspace'
 
 const route = useRoute()
@@ -43,6 +51,13 @@ const pageTitle = computed(() => {
   }
   return titles[route.path] || 'LifeOS'
 })
+
+const hasWorkspace = computed(() => workspaceStore.list.length > 0)
+const isAuthPage = computed(() => route.path === '/login' || route.path === '/signup')
+
+function onWorkspaceCreated() {
+  // WorkspaceOnboarding 内部已调用 workspaceStore.reload() + switchTo()
+}
 
 useHead({
   htmlAttrs: {

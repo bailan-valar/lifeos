@@ -13,28 +13,7 @@ interface SyncBundle {
   lastErrorByCollection: Map<string, string>
 }
 
-interface SyncEnvDefaults {
-  remoteUrl?: string
-  remoteUsername?: string
-  remotePassword?: string
-  remotePrefix?: string
-}
-
 const bundles = new Map<string, SyncBundle>()
-let envDefaults: SyncEnvDefaults = {}
-
-export function setSyncEnvDefaults(defaults: SyncEnvDefaults): void {
-  envDefaults = {
-    remoteUrl: defaults.remoteUrl?.trim() || undefined,
-    remoteUsername: defaults.remoteUsername?.trim() || undefined,
-    remotePassword: defaults.remotePassword || undefined,
-    remotePrefix: defaults.remotePrefix?.trim() || undefined
-  }
-}
-
-export function getSyncEnvDefaults(): SyncEnvDefaults {
-  return { ...envDefaults }
-}
 
 function ensureBundle(workspaceId: string): SyncBundle {
   let bundle = bundles.get(workspaceId)
@@ -146,10 +125,10 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
 
   const ws: Workspace | null = await getWorkspace(workspaceId)
   if (!ws) return
-  const remoteUrl = (override?.remoteUrl ?? ws.remoteUrl ?? envDefaults.remoteUrl ?? '').trim()
-  const remotePrefix = (override?.remotePrefix ?? ws.remotePrefix ?? envDefaults.remotePrefix ?? 'lifeos-').trim()
-  const username = override?.remoteUsername ?? ws.remoteUsername ?? envDefaults.remoteUsername
-  const password = override?.remotePassword ?? ws.remotePassword ?? envDefaults.remotePassword
+  const remoteUrl = (override?.remoteUrl ?? ws.remoteUrl ?? '').trim()
+  const remotePrefix = (override?.remotePrefix ?? ws.remotePrefix ?? 'lifeos-').trim()
+  const username = override?.remoteUsername ?? ws.remoteUsername
+  const password = override?.remotePassword ?? ws.remotePassword
 
   const bundle = ensureBundle(workspaceId)
   bundle.status = { ...emptySyncStatus(workspaceId) }
@@ -172,7 +151,7 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
   for (const collection of COLLECTION_NAMES) {
     const localPdb = await getRawPouchDB(workspaceId, collection)
     if (!localPdb) continue
-    const remoteDbName = `${remotePrefix}${collection}`
+    const remoteDbName = `${remotePrefix}${collection}`.toLowerCase()
     const remoteFullUrl = buildRemoteUrl(remoteUrl, remoteDbName)
     try {
       const remotePdb = new PouchDB(remoteFullUrl, remoteOpts)

@@ -1,21 +1,7 @@
 import { useWorkspaceStore } from '~/stores/workspace'
-import { startSync, setSyncEnvDefaults } from '~/services/sync'
+import { startSync } from '~/services/sync'
 
 export default defineNuxtPlugin(async () => {
-  const config = useRuntimeConfig()
-  const pub = config.public as {
-    couchdbUrl?: string
-    couchdbUsername?: string
-    couchdbPassword?: string
-    couchdbPrefix?: string
-  }
-  setSyncEnvDefaults({
-    remoteUrl: pub.couchdbUrl,
-    remoteUsername: pub.couchdbUsername,
-    remotePassword: pub.couchdbPassword,
-    remotePrefix: pub.couchdbPrefix
-  })
-
   const store = useWorkspaceStore()
   try {
     await store.init()

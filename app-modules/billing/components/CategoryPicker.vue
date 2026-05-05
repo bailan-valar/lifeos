@@ -72,7 +72,7 @@
                   type="button"
                   class="add-child-btn"
                   title="新增子分类"
-                  @click.stop="emit('open-form', { type: props.type || 'expense', defaultParentId: item.id })"
+                  @click.stop="emit('open-form', { type: props.type || 'expense', defaultParentId: item.id, defaultName: searchQuery.trim() })"
                 >
                   <Icon name="solar:add-circle-linear" size="14" />
                 </button>
@@ -91,10 +91,10 @@
           <button
             type="button"
             class="quick-add-btn"
-            @click.stop="emit('open-form', { type: props.type || 'expense', defaultParentId: renderItems[activeIndex]?.id })"
+            @click.stop="emit('open-form', { type: props.type || 'expense', defaultParentId: renderItems[activeIndex]?.id, defaultName: searchQuery.trim() })"
           >
             <Icon name="solar:add-circle-linear" size="14" />
-            新增分类
+            {{ searchQuery.trim() ? `新增分类「${searchQuery.trim()}」` : '新增分类' }}
           </button>
         </div>
       </div>
@@ -127,7 +127,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [id: string]
   create: [data: { name: string; type: CategoryType; parentId?: string }]
-  'open-form': [data: { type: CategoryType; defaultParentId?: string }]
+  'open-form': [data: { type: CategoryType; defaultParentId?: string; defaultName?: string }]
 }>()
 
 const placeholder = computed(() => props.placeholder || '请选择分类')
@@ -464,7 +464,6 @@ onBeforeUnmount(() => {
 }
 
 .picker-panel {
-  z-index: 1002;
   display: flex;
   flex-direction: column;
   gap: 4px;

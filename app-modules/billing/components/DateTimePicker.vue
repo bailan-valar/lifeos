@@ -726,7 +726,6 @@ loadFromValue()
 }
 
 .dtp-panel {
-  z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 8px;

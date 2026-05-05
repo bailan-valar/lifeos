@@ -51,6 +51,15 @@
           <Icon name="solar:settings-linear" />
           <span>管理空间</span>
         </button>
+        <button
+          v-if="!authStore.user"
+          class="ws-menu-action"
+          type="button"
+          @click="goLogin"
+        >
+          <Icon name="solar:login-2-linear" />
+          <span>登录</span>
+        </button>
       </div>
     </Transition>
 
@@ -64,6 +73,7 @@ import { ref, type Directive } from 'vue'
 import { useWorkspaces } from '~/composables/useWorkspaces'
 import { useSyncStatus } from '~/composables/useSyncStatus'
 import { useToast } from '~/composables/useToast'
+import { useAuthStore } from '~/stores/auth'
 import SyncStatusBadge from './SyncStatusBadge.vue'
 import WorkspaceManagerDialog from './WorkspaceManagerDialog.vue'
 import WorkspaceFormDialog from './WorkspaceFormDialog.vue'
@@ -71,6 +81,7 @@ import WorkspaceFormDialog from './WorkspaceFormDialog.vue'
 const ws = useWorkspaces()
 const { status } = useSyncStatus()
 const toast = useToast()
+const authStore = useAuthStore()
 
 const menuOpen = ref(false)
 const managerVisible = ref(false)
@@ -106,6 +117,11 @@ function openCreate() {
 function openManager() {
   closeMenu()
   managerVisible.value = true
+}
+
+function goLogin() {
+  closeMenu()
+  navigateTo('/login')
 }
 
 const vClickOutside: Directive<HTMLElement, () => void> = {

@@ -290,6 +290,7 @@ export interface CsvParsedRow {
 
 /**
  * 导入预览行(已应用规则,允许用户修改)
+ * 与 ImportRecordItem 字段对齐，作为编辑态的统一数据结构
  */
 export interface ImportPreviewRow extends CsvParsedRow {
   selected: boolean
@@ -307,27 +308,85 @@ export interface ImportPreviewRow extends CsvParsedRow {
 }
 
 /**
+ * 从 ImportPreviewRow 构建 ImportRecordItem（pending 状态）
+ */
+export function previewRowToRecordItem(row: ImportPreviewRow): ImportRecordItem {
+  return {
+    rawIndex: row.rawIndex,
+    date: row.date,
+    counterparty: row.counterparty,
+    description: row.description,
+    amount: row.amount,
+    direction: row.direction,
+    fingerprint: '',
+    status: 'pending',
+    selected: row.selected,
+    duplicate: row.duplicate,
+    skipped: row.skipped,
+    skipReason: row.skipReason,
+    type: row.type,
+    debtSubtype: row.debtSubtype,
+    categoryId: row.categoryId,
+    fromAccountId: row.fromAccountId,
+    toAccountId: row.toAccountId,
+    matchedRuleId: row.matchedRuleId,
+    matchedAccountId: row.matchedAccountId,
+    myAccountId: row.myAccountId,
+    paymentMethod: row.paymentMethod,
+    rawType: row.rawType
+  }
+}
+
+/**
+ * 导入批次单行状态
+ * - pending: 待导入（已解析但未执行导入）
+ * - created: 成功创建账单
+ * - skipped_duplicate: 重复跳过
+ * - skipped_unselected: 未选中/已跳过
+ * - failed: 导入失败
+ */
+export type ImportRecordItemStatus = 'pending' | 'created' | 'skipped_duplicate' | 'skipped_unselected' | 'failed'
+
+/**
  * 导入批次状态
+ * - pending: 待导入（已解析但未执行导入）
  * - success: 全部成功
  * - partial: 部分成功(有失败但有写入)
  * - failed: 全部失败/未写入
  * - rolled_back: 已被一键回滚
  */
-export type ImportRecordStatus = 'success' | 'partial' | 'failed' | 'rolled_back'
+export type ImportRecordStatus = 'pending' | 'success' | 'partial' | 'failed' | 'rolled_back'
 
 /**
  * 导入批次中单行明细
+ * 兼容 pending 编辑态与 post-import 完成态
  */
 export interface ImportRecordItem {
   rawIndex: number
   date: string
   counterparty: string
+  description?: string
   amount: number
   direction: 'in' | 'out'
   fingerprint: string
-  status: 'created' | 'skipped_duplicate' | 'skipped_unselected' | 'failed'
-  billId?: string
+  status: ImportRecordItemStatus
+  // --- pending 编辑态字段 ---
+  selected?: boolean
+  duplicate?: boolean
+  skipped?: boolean
+  skipReason?: string
+  type?: BillType
+  debtSubtype?: DebtSubtype
+  categoryId?: string
+  fromAccountId?: string
+  toAccountId?: string
   matchedRuleId?: string | null
+  matchedAccountId?: string | null
+  myAccountId?: string | null
+  paymentMethod?: string
+  rawType?: string
+  // --- post-import 字段 ---
+  billId?: string
   errorMessage?: string
 }
 

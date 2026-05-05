@@ -27,11 +27,20 @@ function stripPouchFields<T extends { _id: string; _rev?: string }>(raw: T): Omi
   return { ...(rest as object), id: _id } as any
 }
 
+function isLoggedIn(): boolean {
+  return typeof window !== 'undefined' && !!localStorage.getItem('token')
+}
+
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem('token')
+}
+
 export function dbPrefix(workspaceId: string): string {
   return `lifeos-${workspaceId}-`
 }
 
-export async function listWorkspaces(): Promise<Workspace[]> {
+async function listLocalWorkspaces(): Promise<Workspace[]> {
   const db = getMetaDB()
   const result = await db.allDocs({ include_docs: true })
   return result.rows
@@ -39,6 +48,54 @@ export async function listWorkspaces(): Promise<Workspace[]> {
     .filter((d): d is PouchDB.Core.ExistingDocument<Workspace & { _id: string }> => !!d && !d._id.startsWith('_'))
     .map((d) => stripPouchFields(d) as Workspace)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+}
+
+async function syncRemoteToLocal(remoteList: any[]): Promise<void> {
+  const db = getMetaDB()
+  for (const remote of remoteList) {
+    const localId = remote.localId
+    if (!localId) continue
+
+    const doc: any = {
+      _id: localId,
+      id: localId,
+      name: remote.name,
+      remoteUrl: remote.remoteUrl || undefined,
+      remoteUsername: remote.remoteUsername || undefined,
+      remotePassword: remote.remotePassword || undefined,
+      remotePrefix: remote.remotePrefix || 'lifeos-',
+      createdAt: remote.createdAt,
+      updatedAt: remote.updatedAt,
+      remoteId: remote.id,
+    }
+
+    try {
+      const existing = await db.get(localId)
+      doc._rev = existing._rev
+    } catch (e: any) {
+      if (e?.status !== 404) throw e
+    }
+
+    await db.put(doc)
+  }
+}
+
+export async function listWorkspaces(): Promise<Workspace[]> {
+  if (isLoggedIn()) {
+    try {
+      const token = getToken()
+      if (token) {
+        const remoteList = await $fetch('/api/workspaces', {
+          headers: { Authorization: `Bearer ${token}` }
+        }) as any[]
+        await syncRemoteToLocal(remoteList)
+      }
+    } catch (e) {
+      console.warn('[workspaces] 从服务端同步失败，使用本地数据', e)
+    }
+  }
+
+  return await listLocalWorkspaces()
 }
 
 export async function getWorkspace(id: string): Promise<Workspace | null> {
@@ -53,7 +110,6 @@ export async function getWorkspace(id: string): Promise<Workspace | null> {
 }
 
 export async function createWorkspace(input: WorkspaceFormData): Promise<Workspace> {
-  const db = getMetaDB()
   const id = uuidv4()
   const ts = nowIso()
   const doc: Workspace = {
@@ -64,9 +120,40 @@ export async function createWorkspace(input: WorkspaceFormData): Promise<Workspa
     remotePassword: input.remotePassword?.length ? input.remotePassword : undefined,
     remotePrefix: input.remotePrefix?.trim() || 'lifeos-',
     createdAt: ts,
-    updatedAt: ts
+    updatedAt: ts,
   }
+
+  const db = getMetaDB()
   await db.put({ ...doc, _id: id })
+
+  if (isLoggedIn()) {
+    try {
+      const token = getToken()
+      if (token) {
+        const remote = await $fetch('/api/workspaces', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: {
+            name: doc.name,
+            remoteUrl: doc.remoteUrl,
+            remotePrefix: doc.remotePrefix,
+            remoteUsername: doc.remoteUsername,
+            remotePassword: doc.remotePassword,
+            localId: id,
+          }
+        }) as any
+
+        if (remote?.id) {
+          doc.remoteId = remote.id
+          const existing = await db.get(id)
+          await db.put({ ...doc, _id: id, _rev: existing._rev })
+        }
+      }
+    } catch (e) {
+      console.warn('[workspaces] 同步到服务端失败', e)
+    }
+  }
+
   return doc
 }
 
@@ -83,17 +170,58 @@ export async function updateWorkspace(id: string, patch: Partial<WorkspaceFormDa
   if (typeof patch.remoteUsername === 'string') merged.remoteUsername = patch.remoteUsername.trim() || undefined
   if (typeof patch.remotePassword === 'string') merged.remotePassword = patch.remotePassword.length ? patch.remotePassword : undefined
   if (typeof patch.remotePrefix === 'string') merged.remotePrefix = patch.remotePrefix.trim() || 'lifeos-'
+
   const res = await db.put(merged)
-  return stripPouchFields({ ...merged, _rev: res.rev }) as Workspace
+  const result = stripPouchFields({ ...merged, _rev: res.rev }) as Workspace
+
+  if (isLoggedIn() && result.remoteId) {
+    try {
+      const token = getToken()
+      if (token) {
+        await $fetch(`/api/workspaces/${result.remoteId}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` },
+          body: {
+            name: result.name,
+            remoteUrl: result.remoteUrl,
+            remotePrefix: result.remotePrefix,
+            remoteUsername: result.remoteUsername,
+            remotePassword: result.remotePassword,
+          }
+        })
+      }
+    } catch (e) {
+      console.warn('[workspaces] 同步更新到服务端失败', e)
+    }
+  }
+
+  return result
 }
 
 export async function deleteWorkspace(id: string): Promise<void> {
   const db = getMetaDB()
+  let remoteId: string | undefined
+
   try {
     const existing = await db.get(id)
+    remoteId = (existing as any).remoteId
     await db.remove(existing)
   } catch (e: any) {
     if (e?.status !== 404) throw e
+  }
+
+  if (isLoggedIn() && remoteId) {
+    try {
+      const token = getToken()
+      if (token) {
+        await $fetch(`/api/workspaces/${remoteId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      }
+    } catch (e) {
+      console.warn('[workspaces] 同步删除到服务端失败', e)
+    }
   }
 }
 
@@ -112,23 +240,10 @@ export function clearActiveId(): void {
   localStorage.removeItem(ACTIVE_ID_KEY)
 }
 
-export async function ensureBootstrapWorkspace(defaults?: {
-  remoteUrl?: string
-  remoteUsername?: string
-  remotePassword?: string
-  remotePrefix?: string
-}): Promise<Workspace> {
+export async function ensureBootstrapWorkspace(): Promise<Workspace | null> {
   const list = await listWorkspaces()
   if (list.length === 0) {
-    const ws = await createWorkspace({
-      name: '默认空间',
-      remoteUrl: defaults?.remoteUrl?.trim() || undefined,
-      remoteUsername: defaults?.remoteUsername?.trim() || undefined,
-      remotePassword: defaults?.remotePassword || undefined,
-      remotePrefix: defaults?.remotePrefix?.trim() || undefined
-    })
-    setActiveId(ws.id)
-    return ws
+    return null
   }
   const activeId = getActiveId()
   const active = activeId ? list.find((w) => w.id === activeId) : null

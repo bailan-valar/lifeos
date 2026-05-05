@@ -204,84 +204,89 @@
     </div>
     </div>
 
-    <div v-if="dialogVisible" class="dialog-overlay" @click="closeDialog">
-      <div class="dialog" :class="{ 'dialog-wide': dialogType === 'import' || dialogType === 'rule' }" @click.stop>
-        <div class="dialog-header">
-          <h3>{{ dialogTitle }}</h3>
-          <button type="button" class="close-btn" @click="closeDialog">
-            <Icon name="solar:close-circle-linear" size="20" />
-          </button>
-        </div>
-        <div class="dialog-body">
-          <BillForm
-            v-if="dialogType === 'bill'"
-            v-model="billForm"
-            :accounts="accounts"
-            :categories="categories"
-            :note-options="noteOptions"
-            @create-category="handleCreateCategory"
-            @open-category-form="handleOpenCategoryForm"
-            @create-account="handleCreateAccount"
-          />
-          <AccountForm
-            v-if="dialogType === 'account'"
-            v-model="accountForm"
-            :categories="categories"
-          />
-          <CategoryForm
-            v-if="dialogType === 'category'"
-            v-model="categoryForm"
-            :categories="categories"
-            :exclude-id="editingCategory?.id"
-            @create-category="handleCreateCategory"
-          />
-          <BudgetForm
-            v-if="dialogType === 'budget'"
-            v-model="budgetForm"
-            :categories="categories"
-            :note-options="noteOptions"
-            @create-category="handleCreateCategory"
-            @open-category-form="handleOpenCategoryForm"
-          />
-          <StatementList
-            v-if="dialogType === 'statement-list' && viewingAccount"
-            :account="viewingAccount"
-            :statements="viewingAccountStatements"
-            @edit="openStatementEdit"
-            @generate="handleGenerateStatement"
-          />
-          <StatementForm
-            v-if="dialogType === 'statement'"
-            v-model="statementForm"
-          />
-          <BillImportDialog
-            v-if="dialogType === 'import'"
-            ref="importDialogRef"
-            :accounts="accounts"
-            :categories="categories"
-            :existing-fingerprints="existingFingerprints"
-            @create-category="handleCreateCategory"
-            @open-category-form="handleOpenCategoryForm"
-            @create-account="handleCreateAccount"
-            @open-rule-dialog="handleOpenImportRuleDialog"
-            @tab-change="(tab) => (importDialogTab = tab)"
-          />
-          <ImportRuleForm
-            v-if="dialogType === 'rule'"
-            v-model="ruleForm"
-            :accounts="accounts"
-            :categories="categories"
-            @create-category="handleCreateCategory"
-            @open-category-form="handleOpenCategoryForm"
-            @create-account="handleCreateAccount"
-          />
-        </div>
-        <div class="dialog-footer">
-          <button type="button" class="cancel-btn" @click="closeDialog">{{ dialogType === 'statement-list' ? '关闭' : '取消' }}</button>
-          <button v-if="dialogType !== 'statement-list' && !(dialogType === 'import' && importDialogTab === 'history')" type="button" class="confirm-btn" @click="submitDialog">{{ dialogType === 'import' ? '导入选中' : '保存' }}</button>
+    <Teleport to="body">
+      <div v-if="dialogVisible" class="dialog-overlay" @click="closeDialog">
+        <div class="dialog" :class="{ 'dialog-wide': dialogType === 'import' || dialogType === 'rule' }" @click.stop>
+          <div class="dialog-header">
+            <h3>{{ dialogTitle }}</h3>
+            <button type="button" class="close-btn" @click="closeDialog">
+              <Icon name="solar:close-circle-linear" size="20" />
+            </button>
+          </div>
+          <div class="dialog-body">
+            <BillForm
+              v-if="dialogType === 'bill'"
+              v-model="billForm"
+              :accounts="accounts"
+              :categories="categories"
+              :note-options="noteOptions"
+              @create-category="handleCreateCategory"
+              @open-category-form="handleOpenCategoryForm"
+              @create-account="handleCreateAccount"
+            />
+            <AccountForm
+              v-if="dialogType === 'account'"
+              v-model="accountForm"
+              :categories="categories"
+            />
+            <CategoryForm
+              v-if="dialogType === 'category'"
+              v-model="categoryForm"
+              :categories="categories"
+              :exclude-id="editingCategory?.id"
+              @create-category="handleCreateCategory"
+            />
+            <BudgetForm
+              v-if="dialogType === 'budget'"
+              v-model="budgetForm"
+              :categories="categories"
+              :note-options="noteOptions"
+              @create-category="handleCreateCategory"
+              @open-category-form="handleOpenCategoryForm"
+            />
+            <StatementList
+              v-if="dialogType === 'statement-list' && viewingAccount"
+              :account="viewingAccount"
+              :statements="viewingAccountStatements"
+              @edit="openStatementEdit"
+              @generate="handleGenerateStatement"
+            />
+            <StatementForm
+              v-if="dialogType === 'statement'"
+              v-model="statementForm"
+            />
+            <BillImportDialog
+              v-if="dialogType === 'import'"
+              ref="importDialogRef"
+              :note-id="props.noteId"
+              :accounts="accounts"
+              :categories="categories"
+              :existing-fingerprints="existingFingerprints"
+              @record-created="handleRecordCreated"
+              @view-record="handleViewRecord"
+              @create-category="handleCreateCategory"
+              @open-category-form="handleOpenCategoryForm"
+              @create-account="handleCreateAccount"
+              @open-rule-dialog="handleOpenImportRuleDialog"
+              @tab-change="(tab) => (importDialogTab = tab)"
+            />
+            <ImportRuleForm
+              v-if="dialogType === 'rule'"
+              v-model="ruleForm"
+              :accounts="accounts"
+              :categories="categories"
+              @create-category="handleCreateCategory"
+              @open-category-form="handleOpenCategoryForm"
+              @create-account="handleCreateAccount"
+            />
+          </div>
+          <div class="dialog-footer">
+            <button type="button" class="cancel-btn" @click="closeDialog">{{ dialogType === 'statement-list' ? '关闭' : '取消' }}</button>
+            <button v-if="dialogType !== 'statement-list' && dialogType !== 'import' && dialogType !== 'rule'" type="button" class="confirm-btn" @click="submitDialog">保存</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
     <div
       v-if="categoryMenu.visible && categoryMenu.node"
       class="context-menu"
@@ -322,11 +327,27 @@
       @open-category-form="handleOpenCategoryForm"
       @create-account="handleCreateAccount"
     />
+
+    <ImportRecordDetail
+      v-if="recordDetailVisible && recordDetailRecord"
+      :visible="recordDetailVisible"
+      :record="recordDetailRecord"
+      :accounts="accounts"
+      :categories="categories"
+      @close="recordDetailVisible = false"
+      @import="handleImportRecord"
+      @rollback="handleRollbackRecord"
+      @delete="handleDeleteRecord"
+      @open-rule-dialog="handleOpenImportRuleDialog"
+      @create-category="handleCreateCategory"
+      @open-category-form="handleOpenCategoryForm"
+      @create-account="handleCreateAccount"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord } from '~/types/bill'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
@@ -354,6 +375,7 @@ import ImportRuleForm from './components/ImportRuleForm.vue'
 import BillBatchToolbar from './components/BillBatchToolbar.vue'
 import BillBatchEditDialog from './components/BillBatchEditDialog.vue'
 import ImportRuleDialog from './components/ImportRuleDialog.vue'
+import ImportRecordDetail from './components/ImportRecordDetail.vue'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -367,7 +389,7 @@ const { categories, loadCategories, createCategory, updateCategory, deleteCatego
 const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
 const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule } = useImportRules()
-const { loadImportRecords, fingerprintsAcrossRecords } = useImportRecords()
+const { loadImportRecords, fingerprintsAcrossRecords, getById, rollback, deleteImportRecord } = useImportRecords()
 const { loadNotes, noteOptions } = useNotes()
 
 const activeTab = ref('bills')
@@ -471,6 +493,12 @@ const ruleForm = ref<ImportRuleFormData>({
 })
 const importDialogRef = ref<InstanceType<typeof BillImportDialog> | null>(null)
 const importDialogTab = ref<'import' | 'history'>('import')
+const recordDetailVisible = ref(false)
+const viewingRecordId = ref<string | null>(null)
+const recordDetailRecord = computed(() =>
+  viewingRecordId.value ? getById(viewingRecordId.value) : null
+)
+
 const importRuleDialogVisible = ref(false)
 const importRuleDialogForm = ref<ImportRuleFormData>({
   name: '', source: 'all', matchMode: 'fuzzy', pattern: '', categoryId: '',
@@ -759,22 +787,6 @@ async function submitDialog() {
     } else if (dialogType.value === 'statement-list') {
       closeDialog()
       return
-    } else if (dialogType.value === 'import') {
-      const payload = importDialogRef.value?.getImportPayload()
-      if (!payload || payload.rows.length === 0) {
-        showError('未解析任何记录')
-        return
-      }
-      if (!payload.rows.some(r => r.selected)) {
-        showError('未选中任何记录')
-        return
-      }
-      const record = await createBillsBatch(payload, props.noteId)
-      if (record.failedCount > 0) {
-        showError(`已导入 ${record.successCount} 条 · 跳过 ${record.skippedCount} 条 · 失败 ${record.failedCount} 条`)
-      } else {
-        showSuccess(`已导入 ${record.successCount} 条 · 跳过 ${record.skippedCount} 条`)
-      }
     } else if (dialogType.value === 'rule') {
       if (!ruleForm.value.name) {
         showError('请输入规则名称')
@@ -946,7 +958,6 @@ async function handleSaveImportRule(form: ImportRuleFormData) {
     })
     showSuccess('规则已保存')
     importRuleDialogVisible.value = false
-    importDialogRef.value?.refreshRules()
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
@@ -1006,10 +1017,10 @@ function onMenuDelete() {
   }
 }
 
-function handleOpenCategoryForm(data: { type: CategoryType; defaultParentId?: string }) {
+function handleOpenCategoryForm(data: { type: CategoryType; defaultParentId?: string; defaultName?: string }) {
   previousDialogType.value = dialogType.value
   categoryForm.value = {
-    name: '',
+    name: data.defaultName || '',
     type: data.type,
     parentId: data.defaultParentId || '',
     icon: '',
@@ -1111,6 +1122,63 @@ async function handleDeleteRule(id: string) {
 async function handleToggleRule(id: string, enabled: boolean) {
   try {
     await updateImportRule(id, { enabled })
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function handleRecordCreated(record: ImportRecord) {
+  dialogVisible.value = false
+  importDialogRef.value?.reset()
+  viewingRecordId.value = record.id
+  recordDetailVisible.value = true
+}
+
+function handleViewRecord(recordId: string) {
+  viewingRecordId.value = recordId
+  recordDetailVisible.value = true
+}
+
+async function handleImportRecord(record: ImportRecord) {
+  try {
+    const result = await createBillsBatch(record, props.noteId)
+    if (result.failedCount > 0) {
+      showError(`已导入 ${result.successCount} 条 · 跳过 ${result.skippedCount} 条 · 失败 ${result.failedCount} 条`)
+    } else {
+      showSuccess(`已导入 ${result.successCount} 条 · 跳过 ${result.skippedCount} 条`)
+    }
+    recordDetailVisible.value = false
+    viewingRecordId.value = null
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleRollbackRecord(record: ImportRecord) {
+  const ok = await confirm(`确定回滚此次导入?将删除 ${record.billIds.length} 条账单并恢复账户余额。`)
+  if (!ok) return
+  try {
+    const { rolledBack, missing } = await rollback(record.id)
+    if (missing > 0) {
+      showSuccess(`已回滚 ${rolledBack} 条,${missing} 条已不存在`)
+    } else {
+      showSuccess(`已回滚 ${rolledBack} 条`)
+    }
+    recordDetailVisible.value = false
+    viewingRecordId.value = null
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleDeleteRecord(recordId: string) {
+  const ok = await confirm('确定删除此导入记录?')
+  if (!ok) return
+  try {
+    await deleteImportRecord(recordId)
+    showSuccess('导入记录已删除')
+    recordDetailVisible.value = false
+    viewingRecordId.value = null
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
@@ -1396,7 +1464,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
 }
 .dialog {
   width: 100%;
@@ -1485,7 +1552,6 @@ onBeforeUnmount(() => {
 }
 .context-menu {
   position: fixed;
-  z-index: 2000;
   min-width: 160px;
   padding: 4px;
   background: rgba(255, 255, 255, 0.98);
