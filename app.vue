@@ -7,10 +7,12 @@
         <div class="menubar-left">
           <span class="page-title">{{ pageTitle }}</span>
         </div>
-        <div class="menubar-right" />
+        <div class="menubar-right">
+          <WorkspaceSwitcher />
+        </div>
       </header>
       <div class="app-content">
-        <NuxtPage />
+        <NuxtPage :key="workspaceStore.currentId || 'no-workspace'" />
       </div>
     </div>
 
@@ -24,10 +26,14 @@
 import ToastContainer from '~/components/ui/toast/ToastContainer.vue'
 import ConfirmDialog from '~/components/ui/confirm/ConfirmDialog.vue'
 import ClassManager from '~/components/class/ClassManager.vue'
+import WorkspaceSwitcher from '~/components/workspace/WorkspaceSwitcher.vue'
+import { useWorkspaceStore } from '~/stores/workspace'
 
 const route = useRoute()
 const classManagerVisible = ref(false)
 provide('classManagerVisible', classManagerVisible)
+
+const workspaceStore = useWorkspaceStore()
 
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {

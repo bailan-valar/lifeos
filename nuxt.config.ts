@@ -25,7 +25,11 @@ export default defineNuxtConfig({
     databaseUrl: '',
     jwtSecret: '',
     public: {
-      apiBase: '/api'
+      apiBase: '/api',
+      couchdbUrl: '',
+      couchdbUsername: '',
+      couchdbPassword: '',
+      couchdbPrefix: 'lifeos-'
     }
   }
 })

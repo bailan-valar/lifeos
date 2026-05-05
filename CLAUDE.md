@@ -103,7 +103,26 @@ chore: 将 RxDB schema 从 v4 迁移至 v7
 
 ## 旧 RxDB 数据清理
 
-[plugins/pouchdb.client.ts](plugins/pouchdb.client.ts) 在首次加载时清理 `rxdb-dexie-*` / `lifeos-notes-*` 旧 IndexedDB 数据库，幂等性靠 `localStorage['lifeos:legacy-rxdb-cleared']` 控制。
+[plugins/pouchdb.client.ts](plugins/pouchdb.client.ts) 在首次加载时清理 `rxdb-dexie-*` / `lifeos-notes-*` 旧 IndexedDB 数据库，幂等性靠 `localStorage['lifeos:legacy-rxdb-cleared']` 控制；同时调用 `ensureBootstrapWorkspace()` 保证至少存在一个本地工作空间并写入 activeId。
+
+---
+
+# 工作空间与远端同步
+
+## 多工作空间隔离
+
+- 每个工作空间用 UUID v4 作为 `workspaceId`，所有业务数据按 `lifeos-<workspaceId>-<collection>` 前缀写入 IndexedDB，跨空间天然隔离
+- [services/workspaces.ts](services/workspaces.ts) 提供工作空间 CRUD（写入 `lifeos-meta-workspaces`），并维护 `localStorage['lifeos:active-workspace-id']`
+- [stores/workspace.ts](stores/workspace.ts)（Pinia）协调切换：`switchTo(id)` 顺序为 `stopSync → closeWorkspaceDB → setActiveId → initDB → startSync`
+- [app.vue](app.vue) 给 `<NuxtPage>` 绑定 `:key="workspaceStore.currentId"`，切换空间时强制重渲染，触发各 composable 的 `loadX()` 在新空间重新加载
+
+## 远端 CouchDB 同步
+
+- [services/sync.ts](services/sync.ts) 封装 PouchDB 原生 `db.sync(remote, { live: true, retry: true, batch_size: 500, batches_limit: 5 })`，按集合维度建立双向实时复制
+- 远端数据库命名：`<remoteUrl>/<remotePrefix><collection>`（默认 `remotePrefix = 'lifeos-'`）
+- 冲突策略沿用 PouchDB 默认的 last-write-wins，不做应用层合并
+- `subscribeStatus(workspaceId, fn)` 暴露聚合状态（`disabled / idle / active / paused / error`）+ pendingPush/pendingPull 计数，供菜单栏徽章订阅
+- 工作空间未配置 `remoteUrl` 时同步状态为 `disabled`，业务读写完全本地
 
 ---
 

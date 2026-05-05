@@ -1,15 +1,6 @@
 import type { Account, AccountFormData } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
-let dbRef: any = null
-
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 function clampDay(d: number | undefined): number | undefined {
   if (typeof d !== 'number' || isNaN(d)) return undefined
   return Math.max(1, Math.min(28, Math.floor(d)))
@@ -38,7 +29,7 @@ export function useAccounts() {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const result = await db.accounts.find({
         sort: [{ createdAt: 'asc' }]
       }).exec()
@@ -52,7 +43,7 @@ export function useAccounts() {
   }
 
   async function createAccount(data: AccountFormData): Promise<Account> {
-    const db = await getDb()
+    const db = await getDB()
     const isPersonal = data.type === 'personal'
     const isCredit = isPersonal && data.subtype === 'credit_card'
     const aliases = sanitizeAliases(data.aliases)
@@ -81,7 +72,7 @@ export function useAccounts() {
   }
 
   async function updateAccount(id: string, data: Partial<AccountFormData>) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.accounts.findOne(id).exec()
     if (!doc) return
     const patch: Record<string, any> = { ...data, updatedAt: now() }
@@ -98,7 +89,7 @@ export function useAccounts() {
   }
 
   async function deleteAccount(id: string) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.accounts.findOne(id).exec()
     if (!doc) return
     await doc.remove()
@@ -106,7 +97,7 @@ export function useAccounts() {
   }
 
   async function updateBalance(id: string, delta: number) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.accounts.findOne(id).exec()
     if (!doc) return
     const newBalance = (doc.get('balance') as number) + delta

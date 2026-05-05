@@ -1,15 +1,6 @@
 import type { ImportRule, ImportRuleFormData, CsvParsedRow } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
-let dbRef: any = null
-
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 interface ImportRulesStore {
   rules: Ref<ImportRule[]>
   loading: Ref<boolean>
@@ -32,7 +23,7 @@ function createStore(): ImportRulesStore {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const result = await db.importRules.find({
         sort: [{ priority: 'desc' }]
       }).exec()
@@ -53,7 +44,7 @@ function createStore(): ImportRulesStore {
   }
 
   async function createImportRule(data: ImportRuleFormData): Promise<ImportRule> {
-    const db = await getDb()
+    const db = await getDB()
     const rule: ImportRule = {
       id: generateId(),
       name: data.name,
@@ -77,7 +68,7 @@ function createStore(): ImportRulesStore {
   }
 
   async function updateImportRule(id: string, data: Partial<ImportRuleFormData>) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.importRules.findOne(id).exec()
     if (!doc) return
     const patch: Partial<ImportRule> = { ...data, updatedAt: now() }
@@ -94,7 +85,7 @@ function createStore(): ImportRulesStore {
   }
 
   async function deleteImportRule(id: string) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.importRules.findOne(id).exec()
     if (!doc) return
     await doc.remove()

@@ -1,15 +1,6 @@
 import type { BudgetEntry, BudgetFormData, BudgetCycleType } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
-let dbRef: any = null
-
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 interface BudgetsStore {
   budgets: Ref<BudgetEntry[]>
   loading: Ref<boolean>
@@ -35,7 +26,7 @@ function createStore(): BudgetsStore {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const selector: Record<string, unknown> = noteId !== undefined ? { noteId: noteId || '' } : {}
       const result = await db.budgets.find({
         selector,
@@ -77,7 +68,7 @@ function createStore(): BudgetsStore {
   }
 
   async function upsertBudget(data: BudgetFormData): Promise<BudgetEntry> {
-    const db = await getDb()
+    const db = await getDB()
     const existing = budgets.value.find(
       b =>
         b.noteId === (data.noteId || '') &&
@@ -116,7 +107,7 @@ function createStore(): BudgetsStore {
   }
 
   async function deleteBudget(id: string) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.budgets.findOne(id).exec()
     if (!doc) return
     await doc.remove()

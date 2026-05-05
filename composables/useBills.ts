@@ -11,18 +11,9 @@ import { getDB, generateId, now } from '~/services/db'
 import { dedupeKey } from '~/services/csvImport'
 import { useImportRecords } from '~/composables/useImportRecords'
 
-let dbRef: any = null
-
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 async function updateAccountBalance(id: string, delta: number) {
   if (!id) return
-  const db = await getDb()
+  const db = await getDB()
   const doc = await db.accounts.findOne(id).exec()
   if (!doc) return
   const newBalance = (doc.get('balance') as number) + delta
@@ -68,7 +59,7 @@ export function useBills() {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const selector: Record<string, unknown> = noteId ? { noteId } : {}
       const result = await db.bills.find({
         selector,
@@ -87,7 +78,7 @@ export function useBills() {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       if (noteIds.length === 0) {
         bills.value = []
         return
@@ -112,7 +103,7 @@ export function useBills() {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const selector: Record<string, unknown> = noteId ? { noteId } : {}
       const result = await db.bills.find({
         selector,
@@ -142,7 +133,7 @@ export function useBills() {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const selector: Record<string, unknown> = noteId ? { noteId } : {}
       if (startDate || endDate) {
         selector.date = {}
@@ -165,7 +156,7 @@ export function useBills() {
   }
 
   async function loadBillStats(noteId?: string, startDate?: string, endDate?: string) {
-    const db = await getDb()
+    const db = await getDB()
     const selector: Record<string, unknown> = { status: 'completed' }
     if (noteId) selector.noteId = noteId
     if (startDate || endDate) {
@@ -182,7 +173,7 @@ export function useBills() {
   }
 
   async function createBill(data: BillFormData, noteId?: string): Promise<Bill> {
-    const db = await getDb()
+    const db = await getDB()
     const bill: Bill = {
       id: generateId(),
       noteId: data.noteId || noteId || '',
@@ -217,7 +208,7 @@ export function useBills() {
     },
     noteId: string
   ): Promise<ImportRecord> {
-    const db = await getDb()
+    const db = await getDB()
     const startedAt = now()
     const batchId = generateId()
     const items: ImportRecordItem[] = []
@@ -355,7 +346,7 @@ export function useBills() {
   }
 
   async function updateBill(id: string, data: Partial<BillFormData>) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.bills.findOne(id).exec()
     if (!doc) return
     const oldBill = doc.toJSON() as Bill
@@ -378,7 +369,7 @@ export function useBills() {
   }
 
   async function updateBills(ids: string[], data: Partial<BillFormData>) {
-    const db = await getDb()
+    const db = await getDB()
     let updatedCount = 0
     const failedIds: string[] = []
 
@@ -417,7 +408,7 @@ export function useBills() {
   }
 
   async function deleteBill(id: string) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.bills.findOne(id).exec()
     if (!doc) return
     const bill = doc.toJSON() as Bill
@@ -428,7 +419,7 @@ export function useBills() {
   }
 
   async function deleteBills(ids: string[]) {
-    const db = await getDb()
+    const db = await getDB()
     const docs: any[] = []
     const validBills: Bill[] = []
 
@@ -452,7 +443,7 @@ export function useBills() {
   }
 
   async function settleDebt(id: string, settleAmount: number) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.bills.findOne(id).exec()
     if (!doc) return
     const bill = doc.toJSON() as Bill

@@ -1,19 +1,11 @@
 import type { Class, ClassField, NoteClassBinding, ClassFieldType } from '~/types/block'
 import { getDB, generateId, now } from '~/services/db'
 
-let dbRef: any = null
 const classes = ref<Class[]>([])
 const classFields = ref<ClassField[]>([])
 
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 export async function loadClasses(userId: string): Promise<Class[]> {
-  const db = await getDb()
+  const db = await getDB()
   const result = await db.classes.find({
     selector: { userId },
     sort: [{ order: 'asc' }]
@@ -23,7 +15,7 @@ export async function loadClasses(userId: string): Promise<Class[]> {
 }
 
 export async function createClass(data: Partial<Class> & { userId: string; name: string }): Promise<Class> {
-  const db = await getDb()
+  const db = await getDB()
   const existing = classes.value.filter(c => c.userId === data.userId)
   const newClass: Class = {
     id: generateId(),
@@ -43,7 +35,7 @@ export async function createClass(data: Partial<Class> & { userId: string; name:
 }
 
 export async function updateClass(id: string, patch: Partial<Class>): Promise<void> {
-  const db = await getDb()
+  const db = await getDB()
   const doc = await db.classes.findOne(id).exec()
   if (!doc) return
   await doc.patch({ ...patch, updatedAt: now() })
@@ -54,7 +46,7 @@ export async function updateClass(id: string, patch: Partial<Class>): Promise<vo
 }
 
 export async function deleteClass(id: string): Promise<void> {
-  const db = await getDb()
+  const db = await getDB()
   const doc = await db.classes.findOne(id).exec()
   if (!doc) return
   await doc.remove()
@@ -74,7 +66,7 @@ export async function deleteClass(id: string): Promise<void> {
 }
 
 export async function loadFields(classId: string): Promise<ClassField[]> {
-  const db = await getDb()
+  const db = await getDB()
   const result = await db.classFields.find({
     selector: { classId },
     sort: [{ order: 'asc' }]
@@ -88,7 +80,7 @@ export async function createField(
   classId: string,
   data: Partial<ClassField> & { name: string; type: ClassFieldType }
 ): Promise<ClassField> {
-  const db = await getDb()
+  const db = await getDB()
   const existing = classFields.value.filter(f => f.classId === classId)
   const newField: ClassField = {
     id: generateId(),
@@ -108,7 +100,7 @@ export async function createField(
 }
 
 export async function updateField(id: string, patch: Partial<ClassField>): Promise<void> {
-  const db = await getDb()
+  const db = await getDB()
   const doc = await db.classFields.findOne(id).exec()
   if (!doc) return
   await doc.patch({ ...patch, updatedAt: now() })
@@ -119,7 +111,7 @@ export async function updateField(id: string, patch: Partial<ClassField>): Promi
 }
 
 export async function deleteField(id: string): Promise<void> {
-  const db = await getDb()
+  const db = await getDB()
   const doc = await db.classFields.findOne(id).exec()
   if (!doc) return
   await doc.remove()
@@ -127,15 +119,15 @@ export async function deleteField(id: string): Promise<void> {
 }
 
 export async function loadBinding(noteId: string): Promise<NoteClassBinding | null> {
-  const db = await getDb()
+  const db = await getDB()
   const result = await db.noteClassBindings.findOne({
     selector: { noteId }
   }).exec()
-  return result ? result.toJSON() : null
+  return result ? (result.toJSON() as NoteClassBinding) : null
 }
 
 export async function bindClass(noteId: string, classId: string): Promise<NoteClassBinding> {
-  const db = await getDb()
+  const db = await getDB()
   const existing = await db.noteClassBindings.findOne({ selector: { noteId } }).exec()
   if (existing) {
     await existing.remove()
@@ -154,7 +146,7 @@ export async function bindClass(noteId: string, classId: string): Promise<NoteCl
 }
 
 export async function unbindClass(noteId: string): Promise<void> {
-  const db = await getDb()
+  const db = await getDB()
   const existing = await db.noteClassBindings.findOne({ selector: { noteId } }).exec()
   if (existing) {
     await existing.remove()
@@ -165,7 +157,7 @@ export async function updateBindingValues(
   noteId: string,
   values: Record<string, any>
 ): Promise<void> {
-  const db = await getDb()
+  const db = await getDB()
   const existing = await db.noteClassBindings.findOne({ selector: { noteId } }).exec()
   if (!existing) return
   await existing.patch({ values, updatedAt: now() })
@@ -176,7 +168,7 @@ export async function getClassForNote(noteId: string): Promise<{
   fields: ClassField[]
   binding: NoteClassBinding
 } | null> {
-  const db = await getDb()
+  const db = await getDB()
   const binding = await db.noteClassBindings.findOne({ selector: { noteId } }).exec()
   if (!binding) return null
   const cls = await db.classes.findOne(binding.classId).exec()
@@ -186,9 +178,9 @@ export async function getClassForNote(noteId: string): Promise<{
     sort: [{ order: 'asc' }]
   }).exec()
   return {
-    class: cls.toJSON(),
+    class: cls.toJSON() as Class,
     fields: fields.map((doc: any) => doc.toJSON()),
-    binding: binding.toJSON()
+    binding: binding.toJSON() as NoteClassBinding
   }
 }
 

@@ -1,15 +1,6 @@
 import type { Bill, ImportRecord, ImportRecordItem } from '~/types/bill'
 import { getDB, now } from '~/services/db'
 
-let dbRef: any = null
-
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 interface ImportRecordsStore {
   records: Ref<ImportRecord[]>
   loading: Ref<boolean>
@@ -33,7 +24,7 @@ function createStore(): ImportRecordsStore {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const selector: Record<string, unknown> = noteId ? { noteId } : {}
       const result = await db.importRecords.find({
         selector,
@@ -49,13 +40,13 @@ function createStore(): ImportRecordsStore {
   }
 
   async function insertRecord(record: ImportRecord) {
-    const db = await getDb()
+    const db = await getDB()
     await db.importRecords.insert({ ...record })
     records.value = [record, ...records.value]
   }
 
   async function deleteImportRecord(id: string) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.importRecords.findOne(id).exec()
     if (!doc) return
     await doc.remove()
@@ -63,7 +54,7 @@ function createStore(): ImportRecordsStore {
   }
 
   async function rollback(id: string): Promise<{ rolledBack: number; missing: number }> {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.importRecords.findOne(id).exec()
     if (!doc) return { rolledBack: 0, missing: 0 }
     const record = doc.toJSON() as ImportRecord

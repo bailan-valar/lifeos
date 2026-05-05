@@ -1,15 +1,6 @@
 import type { Bill, Account, Statement, StatementFormData } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
-let dbRef: any = null
-
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 function pad(n: number): string {
   return String(n).padStart(2, '0')
 }
@@ -60,7 +51,7 @@ export function useStatements() {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const selector: Record<string, unknown> = accountId ? { accountId } : {}
       const result = await db.statements.find({
         selector,
@@ -78,7 +69,7 @@ export function useStatements() {
   async function createStatement(
     data: Omit<Statement, 'id' | 'createdAt' | 'updatedAt' | 'isSynced'>
   ): Promise<Statement> {
-    const db = await getDb()
+    const db = await getDB()
     const stmt: Statement = {
       ...data,
       id: generateId(),
@@ -92,7 +83,7 @@ export function useStatements() {
   }
 
   async function updateStatement(id: string, data: Partial<StatementFormData>) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.statements.findOne(id).exec()
     if (!doc) return
     const patch = { ...data, updatedAt: now() }
@@ -104,7 +95,7 @@ export function useStatements() {
   }
 
   async function deleteStatement(id: string) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.statements.findOne(id).exec()
     if (!doc) return
     await doc.remove()

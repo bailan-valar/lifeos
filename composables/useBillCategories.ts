@@ -1,15 +1,6 @@
 import type { BillCategory, CategoryFormData, CategoryTreeNode } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
-let dbRef: any = null
-
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 let store: ReturnType<typeof createStore> | null = null
 
 function createStore() {
@@ -21,7 +12,7 @@ function createStore() {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const result = await db.billCategories.find({
         sort: [{ order: 'asc' }]
       }).exec()
@@ -35,7 +26,7 @@ function createStore() {
   }
 
   async function createCategory(data: CategoryFormData): Promise<BillCategory> {
-    const db = await getDb()
+    const db = await getDB()
     const siblings = categories.value.filter(c => c.parentId === data.parentId && c.type === data.type)
     const category: BillCategory = {
       id: generateId(),
@@ -55,7 +46,7 @@ function createStore() {
   }
 
   async function updateCategory(id: string, data: Partial<CategoryFormData>) {
-    const db = await getDb()
+    const db = await getDB()
     const doc = await db.billCategories.findOne(id).exec()
     if (!doc) return
     await doc.patch({ ...data, updatedAt: now() })
@@ -66,7 +57,7 @@ function createStore() {
   }
 
   async function deleteCategory(id: string) {
-    const db = await getDb()
+    const db = await getDB()
     const children = categories.value.filter(c => c.parentId === id)
     if (children.length > 0) {
       throw new Error('该分类下存在子分类，无法删除')

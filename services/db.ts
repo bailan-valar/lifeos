@@ -1,5 +1,6 @@
 import PouchDB from 'pouchdb-browser'
 import PouchDBFind from 'pouchdb-find'
+import { dbPrefix, getActiveId } from '~/services/workspaces'
 
 PouchDB.plugin(PouchDBFind)
 
@@ -49,7 +50,7 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   importRecords: [['noteId'], ['createdAt'], ['source'], ['status'], ['noteId', 'createdAt'], ['isSynced']]
 }
 
-const DB_PREFIX = 'lifeos-'
+export const COLLECTION_NAMES = Object.keys(COLLECTION_INDEXES)
 
 function stripPouchFields(raw: RawPouchDoc): AnyDoc {
   const { _id, _rev, ...rest } = raw
@@ -144,9 +145,9 @@ function nonEmptySelector(selector: Selector): Selector {
   return Object.keys(selector).length > 0 ? selector : { _id: { $gt: null } }
 }
 
-function createCollection(name: string): Collection {
-  const pdb = new PouchDB(DB_PREFIX + name)
-  // Silence pouchdb-find's internal deprecation warning by overriding db.type()
+function createCollection(name: string, prefix: string, instances: Map<string, PouchDB.Database>): Collection {
+  const pdb = new PouchDB(prefix + name)
+  instances.set(name, pdb)
   ;(pdb as any).type = function () { return (this as any)._adapter || (this as any).adapter }
   const indexes = COLLECTION_INDEXES[name] || []
 
@@ -218,37 +219,105 @@ function createCollection(name: string): Collection {
 
 type Database = Record<string, Collection>
 
-let database: Database | null = null
-let initPromise: Promise<Database> | null = null
+interface WorkspaceDB {
+  database: Database
+  instances: Map<string, PouchDB.Database>
+}
 
-async function doInitDB(): Promise<Database> {
+const databases = new Map<string, WorkspaceDB>()
+const initPromises = new Map<string, Promise<WorkspaceDB>>()
+
+function resolveWorkspaceId(workspaceId?: string): string {
+  if (workspaceId) return workspaceId
+  const activeId = getActiveId()
+  if (!activeId) {
+    throw new Error('[db] No active workspace; ensureBootstrapWorkspace must run first')
+  }
+  return activeId
+}
+
+async function doInitDB(workspaceId: string): Promise<WorkspaceDB> {
+  const prefix = dbPrefix(workspaceId)
+  const instances = new Map<string, PouchDB.Database>()
   const dbs: Database = {}
   for (const name of Object.keys(COLLECTION_INDEXES)) {
-    dbs[name] = createCollection(name)
+    dbs[name] = createCollection(name, prefix, instances)
   }
-  return dbs
+  return { database: dbs, instances }
 }
 
-export async function initDB(): Promise<Database> {
-  if (database) return database
-  if (initPromise) return initPromise
+export async function initDB(workspaceId?: string): Promise<Database> {
+  const id = resolveWorkspaceId(workspaceId)
+  const cached = databases.get(id)
+  if (cached) return cached.database
+  const pending = initPromises.get(id)
+  if (pending) return (await pending).database
 
-  initPromise = doInitDB()
+  const promise = doInitDB(id)
+  initPromises.set(id, promise)
 
   try {
-    database = await initPromise
-    return database
+    const result = await promise
+    databases.set(id, result)
+    return result.database
   } catch (error) {
-    initPromise = null
+    initPromises.delete(id)
     throw error
+  } finally {
+    initPromises.delete(id)
   }
 }
 
-export async function getDB(): Promise<Database> {
-  if (!database) {
-    database = await initDB()
+export async function getDB(workspaceId?: string): Promise<Database> {
+  const id = resolveWorkspaceId(workspaceId)
+  const cached = databases.get(id)
+  if (cached) return cached.database
+  return initDB(id)
+}
+
+export async function getRawPouchDB(workspaceId: string, collection: string): Promise<PouchDB.Database | undefined> {
+  const cached = databases.get(workspaceId)
+  if (cached) return cached.instances.get(collection)
+  await initDB(workspaceId)
+  return databases.get(workspaceId)?.instances.get(collection)
+}
+
+export function listLoadedWorkspaceIds(): string[] {
+  return Array.from(databases.keys())
+}
+
+export async function closeWorkspaceDB(workspaceId: string): Promise<void> {
+  const cached = databases.get(workspaceId)
+  if (!cached) return
+  databases.delete(workspaceId)
+  initPromises.delete(workspaceId)
+  await Promise.all(
+    Array.from(cached.instances.values()).map((db) =>
+      db.close().catch((e) => console.warn('[db] close failed', workspaceId, e))
+    )
+  )
+}
+
+export async function destroyWorkspaceData(workspaceId: string): Promise<void> {
+  const prefix = dbPrefix(workspaceId)
+  const cached = databases.get(workspaceId)
+  if (cached) {
+    databases.delete(workspaceId)
+    initPromises.delete(workspaceId)
+    await Promise.all(
+      Array.from(cached.instances.values()).map((db) =>
+        db.destroy().catch((e) => console.warn('[db] destroy failed', workspaceId, e))
+      )
+    )
+    return
   }
-  return database
+  for (const name of Object.keys(COLLECTION_INDEXES)) {
+    try {
+      await new PouchDB(prefix + name).destroy()
+    } catch (e) {
+      console.warn('[db] destroy failed', prefix + name, e)
+    }
+  }
 }
 
 export function generateId(): string {

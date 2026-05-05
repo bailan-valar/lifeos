@@ -1,15 +1,6 @@
 import type { Note } from '~/types/block'
 import { getDB } from '~/services/db'
 
-let dbRef: any = null
-
-async function getDb() {
-  if (!dbRef) {
-    dbRef = await getDB()
-  }
-  return dbRef
-}
-
 export interface NoteTreeNode extends Note {
   children: NoteTreeNode[]
   level: number
@@ -24,7 +15,7 @@ export function useNotes() {
     loading.value = true
     error.value = null
     try {
-      const db = await getDb()
+      const db = await getDB()
       const result = await db.notes.find({
         sort: [{ order: 'asc' }]
       }).exec()
