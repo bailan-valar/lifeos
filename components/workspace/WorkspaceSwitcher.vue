@@ -60,6 +60,15 @@
           <Icon name="solar:login-2-linear" />
           <span>登录</span>
         </button>
+        <button
+          v-else
+          class="ws-menu-action ws-menu-action--danger"
+          type="button"
+          @click="handleLogout"
+        >
+          <Icon name="solar:logout-2-linear" />
+          <span>退出登录</span>
+        </button>
       </div>
     </Transition>
 
@@ -122,6 +131,12 @@ function openManager() {
 function goLogin() {
   closeMenu()
   navigateTo('/login')
+}
+
+async function handleLogout() {
+  closeMenu()
+  await authStore.logout()
+  await navigateTo('/login')
 }
 
 const vClickOutside: Directive<HTMLElement, () => void> = {
@@ -292,6 +307,15 @@ const vClickOutside: Directive<HTMLElement, () => void> = {
 .ws-menu-action:hover {
   background: rgba(120, 120, 128, 0.08);
   color: rgba(0, 0, 0, 0.85);
+}
+
+.ws-menu-action--danger {
+  color: rgb(255, 59, 48);
+}
+
+.ws-menu-action--danger:hover {
+  background: rgba(255, 59, 48, 0.08);
+  color: rgb(255, 59, 48);
 }
 
 .ws-menu-enter-active, .ws-menu-leave-active {

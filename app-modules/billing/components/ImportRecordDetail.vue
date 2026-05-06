@@ -264,7 +264,6 @@ function openRuleOverlay(item: ImportRecordItem) {
     pattern: counterparty,
     categoryId: item.categoryId || '',
     accountId: item.matchedAccountId || '',
-    myAccountId: item.myAccountId || undefined,
     billType: item.type,
     priority: 100,
     enabled: true
@@ -280,7 +279,6 @@ function openCounterpartyRule(item: ImportRecordItem) {
     pattern: counterparty,
     categoryId: item.categoryId || '',
     accountId: item.matchedAccountId || '',
-    myAccountId: undefined,
     billType: item.type,
     priority: 100,
     enabled: true
@@ -295,8 +293,7 @@ function openPaymentMethodRule(item: ImportRecordItem) {
     matchMode: 'fuzzy',
     pattern: paymentMethod,
     categoryId: '',
-    accountId: '',
-    myAccountId: item.myAccountId || undefined,
+    accountId: item.myAccountId || '',
     billType: undefined,
     priority: 100,
     enabled: true

@@ -235,8 +235,8 @@ export type ImportRuleMatchMode = 'exact' | 'regex' | 'fuzzy'
 
 /**
  * 导入规则
- * 按 CSV 中"交易对方"字段匹配,命中后填充 categoryId / accountId
- * accountId 为匹配的对方账户,由 suggestAccountIds 自动推导 from/to
+ * 按 CSV 中"交易对方"或"收/付款方式"字段匹配,命中后填充 categoryId / accountId
+ * accountId 为匹配到的账户,由 suggestAccountIds 自动推导 from/to
  * billType 可选,优先级高于按账户类型推断
  */
 export interface ImportRule {
@@ -247,7 +247,6 @@ export interface ImportRule {
   pattern: string
   categoryId: string
   accountId: string
-  myAccountId?: string
   billType?: BillType
   priority: number
   enabled: boolean
@@ -266,7 +265,6 @@ export interface ImportRuleFormData {
   pattern: string
   categoryId: string
   accountId: string
-  myAccountId?: string
   billType?: BillType
   priority: number
   enabled: boolean

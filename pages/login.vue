@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { startSync } from '~/services/sync'
+
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 const router = useRouter()
@@ -15,6 +17,8 @@ async function handleLogin() {
     await workspaceStore.reload()
     if (workspaceStore.list.length > 0 && !workspaceStore.currentId) {
       await workspaceStore.switchTo(workspaceStore.list[0].id)
+    } else if (workspaceStore.currentId) {
+      await startSync(workspaceStore.currentId)
     }
     await router.push('/')
   } catch (error: any) {

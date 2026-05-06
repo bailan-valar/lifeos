@@ -1,3 +1,10 @@
+import { ref, readonly } from 'vue'
+import { defineStore } from 'pinia'
+import { useWorkspaceStore } from '~/stores/workspace'
+import { stopSync } from '~/services/sync'
+import { closeWorkspaceDB } from '~/services/db'
+import { clearActiveId } from '~/services/workspaces'
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<{ id: string; email: string; name: string | null } | null>(null)
   const token = ref<string | null>(null)
@@ -67,10 +74,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  async function logout() {
+    const workspaceStore = useWorkspaceStore()
+    const currentId = workspaceStore.currentId
+
+    if (currentId) {
+      await stopSync(currentId)
+      await closeWorkspaceDB(currentId)
+    }
+
     user.value = null
     token.value = null
     localStorage.removeItem('token')
+    clearActiveId()
+    workspaceStore.currentId = ''
+    workspaceStore.list = []
   }
 
   async function initialize() {

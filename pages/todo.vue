@@ -223,8 +223,6 @@ interface NoteItem {
   title: string
 }
 
-let db: any = null
-
 const goals = ref<Goal[]>([])
 const allNotes = ref<NoteItem[]>([])
 const expandedId = ref<string | null>(null)
@@ -281,13 +279,12 @@ const priorityOptions = [
 ]
 
 onMounted(async () => {
-  db = await getDB()
   await loadGoals()
   await loadNotes()
 })
 
 const loadGoals = async () => {
-  if (!db) return
+  const db = await getDB()
   const result = await db.goals.find({
     sort: [{ createdAt: 'desc' }]
   }).exec()
@@ -295,7 +292,7 @@ const loadGoals = async () => {
 }
 
 const loadNotes = async () => {
-  if (!db) return
+  const db = await getDB()
   const result = await db.notes.find().exec()
   allNotes.value = result.map((doc: any) => ({ id: doc.id, title: doc.title }))
 }
@@ -355,7 +352,7 @@ const cycleStatus = async (goal: Goal) => {
 }
 
 const updateGoalField = async (id: string, patch: Partial<Goal>) => {
-  if (!db) return
+  const db = await getDB()
   const doc = await db.goals.findOne(id).exec()
   if (!doc) return
   await doc.patch({ ...patch, updatedAt: now() })
@@ -407,7 +404,7 @@ const toggleNote = (noteId: string) => {
 }
 
 const saveGoal = async () => {
-  if (!db) return
+  const db = await getDB()
   const payload: Partial<Goal> = {
     title: form.title.trim(),
     description: form.description.trim(),
@@ -448,7 +445,7 @@ const saveGoal = async () => {
 const { confirm } = useConfirm()
 
 const deleteGoal = async (id: string) => {
-  if (!db) return
+  const db = await getDB()
   if (!await confirm('确定要删除这个目标吗？')) return
   const doc = await db.goals.findOne(id).exec()
   if (doc) await doc.remove()

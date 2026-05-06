@@ -46,7 +46,7 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
     ['isSynced']
   ],
   statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status'], ['isSynced']],
-  importRules: [['source'], ['matchMode'], ['priority'], ['enabled'], ['myAccountId'], ['isSynced']],
+  importRules: [['source'], ['matchMode'], ['priority'], ['enabled'], ['accountId'], ['isSynced']],
   importRecords: [['noteId'], ['createdAt'], ['source'], ['status'], ['noteId', 'createdAt'], ['isSynced']]
 }
 

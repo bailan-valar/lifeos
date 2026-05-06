@@ -1,6 +1,8 @@
 import type { Bill, ImportRecord, ImportRecordItem } from '~/types/bill'
 import { getDB, now } from '~/services/db'
 
+let _store: ImportRecordsStore | null = null
+
 interface ImportRecordsStore {
   records: Ref<ImportRecord[]>
   loading: Ref<boolean>
@@ -14,8 +16,6 @@ interface ImportRecordsStore {
   getById: (id: string) => ImportRecord | null
   fingerprintsAcrossRecords: ComputedRef<Set<string>>
 }
-
-let store: ImportRecordsStore | null = null
 
 function createStore(): ImportRecordsStore {
   const records = ref<ImportRecord[]>([])
@@ -155,8 +155,8 @@ function createStore(): ImportRecordsStore {
 }
 
 export function useImportRecords(): ImportRecordsStore {
-  if (!store) {
-    store = createStore()
+  if (!_store) {
+    _store = createStore()
   }
-  return store
+  return _store
 }

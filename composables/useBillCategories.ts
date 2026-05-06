@@ -1,8 +1,6 @@
 import type { BillCategory, CategoryFormData, CategoryTreeNode } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
-let store: ReturnType<typeof createStore> | null = null
-
 function createStore() {
   const categories = ref<BillCategory[]>([])
   const loading = ref(false)
@@ -117,8 +115,5 @@ function createStore() {
 }
 
 export function useBillCategories() {
-  if (!store) {
-    store = createStore()
-  }
-  return store
+  return createStore()
 }

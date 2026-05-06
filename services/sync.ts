@@ -3,6 +3,7 @@ import type { Workspace, WorkspaceSyncState, WorkspaceSyncStatus } from '~/types
 import { emptySyncStatus } from '~/types/workspace'
 import { getRawPouchDB, initDB, COLLECTION_NAMES } from '~/services/db'
 import { getWorkspace } from '~/services/workspaces'
+import { useRuntimeConfig } from '#imports'
 
 interface SyncBundle {
   workspaceId: string
@@ -123,12 +124,18 @@ function attachHandlers(bundle: SyncBundle, collection: string, handle: PouchDB.
 export async function startSync(workspaceId: string, override?: { remoteUrl?: string; remotePrefix?: string; remoteUsername?: string; remotePassword?: string }): Promise<void> {
   await stopSync(workspaceId)
 
+  const config = useRuntimeConfig()
+  const defaultUrl = (config.public.couchdbUrl as string | undefined) || ''
+  const defaultPrefix = (config.public.couchdbPrefix as string | undefined) || 'lifeos-'
+  const defaultUsername = (config.public.couchdbUsername as string | undefined) || undefined
+  const defaultPassword = (config.public.couchdbPassword as string | undefined) || undefined
+
   const ws: Workspace | null = await getWorkspace(workspaceId)
   if (!ws) return
-  const remoteUrl = (override?.remoteUrl ?? ws.remoteUrl ?? '').trim()
-  const remotePrefix = (override?.remotePrefix ?? ws.remotePrefix ?? 'lifeos-').trim()
-  const username = override?.remoteUsername ?? ws.remoteUsername
-  const password = override?.remotePassword ?? ws.remotePassword
+  const remoteUrl = (override?.remoteUrl ?? ws.remoteUrl ?? defaultUrl).trim()
+  const remotePrefix = (override?.remotePrefix ?? ws.remotePrefix ?? defaultPrefix).trim()
+  const username = override?.remoteUsername ?? ws.remoteUsername ?? defaultUsername
+  const password = override?.remotePassword ?? ws.remotePassword ?? defaultPassword
 
   const bundle = ensureBundle(workspaceId)
   bundle.status = { ...emptySyncStatus(workspaceId) }

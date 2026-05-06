@@ -134,16 +134,21 @@ const parsing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
 function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
-  const matchedRule = applyRules(parsed, source.value)
+  const result = applyRules(parsed, source.value)
+  const matchedRule = result?.rule ?? null
 
   let counterpartyAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
-  if (matchedRule?.accountId) {
-    counterpartyAccount = props.accounts.find(a => a.id === matchedRule.accountId) || counterpartyAccount
-  }
-
   let myAccount = matchAccountByPaymentMethod(parsed.paymentMethod || '', props.accounts)
-  if (matchedRule?.myAccountId) {
-    myAccount = props.accounts.find(a => a.id === matchedRule.myAccountId) || myAccount
+
+  if (matchedRule?.accountId) {
+    const ruleAccount = props.accounts.find(a => a.id === matchedRule.accountId)
+    if (ruleAccount) {
+      if (result?.matchedField === 'paymentMethod') {
+        myAccount = ruleAccount
+      } else {
+        counterpartyAccount = ruleAccount
+      }
+    }
   }
 
   let billType: BillType

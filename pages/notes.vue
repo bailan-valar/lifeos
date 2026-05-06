@@ -53,7 +53,6 @@ import type { Note, Block } from '~/types/block'
 import NoteList from '~/components/NoteList.vue'
 import NoteViewSwitcher from '~/components/NoteViewSwitcher.vue'
 
-let db: any = null
 const notes = ref<Note[]>([])
 const activeNoteId = ref<string | null>(null)
 const userId = ref('default-user')
@@ -68,8 +67,6 @@ const route = useRoute()
 
 onMounted(async () => {
   console.log('[Notes] Component mounted, initializing database...')
-  db = await getDB()
-  console.log('[Notes] Database initialized:', db ? 'success' : 'failed')
   await loadNotes()
 
   const noteIdFromQuery = route.query.note as string
@@ -79,7 +76,7 @@ onMounted(async () => {
 })
 
 const loadNotes = async () => {
-  if (!db) return
+  const db = await getDB()
 
   console.log('[Notes] Loading notes for userId:', userId.value)
   const result = await db.notes
@@ -104,7 +101,7 @@ const onTitleUpdate = (noteId: string, title: string) => {
 }
 
 const createNote = async () => {
-  if (!db) return
+  const db = await getDB()
 
   console.log('[Notes] Creating new note...')
   const rootSiblings = notes.value.filter(n => !n.parentId)
@@ -161,7 +158,7 @@ const createNote = async () => {
 }
 
 const createChildNote = async (parentId: string) => {
-  if (!db) return
+  const db = await getDB()
   const childSiblings = notes.value.filter(n => n.parentId === parentId)
   const newNote: Note = {
     id: generateId(),
@@ -195,7 +192,7 @@ const createChildNote = async (parentId: string) => {
 }
 
 const deleteNote = async (noteId: string) => {
-  if (!db) return
+  const db = await getDB()
 
   const idsToDelete = new Set<string>([noteId])
   const collectDescendants = (parentId: string) => {
@@ -232,7 +229,7 @@ const handleReorder = async (payload: {
   targetId: string | null
   position: 'before' | 'after' | 'child' | 'root-end'
 }) => {
-  if (!db) return
+  const db = await getDB()
   const moved = notes.value.find(n => n.id === payload.id)
   if (!moved) return
 

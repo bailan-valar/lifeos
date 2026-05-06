@@ -18,15 +18,12 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
   const blocks = ref<Block[]>([])
   const activeBlockId = ref<string | null>(null)
   const focusBus = useBlockFocus()
-  let db: any = null
-
   const initEditor = async () => {
-    db = await getDB()
     await loadBlocks()
   }
 
   const loadBlocks = async () => {
-    if (!db) return
+    const db = await getDB()
 
     const query = db.blocks.find({
       selector: {
@@ -40,7 +37,7 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
   }
 
   const createBlock = async (type: BlockType = 'text', afterId?: string, metadata?: BlockMetadata): Promise<Block> => {
-    if (!db) throw new Error('Database not initialized')
+    const db = await getDB()
 
     const newOrder = afterId
       ? (blocks.value.find(b => b.id === afterId)?.order || 0) + 1
@@ -74,7 +71,7 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
   }
 
   const updateBlock = async (block: Block) => {
-    if (!db) return
+    const db = await getDB()
 
     await db.blocks.upsert({
       ...block,
@@ -88,7 +85,7 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
   }
 
   const deleteBlock = async (blockId: string) => {
-    if (!db) return
+    const db = await getDB()
 
     const oldIndex = blocks.value.findIndex(b => b.id === blockId)
     if (oldIndex === -1) return
@@ -154,7 +151,7 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
   }
 
   const duplicateBlock = async (blockId: string) => {
-    if (!db) return
+    const db = await getDB()
     const source = blocks.value.find(b => b.id === blockId)
     if (!source) return
 

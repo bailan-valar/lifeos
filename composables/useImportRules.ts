@@ -1,6 +1,13 @@
 import type { ImportRule, ImportRuleFormData, CsvParsedRow } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
+export interface ApplyRulesResult {
+  rule: ImportRule
+  matchedField: 'counterparty' | 'paymentMethod'
+}
+
+let _store: ImportRulesStore | null = null
+
 interface ImportRulesStore {
   rules: Ref<ImportRule[]>
   loading: Ref<boolean>
@@ -9,10 +16,8 @@ interface ImportRulesStore {
   createImportRule: (data: ImportRuleFormData) => Promise<ImportRule>
   updateImportRule: (id: string, data: Partial<ImportRuleFormData>) => Promise<void>
   deleteImportRule: (id: string) => Promise<void>
-  applyRules: (row: CsvParsedRow, source: 'alipay' | 'wechat') => ImportRule | null
+  applyRules: (row: CsvParsedRow, source: 'alipay' | 'wechat') => ApplyRulesResult | null
 }
-
-let store: ImportRulesStore | null = null
 
 function createStore(): ImportRulesStore {
   const rules = ref<ImportRule[]>([])
@@ -33,6 +38,11 @@ function createStore(): ImportRulesStore {
         if (!raw.accountId && (raw.fromAccountId || raw.toAccountId)) {
           raw.accountId = raw.toAccountId || raw.fromAccountId || ''
         }
+        // 迁移旧数据:myAccountId → accountId
+        if (!raw.accountId && raw.myAccountId) {
+          raw.accountId = raw.myAccountId
+        }
+        delete raw.myAccountId
         return raw
       })
     } catch (e) {
@@ -53,7 +63,6 @@ function createStore(): ImportRulesStore {
       pattern: data.pattern,
       categoryId: data.categoryId,
       accountId: data.accountId,
-      myAccountId: data.myAccountId,
       billType: data.billType,
       priority: data.priority,
       enabled: data.enabled,
@@ -72,9 +81,9 @@ function createStore(): ImportRulesStore {
     const doc = await db.importRules.findOne(id).exec()
     if (!doc) return
     const patch: Partial<ImportRule> = { ...data, updatedAt: now() }
-    // 显式处理 myAccountId:空字符串视为删除该字段
-    if (data.myAccountId === '') {
-      patch.myAccountId = undefined
+    // 清理旧字段
+    if ('myAccountId' in patch) {
+      delete (patch as any).myAccountId
     }
     await doc.patch(patch)
     const idx = rules.value.findIndex(r => r.id === id)
@@ -92,8 +101,7 @@ function createStore(): ImportRulesStore {
     rules.value = rules.value.filter(r => r.id !== id)
   }
 
-  function matchOne(rule: ImportRule, row: CsvParsedRow): boolean {
-    const target = row.counterparty || ''
+  function matchOne(rule: ImportRule, target: string): boolean {
     if (!target) return false
     switch (rule.matchMode) {
       case 'exact':
@@ -112,12 +120,18 @@ function createStore(): ImportRulesStore {
   }
 
   /**
-   * 对单行 CSV 应用规则集,返回首个命中的规则(按 priority desc)。
+   * 对单行 CSV 应用规则集,返回首个命中的规则及匹配字段(按 priority desc)。
+   * 优先匹配 counterparty,再匹配 paymentMethod。
    */
-  function applyRules(row: CsvParsedRow, source: 'alipay' | 'wechat'): ImportRule | null {
+  function applyRules(row: CsvParsedRow, source: 'alipay' | 'wechat'): ApplyRulesResult | null {
     const candidates = rules.value.filter(r => r.enabled && (r.source === 'all' || r.source === source))
     for (const rule of candidates) {
-      if (matchOne(rule, row)) return rule
+      if (matchOne(rule, row.counterparty || '')) {
+        return { rule, matchedField: 'counterparty' }
+      }
+      if (matchOne(rule, row.paymentMethod || '')) {
+        return { rule, matchedField: 'paymentMethod' }
+      }
     }
     return null
   }
@@ -135,8 +149,8 @@ function createStore(): ImportRulesStore {
 }
 
 export function useImportRules(): ImportRulesStore {
-  if (!store) {
-    store = createStore()
+  if (!_store) {
+    _store = createStore()
   }
-  return store
+  return _store
 }

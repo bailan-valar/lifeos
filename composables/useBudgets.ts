@@ -15,8 +15,6 @@ interface BudgetsStore {
   getCategoryBudgetEntries: (categoryId: string, noteId?: string) => BudgetEntry[]
 }
 
-let store: BudgetsStore | null = null
-
 function createStore(): BudgetsStore {
   const budgets = ref<BudgetEntry[]>([])
   const loading = ref(false)
@@ -204,8 +202,5 @@ function createStore(): BudgetsStore {
 }
 
 export function useBudgets(): BudgetsStore {
-  if (!store) {
-    store = createStore()
-  }
-  return store
+  return createStore()
 }

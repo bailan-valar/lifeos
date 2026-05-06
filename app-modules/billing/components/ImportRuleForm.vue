@@ -85,20 +85,7 @@
         clearable
         @create="emit('create-account', $event)"
       />
-      <div class="form-hint">导入时将该交易对方视为此账户，自动推导出入账方向</div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">我的账户</label>
-      <AccountPicker
-        :model-value="form.myAccountId || ''"
-        :accounts="accounts"
-        placeholder="不设置"
-        clearable
-        @update:model-value="emit('update:modelValue', { ...props.modelValue, myAccountId: $event || undefined })"
-        @create="emit('create-account', $event)"
-      />
-      <div class="form-hint">导入时将该收/付款方式视为此账户</div>
+      <div class="form-hint">命中规则后，将该交易对应为此账户，自动推导出入账方向</div>
     </div>
 
     <div class="form-row">
