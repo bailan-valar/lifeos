@@ -191,6 +191,9 @@ function categoryName(id: string): string {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .list-header {
   display: flex;
@@ -249,6 +252,9 @@ function categoryName(id: string): string {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .rule-item {
   display: flex;

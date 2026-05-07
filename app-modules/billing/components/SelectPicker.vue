@@ -84,11 +84,37 @@ function toggleOpen() {
 function updatePanelPosition() {
   if (!triggerRef.value) return
   const rect = triggerRef.value.getBoundingClientRect()
+  const MARGIN = 4
+  const MIN_HEIGHT = 120
+  const PANEL_MAX_HEIGHT = 320
+
+  const spaceBelow = window.innerHeight - rect.bottom - MARGIN
+  const spaceAbove = rect.top - MARGIN
+
+  const placeAbove = spaceBelow < MIN_HEIGHT && spaceAbove > spaceBelow
+
+  let top: number
+  let maxHeight: number
+
+  if (placeAbove) {
+    maxHeight = Math.min(PANEL_MAX_HEIGHT, spaceAbove)
+    top = rect.top - maxHeight - MARGIN
+  } else {
+    maxHeight = Math.min(PANEL_MAX_HEIGHT, spaceBelow)
+    top = rect.bottom + MARGIN
+  }
+
+  if (top < MARGIN) top = MARGIN
+  if (top + maxHeight > window.innerHeight - MARGIN) {
+    maxHeight = window.innerHeight - top - MARGIN
+  }
+
   panelStyle.value = {
     position: 'fixed',
-    top: `${rect.bottom + 4}px`,
+    top: `${top}px`,
     left: `${rect.left}px`,
     width: `${rect.width}px`,
+    maxHeight: `${maxHeight}px`,
     zIndex: String(getNextZIndex())
   }
 }

@@ -12,18 +12,88 @@
           size="16"
         />
       </button>
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        type="button"
-        class="sidebar-btn"
-        :class="{ active: activeTab === tab.id }"
-        :title="sidebarCollapsed ? tab.name : ''"
-        @click="activeTab = tab.id"
-      >
-        <Icon :name="tab.icon" size="18" />
-        <span class="sidebar-btn-text">{{ tab.name }}</span>
-      </button>
+      <template v-for="tab in tabs" :key="tab.id">
+        <template v-if="tab.id === 'accounts'">
+          <button
+            type="button"
+            class="sidebar-btn"
+            :class="{ active: activeTab === 'accounts' }"
+            :title="sidebarCollapsed ? tab.name : ''"
+            @click="onAccountsTabClick"
+          >
+            <Icon :name="tab.icon" size="18" />
+            <span class="sidebar-btn-text">{{ tab.name }}</span>
+            <Icon
+              v-if="!sidebarCollapsed"
+              name="solar:alt-arrow-down-linear"
+              size="14"
+              class="submenu-chevron"
+              :class="{ expanded: accountsMenuExpanded }"
+            />
+          </button>
+          <div
+            v-if="!sidebarCollapsed && accountsMenuExpanded"
+            class="sidebar-submenu"
+          >
+            <button
+              v-for="sub in accountSubTabs"
+              :key="sub.type"
+              type="button"
+              class="sidebar-submenu-btn"
+              :class="{ active: activeTab === 'accounts' && activeAccountSubTab === sub.type }"
+              @click="activeTab = 'accounts'; activeAccountSubTab = sub.type"
+            >
+              {{ sub.label }}
+            </button>
+          </div>
+        </template>
+        <template v-else-if="tab.id === 'categories'">
+          <button
+            type="button"
+            class="sidebar-btn"
+            :class="{ active: activeTab === 'categories' }"
+            :title="sidebarCollapsed ? tab.name : ''"
+            @click="onCategoriesTabClick"
+          >
+            <Icon :name="tab.icon" size="18" />
+            <span class="sidebar-btn-text">{{ tab.name }}</span>
+            <Icon
+              v-if="!sidebarCollapsed"
+              name="solar:alt-arrow-down-linear"
+              size="14"
+              class="submenu-chevron"
+              :class="{ expanded: categoryMenuExpanded }"
+            />
+          </button>
+          <div
+            v-if="!sidebarCollapsed && categoryMenuExpanded"
+            class="sidebar-submenu"
+          >
+            <button
+              v-for="sub in categorySubTabs"
+              :key="sub.type"
+              type="button"
+              class="sidebar-submenu-btn"
+              :class="{ active: activeTab === 'categories' && activeCategorySubTab === sub.type }"
+              @click="activeTab = 'categories'; activeCategorySubTab = sub.type"
+            >
+              <span class="sub-dot" :class="sub.type" />
+              {{ sub.label }}
+            </button>
+          </div>
+        </template>
+        <button
+          v-else
+          type="button"
+          class="sidebar-btn"
+          :class="{ active: activeTab === tab.id }"
+          :title="sidebarCollapsed ? tab.name : ''"
+          @click="activeTab = tab.id"
+        >
+          <Icon :name="tab.icon" size="18" />
+          <span class="sidebar-btn-text">{{ tab.name }}</span>
+        </button>
+      </template>
     </div>
 
     <div class="content">
@@ -151,23 +221,25 @@
 
     <div v-if="activeTab === 'accounts'" class="tab-panel">
       <div class="panel-header">
-        <h4>账户管理</h4>
-        <button type="button" class="add-btn" @click="openAccountDialog()">
+        <h4>{{ accountSubTabTitle }}</h4>
+        <button type="button" class="add-btn" @click="openAccountDialog(undefined, activeAccountSubTab)">
           <Icon name="solar:add-circle-linear" size="18" />
           添加账户
         </button>
       </div>
-      <AccountList
-        :accounts="accounts"
-        @edit="openAccountDialog"
-        @delete="handleDeleteAccount"
-        @view-statements="openStatementList"
-      />
+      <div class="list-container">
+        <AccountList
+          :accounts="filteredAccounts"
+          @edit="openAccountDialog"
+          @delete="handleDeleteAccount"
+          @view-statements="openStatementList"
+        />
+      </div>
     </div>
 
     <div v-if="activeTab === 'categories'" class="tab-panel">
       <div class="panel-header">
-        <h4>分类管理</h4>
+        <h4>{{ categorySubTabTitle }}</h4>
         <div class="header-actions">
           <button type="button" class="add-btn secondary" @click="handleExportCategories">
             <Icon name="solar:download-linear" size="18" />
@@ -181,33 +253,35 @@
             <Icon name="solar:cloud-download-linear" size="18" />
             分类初始化
           </button>
-          <button type="button" class="add-btn" @click="openCategoryDialog()">
+          <button type="button" class="add-btn" @click="openCategoryDialog(undefined, activeCategorySubTab === 'all' ? undefined : activeCategorySubTab)">
             <Icon name="solar:add-circle-linear" size="18" />
             添加分类
           </button>
         </div>
       </div>
-      <div class="category-section">
-        <div class="category-subtitle">收入分类</div>
-        <CategoryTree
-          :nodes="incomeTree"
-          @edit="openCategoryDialog"
-          @delete="handleDeleteCategory"
-          @add-child="openAddChildCategoryDialog"
-          @view-detail="navigateToCategoryDetail"
-          @contextmenu="openCategoryContextMenu"
-        />
-      </div>
-      <div class="category-section">
-        <div class="category-subtitle">支出分类</div>
-        <CategoryTree
-          :nodes="expenseTree"
-          @edit="openCategoryDialog"
-          @delete="handleDeleteCategory"
-          @add-child="openAddChildCategoryDialog"
-          @view-detail="navigateToCategoryDetail"
-          @contextmenu="openCategoryContextMenu"
-        />
+      <div class="category-list-container">
+        <div v-if="activeCategorySubTab === 'all' || activeCategorySubTab === 'income'" class="category-section">
+          <div class="category-subtitle">收入分类</div>
+          <CategoryTree
+            :nodes="incomeTree"
+            @edit="openCategoryDialog"
+            @delete="handleDeleteCategory"
+            @add-child="openAddChildCategoryDialog"
+            @view-detail="navigateToCategoryDetail"
+            @contextmenu="openCategoryContextMenu"
+          />
+        </div>
+        <div v-if="activeCategorySubTab === 'all' || activeCategorySubTab === 'expense'" class="category-section">
+          <div class="category-subtitle">支出分类</div>
+          <CategoryTree
+            :nodes="expenseTree"
+            @edit="openCategoryDialog"
+            @delete="handleDeleteCategory"
+            @add-child="openAddChildCategoryDialog"
+            @view-detail="navigateToCategoryDetail"
+            @contextmenu="openCategoryContextMenu"
+          />
+        </div>
       </div>
     </div>
 
@@ -494,6 +568,58 @@ const tabs = [
   { id: 'rules', name: '规则', icon: 'solar:filter-linear' }
 ]
 
+const accountSubTabs = [
+  { type: 'personal' as AccountType, label: '个人账户' },
+  { type: 'contact' as AccountType, label: '人员/组织' },
+  { type: 'merchant' as AccountType, label: '商户' }
+]
+const activeAccountSubTab = ref<AccountType>('personal')
+const accountsMenuExpanded = ref(true)
+const accountSubTabTitle = computed(() => {
+  const map: Record<string, string> = {
+    personal: '个人账户',
+    contact: '人员/组织',
+    merchant: '商户'
+  }
+  return map[activeAccountSubTab.value] || '账户管理'
+})
+const filteredAccounts = computed(() => {
+  return accounts.value.filter(a => a.type === activeAccountSubTab.value)
+})
+
+function onAccountsTabClick() {
+  if (activeTab.value === 'accounts') {
+    accountsMenuExpanded.value = !accountsMenuExpanded.value
+  } else {
+    activeTab.value = 'accounts'
+    accountsMenuExpanded.value = true
+  }
+}
+
+const categorySubTabs = [
+  { type: 'income' as CategoryType, label: '收入' },
+  { type: 'expense' as CategoryType, label: '支出' }
+]
+const activeCategorySubTab = ref<CategoryType | 'all'>('all')
+const categoryMenuExpanded = ref(true)
+const categorySubTabTitle = computed(() => {
+  const map: Record<string, string> = {
+    all: '分类管理',
+    income: '收入分类',
+    expense: '支出分类'
+  }
+  return map[activeCategorySubTab.value] || '分类管理'
+})
+
+function onCategoriesTabClick() {
+  if (activeTab.value === 'categories') {
+    categoryMenuExpanded.value = !categoryMenuExpanded.value
+  } else {
+    activeTab.value = 'categories'
+    categoryMenuExpanded.value = true
+  }
+}
+
 /* ---------- 各弹框显隐与编辑状态 ---------- */
 const billDialogVisible = ref(false)
 const accountDialogVisible = ref(false)
@@ -621,14 +747,17 @@ function openBillDialog(bill?: Bill) {
   billDialogVisible.value = true
 }
 
-function openAccountDialog(account?: Account) {
+function openAccountDialog(account?: Account, defaultType?: AccountType) {
   editingAccount.value = account || null
+  if (!account && defaultType) {
+    accountFormDefaults.value = { defaultType }
+  }
   accountDialogVisible.value = true
 }
 
-function openCategoryDialog(category?: BillCategory) {
+function openCategoryDialog(category?: BillCategory, defaultType?: CategoryType) {
   editingCategory.value = category || null
-  categoryFormDefaults.value = null
+  categoryFormDefaults.value = defaultType ? { type: defaultType } : null
   categoryDialogVisible.value = true
 }
 
@@ -1320,6 +1449,59 @@ onBeforeUnmount(() => {
 .sidebar.collapsed .sidebar-btn-text {
   display: none;
 }
+.submenu-chevron {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+  color: rgba(60, 60, 67, 0.4);
+}
+.submenu-chevron.expanded {
+  transform: rotate(180deg);
+}
+.sidebar-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 8px;
+  margin-left: 8px;
+  border-left: 1.5px solid rgba(60, 60, 67, 0.08);
+}
+.sidebar-submenu-btn {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.6);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  white-space: nowrap;
+}
+.sidebar-submenu-btn:hover {
+  background: rgba(60, 60, 67, 0.06);
+  color: rgba(60, 60, 67, 0.92);
+}
+.sidebar-submenu-btn.active {
+  background: white;
+  color: rgba(0, 0, 0, 0.92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.sub-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.sub-dot.income {
+  background: rgb(52, 199, 89);
+}
+.sub-dot.expense {
+  background: rgb(255, 59, 48);
+}
 .content {
   flex: 1;
   display: flex;
@@ -1481,6 +1663,14 @@ onBeforeUnmount(() => {
   background: white;
   color: rgba(0, 0, 0, 0.92);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.category-list-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .category-section {
   display: flex;

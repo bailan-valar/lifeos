@@ -13,7 +13,7 @@
           </div>
         </header>
         <div class="app-content">
-          <NuxtPage :key="workspaceStore.currentId || 'no-workspace'" />
+          <NuxtPage :keepalive="{ max: 10 }" :page-key="pageKey" />
         </div>
       </div>
 
@@ -36,6 +36,7 @@ import ClassManager from '~/components/class/ClassManager.vue'
 import WorkspaceSwitcher from '~/components/workspace/WorkspaceSwitcher.vue'
 import WorkspaceOnboarding from '~/components/workspace/WorkspaceOnboarding.vue'
 import { useWorkspaceStore } from '~/stores/workspace'
+import type { RouteLocationNormalized } from 'vue-router'
 
 const route = useRoute()
 const classManagerVisible = ref(false)
@@ -62,6 +63,12 @@ function onClassCreated(classId: string) {
 }
 
 const workspaceStore = useWorkspaceStore()
+const { currentLevel } = useRouteCache()
+
+const pageKey = (route: RouteLocationNormalized) => {
+  const level = currentLevel.value || 1
+  return `${workspaceStore.currentId || 'no-workspace'}::${route.path}@L${level}`
+}
 
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {

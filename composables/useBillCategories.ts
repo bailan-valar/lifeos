@@ -19,6 +19,18 @@ export interface SyncDefaultCategoriesResult {
   skipped: number
 }
 
+const INVALID_ICON_MAP: Record<string, string> = {
+  'solar:apple-linear': 'solar:plate-linear',
+  'solar:glass-water-linear': 'solar:cup-linear',
+  'solar:taxi-linear': 'solar:traffic-linear',
+  'solar:airplane-linear': 'solar:rocket-linear',
+  'solar:hammer-linear': 'solar:settings-linear',
+  'solar:money-linear': 'solar:money-bag-linear',
+  'solar:flower-linear': 'solar:leaf-linear',
+  'solar:wrench-linear': 'solar:settings-minimalistic-linear',
+  'solar:receipt-linear': 'solar:bill-linear',
+}
+
 function createStore() {
   const categories = ref<BillCategory[]>([])
   const loading = ref(false)
@@ -32,7 +44,20 @@ function createStore() {
       const result = await db.billCategories.find({
         sort: [{ order: 'asc' }]
       }).exec()
-      categories.value = result.map((doc: any) => doc.toJSON())
+      const list = result.map((doc: any) => doc.toJSON()) as BillCategory[]
+      const needsFix = list.filter(c => c.icon && INVALID_ICON_MAP[c.icon])
+      if (needsFix.length > 0) {
+        for (const c of needsFix) {
+          c.icon = INVALID_ICON_MAP[c.icon]
+          try {
+            const doc = await db.billCategories.findOne(c.id).exec()
+            if (doc) await doc.patch({ icon: c.icon, updatedAt: now() })
+          } catch (e) {
+            console.warn('Failed to fix invalid category icon:', c.id, e)
+          }
+        }
+      }
+      categories.value = list
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       console.error('Failed to load bill categories:', e)

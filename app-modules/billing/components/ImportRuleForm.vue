@@ -58,7 +58,7 @@
     </div>
     <div class="form-hint" style="margin-top:-12px">不指定账单类型则按金额方向与账户类型自动推断</div>
 
-    <div v-if="form.matchField !== 'description'" class="form-group">
+    <div class="form-group">
       <label class="form-label">匹配账户</label>
       <AccountPicker
         v-model="form.accountId"
@@ -140,11 +140,7 @@ const form = computed({
   set: (v) => emit('update:modelValue', v)
 })
 
-watch(() => form.value.matchField, (field) => {
-  if (field === 'description' && form.value.accountId) {
-    emit('update:modelValue', { ...props.modelValue, accountId: '' })
-  }
-})
+
 
 const patternPlaceholder = computed(() => {
   const field = form.value.matchField ?? 'account'

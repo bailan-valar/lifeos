@@ -202,10 +202,18 @@ const { confirm } = useConfirm()
 const filter = ref<'all' | 'unmatched' | 'matched' | 'duplicate'>('all')
 const filterOptions = [
   { value: 'all' as const, label: '全部' },
-  { value: 'unmatched' as const, label: '未匹配' },
-  { value: 'matched' as const, label: '已匹配' },
+  { value: 'unmatched' as const, label: '未完善' },
+  { value: 'matched' as const, label: '已完善' },
   { value: 'duplicate' as const, label: '重复' }
 ]
+
+function isIncomplete(row: ImportRecordItem): boolean {
+  if ((row.type === 'income' || row.type === 'expense') && !row.categoryId) return true
+  if (row.type === 'expense' && !row.fromAccountId) return true
+  if (row.type === 'income' && !row.toAccountId) return true
+  if ((row.type === 'transfer' || row.type === 'debt') && (!row.fromAccountId || !row.toAccountId)) return true
+  return false
+}
 
 const isPending = computed(() => props.record.status === 'pending')
 
@@ -232,17 +240,17 @@ function scheduleSave() {
 
 const counts = computed(() => ({
   all: localItems.value.length,
-  unmatched: localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.paymentMethodRuleId && !i.descriptionRuleId && !i.matchedAccountId && !i.myAccountId && !i.duplicate).length,
-  matched: localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.paymentMethodRuleId || i.descriptionRuleId || i.matchedAccountId || i.myAccountId) && !i.duplicate).length,
+  unmatched: localItems.value.filter(i => !i.skipped && !i.duplicate && isIncomplete(i)).length,
+  matched: localItems.value.filter(i => !i.skipped && !i.duplicate && !isIncomplete(i)).length,
   duplicate: localItems.value.filter(i => i.duplicate).length
 }))
 
 const filteredItems = computed(() => {
   switch (filter.value) {
     case 'unmatched':
-      return localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.paymentMethodRuleId && !i.descriptionRuleId && !i.matchedAccountId && !i.myAccountId && !i.duplicate)
+      return localItems.value.filter(i => !i.skipped && !i.duplicate && isIncomplete(i))
     case 'matched':
-      return localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.paymentMethodRuleId || i.descriptionRuleId || i.matchedAccountId || i.myAccountId) && !i.duplicate)
+      return localItems.value.filter(i => !i.skipped && !i.duplicate && !isIncomplete(i))
     case 'duplicate':
       return localItems.value.filter(i => i.duplicate)
     default:

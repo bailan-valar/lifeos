@@ -14,6 +14,7 @@
         class="module-item"
         :class="{ active: isActive(mod.path) }"
         :title="mod.label"
+        @click.prevent="menuNavigate(mod.path)"
       >
         <Icon :name="mod.icon" class="module-icon" />
         <span class="module-label">{{ mod.label }}</span>
@@ -35,6 +36,7 @@
 
 <script setup lang="ts">
 const route = useRoute()
+const { menuNavigate } = useRouteCache()
 const emit = defineEmits<{
   (e: 'openSettings'): void
 }>()

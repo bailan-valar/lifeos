@@ -35,10 +35,6 @@ const { toasts, dismiss } = useToast()
   pointer-events: none;
 }
 
-.toast-container.has-toasts {
-  pointer-events: auto;
-}
-
 .toast-list {
   display: flex;
   flex-direction: column;
