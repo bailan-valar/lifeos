@@ -19,7 +19,6 @@
         v-if="activeView === 'content'"
         :note-id="noteId"
         @title-update="onTitleUpdate"
-        @open-class-manager="onOpenClassManager"
       />
 
       <TodoView
@@ -53,7 +52,6 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'title-update', noteId: string, title: string): void
-  (e: 'open-class-manager'): void
 }>()
 
 const views = [
@@ -68,10 +66,6 @@ const billingData = ref<unknown>(null)
 
 const onTitleUpdate = (noteId: string, title: string) => {
   emit('title-update', noteId, title)
-}
-
-const onOpenClassManager = () => {
-  emit('open-class-manager')
 }
 
 const loadModuleData = async (moduleId: 'todo' | 'billing') => {

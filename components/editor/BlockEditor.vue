@@ -2,6 +2,7 @@
   <div class="block-editor">
     <div class="editor-title-bar">
       <input
+        ref="titleInputRef"
         v-model="titleDraft"
         class="note-title-input"
         type="text"
@@ -142,7 +143,6 @@
       v-model:visible="drawerVisible"
       :note-id="props.noteId"
       user-id="default-user"
-      @open-class-manager="$emit('open-class-manager')"
     />
   </div>
 </template>
@@ -154,8 +154,9 @@ import SlashMenu, { type SlashMenuItem } from './SlashMenu.vue'
 import ClassDrawer from '~/components/class/ClassDrawer.vue'
 import { useBlockEditor } from '~/composables/useBlockEditor'
 import { useSlashCommand } from '~/composables/useSlashCommand'
+import { useBlockFocus } from '~/composables/useBlockFocus'
 import { getDB, now } from '~/services/db'
-import { getClassForNote } from '~/composables/useNoteClasses'
+import { useNoteClasses } from '~/composables/useNoteClasses'
 
 interface Props {
   noteId: string
@@ -163,7 +164,6 @@ interface Props {
 
 interface Emits {
   (e: 'title-update', noteId: string, title: string): void
-  (e: 'open-class-manager'): void
 }
 
 const props = defineProps<Props>()
@@ -186,13 +186,24 @@ const {
 } = useBlockEditor(noteIdRef)
 
 const slash = useSlashCommand()
+const focusBus = useBlockFocus()
 
 const activeBlockType = ref<BlockType>('text')
 const titleDraft = ref('')
 const titleDraftNoteId = ref('')
 const drawerVisible = ref(false)
-const noteClassBadge = ref<{ name: string; icon: string; color: string } | null>(null)
+const titleInputRef = ref<HTMLInputElement | null>(null)
 let titleSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+const { noteBindings, classes, loadBindings } = useNoteClasses()
+
+const noteClassBadge = computed(() => {
+  const binding = noteBindings.value.find(b => b.noteId === props.noteId)
+  if (!binding) return null
+  const cls = classes.value.find(c => c.id === binding.classId)
+  if (!cls) return null
+  return { name: cls.name, icon: cls.icon, color: cls.color }
+})
 
 const loadNoteTitle = async () => {
   const db = await getDB()
@@ -200,19 +211,6 @@ const loadNoteTitle = async () => {
   const doc = await db.notes.findOne(targetId).exec()
   titleDraft.value = doc?.title || ''
   titleDraftNoteId.value = targetId
-}
-
-const loadNoteClassBadge = async () => {
-  const data = await getClassForNote(props.noteId)
-  if (data) {
-    noteClassBadge.value = {
-      name: data.class.name,
-      icon: data.class.icon,
-      color: data.class.color
-    }
-  } else {
-    noteClassBadge.value = null
-  }
 }
 
 const flushTitleSave = async () => {
@@ -241,7 +239,9 @@ const scheduleTitleSave = () => {
 const onTitleEnter = async () => {
   await flushTitleSave()
   if (blocks.value.length > 0) {
-    activeBlockId.value = blocks.value[0].id
+    const targetId = blocks.value[0].id
+    activeBlockId.value = targetId
+    focusBus.focusEnd(targetId)
   } else {
     await createBlock('text')
   }
@@ -250,7 +250,11 @@ const onTitleEnter = async () => {
 onMounted(async () => {
   await initEditor()
   await loadNoteTitle()
-  await loadNoteClassBadge()
+  await loadBindings()
+  nextTick(() => {
+    titleInputRef.value?.focus()
+    titleInputRef.value?.select()
+  })
 })
 
 watch(() => props.noteId, async (newNoteId, oldNoteId) => {
@@ -258,7 +262,10 @@ watch(() => props.noteId, async (newNoteId, oldNoteId) => {
     await flushTitleSave()
     await initEditor()
     await loadNoteTitle()
-    await loadNoteClassBadge()
+    nextTick(() => {
+      titleInputRef.value?.focus()
+      titleInputRef.value?.select()
+    })
   }
 })
 

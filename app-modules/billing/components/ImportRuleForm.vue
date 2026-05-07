@@ -1,39 +1,29 @@
 <template>
   <div class="form-body">
-    <div class="form-group">
-      <label class="form-label">规则名称</label>
-      <input v-model="form.name" class="form-input" type="text" placeholder="例如:星巴克 → 餐饮" />
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">来源</label>
-      <div class="type-selector">
-        <button
-          v-for="s in sourceOptions"
-          :key="s.value"
-          type="button"
-          class="type-btn"
-          :class="{ active: form.source === s.value }"
-          @click="form.source = s.value"
-        >
-          {{ s.label }}
-        </button>
+    <div class="form-row triple-row">
+      <div class="form-group">
+        <label class="form-label">来源</label>
+        <SelectPicker
+          v-model="form.source"
+          :options="sourceOptions.map(s => ({ value: s.value, label: s.label }))"
+          placeholder="请选择来源"
+        />
       </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">匹配方式</label>
-      <div class="type-selector">
-        <button
-          v-for="m in matchModeOptions"
-          :key="m.value"
-          type="button"
-          class="type-btn"
-          :class="{ active: form.matchMode === m.value }"
-          @click="form.matchMode = m.value"
-        >
-          {{ m.label }}
-        </button>
+      <div class="form-group">
+        <label class="form-label">匹配字段</label>
+        <SelectPicker
+          v-model="form.matchField"
+          :options="matchFieldOptions.map(f => ({ value: f.value, label: f.label }))"
+          placeholder="请选择匹配字段"
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label">匹配方式</label>
+        <SelectPicker
+          v-model="form.matchMode"
+          :options="matchModeOptions.map(m => ({ value: m.value, label: m.label }))"
+          placeholder="请选择匹配方式"
+        />
       </div>
     </div>
 
@@ -47,43 +37,34 @@
       />
     </div>
 
-    <div class="form-group">
-      <label class="form-label">分类</label>
-      <CategoryPicker
-        v-model="form.categoryId"
-        :categories="categories"
-        placeholder="不设置"
-        clearable
-        @create="emit('create-category', $event)"
-        @open-form="emit('open-category-form', $event)"
-      />
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">账单类型</label>
-      <div class="type-selector type-selector-wrap">
-        <button
-          v-for="t in billTypeOptions"
-          :key="t.value ?? 'auto'"
-          type="button"
-          class="type-btn"
-          :class="{ active: (form.billType ?? null) === t.value }"
-          @click="setBillType(t.value)"
-        >
-          {{ t.label }}
-        </button>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">账单类型</label>
+        <BillTypePicker
+          v-model="form.billType"
+          placeholder="不指定"
+          clearable
+        />
       </div>
-      <div class="form-hint">不指定则按金额方向与账户类型自动推断</div>
+      <div class="form-group">
+        <label class="form-label">分类</label>
+        <CategoryPicker
+          v-model="form.categoryId"
+          :categories="categories"
+          placeholder="不设置"
+          clearable
+        />
+      </div>
     </div>
+    <div class="form-hint" style="margin-top:-12px">不指定账单类型则按金额方向与账户类型自动推断</div>
 
-    <div class="form-group">
+    <div v-if="form.matchField !== 'description'" class="form-group">
       <label class="form-label">匹配账户</label>
       <AccountPicker
         v-model="form.accountId"
         :accounts="accounts"
         placeholder="不设置"
         clearable
-        @create="emit('create-account', $event)"
       />
       <div class="form-hint">命中规则后，将该交易对应为此账户，自动推导出入账方向</div>
     </div>
@@ -113,15 +94,15 @@
 import type {
   ImportRuleFormData,
   ImportRuleMatchMode,
+  ImportRuleMatchField,
   ImportSource,
   Account,
-  BillCategory,
-  BillType,
-  CategoryType,
-  AccountCreatePayload
+  BillCategory
 } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
+import BillTypePicker from './BillTypePicker.vue'
+import SelectPicker from './SelectPicker.vue'
 
 type SourceValue = ImportSource | 'all'
 
@@ -133,9 +114,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: ImportRuleFormData): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', payload: AccountCreatePayload): void
 }>()
 
 const sourceOptions: { value: SourceValue; label: string }[] = [
@@ -144,18 +122,17 @@ const sourceOptions: { value: SourceValue; label: string }[] = [
   { value: 'wechat', label: '微信' }
 ]
 
+type MatchFieldValue = ImportRuleMatchField
+
+const matchFieldOptions: { value: MatchFieldValue; label: string }[] = [
+  { value: 'account', label: '账户' },
+  { value: 'description', label: '商品说明' }
+]
+
 const matchModeOptions: { value: ImportRuleMatchMode; label: string }[] = [
   { value: 'exact', label: '精确' },
   { value: 'fuzzy', label: '模糊' },
   { value: 'regex', label: '正则' }
-]
-
-const billTypeOptions: { value: BillType | null; label: string }[] = [
-  { value: null, label: '不指定' },
-  { value: 'income', label: '收入' },
-  { value: 'expense', label: '支出' },
-  { value: 'transfer', label: '转账' },
-  { value: 'debt', label: '借贷' }
 ]
 
 const form = computed({
@@ -163,19 +140,22 @@ const form = computed({
   set: (v) => emit('update:modelValue', v)
 })
 
-function setBillType(value: BillType | null) {
-  emit('update:modelValue', { ...props.modelValue, billType: value ?? undefined })
-}
-
+watch(() => form.value.matchField, (field) => {
+  if (field === 'description' && form.value.accountId) {
+    emit('update:modelValue', { ...props.modelValue, accountId: '' })
+  }
+})
 
 const patternPlaceholder = computed(() => {
+  const field = form.value.matchField ?? 'account'
+  const fieldHint = field === 'description' ? '商品说明' : '对方名或付款方式'
   switch (form.value.matchMode) {
     case 'exact':
-      return '完整对方名,如:星巴克咖啡(国贸店)'
+      return `完整${fieldHint},如:${field === 'description' ? '美式咖啡' : '星巴克咖啡(国贸店)'}`
     case 'fuzzy':
-      return '包含关键字,如:星巴克'
+      return `包含关键字,如:${field === 'description' ? '咖啡' : '星巴克'}`
     case 'regex':
-      return '^星巴克.*$'
+      return `^${field === 'description' ? '咖啡' : '星巴克'}.*$`
     default:
       return ''
   }
@@ -198,8 +178,7 @@ const patternPlaceholder = computed(() => {
   font-weight: 500;
   color: rgba(0, 0, 0, 0.92);
 }
-.form-input,
-.form-select {
+.form-input {
   padding: 10px 12px;
   border: 0.5px solid rgba(60, 60, 67, 0.2);
   border-radius: 8px;
@@ -208,32 +187,8 @@ const patternPlaceholder = computed(() => {
   color: rgba(0, 0, 0, 0.92);
   outline: none;
 }
-.form-input:focus,
-.form-select:focus {
+.form-input:focus {
   border-color: rgb(0, 122, 255);
-}
-.type-selector {
-  display: flex;
-  gap: 8px;
-}
-.type-selector-wrap {
-  flex-wrap: wrap;
-}
-.type-btn {
-  flex: 1;
-  padding: 10px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.type-btn.active {
-  border-color: rgb(0, 122, 255);
-  background: rgba(0, 122, 255, 0.08);
-  color: rgb(0, 122, 255);
-  font-weight: 600;
 }
 .form-hint {
   font-size: 12px;
@@ -244,6 +199,9 @@ const patternPlaceholder = computed(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+.form-row.triple-row {
+  grid-template-columns: 1fr 1fr 1fr;
 }
 .enabled-toggle {
   display: flex;

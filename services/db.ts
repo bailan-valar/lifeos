@@ -4,6 +4,14 @@ import { dbPrefix, getActiveId } from '~/services/workspaces'
 
 PouchDB.plugin(PouchDBFind)
 
+// Silence PouchDB's deprecated db.type() warning used internally by pouchdb-find
+const origType = (PouchDB.prototype as any).type
+if (origType) {
+  (PouchDB.prototype as any).type = function () {
+    return (this as any)._adapter || (this as any).adapter
+  }
+}
+
 type AnyDoc = Record<string, any> & { id: string }
 type Selector = Record<string, any>
 type SortSpec = Array<Record<string, 'asc' | 'desc'>>
@@ -46,7 +54,7 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
     ['isSynced']
   ],
   statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status'], ['isSynced']],
-  importRules: [['source'], ['matchMode'], ['priority'], ['enabled'], ['accountId'], ['isSynced']],
+  importRules: [['source'], ['matchField'], ['matchMode'], ['priority'], ['enabled'], ['accountId'], ['isSynced']],
   importRecords: [['noteId'], ['createdAt'], ['source'], ['status'], ['noteId', 'createdAt'], ['isSynced']]
 }
 
@@ -148,7 +156,6 @@ function nonEmptySelector(selector: Selector): Selector {
 function createCollection(name: string, prefix: string, instances: Map<string, PouchDB.Database>): Collection {
   const pdb = new PouchDB(prefix + name)
   instances.set(name, pdb)
-  ;(pdb as any).type = function () { return (this as any)._adapter || (this as any).adapter }
   const indexes = COLLECTION_INDEXES[name] || []
 
   const indexesReady = (async () => {
@@ -168,7 +175,7 @@ function createCollection(name: string, prefix: string, instances: Map<string, P
     const result = await pdb.find({
       selector,
       sort: opts.sort,
-      ...(opts.limit ? { limit: opts.limit } : {}),
+      limit: opts.limit || 100000,
       ...(opts.skip ? { skip: opts.skip } : {})
     })
     return result.docs.map((d) => makeDoc(pdb, d as RawPouchDoc))

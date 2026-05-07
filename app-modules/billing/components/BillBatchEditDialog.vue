@@ -36,7 +36,6 @@
             :accounts="accounts"
             :allowed-types="['personal']"
             placeholder="选择出账账户"
-            @create="emit('create-account', $event)"
           />
         </div>
 
@@ -51,7 +50,6 @@
             :accounts="accounts"
             :allowed-types="['personal']"
             placeholder="选择入账账户"
-            @create="emit('create-account', $event)"
           />
         </div>
 
@@ -73,6 +71,7 @@
                 {{ mode.label }}
               </button>
             </div>
+            <div class="mode-hint">{{ modeHint }}</div>
             <input
               v-model="description"
               type="text"
@@ -94,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, BillCategory, Account, AccountCreatePayload } from '~/types/bill'
+import type { Bill, BillCategory, Account } from '~/types/bill'
 import { getNextZIndex } from '~/composables/useZIndex'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
@@ -113,7 +112,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   confirm: [data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix' }]
   cancel: []
-  'create-account': [payload: AccountCreatePayload]
 }>()
 
 const editCategory = ref(false)
@@ -150,6 +148,12 @@ const descPlaceholder = computed(() => {
   if (descMode.value === 'replace') return '新描述'
   if (descMode.value === 'prefix') return '前缀内容'
   return '后缀内容'
+})
+
+const modeHint = computed(() => {
+  if (descMode.value === 'replace') return '将所有选中账单的描述替换为上方输入的内容'
+  if (descMode.value === 'prefix') return '在原有描述前面追加上方输入的内容'
+  return '在原有描述后面追加上方输入的内容'
 })
 
 const hasAnyEdit = computed(() => {
@@ -279,6 +283,11 @@ function handleConfirm() {
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
   font-weight: 600;
+}
+.mode-hint {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.55);
+  line-height: 1.4;
 }
 .desc-input {
   padding: 10px 12px;

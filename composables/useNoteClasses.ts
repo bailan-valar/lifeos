@@ -3,6 +3,8 @@ import { getDB, generateId, now } from '~/services/db'
 
 const classes = ref<Class[]>([])
 const classFields = ref<ClassField[]>([])
+const noteBindings = ref<NoteClassBinding[]>([])
+export const lastCreatedClassId = ref<string | null>(null)
 
 export async function loadClasses(userId: string): Promise<Class[]> {
   const db = await getDB()
@@ -12,6 +14,13 @@ export async function loadClasses(userId: string): Promise<Class[]> {
   }).exec()
   classes.value = result.map((doc: any) => doc.toJSON())
   return classes.value
+}
+
+export async function loadBindings(): Promise<NoteClassBinding[]> {
+  const db = await getDB()
+  const result = await db.noteClassBindings.find().exec()
+  noteBindings.value = result.map((doc: any) => doc.toJSON())
+  return noteBindings.value
 }
 
 export async function createClass(data: Partial<Class> & { userId: string; name: string }): Promise<Class> {
@@ -31,6 +40,7 @@ export async function createClass(data: Partial<Class> & { userId: string; name:
   }
   await db.classes.insert({ ...newClass })
   classes.value.push(newClass)
+  lastCreatedClassId.value = newClass.id
   return newClass
 }
 
@@ -63,6 +73,7 @@ export async function deleteClass(id: string): Promise<void> {
 
   classes.value = classes.value.filter(c => c.id !== id)
   classFields.value = classFields.value.filter(f => f.classId !== id)
+  noteBindings.value = noteBindings.value.filter(b => b.classId !== id)
 }
 
 export async function loadFields(classId: string): Promise<ClassField[]> {
@@ -118,14 +129,6 @@ export async function deleteField(id: string): Promise<void> {
   classFields.value = classFields.value.filter(f => f.id !== id)
 }
 
-export async function loadBinding(noteId: string): Promise<NoteClassBinding | null> {
-  const db = await getDB()
-  const result = await db.noteClassBindings.findOne({
-    selector: { noteId }
-  }).exec()
-  return result ? (result.toJSON() as NoteClassBinding) : null
-}
-
 export async function bindClass(noteId: string, classId: string): Promise<NoteClassBinding> {
   const db = await getDB()
   const existing = await db.noteClassBindings.findOne({ selector: { noteId } }).exec()
@@ -142,6 +145,8 @@ export async function bindClass(noteId: string, classId: string): Promise<NoteCl
     isSynced: false
   }
   await db.noteClassBindings.insert(binding)
+  noteBindings.value = noteBindings.value.filter(b => b.noteId !== noteId)
+  noteBindings.value.push(binding)
   return binding
 }
 
@@ -151,6 +156,7 @@ export async function unbindClass(noteId: string): Promise<void> {
   if (existing) {
     await existing.remove()
   }
+  noteBindings.value = noteBindings.value.filter(b => b.noteId !== noteId)
 }
 
 export async function updateBindingValues(
@@ -161,6 +167,10 @@ export async function updateBindingValues(
   const existing = await db.noteClassBindings.findOne({ selector: { noteId } }).exec()
   if (!existing) return
   await existing.patch({ values, updatedAt: now() })
+  const idx = noteBindings.value.findIndex(b => b.noteId === noteId)
+  if (idx !== -1) {
+    noteBindings.value[idx] = { ...noteBindings.value[idx], values, updatedAt: now() }
+  }
 }
 
 export async function getClassForNote(noteId: string): Promise<{
@@ -168,19 +178,32 @@ export async function getClassForNote(noteId: string): Promise<{
   fields: ClassField[]
   binding: NoteClassBinding
 } | null> {
+  // 优先从缓存查找
+  const binding = noteBindings.value.find(b => b.noteId === noteId)
+  if (binding) {
+    const cls = classes.value.find(c => c.id === binding.classId)
+    if (cls) {
+      const fields = classFields.value
+        .filter(f => f.classId === cls.id)
+        .sort((a, b) => a.order - b.order)
+      return { class: cls, fields, binding }
+    }
+  }
+
+  // 缓存未命中，查 DB
   const db = await getDB()
-  const binding = await db.noteClassBindings.findOne({ selector: { noteId } }).exec()
-  if (!binding) return null
-  const cls = await db.classes.findOne(binding.classId).exec()
+  const dbBinding = await db.noteClassBindings.findOne({ selector: { noteId } }).exec()
+  if (!dbBinding) return null
+  const cls = await db.classes.findOne(dbBinding.classId).exec()
   if (!cls) return null
   const fields = await db.classFields.find({
-    selector: { classId: binding.classId },
+    selector: { classId: dbBinding.classId },
     sort: [{ order: 'asc' }]
   }).exec()
   return {
     class: cls.toJSON() as Class,
     fields: fields.map((doc: any) => doc.toJSON()),
-    binding: binding.toJSON() as NoteClassBinding
+    binding: dbBinding.toJSON() as NoteClassBinding
   }
 }
 
@@ -188,7 +211,10 @@ export function useNoteClasses() {
   return {
     classes,
     classFields,
+    noteBindings,
+    lastCreatedClassId,
     loadClasses,
+    loadBindings,
     createClass,
     updateClass,
     deleteClass,
@@ -196,7 +222,6 @@ export function useNoteClasses() {
     createField,
     updateField,
     deleteField,
-    loadBinding,
     bindClass,
     unbindClass,
     updateBindingValues,

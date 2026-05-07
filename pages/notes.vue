@@ -17,6 +17,7 @@
           @create-child="createChildNote"
           @reorder="handleReorder"
           @delete="deleteNote"
+          @open-class-manager="classManagerVisible = true"
         />
       </aside>
 
@@ -26,7 +27,7 @@
 
       <main class="notes-main">
         <div v-if="activeNoteId" class="editor-shell">
-          <NoteViewSwitcher :note-id="activeNoteId" @title-update="onTitleUpdate" @open-class-manager="openClassManager" />
+          <NoteViewSwitcher :note-id="activeNoteId" @title-update="onTitleUpdate" />
         </div>
 
         <div v-else class="empty-state">
@@ -44,6 +45,8 @@
         </div>
       </main>
     </div>
+
+    <ClassManager v-model:visible="classManagerVisible" :user-id="userId" />
   </div>
 </template>
 
@@ -52,22 +55,20 @@ import { getDB, generateId, now } from '~/services/db'
 import type { Note, Block } from '~/types/block'
 import NoteList from '~/components/NoteList.vue'
 import NoteViewSwitcher from '~/components/NoteViewSwitcher.vue'
+import ClassManager from '~/components/class/ClassManager.vue'
+import { loadBindings } from '~/composables/useNoteClasses'
 
 const notes = ref<Note[]>([])
 const activeNoteId = ref<string | null>(null)
 const userId = ref('default-user')
 const sidebarCollapsed = ref(false)
-const classManagerVisible = inject<Ref<boolean>>('classManagerVisible', ref(false))
-
-const openClassManager = () => {
-  classManagerVisible.value = true
-}
-
+const classManagerVisible = ref(false)
 const route = useRoute()
 
 onMounted(async () => {
   console.log('[Notes] Component mounted, initializing database...')
   await loadNotes()
+  await loadBindings()
 
   const noteIdFromQuery = route.query.note as string
   if (noteIdFromQuery) {

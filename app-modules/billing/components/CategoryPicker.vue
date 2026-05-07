@@ -71,8 +71,9 @@
                   v-if="!isDisabled(item)"
                   type="button"
                   class="add-child-btn"
+                  :class="{ 'always-visible': searchQuery.trim() }"
                   title="新增子分类"
-                  @click.stop="emit('open-form', { type: props.type || 'expense', defaultParentId: item.id, defaultName: searchQuery.trim() })"
+                  @click.stop="creators?.openCategoryForm({ type: props.type || 'expense', defaultParentId: item.id, defaultName: searchQuery.trim(), onCreated: (c) => { emit('update:modelValue', c.id); open = false; searchQuery = '' } })"
                 >
                   <Icon name="solar:add-circle-linear" size="14" />
                 </button>
@@ -91,7 +92,7 @@
           <button
             type="button"
             class="quick-add-btn"
-            @click.stop="emit('open-form', { type: props.type || 'expense', defaultParentId: renderItems[activeIndex]?.id, defaultName: searchQuery.trim() })"
+            @click.stop="creators?.openCategoryForm({ type: props.type || 'expense', defaultParentId: renderItems[activeIndex]?.id || undefined, defaultName: searchQuery.trim(), onCreated: (c) => { emit('update:modelValue', c.id); open = false; searchQuery = '' } })"
           >
             <Icon name="solar:add-circle-linear" size="14" />
             {{ searchQuery.trim() ? `新增分类「${searchQuery.trim()}」` : '新增分类' }}
@@ -103,8 +104,8 @@
 </template>
 
 <script setup lang="ts">
-import type { BillCategory, CategoryType } from '~/types/bill'
-import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
+import type { BillCategory, CategoryType, BillingCreators } from '~/types/bill'
+import { nextTick, onBeforeUnmount, onMounted, watch, inject, type ComputedRef } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
 
 interface TreeItem {
@@ -123,13 +124,16 @@ const props = defineProps<{
   clearable?: boolean
   showParent?: boolean
   excludeId?: string
+  frequencyMap?: Map<string, number>
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [id: string]
-  create: [data: { name: string; type: CategoryType; parentId?: string }]
-  'open-form': [data: { type: CategoryType; defaultParentId?: string; defaultName?: string }]
 }>()
+
+const creators = inject<BillingCreators>('billingCreators')
+const injectedFreq = inject<ComputedRef<Map<string, number>> | undefined>('categoryFrequency', undefined)
+const effectiveFrequencyMap = computed(() => props.frequencyMap || injectedFreq?.value)
 
 const placeholder = computed(() => props.placeholder || '请选择分类')
 const open = ref(false)
@@ -162,7 +166,12 @@ const treeItems = computed(() => {
     }
   }
   for (const [, children] of childrenMap) {
-    children.sort((a, b) => a.order - b.order)
+    children.sort((a, b) => {
+      const fa = effectiveFrequencyMap.value?.get(a.id) || 0
+      const fb = effectiveFrequencyMap.value?.get(b.id) || 0
+      if (fb !== fa) return fb - fa
+      return a.order - b.order
+    })
   }
 
   const result: TreeItem[] = []
@@ -182,7 +191,12 @@ const treeItems = computed(() => {
     }
   }
 
-  const roots = list.filter(c => !c.parentId).sort((a, b) => a.order - b.order)
+  const roots = list.filter(c => !c.parentId).sort((a, b) => {
+    const fa = effectiveFrequencyMap.value?.get(a.id) || 0
+    const fb = effectiveFrequencyMap.value?.get(b.id) || 0
+    if (fb !== fa) return fb - fa
+    return a.order - b.order
+  })
   for (const root of roots) {
     walk(root, 0)
   }
@@ -309,10 +323,10 @@ function toggleOpen() {
     open.value = false
   } else {
     open.value = true
-    nextTick(() => {
+    nextTick(() => requestAnimationFrame(() => {
       updatePanelPosition()
       searchRef.value?.focus()
-    })
+    }))
   }
 }
 
@@ -374,7 +388,20 @@ function moveSelection(delta: number) {
 
 function selectActive() {
   const item = renderItems.value[activeIndex.value]
-  if (item && !isDisabled(item)) select(item)
+  if (item && !isDisabled(item)) {
+    select(item)
+    return
+  }
+  // 无匹配结果且有搜索文字时，回车快捷新增
+  if (activeIndex.value === -1 && searchQuery.value.trim()) {
+    creators?.openCategoryForm({
+      type: props.type || 'expense',
+      defaultParentId: undefined,
+      defaultName: searchQuery.value.trim(),
+      onCreated: (c) => { emit('update:modelValue', c.id); open.value = false; searchQuery.value = '' }
+    })
+    open.value = false
+  }
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -590,7 +617,8 @@ onBeforeUnmount(() => {
   opacity: 0;
   transition: opacity 0.15s ease, background-color 0.1s ease;
 }
-.picker-item:hover .add-child-btn {
+.picker-item:hover .add-child-btn,
+.add-child-btn.always-visible {
   opacity: 1;
 }
 .add-child-btn:hover {

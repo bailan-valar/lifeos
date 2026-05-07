@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
-      <div class="dialog" @click.stop>
+      <div class="dialog" tabindex="-1" @click.stop @keydown="onKeyDown">
         <div class="dialog-header">
           <h3>{{ isEditing ? '编辑分类' : '添加分类' }}</h3>
           <button type="button" class="close-btn" @click="onCancel">
@@ -13,7 +13,6 @@
             v-model="form"
             :categories="categories"
             :exclude-id="excludeId"
-            @create-category="emit('create-category', $event)"
           />
         </div>
         <div class="dialog-footer">
@@ -44,7 +43,6 @@ const overlayZIndex = useZIndexOnOpen(() => props.visible)
 const emit = defineEmits<{
   confirm: [data: CategoryFormData, isEditing: boolean, id?: string]
   cancel: []
-  'create-category': [data: { name: string; type: CategoryType; parentId?: string }]
 }>()
 
 const form = ref<CategoryFormData>({ name: '', type: 'expense', parentId: '', icon: '', color: '' })
@@ -70,7 +68,7 @@ watch(() => props.visible, (v) => {
       color: ''
     }
   }
-})
+}, { immediate: true })
 
 function onConfirm() {
   if (!form.value.name.trim()) return
@@ -79,6 +77,13 @@ function onConfirm() {
 
 function onCancel() {
   emit('cancel')
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    onConfirm()
+  }
 }
 </script>
 

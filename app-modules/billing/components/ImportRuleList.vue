@@ -2,10 +2,20 @@
   <div class="rule-list">
     <div class="list-header">
       <div class="list-title">导入规则</div>
-      <button type="button" class="btn-primary" @click="$emit('add')">
-        <Icon name="solar:add-circle-linear" size="14" />
-        <span>新建规则</span>
-      </button>
+      <div class="header-actions">
+        <button type="button" class="btn-secondary" @click="$emit('export')">
+          <Icon name="solar:export-linear" size="14" />
+          <span>导出</span>
+        </button>
+        <button type="button" class="btn-secondary" @click="$emit('import')">
+          <Icon name="solar:import-linear" size="14" />
+          <span>导入</span>
+        </button>
+        <button type="button" class="btn-primary" @click="$emit('add')">
+          <Icon name="solar:add-circle-linear" size="14" />
+          <span>新建规则</span>
+        </button>
+      </div>
     </div>
 
     <div v-if="rules.length === 0" class="empty">
@@ -24,12 +34,16 @@
         </label>
         <div class="rule-info">
           <div class="rule-row">
-            <span class="rule-name">{{ rule.name || '(未命名)' }}</span>
+            <span class="rule-keyword">{{ rule.pattern || '(空)' }}</span>
             <span class="rule-badge" :class="matchModeClass(rule.matchMode)">{{ matchModeLabel(rule.matchMode) }}</span>
             <span class="rule-badge source">{{ sourceLabel(rule.source) }}</span>
+            <span class="rule-badge field">{{ matchFieldLabel(rule.matchField) }}</span>
             <span class="rule-priority">优先级 {{ rule.priority }}</span>
           </div>
-          <div class="rule-pattern">{{ rule.pattern || '(空)' }}</div>
+          <div class="rule-meta">
+            <span v-if="rule.matchField !== 'description'">匹配账户: {{ accountName(rule.accountId) || '未指定' }}</span>
+            <span>匹配分类: {{ categoryName(rule.categoryId) || '未指定' }}</span>
+          </div>
         </div>
         <div class="rule-actions">
           <button type="button" class="action-btn" title="编辑" @click="$emit('edit', rule)">
@@ -45,10 +59,12 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportRule, ImportRuleMatchMode, ImportSource } from '~/types/bill'
+import type { ImportRule, ImportRuleMatchMode, ImportRuleMatchField, ImportSource, Account, BillCategory } from '~/types/bill'
 
-defineProps<{
+const props = defineProps<{
   rules: ImportRule[]
+  accounts: Account[]
+  categories: BillCategory[]
 }>()
 
 const emit = defineEmits<{
@@ -56,6 +72,8 @@ const emit = defineEmits<{
   (e: 'edit', rule: ImportRule): void
   (e: 'delete', id: string): void
   (e: 'toggle', id: string, enabled: boolean): void
+  (e: 'export'): void
+  (e: 'import'): void
 }>()
 
 function onToggle(rule: ImportRule, enabled: boolean) {
@@ -78,6 +96,20 @@ function sourceLabel(s: ImportSource | 'all'): string {
   if (s === 'alipay') return '支付宝'
   if (s === 'wechat') return '微信'
   return '全部'
+}
+
+function matchFieldLabel(f: ImportRuleMatchField | undefined): string {
+  if (f === 'account') return '账户'
+  if (f === 'description') return '商品说明'
+  return '账户'
+}
+
+function accountName(id: string): string {
+  return props.accounts.find(a => a.id === id)?.name || ''
+}
+
+function categoryName(id: string): string {
+  return props.categories.find(c => c.id === id)?.name || ''
 }
 </script>
 
@@ -111,6 +143,25 @@ function sourceLabel(s: ImportSource | 'all'): string {
 }
 .btn-primary:hover {
   background: rgb(0, 100, 220);
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  color: rgba(0, 0, 0, 0.78);
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 .empty {
   display: flex;
@@ -189,17 +240,27 @@ function sourceLabel(s: ImportSource | 'all'): string {
   background: rgba(60, 60, 67, 0.08);
   color: rgba(60, 60, 67, 0.78);
 }
+.rule-badge.field {
+  background: rgba(0, 122, 255, 0.08);
+  color: rgb(0, 122, 255);
+}
 .rule-priority {
   font-size: 11px;
   color: rgba(60, 60, 67, 0.5);
 }
-.rule-pattern {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  color: rgba(60, 60, 67, 0.78);
+.rule-keyword {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.92);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.rule-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.6);
 }
 .rule-actions {
   display: flex;

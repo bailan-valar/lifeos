@@ -117,6 +117,7 @@
         </div>
 
         <div class="dtp-footer">
+          <button type="button" class="footer-btn" @click="setYesterday">昨天</button>
           <button type="button" class="footer-btn" @click="setToday">今天</button>
           <button type="button" class="footer-btn" @click="setNow">现在</button>
           <button type="button" class="footer-btn" @click="clearAndClose">清空</button>
@@ -591,6 +592,19 @@ function onMinuteBlur(e: Event) {
 }
 
 /* ---------- 底部按钮 ---------- */
+function setYesterday() {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  selectedDate.value = { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() }
+  selectedHour.value = 0
+  selectedMinute.value = 0
+  viewYear.value = d.getFullYear()
+  viewMonth.value = d.getMonth() + 1
+  refreshInputText()
+  emitCurrent()
+  open.value = false
+}
+
 function setToday() {
   selectedDate.value = { year: today.year, month: today.month, day: today.day }
   selectedHour.value = 0
@@ -874,7 +888,7 @@ loadFromValue()
 
 .dtp-footer {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   border-top: 0.5px solid rgba(60, 60, 67, 0.1);
   padding-top: 10px;

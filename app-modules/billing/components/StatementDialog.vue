@@ -52,7 +52,7 @@ watch(() => props.visible, (v) => {
   } else {
     form.value = { statementAmount: 0, minimumPayment: 0, paidAmount: 0, status: 'pending' }
   }
-})
+}, { immediate: true })
 
 function onConfirm() {
   if (!props.statement) return

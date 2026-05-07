@@ -68,14 +68,12 @@
                   :row="item"
                   :accounts="accounts"
                   :categories="categories"
-                  :matched-rule="ruleById(item.matchedRuleId) ?? ruleById(item.paymentMethodRuleId)"
+                  :matched-rule="ruleById(item.matchedRuleId) ?? ruleById(item.paymentMethodRuleId) ?? ruleById(item.descriptionRuleId)"
                   @update:row="(v) => onItemUpdate(item.rawIndex, v)"
                   @save-as-rule="openRuleOverlay"
                   @save-counterparty-rule="openCounterpartyRule"
                   @save-payment-method-rule="openPaymentMethodRule"
-                  @create-category="emit('create-category', $event)"
-                  @open-category-form="emit('open-category-form', $event)"
-                  @create-account="emit('create-account', $event)"
+                  @save-description-rule="openDescriptionRule"
                 />
               </div>
             </template>
@@ -143,14 +141,14 @@ import type {
   ImportRecordStatus,
   ImportRule,
   ImportRuleFormData,
-  CategoryType,
-  AccountCreatePayload,
-  ImportSource
+  ImportSource,
+  BillingCreators
 } from '~/types/bill'
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
+import { useConfirm } from '~/composables/useConfirm'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
 import ImportPreviewRow from './ImportPreviewRow.vue'
 
@@ -167,11 +165,9 @@ const emit = defineEmits<{
   (e: 'import', record: ImportRecord): void
   (e: 'rollback', record: ImportRecord): void
   (e: 'delete', recordId: string): void
-  (e: 'open-rule-dialog', form: ImportRuleFormData): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', payload: AccountCreatePayload): void
 }>()
+
+const creators = inject<BillingCreators>('billingCreators')
 
 // 点击弹框外关闭 + ESC 关闭
 const overlayRef = ref<HTMLDivElement | null>(null)
@@ -201,6 +197,7 @@ onUnmounted(() => {
 
 const { rules: importRules, applyRules } = useImportRules()
 const { updateRecordItems } = useImportRecords()
+const { confirm } = useConfirm()
 
 const filter = ref<'all' | 'unmatched' | 'matched' | 'duplicate'>('all')
 const filterOptions = [
@@ -235,17 +232,17 @@ function scheduleSave() {
 
 const counts = computed(() => ({
   all: localItems.value.length,
-  unmatched: localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.paymentMethodRuleId && !i.matchedAccountId && !i.myAccountId && !i.duplicate).length,
-  matched: localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.paymentMethodRuleId || i.matchedAccountId || i.myAccountId) && !i.duplicate).length,
+  unmatched: localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.paymentMethodRuleId && !i.descriptionRuleId && !i.matchedAccountId && !i.myAccountId && !i.duplicate).length,
+  matched: localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.paymentMethodRuleId || i.descriptionRuleId || i.matchedAccountId || i.myAccountId) && !i.duplicate).length,
   duplicate: localItems.value.filter(i => i.duplicate).length
 }))
 
 const filteredItems = computed(() => {
   switch (filter.value) {
     case 'unmatched':
-      return localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.paymentMethodRuleId && !i.matchedAccountId && !i.myAccountId && !i.duplicate)
+      return localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.paymentMethodRuleId && !i.descriptionRuleId && !i.matchedAccountId && !i.myAccountId && !i.duplicate)
     case 'matched':
-      return localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.paymentMethodRuleId || i.matchedAccountId || i.myAccountId) && !i.duplicate)
+      return localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.paymentMethodRuleId || i.descriptionRuleId || i.matchedAccountId || i.myAccountId) && !i.duplicate)
     case 'duplicate':
       return localItems.value.filter(i => i.duplicate)
     default:
@@ -286,11 +283,23 @@ function toggleAll() {
   scheduleSave()
 }
 
+async function promptApplyRuleAfterSave() {
+  const yes = await confirm({
+    title: '应用规则',
+    message: '规则已保存，是否立即应用规则到当前导入记录？',
+    confirmText: '应用',
+    cancelText: '暂不'
+  })
+  if (yes) {
+    applyAllRules()
+  }
+}
+
 function openRuleOverlay(item: ImportRecordItem) {
   const counterparty = (item.counterparty || '').trim()
-  emit('open-rule-dialog', {
-    name: counterparty || '新规则',
+  creators?.openRuleDialog({
     source: props.record.source,
+    matchField: 'account',
     matchMode: 'fuzzy',
     pattern: counterparty,
     categoryId: item.categoryId || '',
@@ -298,14 +307,14 @@ function openRuleOverlay(item: ImportRecordItem) {
     billType: item.type,
     priority: 100,
     enabled: true
-  })
+  }, { onSaved: promptApplyRuleAfterSave })
 }
 
 function openCounterpartyRule(item: ImportRecordItem) {
   const counterparty = (item.counterparty || '').trim()
-  emit('open-rule-dialog', {
-    name: counterparty || '交易对方规则',
+  creators?.openRuleDialog({
     source: props.record.source,
+    matchField: 'account',
     matchMode: 'fuzzy',
     pattern: counterparty,
     categoryId: item.categoryId || '',
@@ -313,14 +322,14 @@ function openCounterpartyRule(item: ImportRecordItem) {
     billType: item.type,
     priority: 100,
     enabled: true
-  })
+  }, { onSaved: promptApplyRuleAfterSave })
 }
 
 function openPaymentMethodRule(item: ImportRecordItem) {
   const paymentMethod = (item.paymentMethod || '').trim()
-  emit('open-rule-dialog', {
-    name: paymentMethod || '收付款方式规则',
+  creators?.openRuleDialog({
     source: props.record.source,
+    matchField: 'account',
     matchMode: 'fuzzy',
     pattern: paymentMethod,
     categoryId: '',
@@ -328,7 +337,22 @@ function openPaymentMethodRule(item: ImportRecordItem) {
     billType: undefined,
     priority: 100,
     enabled: true
-  })
+  }, { onSaved: promptApplyRuleAfterSave })
+}
+
+function openDescriptionRule(item: ImportRecordItem) {
+  const description = (item.description || '').trim()
+  creators?.openRuleDialog({
+    source: props.record.source,
+    matchField: 'description',
+    matchMode: 'fuzzy',
+    pattern: description,
+    categoryId: item.categoryId || '',
+    accountId: item.matchedAccountId || '',
+    billType: item.type,
+    priority: 100,
+    enabled: true
+  }, { onSaved: promptApplyRuleAfterSave })
 }
 
 function onImport() {
@@ -381,6 +405,19 @@ function applyAllRules() {
       }
       if (!updates.type && result.paymentMethodRule.billType) {
         updates.type = result.paymentMethodRule.billType
+      }
+    }
+
+    if (result.descriptionRule) {
+      updates.descriptionRuleId = result.descriptionRule.id
+      if (result.descriptionRule.categoryId) {
+        updates.categoryId = result.descriptionRule.categoryId
+      }
+      if (result.descriptionRule.accountId) {
+        updates.matchedAccountId = result.descriptionRule.accountId
+      }
+      if (!updates.type && result.descriptionRule.billType) {
+        updates.type = result.descriptionRule.billType
       }
     }
 

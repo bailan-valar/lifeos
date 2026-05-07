@@ -243,15 +243,21 @@ export type ImportSource = 'alipay' | 'wechat'
 export type ImportRuleMatchMode = 'exact' | 'regex' | 'fuzzy'
 
 /**
+ * 规则匹配字段
+ */
+export type ImportRuleMatchField = 'account' | 'description'
+
+/**
  * 导入规则
- * 按 CSV 中"交易对方"或"收/付款方式"字段匹配,命中后填充 categoryId / accountId
+ * 按 CSV 中"交易对方""收/付款方式"或"商品说明"字段匹配,命中后填充 categoryId / accountId
  * accountId 为匹配到的账户,由 suggestAccountIds 自动推导 from/to
  * billType 可选,优先级高于按账户类型推断
+ * matchField 指定匹配字段,未设置时默认为 'account'
  */
 export interface ImportRule {
   id: string
-  name: string
   source: ImportSource | 'all'
+  matchField?: ImportRuleMatchField
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
@@ -268,8 +274,8 @@ export interface ImportRule {
  * 规则表单数据
  */
 export interface ImportRuleFormData {
-  name: string
   source: ImportSource | 'all'
+  matchField?: ImportRuleMatchField
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
@@ -306,6 +312,7 @@ export interface ImportPreviewRow extends CsvParsedRow {
   skipReason?: string
   matchedRuleId: string | null
   paymentMethodRuleId: string | null
+  descriptionRuleId?: string | null
   matchedAccountId: string | null
   myAccountId: string | null
   type: BillType
@@ -339,6 +346,7 @@ export function previewRowToRecordItem(row: ImportPreviewRow): ImportRecordItem 
     toAccountId: row.toAccountId,
     matchedRuleId: row.matchedRuleId,
     paymentMethodRuleId: row.paymentMethodRuleId,
+    descriptionRuleId: row.descriptionRuleId,
     matchedAccountId: row.matchedAccountId,
     myAccountId: row.myAccountId,
     paymentMethod: row.paymentMethod,
@@ -391,6 +399,7 @@ export interface ImportRecordItem {
   toAccountId?: string
   matchedRuleId?: string | null
   paymentMethodRuleId?: string | null
+  descriptionRuleId?: string | null
   matchedAccountId?: string | null
   myAccountId?: string | null
   paymentMethod?: string
@@ -422,4 +431,13 @@ export interface ImportRecord {
   createdAt: string
   updatedAt: string
   isSynced: boolean
+}
+
+/**
+ * 账单模块全局创建器（通过 provide/inject 提供，替代层层事件透传）
+ */
+export interface BillingCreators {
+  openAccountCreator: (payload: AccountCreatePayload) => void
+  openCategoryForm: (data: { type: CategoryType; defaultParentId?: string; defaultName?: string; onCreated?: (category: BillCategory) => void }) => void
+  openRuleDialog: (form: ImportRuleFormData, options?: { onSaved?: () => void }) => void
 }

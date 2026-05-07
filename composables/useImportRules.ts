@@ -4,6 +4,7 @@ import { getDB, generateId, now } from '~/services/db'
 export interface ApplyRulesResult {
   counterpartyRule?: ImportRule
   paymentMethodRule?: ImportRule
+  descriptionRule?: ImportRule
 }
 
 let _store: ImportRulesStore | null = null
@@ -17,6 +18,8 @@ interface ImportRulesStore {
   updateImportRule: (id: string, data: Partial<ImportRuleFormData>) => Promise<void>
   deleteImportRule: (id: string) => Promise<void>
   applyRules: (row: CsvParsedRow, source: 'alipay' | 'wechat') => ApplyRulesResult | null
+  exportRules: () => ImportRuleFormData[]
+  importRules: (items: ImportRuleFormData[]) => Promise<{ created: number; skipped: number }>
 }
 
 function createStore(): ImportRulesStore {
@@ -57,7 +60,6 @@ function createStore(): ImportRulesStore {
     const db = await getDB()
     const rule: ImportRule = {
       id: generateId(),
-      name: data.name,
       source: data.source,
       matchMode: data.matchMode,
       pattern: data.pattern,
@@ -120,26 +122,79 @@ function createStore(): ImportRulesStore {
   }
 
   /**
-   * 对单行 CSV 应用规则集,分别独立匹配 counterparty 与 paymentMethod。
-   * 两者可命中不同规则,各自填充对应账户,实现"分别匹配为出账账户与入账账户"。
+   * 对单行 CSV 应用规则集,分别独立匹配 counterparty / paymentMethod / description。
+   * 三者可命中不同规则,各自填充对应账户/分类,实现"分别匹配为出账账户与入账账户及分类"。
    */
   function applyRules(row: CsvParsedRow, source: 'alipay' | 'wechat'): ApplyRulesResult | null {
     const candidates = rules.value.filter(r => r.enabled && (r.source === 'all' || r.source === source))
     let counterpartyRule: ImportRule | undefined
     let paymentMethodRule: ImportRule | undefined
+    let descriptionRule: ImportRule | undefined
 
     for (const rule of candidates) {
-      if (!counterpartyRule && matchOne(rule, row.counterparty || '')) {
-        counterpartyRule = rule
+      const field = rule.matchField ?? 'account'
+      const matchAccount = field === 'account'
+      const matchDescription = field === 'description'
+
+      if (matchAccount) {
+        if (!counterpartyRule && matchOne(rule, row.counterparty || '')) {
+          counterpartyRule = rule
+        }
+        if (!paymentMethodRule && matchOne(rule, row.paymentMethod || '')) {
+          paymentMethodRule = rule
+        }
       }
-      if (!paymentMethodRule && matchOne(rule, row.paymentMethod || '')) {
-        paymentMethodRule = rule
+      if (!descriptionRule && matchDescription && matchOne(rule, row.description || '')) {
+        descriptionRule = rule
       }
-      if (counterpartyRule && paymentMethodRule) break
+      if (counterpartyRule && paymentMethodRule && descriptionRule) break
     }
 
-    if (!counterpartyRule && !paymentMethodRule) return null
-    return { counterpartyRule, paymentMethodRule }
+    if (!counterpartyRule && !paymentMethodRule && !descriptionRule) return null
+    return { counterpartyRule, paymentMethodRule, descriptionRule }
+  }
+
+  function exportRules(): ImportRuleFormData[] {
+    return rules.value.map(r => ({
+      source: r.source,
+      matchField: r.matchField,
+      matchMode: r.matchMode,
+      pattern: r.pattern,
+      categoryId: r.categoryId,
+      accountId: r.accountId,
+      billType: r.billType,
+      priority: r.priority,
+      enabled: r.enabled,
+    }))
+  }
+
+  async function importRules(items: ImportRuleFormData[]): Promise<{ created: number; skipped: number }> {
+    const db = await getDB()
+    let created = 0
+    let skipped = 0
+    const existingKeys = new Set(
+      rules.value.map(r => `${r.pattern}|${r.matchMode}|${r.source}|${r.matchField || 'account'}`)
+    )
+    for (const item of items) {
+      const key = `${item.pattern}|${item.matchMode}|${item.source}|${item.matchField || 'account'}`
+      if (existingKeys.has(key)) {
+        skipped++
+        continue
+      }
+      existingKeys.add(key)
+      const rule: ImportRule = {
+        id: generateId(),
+        ...item,
+        createdAt: now(),
+        updatedAt: now(),
+        isSynced: false,
+      }
+      await db.importRules.insert({ ...rule })
+      rules.value.push(rule)
+      created++
+    }
+    rules.value.sort((a, b) => b.priority - a.priority)
+    return { created, skipped }
   }
 
   return {
@@ -150,7 +205,9 @@ function createStore(): ImportRulesStore {
     createImportRule,
     updateImportRule,
     deleteImportRule,
-    applyRules
+    applyRules,
+    exportRules,
+    importRules
   }
 }
 

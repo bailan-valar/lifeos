@@ -137,6 +137,16 @@
           <span v-else>加载更多</span>
         </button>
       </div>
+
+      <button
+        v-if="activeTab === 'bills' && !batchMode"
+        type="button"
+        class="fab-btn"
+        title="记一笔 (Ctrl+N)"
+        @click="openBillDialog()"
+      >
+        <Icon name="solar:add-circle-linear" size="24" />
+      </button>
     </div>
 
     <div v-if="activeTab === 'accounts'" class="tab-panel">
@@ -158,10 +168,24 @@
     <div v-if="activeTab === 'categories'" class="tab-panel">
       <div class="panel-header">
         <h4>分类管理</h4>
-        <button type="button" class="add-btn" @click="openCategoryDialog()">
-          <Icon name="solar:add-circle-linear" size="18" />
-          添加分类
-        </button>
+        <div class="header-actions">
+          <button type="button" class="add-btn secondary" @click="handleExportCategories">
+            <Icon name="solar:download-linear" size="18" />
+            导出
+          </button>
+          <button type="button" class="add-btn secondary" @click="handleImportCategories">
+            <Icon name="solar:upload-linear" size="18" />
+            导入
+          </button>
+          <button type="button" class="add-btn secondary" @click="handleResetCategories">
+            <Icon name="solar:refresh-circle-linear" size="18" />
+            重置默认
+          </button>
+          <button type="button" class="add-btn" @click="openCategoryDialog()">
+            <Icon name="solar:add-circle-linear" size="18" />
+            添加分类
+          </button>
+        </div>
       </div>
       <div class="category-section">
         <div class="category-subtitle">收入分类</div>
@@ -196,10 +220,14 @@
     <div v-if="activeTab === 'rules'" class="tab-panel">
       <ImportRuleList
         :rules="importRules"
+        :accounts="accounts"
+        :categories="categories"
         @add="openRuleDialog()"
         @edit="openRuleDialog"
         @delete="handleDeleteRule"
         @toggle="handleToggleRule"
+        @export="handleExportRules"
+        @import="handleImportRules"
       />
     </div>
     </div>
@@ -231,7 +259,6 @@
       :categories="categories"
       @confirm="handleBatchEdit"
       @cancel="batchEditVisible = false"
-      @create-account="handleCreateAccount"
     />
 
     <ImportRuleDialog
@@ -241,9 +268,6 @@
       :categories="categories"
       @confirm="handleSaveImportRule"
       @cancel="importRuleDialogVisible = false"
-      @create-category="handleCreateCategory"
-      @open-category-form="handleOpenCategoryForm"
-      @create-account="handleCreateAccount"
     />
 
     <ImportRecordDetail
@@ -256,10 +280,6 @@
       @import="handleImportRecord"
       @rollback="handleRollbackRecord"
       @delete="handleDeleteRecord"
-      @open-rule-dialog="handleOpenImportRuleDialog"
-      @create-category="handleCreateCategory"
-      @open-category-form="handleOpenCategoryForm"
-      @create-account="handleCreateAccount"
     />
 
     <BillDialog
@@ -271,11 +291,9 @@
       :categories="categories"
       :note-options="noteOptions"
       :default-note-id="props.noteId"
+      :default-form-values="editingBill ? undefined : lastBillDefaults || undefined"
       @confirm="handleBillConfirm"
       @cancel="billDialogVisible = false; editingBill = null"
-      @create-category="handleCreateCategory"
-      @open-category-form="handleOpenCategoryForm"
-      @create-account="handleCreateAccount"
     />
 
     <AccountDialog
@@ -300,7 +318,6 @@
       :default-name="categoryFormDefaults?.defaultName"
       @confirm="handleCategoryConfirm"
       @cancel="categoryDialogVisible = false; editingCategory = null; categoryFormDefaults = null"
-      @create-category="handleCreateCategory"
     />
 
     <BudgetDialog
@@ -312,8 +329,6 @@
       :note-options="noteOptions"
       @confirm="handleBudgetConfirm"
       @cancel="budgetDialogVisible = false; editingBudget = null"
-      @create-category="handleCreateCategory"
-      @open-category-form="handleOpenCategoryForm"
     />
 
     <StatementDialog
@@ -345,10 +360,6 @@
       @cancel="importDialogVisible = false"
       @record-created="handleRecordCreated"
       @view-record="handleViewRecord"
-      @create-category="handleCreateCategory"
-      @open-category-form="handleOpenCategoryForm"
-      @create-account="handleCreateAccount"
-      @open-rule-dialog="handleOpenImportRuleDialog"
     />
 
     <RuleDialog
@@ -359,15 +370,13 @@
       :categories="categories"
       @confirm="handleRuleConfirm"
       @cancel="ruleDialogVisible = false; editingRule = null"
-      @create-category="handleCreateCategory"
-      @open-category-form="handleOpenCategoryForm"
-      @create-account="handleCreateAccount"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, AccountCreatePayload, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord, AccountType } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, AccountCreatePayload, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord, AccountType, BillingCreators } from '~/types/bill'
+import { provide } from 'vue'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
@@ -405,10 +414,10 @@ const { success: showSuccess, error: showError } = useToast()
 
 const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, createBillsBatch, updateBill, updateBills, deleteBill, deleteBills } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
-const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree } = useBillCategories()
+const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree, ensureDefaultCategories, resetCategories, exportCategories, importCategories: importCategoriesBatch } = useBillCategories()
 const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
-const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule } = useImportRules()
+const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule, exportRules, importRules: importRulesBatch } = useImportRules()
 const { loadImportRecords, fingerprintsAcrossRecords, getById, rollback, deleteImportRecord } = useImportRecords()
 const { loadNotes, noteOptions } = useNotes()
 
@@ -512,10 +521,15 @@ const recordDetailRecord = computed(() =>
 
 const importRuleDialogVisible = ref(false)
 const importRuleDialogForm = ref<ImportRuleFormData>({
-  name: '', source: 'all', matchMode: 'fuzzy', pattern: '', categoryId: '',
+  source: 'all', matchField: 'account', matchMode: 'fuzzy', pattern: '', categoryId: '',
   accountId: '', priority: 100, enabled: true
 })
 const pendingAccountCallback = ref<((account: Account) => void) | null>(null)
+const pendingCategoryCallback = ref<((category: BillCategory) => void) | null>(null)
+const pendingRuleSavedCallback = ref<(() => void) | null>(null)
+
+/* ---------- 智能记忆：同笔记连续记账默认值 ---------- */
+const lastBillDefaults = ref<Partial<BillFormData> | null>(null)
 
 const existingFingerprints = computed(() => {
   const set = new Set<string>()
@@ -550,6 +564,26 @@ const categoryMenu = ref<CategoryMenuState>({
 const incomeTree = computed(() => buildTree('income'))
 const expenseTree = computed(() => buildTree('expense'))
 
+/* ---------- 使用频率统计（用于选择器排序） ---------- */
+const categoryFrequency = computed(() => {
+  const map = new Map<string, number>()
+  for (const b of bills.value) {
+    if (b.categoryId) {
+      map.set(b.categoryId, (map.get(b.categoryId) || 0) + 1)
+    }
+  }
+  return map
+})
+
+const accountFrequency = computed(() => {
+  const map = new Map<string, number>()
+  for (const b of bills.value) {
+    if (b.fromAccountId) map.set(b.fromAccountId, (map.get(b.fromAccountId) || 0) + 1)
+    if (b.toAccountId) map.set(b.toAccountId, (map.get(b.toAccountId) || 0) + 1)
+  }
+  return map
+})
+
 onMounted(async () => {
   const saved = localStorage.getItem(VIEW_MODE_KEY)
   if (saved === 'card' || saved === 'table') {
@@ -560,7 +594,13 @@ onMounted(async () => {
     sidebarCollapsed.value = true
   }
   try {
-    await Promise.all([loadAccounts(), loadCategories(), refreshBills(), loadBudgets(), loadStatements(), loadImportRules(), loadImportRecords(props.noteId), loadNotes()])
+    await loadAccounts()
+    await loadCategories()
+    const initialized = await ensureDefaultCategories()
+    if (initialized) {
+      showSuccess('已为您初始化默认分类')
+    }
+    await Promise.all([refreshBills(), loadBudgets(), loadStatements(), loadImportRules(), loadImportRecords(props.noteId), loadNotes()])
     markReady()
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
@@ -625,6 +665,14 @@ async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: st
     } else {
       await createBill(data, props.noteId)
     }
+    // 记忆本次记账值，用于下次快速填充
+    lastBillDefaults.value = {
+      type: data.type,
+      fromAccountId: data.fromAccountId,
+      toAccountId: data.toAccountId,
+      categoryId: data.categoryId,
+      currency: data.currency
+    }
     billDialogVisible.value = false
     editingBill.value = null
   } catch (e) {
@@ -661,7 +709,9 @@ async function handleCategoryConfirm(data: CategoryFormData, isEditing: boolean,
       const created = await createCategory(data)
       billDialogRef.value?.setCategoryId(created.id)
       budgetDialogRef.value?.setCategoryId(created.id)
+      pendingCategoryCallback.value?.(created)
     }
+    pendingCategoryCallback.value = null
     categoryDialogVisible.value = false
     editingCategory.value = null
   } catch (e) {
@@ -703,10 +753,6 @@ async function handleStatementConfirm(data: StatementFormData, id: string) {
 
 async function handleRuleConfirm(data: ImportRuleFormData, isEditing: boolean, id?: string) {
   try {
-    if (!data.name.trim()) {
-      showError('请输入规则名称')
-      return
-    }
     if (!data.pattern.trim()) {
       showError('请输入匹配关键字')
       return
@@ -830,22 +876,75 @@ async function handleDeleteCategory(id: string) {
   }
 }
 
+async function handleResetCategories() {
+  if (!await confirm({
+    message: '确定重置为默认分类？\n\n这将删除所有现有分类，并清空关联数据中的分类信息：\n• 账单的分类将被清空\n• 账户的分类将被清空\n• 导入规则的分类将被清空\n• 预算数据将被删除',
+    danger: true
+  })) return
+  try {
+    await resetCategories()
+    showSuccess('已重置为默认分类')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function handleExportCategories() {
+  const data = exportCategories()
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    categories: data,
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `categories-${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  showSuccess('分类已导出')
+}
+
+function handleImportCategories() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json,application/json'
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const payload = JSON.parse(text)
+      const items = payload?.categories ?? payload
+      if (!Array.isArray(items)) {
+        showError('文件格式错误：分类列表应为数组')
+        return
+      }
+      const { created, skipped } = await importCategoriesBatch(items)
+      showSuccess(`导入完成：新建 ${created} 条，跳过重复 ${skipped} 条`)
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '导入失败')
+    }
+  }
+  input.click()
+}
+
 async function handleDeleteBudgetEntry(id: string) {
   if (!await confirm('确定删除此预算？')) return
   await removeBudget(id)
 }
 
 
-function handleOpenImportRuleDialog(form: ImportRuleFormData) {
+function handleOpenImportRuleDialog(form: ImportRuleFormData, options?: { onSaved?: () => void }) {
   importRuleDialogForm.value = { ...form }
+  pendingRuleSavedCallback.value = options?.onSaved ?? null
   importRuleDialogVisible.value = true
 }
 
 async function handleSaveImportRule(form: ImportRuleFormData) {
-  if (!form.name.trim()) {
-    showError('请输入规则名称')
-    return
-  }
   if (!form.pattern.trim()) {
     showError('请输入匹配关键字')
     return
@@ -853,11 +952,12 @@ async function handleSaveImportRule(form: ImportRuleFormData) {
   try {
     await createImportRule({
       ...form,
-      name: form.name.trim(),
       pattern: form.pattern.trim()
     })
     showSuccess('规则已保存')
     importRuleDialogVisible.value = false
+    pendingRuleSavedCallback.value?.()
+    pendingRuleSavedCallback.value = null
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
@@ -910,27 +1010,11 @@ function onMenuDelete() {
   }
 }
 
-function handleOpenCategoryForm(data: { type: CategoryType; defaultParentId?: string; defaultName?: string }) {
+function handleOpenCategoryForm(data: { type: CategoryType; defaultParentId?: string; defaultName?: string; onCreated?: (category: BillCategory) => void }) {
   editingCategory.value = null
+  pendingCategoryCallback.value = data.onCreated ?? null
   categoryFormDefaults.value = data
   categoryDialogVisible.value = true
-}
-
-async function handleCreateCategory(data: { name: string; type: 'income' | 'expense'; parentId?: string }) {
-  try {
-    const created = await createCategory({
-      name: data.name,
-      type: data.type,
-      parentId: data.parentId || '',
-      icon: '',
-      color: ''
-    })
-    showSuccess('已添加分类')
-    billDialogRef.value?.setCategoryId(created.id)
-    budgetDialogRef.value?.setCategoryId(created.id)
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
 }
 
 async function handleCreateAccount(payload: AccountCreatePayload) {
@@ -942,6 +1026,15 @@ async function handleCreateAccount(payload: AccountCreatePayload) {
   }
   accountDialogVisible.value = true
 }
+
+provide<BillingCreators>('billingCreators', {
+  openAccountCreator: handleCreateAccount,
+  openCategoryForm: handleOpenCategoryForm,
+  openRuleDialog: handleOpenImportRuleDialog
+})
+
+provide('categoryFrequency', categoryFrequency)
+provide('accountFrequency', accountFrequency)
 
 function openImportDialog() {
   importDialogVisible.value = true
@@ -968,6 +1061,49 @@ async function handleToggleRule(id: string, enabled: boolean) {
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
+}
+
+function handleExportRules() {
+  const data = exportRules()
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    rules: data,
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `import-rules-${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  showSuccess('规则已导出')
+}
+
+function handleImportRules() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json,application/json'
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const payload = JSON.parse(text)
+      const items = payload?.rules ?? payload
+      if (!Array.isArray(items)) {
+        showError('文件格式错误：规则列表应为数组')
+        return
+      }
+      const { created, skipped } = await importRulesBatch(items)
+      showSuccess(`导入完成：新建 ${created} 条，跳过重复 ${skipped} 条`)
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '导入失败')
+    }
+  }
+  input.click()
 }
 
 function handleRecordCreated(record: ImportRecord) {
@@ -1029,6 +1165,13 @@ async function handleDeleteRecord(recordId: string) {
 
 function onGlobalKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') closeCategoryMenu()
+  // Cmd/Ctrl + N 快速记账
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+    e.preventDefault()
+    if (activeTab.value === 'bills' && !billDialogVisible.value) {
+      openBillDialog()
+    }
+  }
 }
 
 onMounted(() => {
@@ -1353,5 +1496,30 @@ onBeforeUnmount(() => {
 .context-menu-item.danger:hover {
   background: rgba(255, 59, 48, 0.1);
   color: rgb(255, 59, 48);
+}
+.fab-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgb(10, 132, 255) 0%, rgb(0, 102, 230) 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 122, 255, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  z-index: 100;
+}
+.fab-btn:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 24px rgba(0, 122, 255, 0.45);
+}
+.fab-btn:active {
+  transform: scale(0.95);
 }
 </style>

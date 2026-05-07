@@ -32,18 +32,22 @@
           />
         </div>
 
-        <div class="picker-list">
+        <div ref="listRef" class="picker-list">
           <div v-if="displayGroups.length === 0" class="picker-empty">
             无匹配结果
           </div>
           <template v-else>
-            <template v-for="group in displayGroups" :key="group.key">
+            <template v-for="(group, gIdx) in displayGroups" :key="group.key">
               <div v-if="group.label" class="group-header">{{ group.label }}</div>
               <div
-                v-for="account in group.items"
+                v-for="(account, aIdx) in group.items"
                 :key="account.id"
                 class="picker-item"
-                :class="{ active: modelValue === account.id }"
+                :class="{
+                  active: modelValue === account.id,
+                  'is-active': activeIndex === flatIndex(gIdx, aIdx)
+                }"
+                @mouseenter="activeIndex = flatIndex(gIdx, aIdx)"
                 @click.stop="select(account)"
               >
                 <div class="item-left">
@@ -64,7 +68,7 @@
         <div class="picker-footer">
           <button type="button" class="quick-add-btn" @click.stop="startQuickAdd">
             <Icon name="solar:add-circle-linear" size="14" />
-            新增账户
+            {{ searchQuery.trim() ? `新增账户「${searchQuery.trim()}」` : '新增账户' }}
           </button>
         </div>
       </div>
@@ -73,8 +77,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Account, AccountType, AccountCreatePayload, BillCategory } from '~/types/bill'
-import { nextTick, onBeforeUnmount, onMounted } from 'vue'
+import type { Account, AccountType, BillCategory, BillingCreators } from '~/types/bill'
+import { nextTick, onBeforeUnmount, onMounted, inject, type ComputedRef } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
 
 interface AccountGroup {
@@ -90,12 +94,16 @@ const props = defineProps<{
   placeholder?: string
   clearable?: boolean
   categories?: BillCategory[]
+  frequencyMap?: Map<string, number>
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [id: string]
-  create: [payload: AccountCreatePayload]
 }>()
+
+const creators = inject<BillingCreators>('billingCreators')
+const injectedFreq = inject<ComputedRef<Map<string, number>> | undefined>('accountFrequency', undefined)
+const effectiveFrequencyMap = computed(() => props.frequencyMap || injectedFreq?.value)
 
 const placeholder = computed(() => props.placeholder || '请选择账户')
 const open = ref(false)
@@ -127,10 +135,19 @@ const filteredAccounts = computed(() => {
 
 const displayGroups = computed((): AccountGroup[] => {
   const list = filteredAccounts.value
-  const personal = list.filter(a => a.type === 'personal')
-  const merchants = list.filter(a => a.type === 'merchant')
-  const contacts = list.filter(a => a.type === 'contact')
-  const others = list.filter(a => a.type === 'other')
+  function sortByFrequency(items: Account[]) {
+    if (!effectiveFrequencyMap.value) return items
+    return [...items].sort((a, b) => {
+      const fa = effectiveFrequencyMap.value!.get(a.id) || 0
+      const fb = effectiveFrequencyMap.value!.get(b.id) || 0
+      return fb - fa
+    })
+  }
+
+  const personal = sortByFrequency(list.filter(a => a.type === 'personal'))
+  const merchants = sortByFrequency(list.filter(a => a.type === 'merchant'))
+  const contacts = sortByFrequency(list.filter(a => a.type === 'contact'))
+  const others = sortByFrequency(list.filter(a => a.type === 'other'))
 
   const result: AccountGroup[] = []
 
@@ -197,10 +214,10 @@ function toggleOpen() {
     open.value = false
   } else {
     open.value = true
-    nextTick(() => {
+    nextTick(() => requestAnimationFrame(() => {
       updatePanelPosition()
       searchRef.value?.focus()
-    })
+    }))
   }
 }
 
@@ -225,23 +242,108 @@ function onDocumentClick(e: MouseEvent) {
   }
 }
 
+function flatIndex(groupIdx: number, itemIdx: number): number {
+  let count = 0
+  for (let i = 0; i < displayGroups.value.length; i++) {
+    if (i === groupIdx) return count + itemIdx
+    count += displayGroups.value[i].items.length
+  }
+  return -1
+}
+
 onMounted(() => {
   document.addEventListener('click', onDocumentClick, true)
   window.addEventListener('scroll', updatePanelPosition, true)
   window.addEventListener('resize', updatePanelPosition)
+  window.addEventListener('keydown', onKeyDown, { capture: true })
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick, true)
   window.removeEventListener('scroll', updatePanelPosition, true)
   window.removeEventListener('resize', updatePanelPosition)
+  window.removeEventListener('keydown', onKeyDown, { capture: true } as any)
+})
+
+/* ---------- 键盘导航 ---------- */
+const activeIndex = ref(0)
+const listRef = ref<HTMLElement | null>(null)
+
+function resetActiveIndex() {
+  nextTick(() => {
+    if (filteredAccounts.value.length === 0) {
+      activeIndex.value = -1
+      return
+    }
+    if (props.modelValue) {
+      const flat = filteredAccounts.value
+      const idx = flat.findIndex(a => a.id === props.modelValue)
+      if (idx !== -1) {
+        activeIndex.value = idx
+        return
+      }
+    }
+    activeIndex.value = 0
+  })
+}
+
+function moveSelection(delta: number) {
+  const len = filteredAccounts.value.length
+  if (len === 0) return
+  activeIndex.value = (activeIndex.value + delta + len) % len
+  nextTick(() => {
+    const el = listRef.value?.children[activeIndex.value] as HTMLElement | undefined
+    el?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+function selectActive() {
+  const account = filteredAccounts.value[activeIndex.value]
+  if (account) select(account)
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if (!open.value || filteredAccounts.value.length === 0) return
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    e.stopPropagation()
+    moveSelection(1)
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    e.stopPropagation()
+    moveSelection(-1)
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    e.stopPropagation()
+    selectActive()
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    open.value = false
+  }
+}
+
+watch(() => open.value, (v) => {
+  if (v) resetActiveIndex()
+})
+
+watch(searchQuery, () => {
+  if (open.value) resetActiveIndex()
+})
+
+watch(filteredAccounts, (items) => {
+  if (!open.value) return
+  if (activeIndex.value >= items.length || activeIndex.value < 0) {
+    resetActiveIndex()
+  }
 })
 
 /* ---------- 快捷新增 ---------- */
 function startQuickAdd() {
   const defaultName = searchQuery.value.trim()
   open.value = false
-  emit('create', {
+  creators?.openAccountCreator({
     defaultName,
     onCreated: (account) => {
       emit('update:modelValue', account.id)
@@ -363,8 +465,11 @@ function startQuickAdd() {
   transition: background-color 0.1s ease;
   color: rgba(0, 0, 0, 0.92);
 }
-.picker-item:hover {
+.picker-item:hover:not(.disabled) {
   background: rgba(0, 122, 255, 0.08);
+}
+.picker-item.is-active:not(.disabled) {
+  background: rgba(0, 122, 255, 0.14);
 }
 .picker-item.active {
   color: rgb(0, 122, 255);

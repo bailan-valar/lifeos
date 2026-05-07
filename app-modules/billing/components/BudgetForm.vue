@@ -2,11 +2,11 @@
   <div class="form-body">
     <div class="form-group">
       <label class="form-label">所属笔记</label>
-      <select v-model="form.noteId" class="form-select">
-        <option v-for="n in noteOptions" :key="n.id" :value="n.id">
-          {{ '  '.repeat(n.level) }}{{ n.title }}
-        </option>
-      </select>
+      <NotePicker
+        v-model="form.noteId"
+        :options="noteOptions"
+        placeholder="请选择笔记"
+      />
     </div>
 
     <div class="form-group">
@@ -32,8 +32,6 @@
         :categories="categories"
         type="expense"
         placeholder="请选择分类"
-        @create="emit('create-category', $event)"
-        @open-form="emit('open-category-form', $event)"
       />
     </div>
 
@@ -52,20 +50,16 @@
 
     <div class="form-group">
       <label class="form-label">预算金额</label>
-      <input
-        v-model.number="form.amount"
-        class="form-input"
-        type="number"
-        step="0.01"
-        placeholder="0.00"
-      />
+      <AmountInput v-model="form.amount" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { BudgetFormData, BillCategory, CategoryType } from '~/types/bill'
+import type { BudgetFormData, BillCategory } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
+import NotePicker from './NotePicker.vue'
+import AmountInput from './AmountInput.vue'
 
 interface NoteOption {
   id: string
@@ -81,8 +75,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: BudgetFormData): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
 }>()
 
 const cycleOptions = [

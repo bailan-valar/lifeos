@@ -7,7 +7,7 @@
       class="amt-input"
       inputmode="decimal"
       autocomplete="off"
-      :placeholder="placeholder || '0.00'"
+      :placeholder="placeholder || '0.00  支持 + - * /'"
       @input="onInput"
       @focus="onFocus"
       @blur="onBlur"

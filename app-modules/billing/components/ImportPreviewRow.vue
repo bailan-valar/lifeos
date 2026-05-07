@@ -19,7 +19,12 @@
           :class="{ matched: row.matchedAccountId, clickable: !row.skipped }"
           @click.stop="!row.skipped && emit('save-counterparty-rule', row)"
         >{{ row.counterparty || '(无对方)' }}</span>
-        <span v-if="row.description" class="description">{{ row.description }}</span>
+        <span
+          v-if="row.description"
+          class="description"
+          :class="{ matched: row.descriptionRuleId, clickable: !row.skipped }"
+          @click.stop="!row.skipped && emit('save-description-rule', row)"
+        >{{ row.description }}</span>
       </div>
       <div class="meta-line">
         <span class="date">{{ formatDate(row.date) }}</span>
@@ -47,22 +52,21 @@
       <button
         v-if="!row.duplicate && !row.skipped"
         type="button"
-        class="action-btn"
+        class="action-btn save-rule-btn"
         title="保存为规则"
         @click="$emit('save-as-rule', row)"
       >
         <Icon name="solar:bookmark-linear" size="14" />
+        <span class="save-rule-text">存规则</span>
       </button>
     </div>
 
     <div class="controls-row">
-      <select
-        class="form-select type-select"
-        :value="row.type"
-        @change="onTypeChange(($event.target as HTMLSelectElement).value as BillType)"
-      >
-        <option v-for="t in typeOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
-      </select>
+      <BillTypePicker
+        :model-value="row.type"
+        class="type-picker"
+        @update:model-value="onTypeChange($event as BillType)"
+      />
 
       <CategoryPicker
         v-if="showCategory"
@@ -73,8 +77,6 @@
         clearable
         class="compact-picker"
         @update:model-value="updateField('categoryId', $event)"
-        @create="emit('create-category', $event)"
-        @open-form="emit('open-category-form', $event)"
       />
 
       <select
@@ -95,7 +97,6 @@
         clearable
         class="compact-picker"
         @update:model-value="updateField('fromAccountId', $event)"
-        @create="emit('create-account', $event)"
       />
 
       <AccountPicker
@@ -106,7 +107,6 @@
         clearable
         class="compact-picker"
         @update:model-value="updateField('toAccountId', $event)"
-        @create="handleCreateToAccount"
       />
     </div>
   </div>
@@ -120,13 +120,13 @@ import type {
   DebtSubtype,
   ImportRecordItem,
   ImportRule,
-  CategoryType,
-  AccountCreatePayload,
-  AccountType
+  BillingCreators
 } from '~/types/bill'
+import { inject } from 'vue'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
+import BillTypePicker from './BillTypePicker.vue'
 
 const props = defineProps<{
   row: ImportRecordItem
@@ -140,10 +140,10 @@ const emit = defineEmits<{
   (e: 'save-as-rule', row: ImportRecordItem): void
   (e: 'save-counterparty-rule', row: ImportRecordItem): void
   (e: 'save-payment-method-rule', row: ImportRecordItem): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', payload: AccountCreatePayload): void
+  (e: 'save-description-rule', row: ImportRecordItem): void
 }>()
+
+const creators = inject<BillingCreators>('billingCreators')
 
 const typeOptions: { value: BillType; label: string }[] = [
   { value: 'income', label: '收入' },
@@ -235,18 +235,6 @@ function isIncomplete(row: ImportRecordItem): boolean {
 
 function formatDate(date: string): string {
   return date.length >= 16 ? date.slice(0, 16).replace('T', ' ') : date
-}
-
-function handleCreateToAccount(payload: AccountCreatePayload) {
-  const defaultName = props.row.type === 'income'
-    ? (props.row.paymentMethod || payload.defaultName)
-    : (props.row.counterparty || payload.defaultName)
-  const defaultType: AccountType | undefined = props.row.type === 'expense' ? 'merchant' : undefined
-  emit('create-account', {
-    ...payload,
-    defaultName,
-    defaultType
-  })
 }
 
 function formatAmount(n: number): string {
@@ -342,6 +330,17 @@ function formatAmount(n: number): string {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.description.clickable {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.description.clickable:hover {
+  color: rgb(0, 122, 255);
+  text-decoration: underline;
+}
+.description.matched {
+  color: rgb(0, 122, 255);
+}
 .meta-line {
   display: flex;
   gap: 8px;
@@ -398,9 +397,17 @@ function formatAmount(n: number): string {
   color: rgba(0, 0, 0, 0.92);
   outline: none;
 }
-.form-select.type-select {
+.type-picker {
   flex: 0 0 90px;
   min-width: 90px;
+}
+:deep(.type-picker .picker-trigger) {
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+:deep(.type-picker .picker-panel) {
+  width: 120px !important;
 }
 .form-select:focus {
   border-color: rgb(0, 122, 255);
@@ -465,5 +472,15 @@ function formatAmount(n: number): string {
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
   border-color: rgba(0, 122, 255, 0.4);
+}
+.action-btn.save-rule-btn {
+  width: auto;
+  gap: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.save-rule-text {
+  font-size: 11px;
+  font-weight: 500;
 }
 </style>

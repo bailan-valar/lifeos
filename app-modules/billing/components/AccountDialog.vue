@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
-      <div class="dialog" @click.stop>
+      <div class="dialog" tabindex="-1" @click.stop @keydown="onKeyDown">
         <div class="dialog-header">
           <h3>{{ isEditing ? '编辑账户' : '添加账户' }}</h3>
           <button type="button" class="close-btn" @click="onCancel">
@@ -77,7 +77,7 @@ watch(() => props.visible, (v) => {
       aliases: []
     }
   }
-})
+}, { immediate: true })
 
 function onConfirm() {
   if (!form.value.name.trim()) return
@@ -86,6 +86,13 @@ function onConfirm() {
 
 function onCancel() {
   emit('cancel')
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    onConfirm()
+  }
 }
 </script>
 

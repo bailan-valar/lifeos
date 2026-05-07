@@ -183,6 +183,18 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const menu = reactive({
+  visible: false,
+  blockId: null as string | null,
+  index: -1,
+  x: 0,
+  y: 0
+})
+
+const transformPanel = reactive({
+  visible: false
+})
+
 const menuZIndex = useZIndexOnOpen(() => menu.visible)
 
 const getListNumber = (index: number): number => {
@@ -265,18 +277,6 @@ const onDrop = (index: number) => {
   draggingId.value = null
   dropTarget.value = -1
 }
-
-const menu = reactive({
-  visible: false,
-  blockId: null as string | null,
-  index: -1,
-  x: 0,
-  y: 0
-})
-
-const transformPanel = reactive({
-  visible: false
-})
 
 interface TransformItem {
   type: BlockType

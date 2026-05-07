@@ -217,6 +217,7 @@ const props = defineProps<Props>()
 const overlayZIndex = useZIndexOnOpen(() => props.visible)
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
+  (e: 'created', classId: string): void
 }>()
 
 const {
@@ -312,10 +313,10 @@ const startCreate = () => {
     icon: 'solar:document-text-linear',
     color: '#007AFF',
     description: '',
+    order: 0,
     createdAt: '',
     updatedAt: '',
-    isSynced: false,
-    version: 1
+    isSynced: false
   }
   form.name = ''
   form.icon = 'solar:document-text-linear'
@@ -338,6 +339,11 @@ const editClass = (cls: Class) => {
   })
 }
 
+defineExpose({
+  startCreate,
+  editClass
+})
+
 const cancelEdit = () => {
   editingClass.value = null
   isCreating.value = false
@@ -348,6 +354,8 @@ const cancelEdit = () => {
 const saveClass = async () => {
   if (!form.name.trim()) return
 
+  let createdClassId: string | null = null
+
   if (isCreating.value) {
     const cls = await createClass({
       userId: props.userId,
@@ -356,6 +364,7 @@ const saveClass = async () => {
       color: form.color,
       description: form.description.trim()
     })
+    createdClassId = cls.id
     for (const field of editingFields.value) {
       await createField(cls.id, {
         name: field.name,
@@ -388,6 +397,11 @@ const saveClass = async () => {
   showAddField.value = false
   editingFields.value = []
   await loadClasses(props.userId)
+
+  if (createdClassId) {
+    emit('created', createdClassId)
+    emit('update:visible', false)
+  }
 }
 
 const { confirm } = useConfirm()

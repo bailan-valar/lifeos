@@ -1,0 +1,152 @@
+[
+  {
+    "name": "餐饮",
+    "type": "expense",
+    "icon": "solar:chef-hat-linear",
+    "color": "#FF9500",
+    "children": [
+      { "name": "早餐", "icon": "solar:cup-hot-linear", "color": "#FF9500" },
+      { "name": "午餐", "icon": "solar:chef-hat-linear", "color": "#FF9500" },
+      { "name": "晚餐", "icon": "solar:wineglass-linear", "color": "#FF9500" },
+      { "name": "零食", "icon": "solar:donut-linear", "color": "#FF9500" },
+      { "name": "饮料", "icon": "solar:glass-water-linear", "color": "#FF9500" }
+    ]
+  },
+  {
+    "name": "交通",
+    "type": "expense",
+    "icon": "solar:bus-linear",
+    "color": "#007AFF",
+    "children": [
+      { "name": "公交地铁", "icon": "solar:bus-linear", "color": "#007AFF" },
+      { "name": "打车", "icon": "solar:taxi-linear", "color": "#007AFF" },
+      { "name": "油费", "icon": "solar:bolt-linear", "color": "#007AFF" },
+      { "name": "停车费", "icon": "solar:garage-linear", "color": "#007AFF" },
+      { "name": "火车", "icon": "solar:tram-linear", "color": "#007AFF" },
+      { "name": "机票", "icon": "solar:airplane-linear", "color": "#007AFF" },
+      { "name": "加电", "icon": "solar:bolt-linear", "color": "#007AFF" },
+      { "name": "过路费", "icon": "solar:card-linear", "color": "#007AFF" },
+      { "name": "共享单车", "icon": "solar:kick-scooter-linear", "color": "#007AFF" }
+    ]
+  },
+  {
+    "name": "购物",
+    "type": "expense",
+    "icon": "solar:cart-linear",
+    "color": "#AF52DE",
+    "children": [
+      { "name": "日用百货", "icon": "solar:bag-linear", "color": "#AF52DE" },
+      { "name": "数码电器", "icon": "solar:cpu-linear", "color": "#AF52DE" },
+      { "name": "服饰鞋包", "icon": "solar:t-shirt-linear", "color": "#AF52DE" },
+      { "name": "美妆护肤", "icon": "solar:mirror-linear", "color": "#AF52DE" },
+      { "name": "纪念品", "icon": "solar:box-linear", "color": "#AF52DE" }
+    ]
+  },
+  {
+    "name": "住房",
+    "type": "expense",
+    "icon": "solar:home-linear",
+    "color": "#5856D6",
+    "children": [
+      { "name": "房租", "icon": "solar:home-linear", "color": "#5856D6" },
+      { "name": "房贷", "icon": "solar:buildings-linear", "color": "#5856D6" },
+      { "name": "物业费", "icon": "solar:shield-check-linear", "color": "#5856D6" },
+      { "name": "水电煤", "icon": "solar:bolt-linear", "color": "#5856D6" },
+      { "name": "家居维修", "icon": "solar:hammer-linear", "color": "#5856D6" }
+    ]
+  },
+  {
+    "name": "娱乐",
+    "type": "expense",
+    "icon": "solar:gamepad-linear",
+    "color": "#FF2D55",
+    "children": [
+      { "name": "电影演出", "icon": "solar:clapperboard-linear", "color": "#FF2D55" },
+      { "name": "游戏", "icon": "solar:gamepad-linear", "color": "#FF2D55" },
+      { "name": "旅行度假", "icon": "solar:map-point-linear", "color": "#FF2D55" },
+      { "name": "运动健身", "icon": "solar:dumbbell-linear", "color": "#FF2D55" },
+      { "name": "门票", "icon": "solar:ticket-linear", "color": "#FF2D55" }
+    ]
+  },
+  {
+    "name": "医疗",
+    "type": "expense",
+    "icon": "solar:health-linear",
+    "color": "#FF3B30",
+    "children": [
+      { "name": "药品", "icon": "solar:pills-linear", "color": "#FF3B30" },
+      { "name": "医院", "icon": "solar:hospital-linear", "color": "#FF3B30" },
+      { "name": "体检", "icon": "solar:stethoscope-linear", "color": "#FF3B30" }
+    ]
+  },
+  {
+    "name": "教育",
+    "type": "expense",
+    "icon": "solar:book-linear",
+    "color": "#5AC8FA",
+    "children": [
+      { "name": "书籍", "icon": "solar:book-linear", "color": "#5AC8FA" },
+      { "name": "课程培训", "icon": "solar:notebook-linear", "color": "#5AC8FA" },
+      { "name": "考试认证", "icon": "solar:diploma-linear", "color": "#5AC8FA" }
+    ]
+  },
+  {
+    "name": "人情往来",
+    "type": "expense",
+    "icon": "solar:gift-linear",
+    "color": "#FFCC00",
+    "children": [
+      { "name": "礼物", "icon": "solar:gift-linear", "color": "#FFCC00" },
+      { "name": "红包", "icon": "solar:money-linear", "color": "#FFCC00" },
+      { "name": "请客", "icon": "solar:wineglass-linear", "color": "#FFCC00" }
+    ]
+  },
+  {
+    "name": "其他支出",
+    "type": "expense",
+    "icon": "solar:menu-dots-linear",
+    "color": "#8E8E93"
+  },
+  {
+    "name": "工资",
+    "type": "income",
+    "icon": "solar:wallet-money-linear",
+    "color": "#34C759"
+  },
+  {
+    "name": "奖金",
+    "type": "income",
+    "icon": "solar:medal-star-linear",
+    "color": "#34C759"
+  },
+  {
+    "name": "投资收益",
+    "type": "income",
+    "icon": "solar:chart-linear",
+    "color": "#5856D6"
+  },
+  {
+    "name": "兼职",
+    "type": "income",
+    "icon": "solar:case-linear",
+    "color": "#007AFF"
+  },
+  {
+    "name": "红包礼金",
+    "type": "income",
+    "icon": "solar:gift-linear",
+    "color": "#FFCC00"
+  },
+  {
+    "name": "退款",
+    "type": "income",
+    "icon": "solar:undo-left-linear",
+    "color": "#8E8E93"
+  },
+  {
+    "name": "其他收入",
+    "type": "income",
+    "icon": "solar:menu-dots-linear",
+    "color": "#8E8E93"
+  }
+]

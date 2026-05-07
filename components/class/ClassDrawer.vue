@@ -10,6 +10,9 @@
                 <span>{{ noteClassData.class.name }}</span>
               </div>
               <div class="drawer-actions">
+                <button class="action-btn" @click="editCurrentClass" type="button" title="编辑类">
+                  <Icon name="solar:pen-2-linear" />
+                </button>
                 <button class="action-btn" @click="unbind" type="button" title="移除类">
                   <Icon name="solar:trash-bin-trash-linear" />
                 </button>
@@ -44,7 +47,7 @@
               <div v-if="classes.length === 0" class="empty-state">
                 <Icon name="solar:folder-open-linear" class="empty-icon" />
                 <p>还没有创建任何类</p>
-                <button class="primary-btn" @click="openClassManager" type="button">
+                <button class="primary-btn" @click="openCreateClass" type="button">
                   <Icon name="solar:add-circle-linear" />
                   <span>去创建</span>
                 </button>
@@ -70,6 +73,10 @@
                     </div>
                   </button>
                 </div>
+                <button class="create-class-btn" @click="openCreateClass" type="button">
+                  <Icon name="solar:add-circle-linear" />
+                  <span>创建新类</span>
+                </button>
               </div>
             </template>
           </div>
@@ -94,38 +101,43 @@ const props = defineProps<Props>()
 const overlayZIndex = useZIndexOnOpen(() => props.visible)
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
-  (e: 'open-class-manager'): void
 }>()
+
+const openClassManager = inject<(mode: 'list' | 'create' | 'edit', cls?: any, options?: { onCreated?: (classId: string) => void }) => void>('openClassManager', () => {})
 
 const {
   classes,
+  classFields,
+  noteBindings,
   loadClasses,
+  loadBindings,
   bindClass,
   unbindClass,
   updateBindingValues,
-  getClassForNote
+  lastCreatedClassId
 } = useNoteClasses()
 
-const noteClassData = ref<{
-  class: Class
-  fields: ClassField[]
-  binding: NoteClassBinding
-} | null>(null)
+const noteClassData = computed(() => {
+  const binding = noteBindings.value.find(b => b.noteId === props.noteId)
+  if (!binding) return null
+  const cls = classes.value.find(c => c.id === binding.classId)
+  if (!cls) return null
+  const fields = classFields.value
+    .filter(f => f.classId === cls.id)
+    .sort((a, b) => a.order - b.order)
+  return { class: cls, fields, binding }
+})
 
 const fieldValues = ref<Record<string, any>>({})
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-const loadNoteClass = async () => {
-  if (!props.noteId) {
-    noteClassData.value = null
-    return
-  }
-  const data = await getClassForNote(props.noteId)
-  noteClassData.value = data
+watch(noteClassData, (data) => {
   if (data) {
     fieldValues.value = { ...data.binding.values }
+  } else {
+    fieldValues.value = {}
   }
-}
+}, { immediate: true })
 
 const updateFieldValue = (fieldId: string, value: any) => {
   fieldValues.value[fieldId] = value
@@ -137,30 +149,33 @@ const updateFieldValue = (fieldId: string, value: any) => {
 
 const bind = async (classId: string) => {
   await bindClass(props.noteId, classId)
-  await loadNoteClass()
 }
 
 const unbind = async () => {
   await unbindClass(props.noteId)
-  noteClassData.value = null
-  fieldValues.value = {}
 }
 
-const openClassManager = () => {
-  emit('open-class-manager')
-  emit('update:visible', false)
+const openCreateClass = () => {
+  openClassManager('create')
+}
+
+const editCurrentClass = () => {
+  if (noteClassData.value) {
+    openClassManager('edit', noteClassData.value.class)
+  }
 }
 
 watch(() => props.visible, (v) => {
   if (v) {
     loadClasses(props.userId)
-    loadNoteClass()
+    loadBindings()
   }
 })
 
-watch(() => props.noteId, () => {
-  if (props.visible) {
-    loadNoteClass()
+watch(lastCreatedClassId, async (classId) => {
+  if (classId && props.visible && props.noteId) {
+    await bindClass(props.noteId, classId)
+    lastCreatedClassId.value = null
   }
 })
 </script>
@@ -353,6 +368,28 @@ watch(() => props.noteId, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.create-class-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  margin-top: 4px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px dashed rgba(60, 60, 67, 0.2);
+  border-radius: 14px;
+  color: rgba(0, 122, 255, 0.8);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.create-class-btn:hover {
+  background: rgba(0, 122, 255, 0.06);
+  border-color: rgba(0, 122, 255, 0.3);
 }
 
 .drawer-enter-active,

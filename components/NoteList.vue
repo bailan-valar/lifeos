@@ -85,6 +85,13 @@
         <span>移动到顶层</span>
       </div>
     </div>
+
+    <div class="note-list-footer">
+      <button class="class-manager-btn" @click="$emit('open-class-manager')" type="button" title="笔记类管理">
+        <Icon name="solar:folder-library-linear" />
+        <span>笔记类管理</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -102,6 +109,7 @@ interface Emits {
   (e: 'create-child', parentId: string): void
   (e: 'reorder', payload: { id: string; targetId: string | null; position: 'before' | 'after' | 'child' | 'root-end' }): void
   (e: 'delete', id: string): void
+  (e: 'open-class-manager'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -552,5 +560,33 @@ const formatDate = (dateString: string) => {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.note-list-footer {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-top: 0.5px solid rgba(60, 60, 67, 0.1);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.class-manager-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.65);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.class-manager-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(60, 60, 67, 0.9);
 }
 </style>

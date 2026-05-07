@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
-      <div class="dialog" @click.stop>
+      <div class="dialog" tabindex="-1" @click.stop @keydown="onKeyDown">
         <div class="dialog-header">
           <h3>{{ isEditing ? '编辑规则' : '新建规则' }}</h3>
           <button type="button" class="close-btn" @click="onCancel">
@@ -13,9 +13,6 @@
             v-model="form"
             :accounts="accounts"
             :categories="categories"
-            @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
-            @create-account="emit('create-account', $event)"
           />
         </div>
         <div class="dialog-footer">
@@ -28,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportRule, ImportRuleFormData, Account, BillCategory, CategoryType, AccountCreatePayload } from '~/types/bill'
+import type { ImportRule, ImportRuleFormData, Account, BillCategory } from '~/types/bill'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import ImportRuleForm from './ImportRuleForm.vue'
 
@@ -43,13 +40,10 @@ const overlayZIndex = useZIndexOnOpen(() => props.visible)
 const emit = defineEmits<{
   confirm: [data: ImportRuleFormData, isEditing: boolean, id?: string]
   cancel: []
-  'create-category': [data: { name: string; type: CategoryType; parentId?: string }]
-  'open-category-form': [data: { type: CategoryType; defaultParentId?: string; defaultName?: string }]
-  'create-account': [payload: AccountCreatePayload]
 }>()
 
 const form = ref<ImportRuleFormData>({
-  name: '', source: 'all', matchMode: 'fuzzy', pattern: '', categoryId: '',
+  source: 'all', matchField: 'account', matchMode: 'fuzzy', pattern: '', categoryId: '',
   accountId: '', billType: undefined, priority: 100, enabled: true
 })
 
@@ -59,8 +53,8 @@ watch(() => props.visible, (v) => {
   if (!v) return
   if (props.rule) {
     form.value = {
-      name: props.rule.name,
       source: props.rule.source,
+      matchField: props.rule.matchField,
       matchMode: props.rule.matchMode,
       pattern: props.rule.pattern,
       categoryId: props.rule.categoryId,
@@ -71,20 +65,26 @@ watch(() => props.visible, (v) => {
     }
   } else {
     form.value = {
-      name: '', source: 'all', matchMode: 'fuzzy', pattern: '', categoryId: '',
+      source: 'all', matchField: 'account', matchMode: 'fuzzy', pattern: '', categoryId: '',
       accountId: '', billType: undefined, priority: 100, enabled: true
     }
   }
 }, { immediate: true })
 
 function onConfirm() {
-  if (!form.value.name.trim()) return
   if (!form.value.pattern.trim()) return
   emit('confirm', form.value, isEditing.value, props.rule?.id)
 }
 
 function onCancel() {
   emit('cancel')
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    onConfirm()
+  }
 }
 </script>
 

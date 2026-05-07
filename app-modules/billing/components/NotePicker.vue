@@ -125,11 +125,11 @@ function toggleOpen() {
     open.value = false
   } else {
     open.value = true
-    nextTick(() => {
+    nextTick(() => requestAnimationFrame(() => {
       updatePanelPosition()
       searchRef.value?.focus()
       resetActiveIndex()
-    })
+    }))
   }
 }
 

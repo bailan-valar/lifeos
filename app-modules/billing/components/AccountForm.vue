@@ -97,6 +97,37 @@
       />
     </div>
     <div class="form-group">
+      <label class="form-label">图标</label>
+      <div class="icon-picker">
+        <button
+          v-for="icon in presetIcons"
+          :key="icon"
+          type="button"
+          class="icon-option"
+          :class="{ active: form.icon === icon }"
+          @click="form.icon = icon"
+        >
+          <Icon :name="icon" />
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">颜色</label>
+      <div class="color-picker">
+        <button
+          v-for="color in presetColors"
+          :key="color"
+          type="button"
+          class="color-option"
+          :class="{ active: form.color === color }"
+          :style="{ background: color }"
+          @click="form.color = color"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
       <label class="form-label">币种</label>
       <select v-model="form.currency" class="form-select">
         <option value="CNY">CNY</option>
@@ -132,6 +163,38 @@ const subtypeOptions: Array<{ value: AccountSubtype; label: string }> = [
   { value: 'debit_card', label: '储蓄卡' },
   { value: 'credit_card', label: '信用卡' },
   { value: 'online_account', label: '网络账户' }
+]
+
+const presetIcons = [
+  'solar:wallet-linear',
+  'solar:card-linear',
+  'solar:cart-linear',
+  'solar:bag-linear',
+  'solar:home-linear',
+  'solar:kick-scooter-linear',
+  'solar:cpu-linear',
+  'solar:bolt-linear',
+  'solar:heart-linear',
+  'solar:star-linear',
+  'solar:chef-hat-linear',
+  'solar:cup-hot-linear',
+  'solar:bus-linear',
+  'solar:health-linear',
+  'solar:book-linear',
+  'solar:gift-linear'
+]
+
+const presetColors = [
+  '#007AFF',
+  '#34C759',
+  '#FF9500',
+  '#FF3B30',
+  '#AF52DE',
+  '#5856D6',
+  '#FF2D55',
+  '#5AC8FA',
+  '#FFCC00',
+  '#8E8E93'
 ]
 
 const form = computed({
@@ -229,9 +292,10 @@ function onRepaymentDayInput(raw: string) {
 
 function onAliasesInput(raw: string) {
   const list = raw.split('\n').map(s => s.trim()).filter(Boolean)
+  const unique = [...new Set(list)]
   emit('update:modelValue', {
     ...form.value,
-    aliases: list
+    aliases: unique
   })
 }
 
@@ -314,5 +378,52 @@ function onCategoryChange(id: string) {
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
   font-weight: 600;
+}
+.icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.icon-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  color: rgba(60, 60, 67, 0.7);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.icon-option:hover {
+  background: rgba(0, 122, 255, 0.08);
+}
+.icon-option.active {
+  border-color: rgb(0, 122, 255);
+  background: rgba(0, 122, 255, 0.12);
+  color: rgb(0, 102, 230);
+}
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.color-option {
+  width: 28px;
+  height: 28px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.color-option:hover {
+  transform: scale(1.1);
+}
+.color-option.active {
+  border-color: white;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2);
 }
 </style>

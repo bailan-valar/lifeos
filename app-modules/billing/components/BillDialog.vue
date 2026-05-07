@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
-      <div class="dialog" @click.stop>
+      <div class="dialog" tabindex="-1" @click.stop @keydown="onKeyDown">
         <div class="dialog-header">
           <h3>{{ isEditing ? '编辑账单' : '记一笔' }}</h3>
           <button type="button" class="close-btn" @click="onCancel">
@@ -14,9 +14,6 @@
             :accounts="accounts"
             :categories="categories"
             :note-options="noteOptions"
-            @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
-            @create-account="emit('create-account', $event)"
           />
         </div>
         <div class="dialog-footer">
@@ -29,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, BillFormData, Account, BillCategory, CategoryType, AccountCreatePayload } from '~/types/bill'
+import type { Bill, BillFormData, Account, BillCategory } from '~/types/bill'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import BillForm from './BillForm.vue'
 
@@ -46,15 +43,13 @@ const props = defineProps<{
   categories: BillCategory[]
   noteOptions: NoteOption[]
   defaultNoteId?: string
+  defaultFormValues?: Partial<BillFormData>
 }>()
 const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const emit = defineEmits<{
   confirm: [data: BillFormData, isEditing: boolean, id?: string]
   cancel: []
-  'create-category': [data: { name: string; type: CategoryType; parentId?: string }]
-  'open-category-form': [data: { type: CategoryType; defaultParentId?: string; defaultName?: string }]
-  'create-account': [payload: AccountCreatePayload]
 }>()
 
 const form = ref<BillFormData>({
@@ -83,13 +78,36 @@ watch(() => props.visible, (v) => {
       relatedPersonId: props.bill.relatedPersonId
     }
   } else {
+    const defaults = props.defaultFormValues || {}
     form.value = {
       noteId: props.defaultNoteId || '',
-      type: 'expense', amount: 0, currency: 'CNY',
-      fromAccountId: '', toAccountId: '', categoryId: '',
-      description: '', date: new Date().toISOString().slice(0, 16),
-      debtSubtype: 'lend', relatedPersonId: ''
+      type: defaults.type || 'expense',
+      amount: 0,
+      currency: defaults.currency || 'CNY',
+      fromAccountId: defaults.fromAccountId || '',
+      toAccountId: defaults.toAccountId || '',
+      categoryId: defaults.categoryId || '',
+      description: '',
+      date: new Date().toISOString().slice(0, 16),
+      debtSubtype: 'lend',
+      relatedPersonId: ''
     }
+  }
+}, { immediate: true })
+
+/* ---------- 类型切换时自动清空不匹配的分类 ---------- */
+watch(() => form.value.type, (newType, oldType) => {
+  if (!oldType || newType === oldType) return
+  // 收入/支出切换时，检查当前分类是否匹配新类型
+  if ((newType === 'income' || newType === 'expense') && form.value.categoryId) {
+    const cat = props.categories.find(c => c.id === form.value.categoryId)
+    if (!cat || cat.type !== newType) {
+      form.value.categoryId = ''
+    }
+  }
+  // 转账/借贷不需要分类
+  if (newType === 'transfer' || newType === 'debt') {
+    form.value.categoryId = ''
   }
 })
 
@@ -106,6 +124,13 @@ function onConfirm() {
 
 function onCancel() {
   emit('cancel')
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    onConfirm()
+  }
 }
 
 /* ---------- 外部调用：设置选中值（跨弹框联动） ---------- */

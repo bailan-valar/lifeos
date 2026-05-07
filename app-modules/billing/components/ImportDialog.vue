@@ -17,10 +17,6 @@
             :existing-fingerprints="existingFingerprints"
             @record-created="emit('record-created', $event)"
             @view-record="emit('view-record', $event)"
-            @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
-            @create-account="emit('create-account', $event)"
-            @open-rule-dialog="emit('open-rule-dialog', $event)"
             @tab-change="emit('tab-change', $event)"
           />
         </div>
@@ -30,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Account, BillCategory, ImportRecord, CategoryType, AccountCreatePayload, ImportRuleFormData } from '~/types/bill'
+import type { Account, BillCategory, ImportRecord } from '~/types/bill'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import BillImportDialog from './BillImportDialog.vue'
 
@@ -47,10 +43,6 @@ const emit = defineEmits<{
   cancel: []
   'record-created': [record: ImportRecord]
   'view-record': [recordId: string]
-  'create-category': [data: { name: string; type: CategoryType; parentId?: string }]
-  'open-category-form': [data: { type: CategoryType; defaultParentId?: string; defaultName?: string }]
-  'create-account': [payload: AccountCreatePayload]
-  'open-rule-dialog': [form: ImportRuleFormData]
   'tab-change': [tab: 'import' | 'history']
 }>()
 

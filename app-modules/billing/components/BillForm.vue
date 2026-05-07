@@ -46,7 +46,6 @@
           :accounts="accounts"
           placeholder="请选择出账账户"
           clearable
-          @create="emit('create-account', $event)"
         />
       </div>
       <div v-if="showTo" class="form-group">
@@ -56,7 +55,6 @@
           :accounts="accounts"
           placeholder="请选择入账账户"
           clearable
-          @create="emit('create-account', $event)"
         />
       </div>
     </div>
@@ -86,8 +84,6 @@
         :type="form.type === 'income' ? 'income' : 'expense'"
         placeholder="请选择分类"
         clearable
-        @create="emit('create-category', $event)"
-        @open-form="emit('open-category-form', $event)"
       />
     </div>
 
@@ -104,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BillFormData, Account, BillCategory, BillType, DebtSubtype, CategoryType, AccountCreatePayload } from '~/types/bill'
+import type { BillFormData, Account, BillCategory, BillType, DebtSubtype } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
 import NotePicker from './NotePicker.vue'
@@ -120,9 +116,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: BillFormData): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', payload: AccountCreatePayload): void
 }>()
 
 const typeOptions = [

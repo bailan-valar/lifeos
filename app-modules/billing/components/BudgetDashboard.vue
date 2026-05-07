@@ -2,12 +2,12 @@
   <div class="budget-dashboard">
     <div class="dashboard-header">
       <div class="header-left">
-        <select v-model="selectedNoteId" class="note-select">
-          <option value="">全局</option>
-          <option v-for="n in noteOptions" :key="n.id" :value="n.id">
-            {{ '  '.repeat(n.level) }}{{ n.title }}
-          </option>
-        </select>
+        <NotePicker
+          v-model="selectedNoteId"
+          :options="noteOptions"
+          placeholder="全局"
+          clearable
+        />
       </div>
       <div class="year-nav">
         <button class="nav-btn" @click="currentYear--">
@@ -140,6 +140,7 @@
 
 <script setup lang="ts">
 import type { Bill, BudgetCycleType, CategoryTreeNode } from '~/types/bill'
+import NotePicker from './NotePicker.vue'
 
 const props = defineProps<{ year?: number }>()
 
@@ -353,22 +354,8 @@ function onCellClick(categoryId: string, month: number) {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-}
-
-.note-select {
-  padding: 6px 10px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 8px;
-  font-size: 13px;
-  background: rgba(255, 255, 255, 0.8);
-  color: rgba(0, 0, 0, 0.92);
-  outline: none;
   min-width: 140px;
   max-width: 200px;
-}
-
-.note-select:focus {
-  border-color: rgb(0, 122, 255);
 }
 
 .year-nav {

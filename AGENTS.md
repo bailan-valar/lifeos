@@ -1,0 +1,332 @@
+# LifeOS - Agent 开发指南
+
+> 本文档面向 AI 编程助手。阅读前默认你对本项目一无所知。所有信息均基于实际代码，不做假设。
+
+---
+
+## 项目概述
+
+LifeOS 是一款**个人生活管理系统**，定位为"生活操作系统"（Life Operating System）。它采用本地优先（local-first）架构，所有核心数据默认存储在浏览器 IndexedDB 中，可选通过 CouchDB 进行远端同步，也可选通过服务端账户进行工作空间元数据同步。
+
+当前已实现三大核心模块：
+- **笔记系统**：支持树形结构的块编辑器（Block Editor），基于 TipTap；每篇笔记可附加分类（Class）自定义字段
+- **账单模块**：完整的记账、账户管理、分类树、预算、账单周期、CSV 导入与导入规则体系
+- **目标管理**：OKR 风格的目标追踪，支持状态、优先级、时间规划和笔记关联
+
+项目愿景、详细功能规划和 Roadmap 见 `doc/PRD-LifeOS.md`。
+
+---
+
+## 技术栈
+
+| 层级 | 技术 | 说明 |
+|------|------|------|
+| 前端框架 | Nuxt 3 (Vue 3) | SPA 模式 (`ssr: false`) |
+| 状态管理 | Pinia | `stores/auth.ts`、`stores/workspace.ts` |
+| 样式 | Tailwind CSS + 自定义 CSS | 见 `assets/css/main.css`，大量 iOS 风格玻璃拟态 |
+| 本地数据库 | PouchDB (`pouchdb-browser` + `pouchdb-find`) | 封装在 `services/db.ts`，IndexedDB 后端 |
+| 富文本编辑 | TipTap 2 (大量扩展) | 见 `components/editor/`，自定义块类型 |
+| 服务端 | Nuxt Nitro | `server/api/` 目录下定义 API 路由 |
+| 服务端 ORM | Prisma | `prisma/schema.prisma`，PostgreSQL 后端 |
+| 认证 | JWT (`jsonwebtoken`) + bcryptjs | Token 存 `localStorage`，见 `server/utils/auth.ts` |
+| 图标 | `@nuxt/icon` + `@iconify-json/solar` | Solar 图标集 |
+| 构建工具 | Vite (Nuxt 内置) | Node.js 运行时 |
+
+---
+
+## 项目结构
+
+```
+├── app-modules/           # 可插拔笔记模块
+│   ├── billing/           # 账单模块（组件 + 注册逻辑）
+│   └── todo/              # 目标/待办模块
+├── assets/css/
+│   └── main.css           # Tailwind 入口 + iOS 玻璃拟态样式 + Z-Index 变量
+├── components/
+│   ├── class/             # 分类（Class）管理器与字段编辑器
+│   ├── editor/            # 块编辑器核心（BlockEditor、BlockList、各 block 类型、SlashMenu）
+│   ├── module/            # 模块管理器 UI
+│   ├── ui/                # 通用 UI（Toast、Confirm、GlassCard）
+│   └── workspace/         # 工作空间相关组件（切换器、同步状态、 onboarding）
+├── composables/           # Vue Composables，业务逻辑层
+│   ├── useBills.ts        # 账单 CRUD + 余额联动
+│   ├── useNotes.ts        # 笔记树构建
+│   ├── useBlockEditor.ts  # 编辑器逻辑
+│   ├── useModule.ts       # 模块生命周期管理
+│   └── ...
+├── pages/                 # Nuxt 页面路由
+│   ├── notes.vue          # 笔记主页（左侧列表 + 右侧编辑器）
+│   ├── billing.vue        # 独立账单页面
+│   ├── todo.vue           # 目标管理页面
+│   ├── login.vue          # 登录
+│   └── signup.vue         # 注册
+├── plugins/               # Nuxt 插件（按顺序执行）
+│   ├── auth.init.ts       # 初始化认证状态
+│   ├── pouchdb.client.ts  # 清理旧 RxDB 数据 + 初始化 PouchDB
+│   └── workspace.client.ts # 初始化工作空间 + 启动同步
+├── server/api/            # API 路由
+│   ├── auth/              # 登录、注册、获取当前用户
+│   └── workspaces/        # 工作空间 CRUD（需 JWT）
+├── server/utils/          # 服务端工具
+│   ├── auth.ts            # JWT 签发与校验
+│   └── db.ts              # PrismaClient 单例
+├── services/              # 核心客户端服务
+│   ├── db.ts              # PouchDB 封装（RxDB 风格 API）
+│   ├── sync.ts            # CouchDB 双向实时同步
+│   ├── workspaces.ts      # 工作空间本地/远端 CRUD
+│   ├── ModuleRegistry.ts  # 模块注册表
+│   └── csvImport.ts       # CSV 导入解析逻辑
+├── stores/                # Pinia Stores
+│   ├── auth.ts            # 用户认证状态
+│   └── workspace.ts       # 工作空间状态与切换逻辑
+├── types/                 # TypeScript 类型定义
+│   ├── block.ts           # 块、笔记、文件夹、标签、分类等类型
+│   ├── bill.ts            # 账单、账户、分类、预算等类型
+│   ├── module.ts          # 模块系统类型
+│   └── workspace.ts       # 工作空间与同步状态类型
+├── prisma/schema.prisma   # Prisma 数据模型（PostgreSQL）
+├── nuxt.config.ts         # Nuxt 配置（SPA、模块、运行时配置）
+├── tailwind.config.js     # Tailwind + 自定义 iOS 颜色/阴影
+├── package.json           # 依赖与脚本
+└── ecosystem.config.cjs   # PM2 配置（开发模式）
+```
+
+---
+
+## 构建与开发命令
+
+```bash
+# 安装依赖
+npm install
+
+# 开发服务器（默认端口 3000）
+npm run dev
+
+# 生产构建
+npm run build
+
+# 静态生成（如需要）
+npm run generate
+
+# 类型检查
+npm run typecheck
+
+# ESLint 检查
+npm run lint
+
+# PM2 启动（按项目习惯）
+pm2 start ecosystem.config.cjs
+```
+
+> 注意：`.env` 文件需自行配置。参考 `.env.example`：需要 `DATABASE_URL`（PostgreSQL）、`JWT_SECRET`，以及可选的 CouchDB 同步配置。
+
+---
+
+## 数据架构（本地优先）
+
+### PouchDB 数据层
+
+项目使用 `pouchdb-browser` + `pouchdb-find` 作为本地数据层。封装在 `services/db.ts` 中，对外暴露 RxDB 风格的 wrapper：
+
+- `db.<collection>.find(opts)` → 返回 `Query<DBDoc[]>`
+- `db.<collection>.findOne(idOrOpts)` → 返回 `Query<DBDoc | null>`
+- `db.<collection>.insert(data)` / `db.<collection>.upsert(data)`
+- `doc.toJSON()` / `doc.get(field)` / `doc.patch(partial)` / `doc.update({$set})` / `doc.remove()`
+
+### 集合与索引
+
+所有集合在 `services/db.ts` 的 `COLLECTION_INDEXES` 中声明，每个集合是一个独立的 PouchDB 实例，命名前缀为 `lifeos-<workspaceId>-<collection>`。
+
+已声明的集合包括：`blocks`、`notes`、`folders`、`tags`、`noteTags`、`blockLinks`、`classes`、`classFields`、`noteClassBindings`、`module_config`、`module_data`、`goals`、`accounts`、`billCategories`、`bills`、`budgets`、`statements`、`importRules`、`importRecords`。
+
+**添加新集合的步骤**：
+1. 在 `COLLECTION_INDEXES` 中添加 `<集合名>: [[...索引字段组], ...]`
+2. 在 `types/` 下定义对应 TypeScript 类型（无 schema 校验，类型即契约）
+3. 写一个 composable 封装 CRUD（参考 `composables/useBills.ts`）
+
+### 文档字段约定
+
+- `id`（业务字段）会被 wrapper 同步到 PouchDB 的 `_id`；不要手写 `_id`
+- `_rev` 由 PouchDB 内部维护，`toJSON()` 已剥离；不要在业务对象里出现
+- 业务侧可保留 `version` 字段作乐观锁计数，与 PouchDB `_rev` 互不冲突
+- 所有同步相关的文档通常带 `isSynced: boolean` 字段
+
+### 多工作空间隔离
+
+- 每个工作空间用 UUID v4 作为 `workspaceId`，所有业务数据按 `lifeos-<workspaceId>-<collection>` 前缀写入 IndexedDB
+- `services/workspaces.ts` 提供工作空间 CRUD（写入 `lifeos-meta-workspaces`）
+- `stores/workspace.ts`（Pinia）协调切换：`switchTo(id)` 顺序为 `stopSync → closeWorkspaceDB → setActiveId → initDB → startSync`
+- `app.vue` 给 `<NuxtPage>` 绑定 `:key="workspaceStore.currentId"`，切换空间时强制重渲染
+
+### 远端 CouchDB 同步
+
+- `services/sync.ts` 封装 PouchDB 原生 `db.sync(remote, { live: true, retry: true })`
+- 冲突策略沿用 PouchDB 默认的 last-write-wins，不做应用层合并
+- 工作空间未配置 `remoteUrl` 时同步状态为 `disabled`，业务读写完全本地
+
+### 服务端同步（可选）
+
+- 登录用户的工作空间元数据（名称、CouchDB 地址等）会通过 `services/workspaces.ts` 同步到服务端 PostgreSQL
+- 实际业务数据（账单、笔记等）不走服务端，只走本地 PouchDB ↔ CouchDB 同步
+
+---
+
+## 模块系统（Module System）
+
+LifeOS 为笔记设计了可插拔模块架构，定义在 `types/module.ts`、实现在 `services/ModuleRegistry.ts`。
+
+- 模块通过 `getModuleRegistry().register(moduleConfig)` 注册
+- 当前已注册模块：`billing`（账单）、`todo`（目标）
+- 每个模块可绑定到单篇笔记，通过 `module_config` 集合控制 `enabled` 状态
+- 模块数据存储在 `module_data` 集合中（`noteId + moduleId` 联合查询）
+- 笔记视图切换器 `NoteViewSwitcher.vue` 目前直接硬编码了三个 Tab：内容、待办、账单
+
+模块生命周期钩子：`onLoad`、`onUnload`、`onActivate`、`onDeactivate`、`onDataChange`。
+
+---
+
+## 代码风格与约定
+
+### 语言
+
+- 源代码中的注释、变量命名、UI 文本以**中文**为主
+- Git 提交信息使用中文描述（见下方提交规范）
+- 类型定义和 composable 以英文命名，符合 Vue/Nuxt 生态习惯
+
+### Git 提交规范
+
+格式：`type: 中文描述`（主题必填，冒号后中文，末尾不加句号）
+
+| 类型 | 含义 |
+|------|------|
+| `feat` | 新功能 |
+| `fix` | 修复 bug |
+| `refactor` | 重构 |
+| `style` | 格式调整 |
+| `chore` | 构建流程、依赖、工具链 |
+| `docs` | 仅文档变更 |
+| `test` | 添加或更新测试 |
+| `perf` | 性能优化 |
+| `revert` | 回滚 |
+
+**多项变更**（一次提交多个独立改动）：每条各占一行，按重要性从高到低排列。
+
+示例：
+```
+feat: 添加块编辑器的 todo 块类型
+fix: 修复 folderId 为 null 时的数据库错误
+```
+
+### TypeScript
+
+- 启用 `strict: true`
+- Composables 返回 reactive 对象，业务组件直接解构使用
+- 数据库文档通过 `doc.toJSON()` 转为纯对象后再赋值给 `ref`
+- ID 生成：`services/db.ts` 中的 `generateId()` 使用 `Date.now()-随机字符串`
+
+### Vue 组件风格
+
+- 使用 `<script setup lang="ts">`
+- 样式大量采用 **Scoped CSS** + iOS 玻璃拟态设计（backdrop-filter、半透明白色背景、0.5px 边框）
+- 弹框统一使用 `<Teleport to="body">` + `.dialog-overlay` 包裹
+- 图标统一使用 `<Icon name="solar:xxx-linear" />`
+
+---
+
+## UI/UX 规范
+
+### Z-Index 层级体系
+
+所有 `Teleport to="body"` 的弹框/浮层必须使用 `assets/css/main.css` 中定义的 CSS 变量，**禁止硬编码数字**。
+
+| 变量 | 数值 | 用途 |
+|------|------|------|
+| `--z-drawer` | 200 | 抽屉（ClassDrawer） |
+| `--z-modal` | 300 | 基础弹框 overlay |
+| `--z-modal-nested` | 400 | 嵌套弹框 |
+| `--z-picker` | 450 | 下拉选择面板 |
+| `--z-dropdown` | 460 | 下拉菜单、编辑器浮动菜单 |
+| `--z-toast` | 500 | Toast 通知 |
+| `--z-confirm` | 600 | 确认弹框（阻塞式） |
+| `--z-drag` | 700 | 拖拽覆盖层 |
+
+**关键设计**：`picker (450) > 嵌套弹框 (400)`，确保 picker 面板始终位于其宿主弹框之上。
+
+**账单模块弹框架构**：
+- Layer 1（`--z-modal`）：BillDialog、AccountDialog、CategoryDialog、BudgetDialog、StatementDialog、ImportDialog、RuleDialog
+- Layer 2（`--z-modal-nested`）：ImportRecordDetail、BillBatchEditDialog、ImportRuleDialog
+- Layer 3（`--z-picker` / `--z-dropdown`）：各 Picker 面板
+
+跨弹框联动由 `BillingView.vue` 统一协调（关闭源弹框 → 打开目标弹框 → 通过 `defineExpose` setter 回写数据）。
+
+### 新增弹框时
+
+1. 优先封装为独立的 `XxxDialog.vue` 组件
+2. 如果是"从现有弹框中打开的新弹框" → `--z-modal-nested`
+3. 如果是独立的业务弹框 → `--z-modal`
+4. 如果现有层级不够用，先在 `main.css` 的 `:root` 中扩展变量
+
+---
+
+## 测试策略
+
+当前测试基础设施较轻薄：
+
+- 已安装 `@playwright/test`，但项目中**尚无现成测试用例**
+- 有 `npm run typecheck`（`vue-tsc`）用于静态类型检查
+- 有 `npm run lint`（ESLint）用于代码风格检查
+
+**建议的补充**：
+- 关键 composables（如 `useBills.ts`、`useNotes.ts`）可写单元测试
+- 账单导入流程、块编辑器核心交互适合用 Playwright 写 E2E 测试
+
+---
+
+## 部署与运行
+
+### 开发环境
+
+```bash
+# 1. 准备 PostgreSQL 数据库，配置 DATABASE_URL
+# 2. 执行 Prisma 迁移（如需要）
+npx prisma migrate dev
+
+# 3. 启动开发服务器
+npm run dev
+```
+
+### 生产部署
+
+- 使用 `npm run build` 生成 `.output/`
+- 可通过 PM2 管理：`ecosystem.config.cjs` 提供了开发模式配置示例
+- 运行时依赖环境变量：`DATABASE_URL`、`JWT_SECRET`、`NUXT_PUBLIC_API_BASE`
+- CouchDB 同步配置为可选：`NUXT_PUBLIC_COUCHDB_URL`、`NUXT_PUBLIC_COUCHDB_USERNAME`、`NUXT_PUBLIC_COUCHDB_PASSWORD`
+
+---
+
+## 安全注意事项
+
+1. **JWT Secret**：`JWT_SECRET` 必须设置为强随机字符串，用于签发和校验用户 Token
+2. **密码存储**：用户密码使用 `bcryptjs` 哈希后存入 PostgreSQL，不存明文
+3. **本地 Token**：登录后 JWT 存入 `localStorage`，所有需要认证的 API 请求通过 `Authorization: Bearer <token>` 头部发送
+4. **CouchDB 凭据**：工作空间的 CouchDB 凭据（用户名/密码）以明文形式存储在本地 PouchDB（`lifeos-meta-workspaces`）和客户端内存中，**不做加密处理**
+5. **服务端权限**：`server/api/workspaces/*` 路由校验 JWT；`server/api/auth/*` 为公开路由
+6. **数据隔离**：工作空间通过不同的 IndexedDB 数据库前缀实现客户端数据隔离，但同一浏览器内所有工作空间数据均可被访问
+
+---
+
+## 关键文件速查
+
+| 需求 | 文件 |
+|------|------|
+| 看技术栈和依赖 | `package.json`、`nuxt.config.ts` |
+| 看数据模型 | `prisma/schema.prisma`、`types/block.ts`、`types/bill.ts` |
+| 看本地数据库 API | `services/db.ts` |
+| 看同步逻辑 | `services/sync.ts` |
+| 看工作空间管理 | `services/workspaces.ts`、`stores/workspace.ts` |
+| 看认证逻辑 | `stores/auth.ts`、`server/utils/auth.ts` |
+| 看模块系统 | `types/module.ts`、`services/ModuleRegistry.ts`、`composables/useModule.ts` |
+| 看账单业务 | `composables/useBills.ts`、`app-modules/billing/` |
+| 看编辑器 | `components/editor/BlockEditor.vue`、`composables/useBlockEditor.ts` |
+| 看 UI 规范 | `assets/css/main.css`、`CLAUDE.md`（Z-Index、弹框规范） |
+| 看产品需求 | `doc/PRD-LifeOS.md` |

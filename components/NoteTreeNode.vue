@@ -119,7 +119,7 @@
                   暂无笔记类
                 </div>
                 <div class="submenu-divider" />
-                <div class="submenu-item submenu-add" @click.stop="openClassManager">
+                <div class="submenu-item submenu-add" @click.stop="openClassCreator">
                   <span class="submenu-icon" :style="{ background: 'rgba(0,122,255,0.12)', color: 'rgb(0,122,255)' }">
                     <Icon name="solar:add-circle-linear" />
                   </span>
@@ -145,7 +145,7 @@
 
 <script setup lang="ts">
 import type { Note } from '~/types/block'
-import { useNoteClasses, loadClasses, bindClass, getClassForNote } from '~/composables/useNoteClasses'
+import { useNoteClasses, loadClasses, bindClass } from '~/composables/useNoteClasses'
 import { getNextZIndex } from '~/composables/useZIndex'
 
 interface Props {
@@ -161,24 +161,15 @@ const settingsBtnRef = ref<HTMLButtonElement | null>(null)
 const menuRef = ref<HTMLDivElement | null>(null)
 const menuPosition = ref<Record<string, string>>({})
 
-const { classes } = useNoteClasses()
+const { classes, noteBindings } = useNoteClasses()
 
-const noteClassBadge = ref<{ name: string; icon: string; color: string } | null>(null)
-
-const loadNoteClassBadge = async () => {
-  const data = await getClassForNote(props.note.id)
-  if (data) {
-    noteClassBadge.value = {
-      name: data.class.name,
-      icon: data.class.icon,
-      color: data.class.color
-    }
-  } else {
-    noteClassBadge.value = null
-  }
-}
-
-watch(() => props.note.id, loadNoteClassBadge, { immediate: true })
+const noteClassBadge = computed(() => {
+  const binding = noteBindings.value.find(b => b.noteId === props.note.id)
+  if (!binding) return null
+  const cls = classes.value.find(c => c.id === binding.classId)
+  if (!cls) return null
+  return { name: cls.name, icon: cls.icon, color: cls.color }
+})
 
 const updateMenuPosition = () => {
   const btn = settingsBtnRef.value
@@ -201,15 +192,18 @@ const toggleMenu = async () => {
 
 const bindToClass = async (classId: string) => {
   await bindClass(props.note.id, classId)
-  await loadNoteClassBadge()
   menuOpen.value = false
   submenuOpen.value = false
 }
 
-const classManagerVisible = inject<Ref<boolean>>('classManagerVisible', ref(false))
+const openClassManager = inject<(mode: 'list' | 'create' | 'edit', cls?: any, options?: { onCreated?: (classId: string) => void }) => void>('openClassManager', () => {})
 
-const openClassManager = () => {
-  classManagerVisible.value = true
+const openClassCreator = () => {
+  openClassManager('create', undefined, {
+    onCreated: (classId: string) => {
+      bindClass(props.note.id, classId)
+    }
+  })
   menuOpen.value = false
   submenuOpen.value = false
 }

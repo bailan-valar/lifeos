@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
-      <div class="dialog" @click.stop>
+      <div class="dialog" tabindex="-1" @click.stop @keydown="onKeyDown">
         <div class="dialog-header">
           <h3>{{ isEditing ? '编辑预算' : '设置预算' }}</h3>
           <button type="button" class="close-btn" @click="onCancel">
@@ -13,8 +13,6 @@
             v-model="form"
             :categories="categories"
             :note-options="noteOptions"
-            @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
           />
         </div>
         <div class="dialog-footer">
@@ -27,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BudgetEntry, BudgetFormData, BillCategory, CategoryType } from '~/types/bill'
+import type { BudgetEntry, BudgetFormData, BillCategory } from '~/types/bill'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import BudgetForm from './BudgetForm.vue'
 
@@ -52,8 +50,6 @@ const overlayZIndex = useZIndexOnOpen(() => props.visible)
 const emit = defineEmits<{
   confirm: [data: BudgetFormData, isEditing: boolean, id?: string]
   cancel: []
-  'create-category': [data: { name: string; type: CategoryType; parentId?: string }]
-  'open-category-form': [data: { type: CategoryType; defaultParentId?: string; defaultName?: string }]
 }>()
 
 const form = ref<BudgetFormData>({
@@ -84,7 +80,7 @@ watch(() => props.visible, (v) => {
       effectiveFromMonth: props.defaultMonth ?? new Date().getMonth() + 1
     }
   }
-})
+}, { immediate: true })
 
 function onConfirm() {
   if (!form.value.categoryId) return
@@ -94,6 +90,13 @@ function onConfirm() {
 
 function onCancel() {
   emit('cancel')
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    onConfirm()
+  }
 }
 
 function setCategoryId(id: string) {

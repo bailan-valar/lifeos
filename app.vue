@@ -17,7 +17,7 @@
         </div>
       </div>
 
-      <ClassManager v-if="hasWorkspace" v-model:visible="classManagerVisible" user-id="default-user" />
+      <ClassManager v-if="hasWorkspace" ref="classManagerRef" v-model:visible="classManagerVisible" user-id="default-user" @created="onClassCreated" />
     </template>
 
     <NuxtPage v-else class="flex-1 min-w-0" />
@@ -39,7 +39,27 @@ import { useWorkspaceStore } from '~/stores/workspace'
 
 const route = useRoute()
 const classManagerVisible = ref(false)
+const classManagerRef = ref<InstanceType<typeof ClassManager> | null>(null)
+const classManagerCreatedCallback = ref<((classId: string) => void) | null>(null)
+
 provide('classManagerVisible', classManagerVisible)
+provide('openClassManager', (mode: 'list' | 'create' | 'edit' = 'list', cls?: any, options?: { onCreated?: (classId: string) => void }) => {
+  classManagerVisible.value = true
+  classManagerCreatedCallback.value = options?.onCreated ?? null
+  nextTick(() => {
+    if (!classManagerRef.value) return
+    if (mode === 'create') {
+      classManagerRef.value.startCreate()
+    } else if (mode === 'edit' && cls) {
+      classManagerRef.value.editClass(cls)
+    }
+  })
+})
+
+function onClassCreated(classId: string) {
+  classManagerCreatedCallback.value?.(classId)
+  classManagerCreatedCallback.value = null
+}
 
 const workspaceStore = useWorkspaceStore()
 

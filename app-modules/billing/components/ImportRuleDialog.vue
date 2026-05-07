@@ -13,9 +13,6 @@
             v-model="form"
             :accounts="accounts"
             :categories="categories"
-            @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
-            @create-account="emit('create-account', $event)"
           />
         </div>
         <div class="dialog-footer">
@@ -28,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportRuleFormData, Account, BillCategory, CategoryType, AccountCreatePayload } from '~/types/bill'
+import type { ImportRuleFormData, Account, BillCategory } from '~/types/bill'
 import { getNextZIndex } from '~/composables/useZIndex'
 import ImportRuleForm from './ImportRuleForm.vue'
 
@@ -48,9 +45,6 @@ const emit = defineEmits<{
   (e: 'update:form', value: ImportRuleFormData): void
   (e: 'confirm', value: ImportRuleFormData): void
   (e: 'cancel'): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', payload: AccountCreatePayload): void
 }>()
 
 const form = computed({

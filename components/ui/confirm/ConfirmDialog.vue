@@ -85,6 +85,7 @@ function onCancel() {
   font-size: 15px;
   line-height: 1.5;
   color: rgba(0, 0, 0, 0.6);
+  white-space: pre-line;
 }
 
 .confirm-actions {
