@@ -106,15 +106,16 @@
           <div class="record-modal-footer">
             <button type="button" class="cancel-btn" @click="emit('close')">关闭</button>
             <template v-if="isPending">
-              <button type="button" class="secondary-btn" @click="applyAllRules">应用规则</button>
-              <button type="button" class="danger-btn" @click="onDelete">删除</button>
+              <button type="button" class="secondary-btn" :disabled="importing" @click="applyAllRules">应用规则</button>
+              <button type="button" class="danger-btn" :disabled="importing" @click="onDelete">删除</button>
               <button
                 type="button"
                 class="confirm-btn"
-                :disabled="!canImport"
+                :disabled="!canImport || importing"
                 @click="onImport"
               >
-                导入选中 ({{ selectedCount }})
+                <span v-if="importing">导入中...</span>
+                <span v-else>导入选中 ({{ selectedCount }})</span>
               </button>
             </template>
             <button
@@ -199,6 +200,7 @@ const { rules: importRules, applyRules } = useImportRules()
 const { updateRecordItems } = useImportRecords()
 const { confirm } = useConfirm()
 
+const importing = ref(false)
 const filter = ref<'all' | 'unmatched' | 'matched' | 'duplicate'>('all')
 const filterOptions = [
   { value: 'all' as const, label: '全部' },
@@ -364,6 +366,7 @@ function openDescriptionRule(item: ImportRecordItem) {
 }
 
 function onImport() {
+  importing.value = true
   // 把本地编辑态写回 record
   const updatedRecord: ImportRecord = {
     ...props.record,
@@ -372,6 +375,12 @@ function onImport() {
   }
   emit('import', updatedRecord)
 }
+
+function setImporting(val: boolean) {
+  importing.value = val
+}
+
+defineExpose({ setImporting })
 
 function onRollback() {
   emit('rollback', props.record)

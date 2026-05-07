@@ -24,6 +24,11 @@
         "name": "饮料",
         "icon": "solar:cup-linear",
         "color": "#FF9500"
+      },
+      {
+        "name": "奶茶",
+        "icon": "solar:cup-linear",
+        "color": "#FF9500"
       }
     ]
   },

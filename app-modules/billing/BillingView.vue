@@ -351,6 +351,7 @@
 
     <ImportRecordDetail
       v-if="recordDetailVisible && recordDetailRecord"
+      ref="recordDetailRef"
       :visible="recordDetailVisible"
       :record="recordDetailRecord"
       :accounts="accounts"
@@ -643,6 +644,7 @@ const editingRule = ref<ImportRule | null>(null)
 const billDialogRef = ref<InstanceType<typeof BillDialog> | null>(null)
 const budgetDialogRef = ref<InstanceType<typeof BudgetDialog> | null>(null)
 const importDialogRef = ref<InstanceType<typeof ImportDialog> | null>(null)
+const recordDetailRef = ref<InstanceType<typeof ImportRecordDetail> | null>(null)
 
 const recordDetailVisible = ref(false)
 const viewingRecordId = ref<string | null>(null)
@@ -1311,6 +1313,8 @@ async function handleImportRecord(record: ImportRecord) {
     viewingRecordId.value = null
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
+  } finally {
+    recordDetailRef.value?.setImporting(false)
   }
 }
 
