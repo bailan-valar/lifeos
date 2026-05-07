@@ -118,7 +118,7 @@ import type {
   BillCategory,
   BillType,
   CategoryType,
-  AccountFormData
+  AccountCreatePayload
 } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
@@ -135,7 +135,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: ImportRuleFormData): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
   (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', data: AccountFormData): void
+  (e: 'create-account', payload: AccountCreatePayload): void
 }>()
 
 const sourceOptions: { value: SourceValue; label: string }[] = [

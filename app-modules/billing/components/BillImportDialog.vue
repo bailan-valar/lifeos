@@ -84,7 +84,7 @@ import type {
   ImportRule,
   CsvParsedRow,
   CategoryType,
-  AccountFormData,
+  AccountCreatePayload,
   ImportRecord,
   ImportRecordItem,
   ImportRecordStatus
@@ -115,7 +115,7 @@ const emit = defineEmits<{
   (e: 'open-rule-dialog', form: ImportRuleFormData): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
   (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', data: AccountFormData): void
+  (e: 'create-account', payload: AccountCreatePayload): void
   (e: 'tab-change', tab: 'import' | 'history'): void
 }>()
 
@@ -135,20 +135,22 @@ const fileInput = ref<HTMLInputElement | null>(null)
 
 function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   const result = applyRules(parsed, source.value)
-  const matchedRule = result?.rule ?? null
+  const counterpartyRule = result?.counterpartyRule ?? null
+  const paymentMethodRule = result?.paymentMethodRule ?? null
 
   let counterpartyAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
   let myAccount = matchAccountByPaymentMethod(parsed.paymentMethod || '', props.accounts)
 
-  if (matchedRule?.accountId) {
-    const ruleAccount = props.accounts.find(a => a.id === matchedRule.accountId)
-    if (ruleAccount) {
-      if (result?.matchedField === 'paymentMethod') {
-        myAccount = ruleAccount
-      } else {
-        counterpartyAccount = ruleAccount
-      }
-    }
+  // 交易对方匹配到的规则 → 对方账户(由 suggestAccountIds 映射为入账账户)
+  if (counterpartyRule?.accountId) {
+    const ruleAccount = props.accounts.find(a => a.id === counterpartyRule.accountId)
+    if (ruleAccount) counterpartyAccount = ruleAccount
+  }
+
+  // 收/付款方式匹配到的规则 → 我的账户(由 suggestAccountIds 映射为出账账户)
+  if (paymentMethodRule?.accountId) {
+    const ruleAccount = props.accounts.find(a => a.id === paymentMethodRule.accountId)
+    if (ruleAccount) myAccount = ruleAccount
   }
 
   let billType: BillType
@@ -156,14 +158,16 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   let skipped = false
   let skipReason: string | undefined
 
+  const overrideBillType = counterpartyRule?.billType ?? paymentMethodRule?.billType
+
   if (source.value === 'alipay' && parsed.rawPaymentDirection) {
     const inferred = inferAlipayBillType(parsed, counterpartyAccount)
-    billType = matchedRule?.billType ?? inferred.type
+    billType = overrideBillType ?? inferred.type
     direction = inferred.direction
     skipped = inferred.skipped
     skipReason = inferred.skipReason
   } else {
-    billType = inferBillType(counterpartyAccount, parsed.direction, matchedRule?.billType)
+    billType = inferBillType(counterpartyAccount, parsed.direction, overrideBillType)
   }
 
   const debtSubtype = inferDebtSubtype(direction)
@@ -172,7 +176,8 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
 
   const suggestion = suggestAccountIds(counterpartyAccount, myAccount, direction, billType)
 
-  const categoryId = matchedRule?.categoryId
+  const categoryId = counterpartyRule?.categoryId
+    || paymentMethodRule?.categoryId
     || (counterpartyAccount?.type === 'merchant' ? counterpartyAccount.categoryId : undefined)
     || ''
 
@@ -189,7 +194,8 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
     duplicate: isDuplicate,
     skipped,
     skipReason,
-    matchedRuleId: matchedRule?.id ?? null,
+    matchedRuleId: counterpartyRule?.id ?? paymentMethodRule?.id ?? null,
+    paymentMethodRuleId: paymentMethodRule?.id ?? null,
     matchedAccountId: counterpartyAccount?.id ?? null,
     myAccountId: myAccount?.id ?? null,
     type: billType,

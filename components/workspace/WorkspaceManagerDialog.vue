@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="modal-overlay" @click="emitClose">
+      <div v-if="visible" class="modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="emitClose">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
             <h3>工作空间</h3>
@@ -106,7 +106,8 @@ import SyncStatusBadge from './SyncStatusBadge.vue'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
 
-defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean }>()
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const emit = defineEmits<{
   (e: 'update:visible', v: boolean): void
@@ -186,7 +187,7 @@ function shortUrl(url: string): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  z-index: var(--z-modal);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }

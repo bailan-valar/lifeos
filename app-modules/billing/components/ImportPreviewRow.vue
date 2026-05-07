@@ -106,7 +106,7 @@
         clearable
         class="compact-picker"
         @update:model-value="updateField('toAccountId', $event)"
-        @create="emit('create-account', $event)"
+        @create="handleCreateToAccount"
       />
     </div>
   </div>
@@ -121,7 +121,8 @@ import type {
   ImportRecordItem,
   ImportRule,
   CategoryType,
-  AccountFormData
+  AccountCreatePayload,
+  AccountType
 } from '~/types/bill'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
 import CategoryPicker from './CategoryPicker.vue'
@@ -141,7 +142,7 @@ const emit = defineEmits<{
   (e: 'save-payment-method-rule', row: ImportRecordItem): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
   (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', data: AccountFormData): void
+  (e: 'create-account', payload: AccountCreatePayload): void
 }>()
 
 const typeOptions: { value: BillType; label: string }[] = [
@@ -167,29 +168,32 @@ const showTo = computed(() => true)
 const badgeLabel = computed(() => {
   if (props.row.skipped) return props.row.skipReason || '跳过'
   if (props.row.duplicate) return '重复'
-  if (props.row.matchedRuleId) return '已匹配规则'
-  if (props.row.matchedAccountId) return '已匹配账户'
-  return '无匹配'
+  if (isIncomplete(props.row)) return '未完善'
+  return '已完善'
 })
 
 const badgeClass = computed(() => {
   if (props.row.skipped) return 'skipped'
   if (props.row.duplicate) return 'duplicate'
-  if (props.row.matchedRuleId) return 'matched'
-  if (props.row.matchedAccountId) return 'account'
-  return 'unmatched'
+  if (isIncomplete(props.row)) return 'incomplete'
+  return 'completed'
 })
 
 const badgeTooltip = computed(() => {
   if (props.row.skipped) return `跳过原因:${props.row.skipReason || '未知'}`
   if (props.row.duplicate) return '与已存在账单指纹重复,默认不导入'
-  if (props.matchedRule) return `命中规则:${props.matchedRule.name}`
-  if (props.row.matchedRuleId) return '命中规则'
-  if (props.row.matchedAccountId) {
-    const acc = props.accounts.find(a => a.id === props.row.matchedAccountId)
-    return acc ? `匹配账户:${acc.name}` : '已匹配账户'
+  const missing: string[] = []
+  if ((props.row.type === 'income' || props.row.type === 'expense') && !props.row.categoryId) {
+    missing.push('分类')
   }
-  return '未命中规则,也未匹配到账户别名'
+  if (props.row.type === 'expense' && !props.row.fromAccountId) missing.push('出账账户')
+  if (props.row.type === 'income' && !props.row.toAccountId) missing.push('入账账户')
+  if ((props.row.type === 'transfer' || props.row.type === 'debt') && (!props.row.fromAccountId || !props.row.toAccountId)) {
+    if (!props.row.fromAccountId) missing.push('出账账户')
+    if (!props.row.toAccountId) missing.push('入账账户')
+  }
+  if (missing.length > 0) return `待完善:${missing.join('、')}`
+  return '信息已完善，可导入'
 })
 
 function updateField<K extends keyof ImportRecordItem>(key: K, value: ImportRecordItem[K]) {
@@ -221,8 +225,28 @@ function onTypeChange(t: BillType) {
   emit('update:row', next)
 }
 
+function isIncomplete(row: ImportRecordItem): boolean {
+  if ((row.type === 'income' || row.type === 'expense') && !row.categoryId) return true
+  if (row.type === 'expense' && !row.fromAccountId) return true
+  if (row.type === 'income' && !row.toAccountId) return true
+  if ((row.type === 'transfer' || row.type === 'debt') && (!row.fromAccountId || !row.toAccountId)) return true
+  return false
+}
+
 function formatDate(date: string): string {
   return date.length >= 16 ? date.slice(0, 16).replace('T', ' ') : date
+}
+
+function handleCreateToAccount(payload: AccountCreatePayload) {
+  const defaultName = props.row.type === 'income'
+    ? (props.row.paymentMethod || payload.defaultName)
+    : (props.row.counterparty || payload.defaultName)
+  const defaultType: AccountType | undefined = props.row.type === 'expense' ? 'merchant' : undefined
+  emit('create-account', {
+    ...payload,
+    defaultName,
+    defaultType
+  })
 }
 
 function formatAmount(n: number): string {
@@ -416,6 +440,14 @@ function formatAmount(n: number): string {
 .badge.duplicate {
   background: rgba(255, 149, 0, 0.12);
   color: rgb(255, 149, 0);
+}
+.badge.incomplete {
+  background: rgba(255, 149, 0, 0.12);
+  color: rgb(255, 149, 0);
+}
+.badge.completed {
+  background: rgba(52, 199, 89, 0.12);
+  color: rgb(52, 199, 89);
 }
 .action-btn {
   display: inline-flex;

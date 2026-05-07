@@ -68,6 +68,7 @@
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
+import { getNextZIndex } from '~/composables/useZIndex'
 
 interface NoteOption {
   id: string
@@ -140,7 +141,8 @@ function updatePanelPosition() {
     top: `${rect.bottom + 4}px`,
     left: `${rect.left}px`,
     width: `${rect.width}px`,
-    maxHeight: '320px'
+    maxHeight: '320px',
+    zIndex: String(getNextZIndex())
   }
 }
 
@@ -297,6 +299,7 @@ onBeforeUnmount(() => {
   border: 0.5px solid rgba(60, 60, 67, 0.18);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  z-index: var(--z-picker);
 }
 
 .picker-search {

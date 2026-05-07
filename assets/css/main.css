@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Z-Index 层级体系 — 所有弹框/浮层统一引用，禁止硬编码 */
+:root {
+  --z-picker: 450;      /* 下拉选择面板（AccountPicker/CategoryPicker 等） */
+  --z-dropdown: 460;     /* 下拉菜单、编辑器浮动菜单 */
+  --z-drawer: 200;       /* 抽屉 */
+  --z-modal: 300;        /* 普通弹框 overlay */
+  --z-modal-nested: 400; /* 嵌套弹框（从弹框中打开的弹框） */
+  --z-toast: 500;        /* Toast 通知 */
+  --z-confirm: 600;      /* 确认弹框（阻塞式，最高） */
+  --z-drag: 700;         /* 拖拽覆盖层 */
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;

@@ -132,6 +132,15 @@ export interface AccountFormData {
 }
 
 /**
+ * 账户快捷创建 payload（AccountPicker 发出）
+ */
+export interface AccountCreatePayload {
+  defaultName: string
+  defaultType?: AccountType
+  onCreated?: (account: Account) => void
+}
+
+/**
  * 分类表单数据
  */
 export interface CategoryFormData {
@@ -296,6 +305,7 @@ export interface ImportPreviewRow extends CsvParsedRow {
   skipped: boolean
   skipReason?: string
   matchedRuleId: string | null
+  paymentMethodRuleId: string | null
   matchedAccountId: string | null
   myAccountId: string | null
   type: BillType
@@ -328,6 +338,7 @@ export function previewRowToRecordItem(row: ImportPreviewRow): ImportRecordItem 
     fromAccountId: row.fromAccountId,
     toAccountId: row.toAccountId,
     matchedRuleId: row.matchedRuleId,
+    paymentMethodRuleId: row.paymentMethodRuleId,
     matchedAccountId: row.matchedAccountId,
     myAccountId: row.myAccountId,
     paymentMethod: row.paymentMethod,
@@ -379,6 +390,7 @@ export interface ImportRecordItem {
   fromAccountId?: string
   toAccountId?: string
   matchedRuleId?: string | null
+  paymentMethodRuleId?: string | null
   matchedAccountId?: string | null
   myAccountId?: string | null
   paymentMethod?: string

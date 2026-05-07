@@ -204,89 +204,6 @@
     </div>
     </div>
 
-    <Teleport to="body">
-      <div v-if="dialogVisible" class="dialog-overlay" @click="closeDialog">
-        <div class="dialog" :class="{ 'dialog-wide': dialogType === 'import' || dialogType === 'rule' }" @click.stop>
-          <div class="dialog-header">
-            <h3>{{ dialogTitle }}</h3>
-            <button type="button" class="close-btn" @click="closeDialog">
-              <Icon name="solar:close-circle-linear" size="20" />
-            </button>
-          </div>
-          <div class="dialog-body">
-            <BillForm
-              v-if="dialogType === 'bill'"
-              v-model="billForm"
-              :accounts="accounts"
-              :categories="categories"
-              :note-options="noteOptions"
-              @create-category="handleCreateCategory"
-              @open-category-form="handleOpenCategoryForm"
-              @create-account="handleCreateAccount"
-            />
-            <AccountForm
-              v-if="dialogType === 'account'"
-              v-model="accountForm"
-              :categories="categories"
-            />
-            <CategoryForm
-              v-if="dialogType === 'category'"
-              v-model="categoryForm"
-              :categories="categories"
-              :exclude-id="editingCategory?.id"
-              @create-category="handleCreateCategory"
-            />
-            <BudgetForm
-              v-if="dialogType === 'budget'"
-              v-model="budgetForm"
-              :categories="categories"
-              :note-options="noteOptions"
-              @create-category="handleCreateCategory"
-              @open-category-form="handleOpenCategoryForm"
-            />
-            <StatementList
-              v-if="dialogType === 'statement-list' && viewingAccount"
-              :account="viewingAccount"
-              :statements="viewingAccountStatements"
-              @edit="openStatementEdit"
-              @generate="handleGenerateStatement"
-            />
-            <StatementForm
-              v-if="dialogType === 'statement'"
-              v-model="statementForm"
-            />
-            <BillImportDialog
-              v-if="dialogType === 'import'"
-              ref="importDialogRef"
-              :note-id="props.noteId"
-              :accounts="accounts"
-              :categories="categories"
-              :existing-fingerprints="existingFingerprints"
-              @record-created="handleRecordCreated"
-              @view-record="handleViewRecord"
-              @create-category="handleCreateCategory"
-              @open-category-form="handleOpenCategoryForm"
-              @create-account="handleCreateAccount"
-              @open-rule-dialog="handleOpenImportRuleDialog"
-              @tab-change="(tab) => (importDialogTab = tab)"
-            />
-            <ImportRuleForm
-              v-if="dialogType === 'rule'"
-              v-model="ruleForm"
-              :accounts="accounts"
-              :categories="categories"
-              @create-category="handleCreateCategory"
-              @open-category-form="handleOpenCategoryForm"
-              @create-account="handleCreateAccount"
-            />
-          </div>
-          <div class="dialog-footer">
-            <button type="button" class="cancel-btn" @click="closeDialog">{{ dialogType === 'statement-list' ? '关闭' : '取消' }}</button>
-            <button v-if="dialogType !== 'statement-list' && dialogType !== 'import' && dialogType !== 'rule'" type="button" class="confirm-btn" @click="submitDialog">保存</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
     <div
       v-if="categoryMenu.visible && categoryMenu.node"
       class="context-menu"
@@ -314,6 +231,7 @@
       :categories="categories"
       @confirm="handleBatchEdit"
       @cancel="batchEditVisible = false"
+      @create-account="handleCreateAccount"
     />
 
     <ImportRuleDialog
@@ -343,11 +261,113 @@
       @open-category-form="handleOpenCategoryForm"
       @create-account="handleCreateAccount"
     />
+
+    <BillDialog
+      v-if="billDialogVisible"
+      ref="billDialogRef"
+      :visible="billDialogVisible"
+      :bill="editingBill || undefined"
+      :accounts="accounts"
+      :categories="categories"
+      :note-options="noteOptions"
+      :default-note-id="props.noteId"
+      @confirm="handleBillConfirm"
+      @cancel="billDialogVisible = false; editingBill = null"
+      @create-category="handleCreateCategory"
+      @open-category-form="handleOpenCategoryForm"
+      @create-account="handleCreateAccount"
+    />
+
+    <AccountDialog
+      v-if="accountDialogVisible"
+      :visible="accountDialogVisible"
+      :account="editingAccount || undefined"
+      :categories="categories"
+      :default-name="accountFormDefaults?.defaultName"
+      :default-type="accountFormDefaults?.defaultType"
+      @confirm="handleAccountConfirm"
+      @cancel="accountDialogVisible = false; editingAccount = null; accountFormDefaults = null"
+    />
+
+    <CategoryDialog
+      v-if="categoryDialogVisible"
+      :visible="categoryDialogVisible"
+      :category="editingCategory || undefined"
+      :categories="categories"
+      :exclude-id="editingCategory?.id"
+      :default-type="categoryFormDefaults?.type"
+      :default-parent-id="categoryFormDefaults?.defaultParentId"
+      :default-name="categoryFormDefaults?.defaultName"
+      @confirm="handleCategoryConfirm"
+      @cancel="categoryDialogVisible = false; editingCategory = null; categoryFormDefaults = null"
+      @create-category="handleCreateCategory"
+    />
+
+    <BudgetDialog
+      v-if="budgetDialogVisible"
+      ref="budgetDialogRef"
+      :visible="budgetDialogVisible"
+      :budget="editingBudget || undefined"
+      :categories="categories"
+      :note-options="noteOptions"
+      @confirm="handleBudgetConfirm"
+      @cancel="budgetDialogVisible = false; editingBudget = null"
+      @create-category="handleCreateCategory"
+      @open-category-form="handleOpenCategoryForm"
+    />
+
+    <StatementDialog
+      v-if="statementDialogVisible"
+      :visible="statementDialogVisible"
+      :statement="editingStatement || undefined"
+      @confirm="handleStatementConfirm"
+      @cancel="statementDialogVisible = false; editingStatement = null"
+    />
+
+    <StatementListDialog
+      v-if="statementListDialogVisible"
+      :visible="statementListDialogVisible"
+      :account="viewingAccount || undefined"
+      :statements="viewingAccountStatements"
+      @edit="openStatementEdit"
+      @generate="handleGenerateStatement"
+      @close="statementListDialogVisible = false; viewingAccount = null"
+    />
+
+    <ImportDialog
+      v-if="importDialogVisible"
+      ref="importDialogRef"
+      :visible="importDialogVisible"
+      :note-id="props.noteId"
+      :accounts="accounts"
+      :categories="categories"
+      :existing-fingerprints="existingFingerprints"
+      @cancel="importDialogVisible = false"
+      @record-created="handleRecordCreated"
+      @view-record="handleViewRecord"
+      @create-category="handleCreateCategory"
+      @open-category-form="handleOpenCategoryForm"
+      @create-account="handleCreateAccount"
+      @open-rule-dialog="handleOpenImportRuleDialog"
+    />
+
+    <RuleDialog
+      v-if="ruleDialogVisible"
+      :visible="ruleDialogVisible"
+      :rule="editingRule || undefined"
+      :accounts="accounts"
+      :categories="categories"
+      @confirm="handleRuleConfirm"
+      @cancel="ruleDialogVisible = false; editingRule = null"
+      @create-category="handleCreateCategory"
+      @open-category-form="handleOpenCategoryForm"
+      @create-account="handleCreateAccount"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, AccountCreatePayload, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord, AccountType } from '~/types/bill'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
@@ -360,18 +380,18 @@ import { useConfirm } from '~/composables/useConfirm'
 import { dedupeKey } from '~/services/csvImport'
 import BillList from './components/BillList.vue'
 import BillTable from './components/BillTable.vue'
-import BillForm from './components/BillForm.vue'
+import BillDialog from './components/BillDialog.vue'
 import AccountList from './components/AccountList.vue'
-import AccountForm from './components/AccountForm.vue'
+import AccountDialog from './components/AccountDialog.vue'
 import CategoryTree from './components/CategoryTree.vue'
-import CategoryForm from './components/CategoryForm.vue'
-import BudgetForm from './components/BudgetForm.vue'
+import CategoryDialog from './components/CategoryDialog.vue'
+import BudgetDialog from './components/BudgetDialog.vue'
 import BudgetDashboard from './components/BudgetDashboard.vue'
-import StatementList from './components/StatementList.vue'
-import StatementForm from './components/StatementForm.vue'
-import BillImportDialog from './components/BillImportDialog.vue'
+import StatementListDialog from './components/StatementListDialog.vue'
+import StatementDialog from './components/StatementDialog.vue'
+import ImportDialog from './components/ImportDialog.vue'
 import ImportRuleList from './components/ImportRuleList.vue'
-import ImportRuleForm from './components/ImportRuleForm.vue'
+import RuleDialog from './components/RuleDialog.vue'
 import BillBatchToolbar from './components/BillBatchToolbar.vue'
 import BillBatchEditDialog from './components/BillBatchEditDialog.vue'
 import ImportRuleDialog from './components/ImportRuleDialog.vue'
@@ -460,39 +480,30 @@ const tabs = [
   { id: 'rules', name: '规则', icon: 'solar:filter-linear' }
 ]
 
-const dialogVisible = ref(false)
-const dialogType = ref<'bill' | 'account' | 'category' | 'budget' | 'statement-list' | 'statement' | 'import' | 'rule'>('bill')
-const dialogTitle = computed(() => {
-  if (dialogType.value === 'bill') return editingBill.value ? '编辑账单' : '记一笔'
-  if (dialogType.value === 'account') return editingAccount.value ? '编辑账户' : '添加账户'
-  if (dialogType.value === 'category') return editingCategory.value ? '编辑分类' : '添加分类'
-  if (dialogType.value === 'statement-list') return viewingAccount.value ? `${viewingAccount.value.name} 账单周期` : '账单周期'
-  if (dialogType.value === 'statement') return '编辑账单周期'
-  if (dialogType.value === 'import') return '导入账单'
-  if (dialogType.value === 'rule') return editingRule.value ? '编辑规则' : '新建规则'
-  return '设置预算'
-})
+/* ---------- 各弹框显隐与编辑状态 ---------- */
+const billDialogVisible = ref(false)
+const accountDialogVisible = ref(false)
+const categoryDialogVisible = ref(false)
+const budgetDialogVisible = ref(false)
+const statementDialogVisible = ref(false)
+const statementListDialogVisible = ref(false)
+const importDialogVisible = ref(false)
+const ruleDialogVisible = ref(false)
 
 const editingBill = ref<Bill | null>(null)
 const editingAccount = ref<Account | null>(null)
 const editingCategory = ref<BillCategory | null>(null)
+const categoryFormDefaults = ref<{ type?: CategoryType; defaultParentId?: string; defaultName?: string } | null>(null)
+const accountFormDefaults = ref<{ defaultName?: string; defaultType?: AccountType } | null>(null)
 const editingBudget = ref<BudgetEntry | null>(null)
 const viewingAccount = ref<Account | null>(null)
 const editingStatement = ref<Statement | null>(null)
 const editingRule = ref<ImportRule | null>(null)
-const ruleForm = ref<ImportRuleFormData>({
-  name: '',
-  source: 'all',
-  matchMode: 'fuzzy',
-  pattern: '',
-  categoryId: '',
-  accountId: '',
-  billType: undefined,
-  priority: 100,
-  enabled: true
-})
-const importDialogRef = ref<InstanceType<typeof BillImportDialog> | null>(null)
-const importDialogTab = ref<'import' | 'history'>('import')
+
+const billDialogRef = ref<InstanceType<typeof BillDialog> | null>(null)
+const budgetDialogRef = ref<InstanceType<typeof BudgetDialog> | null>(null)
+const importDialogRef = ref<InstanceType<typeof ImportDialog> | null>(null)
+
 const recordDetailVisible = ref(false)
 const viewingRecordId = ref<string | null>(null)
 const recordDetailRecord = computed(() =>
@@ -504,7 +515,7 @@ const importRuleDialogForm = ref<ImportRuleFormData>({
   name: '', source: 'all', matchMode: 'fuzzy', pattern: '', categoryId: '',
   accountId: '', priority: 100, enabled: true
 })
-const previousDialogType = ref<typeof dialogType.value | null>(null)
+const pendingAccountCallback = ref<((account: Account) => void) | null>(null)
 
 const existingFingerprints = computed(() => {
   const set = new Set<string>()
@@ -535,23 +546,6 @@ const categoryMenu = ref<CategoryMenuState>({
   node: null
 })
 
-const billForm = ref<BillFormData>({
-  noteId: props.noteId, type: 'expense', amount: 0, currency: 'CNY',
-  fromAccountId: '', toAccountId: '', categoryId: '',
-  description: '', date: new Date().toISOString().slice(0, 16),
-  debtSubtype: 'lend', relatedPersonId: ''
-})
-
-const accountForm = ref<AccountFormData>({ name: '', type: 'personal', currency: 'CNY', icon: '', color: '', aliases: [] })
-const categoryForm = ref<CategoryFormData>({ name: '', type: 'expense', parentId: '', icon: '', color: '' })
-const budgetForm = ref<BudgetFormData>({
-  noteId: '', categoryId: '', cycleType: 'monthly', amount: 0,
-  effectiveFromYear: new Date().getFullYear(), effectiveFromMonth: new Date().getMonth() + 1
-})
-
-const statementForm = ref<StatementFormData>({
-  statementAmount: 0, minimumPayment: 0, paidAmount: 0, status: 'pending'
-})
 
 const incomeTree = computed(() => buildTree('income'))
 const expenseTree = computed(() => buildTree('expense'))
@@ -578,115 +572,39 @@ watch(viewMode, (mode) => {
 })
 
 function openBillDialog(bill?: Bill) {
-  dialogType.value = 'bill'
   editingBill.value = bill || null
-  if (bill) {
-    billForm.value = {
-      noteId: bill.noteId, type: bill.type, amount: bill.amount, currency: bill.currency,
-      fromAccountId: bill.fromAccountId, toAccountId: bill.toAccountId,
-      categoryId: bill.categoryId,
-      description: bill.description, date: bill.date.slice(0, 16),
-      debtSubtype: bill.debtSubtype || 'lend',
-      relatedPersonId: bill.relatedPersonId
-    }
-  } else {
-    billForm.value = {
-      noteId: props.noteId, type: 'expense', amount: 0, currency: 'CNY',
-      fromAccountId: '', toAccountId: '', categoryId: '',
-      description: '', date: new Date().toISOString().slice(0, 16),
-      debtSubtype: 'lend', relatedPersonId: ''
-    }
-  }
-  dialogVisible.value = true
+  billDialogVisible.value = true
 }
 
 function openAccountDialog(account?: Account) {
-  dialogType.value = 'account'
   editingAccount.value = account || null
-  if (account) {
-    const base: AccountFormData = {
-      name: account.name,
-      type: account.type,
-      currency: account.currency,
-      icon: account.icon || '',
-      color: account.color || '',
-      aliases: Array.isArray(account.aliases) ? [...account.aliases] : [],
-      categoryId: account.categoryId
-    }
-    if (account.type === 'personal') {
-      base.subtype = account.subtype || 'cash'
-      if (base.subtype === 'credit_card') {
-        base.creditLimit = account.creditLimit ?? 0
-        base.billingDay = account.billingDay ?? 1
-        base.repaymentDay = account.repaymentDay ?? 1
-      }
-    }
-    accountForm.value = base
-  } else {
-    accountForm.value = { name: '', type: 'personal', currency: 'CNY', icon: '', color: '', subtype: 'cash', aliases: [] }
-  }
-  dialogVisible.value = true
+  accountDialogVisible.value = true
 }
 
 function openCategoryDialog(category?: BillCategory) {
-  dialogType.value = 'category'
   editingCategory.value = category || null
-  if (category) {
-    categoryForm.value = { name: category.name, type: category.type, parentId: category.parentId, icon: category.icon || '', color: category.color || '' }
-  } else {
-    categoryForm.value = { name: '', type: 'expense', parentId: '', icon: '', color: '' }
-  }
-  dialogVisible.value = true
+  categoryFormDefaults.value = null
+  categoryDialogVisible.value = true
 }
 
 function openBudgetDialog(budget?: BudgetEntry) {
-  dialogType.value = 'budget'
   editingBudget.value = budget || null
-  if (budget) {
-    budgetForm.value = {
-      noteId: budget.noteId, categoryId: budget.categoryId, cycleType: budget.cycleType, amount: budget.amount,
-      effectiveFromYear: budget.effectiveFromYear, effectiveFromMonth: budget.effectiveFromMonth
-    }
-  } else {
-    budgetForm.value = {
-      noteId: '', categoryId: '', cycleType: 'monthly', amount: 0,
-      effectiveFromYear: new Date().getFullYear(), effectiveFromMonth: new Date().getMonth() + 1
-    }
-  }
-  dialogVisible.value = true
+  budgetDialogVisible.value = true
 }
 
 function onBudgetCellEdit(categoryId: string, year: number, month: number, noteId: string = '') {
-  const config = resolveBudget(categoryId, year, month, noteId)
-  dialogType.value = 'budget'
   editingBudget.value = null
-  budgetForm.value = {
-    noteId,
-    categoryId,
-    cycleType: config?.cycleType || 'monthly',
-    amount: config?.amount || 0,
-    effectiveFromYear: year,
-    effectiveFromMonth: month
-  }
-  dialogVisible.value = true
+  budgetDialogVisible.value = true
 }
 
 function openStatementList(account: Account) {
-  dialogType.value = 'statement-list'
   viewingAccount.value = account
-  dialogVisible.value = true
+  statementListDialogVisible.value = true
 }
 
 function openStatementEdit(stmt: Statement) {
-  dialogType.value = 'statement'
   editingStatement.value = stmt
-  statementForm.value = {
-    statementAmount: stmt.statementAmount,
-    minimumPayment: stmt.minimumPayment,
-    paidAmount: stmt.paidAmount,
-    status: stmt.status
-  }
-  dialogVisible.value = true
+  statementDialogVisible.value = true
 }
 
 async function handleGenerateStatement(year: number, month: number) {
@@ -699,110 +617,107 @@ async function handleGenerateStatement(year: number, month: number) {
   }
 }
 
-async function submitDialog() {
+/* ---------- 各弹框保存确认 ---------- */
+async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: string) {
   try {
-    if (dialogType.value === 'bill') {
-      if (billForm.value.amount <= 0) {
-        showError('金额必须大于 0')
-        return
-      }
-
-      const t = billForm.value.type
-      if (t === 'expense' && !billForm.value.fromAccountId) {
-        showError('请选择出账账户')
-        return
-      }
-      if (t === 'income' && !billForm.value.toAccountId) {
-        showError('请选择入账账户')
-        return
-      }
-      if (t === 'transfer' && (!billForm.value.fromAccountId || !billForm.value.toAccountId)) {
-        showError('转账需要同时选择出账账户和入账账户')
-        return
-      }
-      if (billForm.value.fromAccountId && billForm.value.toAccountId &&
-          billForm.value.fromAccountId === billForm.value.toAccountId) {
-        showError('出账与入账不能是同一账户')
-        return
-      }
-
-      if (editingBill.value) {
-        await updateBill(editingBill.value.id, billForm.value)
-      } else {
-        if (!billForm.value.noteId) {
-          billForm.value = { ...billForm.value, noteId: props.noteId }
-        }
-        await createBill(billForm.value, props.noteId)
-      }
-    } else if (dialogType.value === 'account') {
-      if (!accountForm.value.name) return
-      if (editingAccount.value) {
-        await updateAccount(editingAccount.value.id, accountForm.value)
-      } else {
-        await createAccount(accountForm.value)
-      }
-    } else if (dialogType.value === 'category') {
-      if (!categoryForm.value.name) return
-      let createdId = ''
-      if (editingCategory.value) {
-        await updateCategory(editingCategory.value.id, categoryForm.value)
-      } else {
-        const created = await createCategory(categoryForm.value)
-        createdId = created.id
-      }
-      if (createdId && previousDialogType.value && previousDialogType.value !== 'category') {
-        if (previousDialogType.value === 'bill') {
-          billForm.value = { ...billForm.value, categoryId: createdId }
-        } else if (previousDialogType.value === 'budget') {
-          budgetForm.value = { ...budgetForm.value, categoryId: createdId }
-        } else if (previousDialogType.value === 'rule') {
-          ruleForm.value = { ...ruleForm.value, categoryId: createdId }
-        }
-        dialogType.value = previousDialogType.value
-        previousDialogType.value = null
-        return
-      }
-      closeDialog()
-      return
-    } else if (dialogType.value === 'budget') {
-      if (!budgetForm.value.categoryId) {
-        showError('请选择分类')
-        return
-      }
-      if (budgetForm.value.amount <= 0) {
-        showError('预算金额必须大于 0')
-        return
-      }
-      await upsertBudget(budgetForm.value)
-    } else if (dialogType.value === 'statement') {
-      if (!editingStatement.value) {
-        closeDialog()
-        return
-      }
-      if (statementForm.value.statementAmount < 0 || statementForm.value.paidAmount < 0) {
-        showError('金额不能为负数')
-        return
-      }
-      await updateStatement(editingStatement.value.id, statementForm.value)
-    } else if (dialogType.value === 'statement-list') {
-      closeDialog()
-      return
-    } else if (dialogType.value === 'rule') {
-      if (!ruleForm.value.name) {
-        showError('请输入规则名称')
-        return
-      }
-      if (!ruleForm.value.pattern) {
-        showError('请输入匹配关键字')
-        return
-      }
-      if (editingRule.value) {
-        await updateImportRule(editingRule.value.id, ruleForm.value)
-      } else {
-        await createImportRule(ruleForm.value)
-      }
+    if (isEditing && id) {
+      await updateBill(id, data)
+    } else {
+      await createBill(data, props.noteId)
     }
-    closeDialog()
+    billDialogVisible.value = false
+    editingBill.value = null
+  } catch (e) {
+    handleError(e instanceof Error ? e : new Error(String(e)))
+  }
+}
+
+async function handleAccountConfirm(data: AccountFormData, isEditing: boolean, id?: string) {
+  try {
+    let created: Account | undefined
+    if (isEditing && id) {
+      await updateAccount(id, data)
+    } else {
+      created = await createAccount(data)
+      showSuccess('已添加账户')
+    }
+    if (created) {
+      pendingAccountCallback.value?.(created)
+    }
+    pendingAccountCallback.value = null
+    accountDialogVisible.value = false
+    editingAccount.value = null
+    accountFormDefaults.value = null
+  } catch (e) {
+    handleError(e instanceof Error ? e : new Error(String(e)))
+  }
+}
+
+async function handleCategoryConfirm(data: CategoryFormData, isEditing: boolean, id?: string) {
+  try {
+    if (isEditing && id) {
+      await updateCategory(id, data)
+    } else {
+      const created = await createCategory(data)
+      billDialogRef.value?.setCategoryId(created.id)
+      budgetDialogRef.value?.setCategoryId(created.id)
+    }
+    categoryDialogVisible.value = false
+    editingCategory.value = null
+  } catch (e) {
+    handleError(e instanceof Error ? e : new Error(String(e)))
+  }
+}
+
+async function handleBudgetConfirm(data: BudgetFormData, isEditing: boolean, id?: string) {
+  try {
+    if (!data.categoryId) {
+      showError('请选择分类')
+      return
+    }
+    if (data.amount <= 0) {
+      showError('预算金额必须大于 0')
+      return
+    }
+    await upsertBudget(data)
+    budgetDialogVisible.value = false
+    editingBudget.value = null
+  } catch (e) {
+    handleError(e instanceof Error ? e : new Error(String(e)))
+  }
+}
+
+async function handleStatementConfirm(data: StatementFormData, id: string) {
+  try {
+    if (data.statementAmount < 0 || data.paidAmount < 0) {
+      showError('金额不能为负数')
+      return
+    }
+    await updateStatement(id, data)
+    statementDialogVisible.value = false
+    editingStatement.value = null
+  } catch (e) {
+    handleError(e instanceof Error ? e : new Error(String(e)))
+  }
+}
+
+async function handleRuleConfirm(data: ImportRuleFormData, isEditing: boolean, id?: string) {
+  try {
+    if (!data.name.trim()) {
+      showError('请输入规则名称')
+      return
+    }
+    if (!data.pattern.trim()) {
+      showError('请输入匹配关键字')
+      return
+    }
+    if (isEditing && id) {
+      await updateImportRule(id, data)
+    } else {
+      await createImportRule(data)
+    }
+    ruleDialogVisible.value = false
+    editingRule.value = null
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
   }
@@ -920,21 +835,6 @@ async function handleDeleteBudgetEntry(id: string) {
   await removeBudget(id)
 }
 
-function closeDialog() {
-  const wasImport = dialogType.value === 'import'
-  dialogVisible.value = false
-  editingBill.value = null
-  editingAccount.value = null
-  editingCategory.value = null
-  editingBudget.value = null
-  viewingAccount.value = null
-  editingStatement.value = null
-  editingRule.value = null
-  importDialogTab.value = 'import'
-  if (wasImport) {
-    importDialogRef.value?.reset()
-  }
-}
 
 function handleOpenImportRuleDialog(form: ImportRuleFormData) {
   importRuleDialogForm.value = { ...form }
@@ -983,16 +883,9 @@ function closeCategoryMenu() {
 }
 
 function openAddChildCategoryDialog(parent: CategoryTreeNode) {
-  dialogType.value = 'category'
   editingCategory.value = null
-  categoryForm.value = {
-    name: '',
-    type: parent.type,
-    parentId: parent.id,
-    icon: '',
-    color: ''
-  }
-  dialogVisible.value = true
+  categoryFormDefaults.value = { type: parent.type, defaultParentId: parent.id }
+  categoryDialogVisible.value = true
 }
 
 function onMenuAddChild() {
@@ -1018,17 +911,9 @@ function onMenuDelete() {
 }
 
 function handleOpenCategoryForm(data: { type: CategoryType; defaultParentId?: string; defaultName?: string }) {
-  previousDialogType.value = dialogType.value
-  categoryForm.value = {
-    name: data.defaultName || '',
-    type: data.type,
-    parentId: data.defaultParentId || '',
-    icon: '',
-    color: ''
-  }
   editingCategory.value = null
-  dialogType.value = 'category'
-  dialogVisible.value = true
+  categoryFormDefaults.value = data
+  categoryDialogVisible.value = true
 }
 
 async function handleCreateCategory(data: { name: string; type: 'income' | 'expense'; parentId?: string }) {
@@ -1041,72 +926,30 @@ async function handleCreateCategory(data: { name: string; type: 'income' | 'expe
       color: ''
     })
     showSuccess('已添加分类')
-    if (dialogType.value === 'bill') {
-      billForm.value = { ...billForm.value, categoryId: created.id }
-    } else if (dialogType.value === 'budget') {
-      budgetForm.value = { ...budgetForm.value, categoryId: created.id }
-    } else if (dialogType.value === 'rule') {
-      ruleForm.value = { ...ruleForm.value, categoryId: created.id }
-    }
+    billDialogRef.value?.setCategoryId(created.id)
+    budgetDialogRef.value?.setCategoryId(created.id)
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
 }
 
-async function handleCreateAccount(data: AccountFormData) {
-  try {
-    const created = await createAccount(data)
-    showSuccess('已添加账户')
-    if (dialogType.value === 'bill') {
-      if (!billForm.value.fromAccountId) {
-        billForm.value = { ...billForm.value, fromAccountId: created.id }
-      } else if (!billForm.value.toAccountId) {
-        billForm.value = { ...billForm.value, toAccountId: created.id }
-      }
-    } else if (dialogType.value === 'rule') {
-      if (!ruleForm.value.accountId) {
-        ruleForm.value = { ...ruleForm.value, accountId: created.id }
-      }
-    }
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
+async function handleCreateAccount(payload: AccountCreatePayload) {
+  pendingAccountCallback.value = payload.onCreated ?? null
+  editingAccount.value = null
+  accountFormDefaults.value = {
+    defaultName: payload.defaultName || undefined,
+    defaultType: payload.defaultType || undefined
   }
+  accountDialogVisible.value = true
 }
 
 function openImportDialog() {
-  dialogType.value = 'import'
-  dialogVisible.value = true
+  importDialogVisible.value = true
 }
 
 function openRuleDialog(rule?: ImportRule) {
-  dialogType.value = 'rule'
   editingRule.value = rule || null
-  if (rule) {
-    ruleForm.value = {
-      name: rule.name,
-      source: rule.source,
-      matchMode: rule.matchMode,
-      pattern: rule.pattern,
-      categoryId: rule.categoryId,
-      accountId: rule.accountId,
-      billType: rule.billType,
-      priority: rule.priority,
-      enabled: rule.enabled
-    }
-  } else {
-    ruleForm.value = {
-      name: '',
-      source: 'all',
-      matchMode: 'fuzzy',
-      pattern: '',
-      categoryId: '',
-      accountId: '',
-      billType: undefined,
-      priority: 100,
-      enabled: true
-    }
-  }
-  dialogVisible.value = true
+  ruleDialogVisible.value = true
 }
 
 async function handleDeleteRule(id: string) {
@@ -1128,7 +971,7 @@ async function handleToggleRule(id: string, enabled: boolean) {
 }
 
 function handleRecordCreated(record: ImportRecord) {
-  dialogVisible.value = false
+  importDialogVisible.value = false
   importDialogRef.value?.reset()
   viewingRecordId.value = record.id
   recordDetailVisible.value = true
@@ -1455,79 +1298,6 @@ onBeforeUnmount(() => {
   color: rgba(60, 60, 67, 0.5);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.dialog {
-  width: 100%;
-  max-width: 480px;
-  max-height: 80vh;
-  overflow-y: auto;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(40px) saturate(180%);
-  border-radius: 16px;
-  border: 0.5px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-}
-.dialog.dialog-wide {
-  max-width: 760px;
-}
-.dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
-}
-.dialog-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-.close-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.78);
-  cursor: pointer;
-}
-.dialog-body {
-  padding: 20px;
-}
-.dialog-footer {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  padding: 16px 20px;
-  border-top: 0.5px solid rgba(60, 60, 67, 0.12);
-}
-.cancel-btn, .confirm-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.cancel-btn {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(60, 60, 67, 0.78);
-}
-.confirm-btn {
-  background: rgb(0, 122, 255);
-  color: white;
 }
 .budget-controls {
   display: flex;

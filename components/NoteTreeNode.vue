@@ -146,6 +146,7 @@
 <script setup lang="ts">
 import type { Note } from '~/types/block'
 import { useNoteClasses, loadClasses, bindClass, getClassForNote } from '~/composables/useNoteClasses'
+import { getNextZIndex } from '~/composables/useZIndex'
 
 interface Props {
   note: Note
@@ -185,7 +186,8 @@ const updateMenuPosition = () => {
   const rect = btn.getBoundingClientRect()
   menuPosition.value = {
     top: `${rect.bottom + 4}px`,
-    left: `${rect.left - 100 + rect.width}px`
+    left: `${rect.left - 100 + rect.width}px`,
+    zIndex: String(getNextZIndex())
   }
 }
 

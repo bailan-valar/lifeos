@@ -33,3 +33,5 @@ prisma/migrations/*_*/migration.sql
 
 # Claude local settings
 .claude/
+.playwright-mcp
+test-results

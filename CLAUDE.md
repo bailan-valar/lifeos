@@ -126,6 +126,29 @@ chore: 将 RxDB schema 从 v4 迁移至 v7
 
 ---
 
+---
+
+# PM2 服务
+
+| 端口 | 名称 | 类型 |
+|------|------|------|
+| 3000 | lifeos-3000 | Nuxt 3 |
+
+**终端命令：**
+```bash
+pm2 start ecosystem.config.cjs   # 首次启动
+pm2 start all                    # 首次之后
+pm2 stop all / pm2 restart all
+pm2 start lifeos-3000 / pm2 stop lifeos-3000
+pm2 logs / pm2 status / pm2 monit
+pm2 save                         # 保存进程列表
+pm2 resurrect                    # 恢复保存的列表
+```
+
+**Claude 命令：** /pm2-all, /pm2-all-stop, /pm2-3000, /pm2-3000-stop, /pm2-logs, /pm2-status
+
+---
+
 # 调试规范
 
 ## 反复修复未果时的处理
@@ -136,3 +159,73 @@ chore: 将 RxDB schema 从 v4 迁移至 v7
 2. **缩小范围**：通过注释或条件分支隔离可疑代码段，确认问题触发点
 3. **测试确认**：在修复后编写最小复现步骤或临时测试用例，验证问题是否真正解决
 4. **回退检查**：如果修改导致新问题，优先回退到上一个稳定状态，而非在错误基础上继续修补
+
+---
+
+# Z-Index 层级规范
+
+所有 `Teleport to="body"` 的弹框/浮层必须使用 `assets/css/main.css` 中定义的 CSS 变量，**禁止硬编码数字**。
+
+## 层级变量
+
+| 变量 | 数值 | 用途 |
+|------|------|------|
+| `--z-drawer` | 200 | 抽屉（ClassDrawer） |
+| `--z-modal` | 300 | 基础弹框 overlay |
+| `--z-modal-nested` | 400 | 嵌套弹框（从弹框中打开的弹框） |
+| `--z-picker` | 450 | 下拉选择面板（AccountPicker、CategoryPicker、NotePicker、DateTimePicker） |
+| `--z-dropdown` | 460 | 下拉菜单、编辑器浮动菜单（SlashMenu、BlockList 右键菜单） |
+| `--z-toast` | 500 | Toast 通知 |
+| `--z-confirm` | 600 | 确认弹框（阻塞式，最高优先级） |
+| `--z-drag` | 700 | 拖拽覆盖层 |
+
+**关键设计：picker (450) > 嵌套弹框 (400)**，确保 picker 面板始终位于其宿主弹框之上，避免被覆盖。
+
+## 账单模块弹框架构
+
+每种业务弹框封装为独立组件，**禁止使用 `dialogType` 切换的"万能弹框"模式**。
+
+```
+Layer 1: 业务弹框 (--z-modal = 300)
+  ├─ BillDialog        记账表单
+  ├─ AccountDialog     账户表单
+  ├─ CategoryDialog    分类表单
+  ├─ BudgetDialog      预算表单
+  ├─ StatementDialog   账单周期表单
+  ├─ StatementListDialog  账单周期列表
+  ├─ ImportDialog      导入流程容器
+  └─ RuleDialog        导入规则表单
+
+Layer 2: 嵌套弹框 (--z-modal-nested = 400)
+  ├─ ImportRecordDetail    从 ImportDialog 打开
+  ├─ BillBatchEditDialog   从 bill list 打开
+  └─ ImportRuleDialog      从 ImportRecordDetail 打开
+
+Layer 3: 浮层 (--z-picker = 450 / --z-dropdown = 460)
+  └─ 各 Picker 面板（始终高于宿主弹框）
+```
+
+## 跨弹框联动
+
+当 Layer 2 弹框需要触发 Layer 1 操作（如新增账户、新增分类）时，由 `BillingView.vue` 统一协调：
+
+1. 关闭触发源（Layer 2 弹框）
+2. 打开目标弹框（Layer 1 弹框）
+3. 创建成功后通过 `defineExpose` 暴露的 setter（如 `setCategoryId`、`setFromAccountId`）回写到调用源
+
+参考 `BillingView.vue` 中 `handleCreateAccount` / `handleOpenCategoryForm` / `handleOpenImportRuleDialog` / `handleCategoryConfirm` 的实现。
+
+## 使用规则
+
+1. **Picker 类面板**：`z-index: var(--z-picker);`
+2. **业务弹框**（独立功能弹框）：`z-index: var(--z-modal);`
+3. **嵌套弹框**（从其他弹框中打开）：`z-index: var(--z-modal-nested);`
+4. **同层弹框** z-index 相同时，后挂载的（DOM 顺序靠后）自动在上层
+5. **页面内固定元素**（侧边栏、顶部栏等）不强制使用此体系
+
+## 新增弹框时
+
+1. 优先封装为独立的 `XxxDialog.vue` 组件，内部用 `<Teleport to="body">` + `<div class="dialog-overlay">` 包裹
+2. 如果是"从现有弹框中打开的新弹框" → `--z-modal-nested`
+3. 如果是独立的业务弹框 → `--z-modal`
+4. 如果现有层级不够用，先在 `main.css` 的 `:root` 中扩展变量

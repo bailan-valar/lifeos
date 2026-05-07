@@ -129,6 +129,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { getNextZIndex } from '~/composables/useZIndex'
 
 interface DateParts {
   year: number
@@ -489,7 +490,8 @@ function updatePanelPosition() {
     position: 'fixed',
     top: `${top}px`,
     left: `${left}px`,
-    minWidth: `${Math.max(rect.width, 280)}px`
+    minWidth: `${Math.max(rect.width, 280)}px`,
+    zIndex: String(getNextZIndex())
   }
 }
 

@@ -71,7 +71,7 @@ async function onCreated() {
   align-items: center;
   justify-content: center;
   background: rgba(245, 245, 247, 0.95);
-  z-index: 500;
+  z-index: var(--z-modal);
 }
 
 .onboarding-card {

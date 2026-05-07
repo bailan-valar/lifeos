@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="drawer">
-      <div v-if="visible" class="drawer-overlay" @click="$emit('update:visible', false)">
+      <div v-if="visible" class="drawer-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="$emit('update:visible', false)">
         <div class="drawer-panel" @click.stop>
           <div class="drawer-header">
             <template v-if="noteClassData">
@@ -82,6 +82,7 @@
 <script setup lang="ts">
 import type { Class, ClassField, NoteClassBinding } from '~/types/block'
 import FieldEditor from './FieldEditor.vue'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 
 interface Props {
   visible: boolean
@@ -90,6 +91,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'open-class-manager'): void
@@ -167,7 +169,7 @@ watch(() => props.noteId, () => {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: var(--z-drawer);
   display: flex;
   justify-content: flex-end;
 }

@@ -4,6 +4,7 @@ import { emptySyncStatus } from '~/types/workspace'
 import { getRawPouchDB, initDB, COLLECTION_NAMES } from '~/services/db'
 import { getWorkspace } from '~/services/workspaces'
 import { useRuntimeConfig } from '#imports'
+import { useAuthStore } from '~/stores/auth'
 
 interface SyncBundle {
   workspaceId: string
@@ -132,7 +133,13 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
 
   const ws: Workspace | null = await getWorkspace(workspaceId)
   if (!ws) return
-  const remoteUrl = (override?.remoteUrl ?? ws.remoteUrl ?? defaultUrl).trim()
+
+  const authStore = useAuthStore()
+  const isLoggedIn = !!authStore.token
+
+  const remoteUrl = (
+    override?.remoteUrl ?? ws.remoteUrl ?? (isLoggedIn ? defaultUrl : '')
+  ).trim()
   const remotePrefix = (override?.remotePrefix ?? ws.remotePrefix ?? defaultPrefix).trim()
   const username = override?.remoteUsername ?? ws.remoteUsername ?? defaultUsername
   const password = override?.remotePassword ?? ws.remotePassword ?? defaultPassword

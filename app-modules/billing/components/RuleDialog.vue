@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
-    <div class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="emit('cancel')">
+    <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
       <div class="dialog" @click.stop>
         <div class="dialog-header">
-          <h3>{{ editing ? '编辑规则' : '保存为规则' }}</h3>
-          <button type="button" class="close-btn" @click="emit('cancel')">
+          <h3>{{ isEditing ? '编辑规则' : '新建规则' }}</h3>
+          <button type="button" class="close-btn" @click="onCancel">
             <Icon name="solar:close-circle-linear" size="20" />
           </button>
         </div>
@@ -19,8 +19,8 @@
           />
         </div>
         <div class="dialog-footer">
-          <button type="button" class="cancel-btn" @click="emit('cancel')">取消</button>
-          <button type="button" class="confirm-btn" @click="emit('confirm', form)">保存</button>
+          <button type="button" class="cancel-btn" @click="onCancel">取消</button>
+          <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
         </div>
       </div>
     </div>
@@ -28,35 +28,64 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportRuleFormData, Account, BillCategory, CategoryType, AccountCreatePayload } from '~/types/bill'
-import { getNextZIndex } from '~/composables/useZIndex'
+import type { ImportRule, ImportRuleFormData, Account, BillCategory, CategoryType, AccountCreatePayload } from '~/types/bill'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 import ImportRuleForm from './ImportRuleForm.vue'
 
-const overlayZIndex = ref<number | undefined>(undefined)
-onMounted(() => {
-  overlayZIndex.value = getNextZIndex()
-})
-
 const props = defineProps<{
-  form: ImportRuleFormData
+  visible: boolean
+  rule?: ImportRule
   accounts: Account[]
   categories: BillCategory[]
-  editing?: boolean
 }>()
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const emit = defineEmits<{
-  (e: 'update:form', value: ImportRuleFormData): void
-  (e: 'confirm', value: ImportRuleFormData): void
-  (e: 'cancel'): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', payload: AccountCreatePayload): void
+  confirm: [data: ImportRuleFormData, isEditing: boolean, id?: string]
+  cancel: []
+  'create-category': [data: { name: string; type: CategoryType; parentId?: string }]
+  'open-category-form': [data: { type: CategoryType; defaultParentId?: string; defaultName?: string }]
+  'create-account': [payload: AccountCreatePayload]
 }>()
 
-const form = computed({
-  get: () => props.form,
-  set: (v) => emit('update:form', v)
+const form = ref<ImportRuleFormData>({
+  name: '', source: 'all', matchMode: 'fuzzy', pattern: '', categoryId: '',
+  accountId: '', billType: undefined, priority: 100, enabled: true
 })
+
+const isEditing = computed(() => !!props.rule)
+
+watch(() => props.visible, (v) => {
+  if (!v) return
+  if (props.rule) {
+    form.value = {
+      name: props.rule.name,
+      source: props.rule.source,
+      matchMode: props.rule.matchMode,
+      pattern: props.rule.pattern,
+      categoryId: props.rule.categoryId,
+      accountId: props.rule.accountId,
+      billType: props.rule.billType,
+      priority: props.rule.priority,
+      enabled: props.rule.enabled
+    }
+  } else {
+    form.value = {
+      name: '', source: 'all', matchMode: 'fuzzy', pattern: '', categoryId: '',
+      accountId: '', billType: undefined, priority: 100, enabled: true
+    }
+  }
+}, { immediate: true })
+
+function onConfirm() {
+  if (!form.value.name.trim()) return
+  if (!form.value.pattern.trim()) return
+  emit('confirm', form.value, isEditing.value, props.rule?.id)
+}
+
+function onCancel() {
+  emit('cancel')
+}
 </script>
 
 <style scoped>

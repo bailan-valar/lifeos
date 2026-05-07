@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BillFormData, Account, BillCategory, BillType, DebtSubtype, CategoryType, AccountFormData } from '~/types/bill'
+import type { BillFormData, Account, BillCategory, BillType, DebtSubtype, CategoryType, AccountCreatePayload } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
 import NotePicker from './NotePicker.vue'
@@ -122,7 +122,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: BillFormData): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
   (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', data: AccountFormData): void
+  (e: 'create-account', payload: AccountCreatePayload): void
 }>()
 
 const typeOptions = [

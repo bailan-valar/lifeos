@@ -4,7 +4,7 @@
       <div
         v-if="visible && filteredItems.length > 0"
         class="slash-menu"
-        :style="menuStyle"
+        :style="[menuStyle, overlayZIndex ? { zIndex: overlayZIndex } : {}]"
         @mousedown.prevent
       >
         <div class="slash-menu-header">
@@ -37,6 +37,7 @@
 
 <script setup lang="ts">
 import type { BlockType, BlockMetadata } from '~/types/block'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 
 export interface SlashMenuItem {
   id: string
@@ -61,6 +62,8 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const allItems: SlashMenuItem[] = [
   {
@@ -230,7 +233,7 @@ defineExpose({ selectActive, moveSelection })
 <style scoped>
 .slash-menu {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-dropdown);
   width: 320px;
   max-height: 360px;
   display: flex;

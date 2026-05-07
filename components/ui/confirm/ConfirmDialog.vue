@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="confirm">
-      <div v-if="state.visible" class="confirm-overlay" @click="onCancel">
+      <div v-if="state.visible" class="confirm-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
         <div class="confirm-dialog" @click.stop>
           <div class="confirm-content">
             <h3 v-if="state.title" class="confirm-title">{{ state.title }}</h3>
@@ -28,8 +28,10 @@
 
 <script setup lang="ts">
 import { useConfirm } from '~/composables/useConfirm'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 
 const { state, answer } = useConfirm()
+const overlayZIndex = useZIndexOnOpen(() => state.visible)
 
 function onConfirm() {
   answer(true)
@@ -44,7 +46,7 @@ function onCancel() {
 .confirm-overlay {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: var(--z-confirm);
   display: flex;
   align-items: center;
   justify-content: center;

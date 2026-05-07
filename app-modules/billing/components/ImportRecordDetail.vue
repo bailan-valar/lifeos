@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="record-modal">
-      <div v-if="visible" class="record-modal-overlay" @click="emit('close')">
+      <div v-if="visible" ref="overlayRef" class="record-modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined">
         <div class="record-modal-card" @click.stop>
           <div class="record-modal-header">
             <h4>{{ isPending ? '导入详情 - 待导入' : '导入详情' }}</h4>
@@ -68,7 +68,7 @@
                   :row="item"
                   :accounts="accounts"
                   :categories="categories"
-                  :matched-rule="ruleById(item.matchedRuleId)"
+                  :matched-rule="ruleById(item.matchedRuleId) ?? ruleById(item.paymentMethodRuleId)"
                   @update:row="(v) => onItemUpdate(item.rawIndex, v)"
                   @save-as-rule="openRuleOverlay"
                   @save-counterparty-rule="openCounterpartyRule"
@@ -108,6 +108,7 @@
           <div class="record-modal-footer">
             <button type="button" class="cancel-btn" @click="emit('close')">关闭</button>
             <template v-if="isPending">
+              <button type="button" class="secondary-btn" @click="applyAllRules">应用规则</button>
               <button type="button" class="danger-btn" @click="onDelete">删除</button>
               <button
                 type="button"
@@ -143,11 +144,14 @@ import type {
   ImportRule,
   ImportRuleFormData,
   CategoryType,
-  AccountFormData,
+  AccountCreatePayload,
   ImportSource
 } from '~/types/bill'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
+import { suggestAccountIds } from '~/composables/useAccountMatcher'
 import ImportPreviewRow from './ImportPreviewRow.vue'
 
 const props = defineProps<{
@@ -156,6 +160,7 @@ const props = defineProps<{
   accounts: Account[]
   categories: BillCategory[]
 }>()
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -165,10 +170,36 @@ const emit = defineEmits<{
   (e: 'open-rule-dialog', form: ImportRuleFormData): void
   (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
   (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', data: AccountFormData): void
+  (e: 'create-account', payload: AccountCreatePayload): void
 }>()
 
-const { rules: importRules } = useImportRules()
+// 点击弹框外关闭 + ESC 关闭
+const overlayRef = ref<HTMLDivElement | null>(null)
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    emit('close')
+  }
+}
+
+function handleDocumentClick(e: MouseEvent) {
+  if (!props.visible || !overlayRef.value) return
+  if (e.target === overlayRef.value) {
+    emit('close')
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+  document.addEventListener('click', handleDocumentClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('click', handleDocumentClick)
+})
+
+const { rules: importRules, applyRules } = useImportRules()
 const { updateRecordItems } = useImportRecords()
 
 const filter = ref<'all' | 'unmatched' | 'matched' | 'duplicate'>('all')
@@ -204,17 +235,17 @@ function scheduleSave() {
 
 const counts = computed(() => ({
   all: localItems.value.length,
-  unmatched: localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.matchedAccountId && !i.duplicate).length,
-  matched: localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.matchedAccountId) && !i.duplicate).length,
+  unmatched: localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.paymentMethodRuleId && !i.matchedAccountId && !i.myAccountId && !i.duplicate).length,
+  matched: localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.paymentMethodRuleId || i.matchedAccountId || i.myAccountId) && !i.duplicate).length,
   duplicate: localItems.value.filter(i => i.duplicate).length
 }))
 
 const filteredItems = computed(() => {
   switch (filter.value) {
     case 'unmatched':
-      return localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.matchedAccountId && !i.duplicate)
+      return localItems.value.filter(i => !i.skipped && !i.matchedRuleId && !i.paymentMethodRuleId && !i.matchedAccountId && !i.myAccountId && !i.duplicate)
     case 'matched':
-      return localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.matchedAccountId) && !i.duplicate)
+      return localItems.value.filter(i => !i.skipped && (i.matchedRuleId || i.paymentMethodRuleId || i.matchedAccountId || i.myAccountId) && !i.duplicate)
     case 'duplicate':
       return localItems.value.filter(i => i.duplicate)
     default:
@@ -318,6 +349,67 @@ function onDelete() {
   emit('delete', props.record.id)
 }
 
+function applyAllRules() {
+  const source = props.record.source
+  let changed = false
+
+  localItems.value = localItems.value.map(item => {
+    if (item.skipped || item.duplicate) return item
+
+    const result = applyRules(item as any, source)
+    if (!result) return item
+
+    const updates: Partial<ImportRecordItem> = {}
+
+    if (result.counterpartyRule) {
+      updates.matchedRuleId = result.counterpartyRule.id
+      if (result.counterpartyRule.categoryId) {
+        updates.categoryId = result.counterpartyRule.categoryId
+      }
+      if (result.counterpartyRule.accountId) {
+        updates.matchedAccountId = result.counterpartyRule.accountId
+      }
+      if (result.counterpartyRule.billType) {
+        updates.type = result.counterpartyRule.billType
+      }
+    }
+
+    if (result.paymentMethodRule) {
+      updates.paymentMethodRuleId = result.paymentMethodRule.id
+      if (result.paymentMethodRule.accountId) {
+        updates.myAccountId = result.paymentMethodRule.accountId
+      }
+      if (!updates.type && result.paymentMethodRule.billType) {
+        updates.type = result.paymentMethodRule.billType
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      changed = true
+      const next = { ...item, ...updates }
+
+      // 根据匹配账户推导 from/to
+      const counterpartyAccount = props.accounts.find(a => a.id === next.matchedAccountId) || null
+      const myAccount = props.accounts.find(a => a.id === next.myAccountId) || null
+      const suggestion = suggestAccountIds(
+        counterpartyAccount,
+        myAccount,
+        next.direction,
+        next.type || item.type || 'expense'
+      )
+      if (suggestion.fromAccountId) next.fromAccountId = suggestion.fromAccountId
+      if (suggestion.toAccountId) next.toAccountId = suggestion.toAccountId
+
+      return next
+    }
+    return item
+  })
+
+  if (changed) {
+    scheduleSave()
+  }
+}
+
 function formatDateTime(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -344,7 +436,7 @@ function statusLabel(s: ImportRecordStatus): string {
 function itemStatusLabel(s: ImportRecordItem['status']): string {
   switch (s) {
     case 'pending': return '待导入'
-    case 'created': return '已写入'
+    case 'created': return '已导入'
     case 'skipped_duplicate': return '跳过(重复)'
     case 'skipped_unselected': return '跳过(未选)'
     case 'failed': return '失败'
@@ -357,6 +449,7 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
 .record-modal-overlay {
   position: fixed;
   inset: 0;
+  z-index: var(--z-modal-nested);
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -462,6 +555,16 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
 .danger-btn {
   background: rgba(255, 59, 48, 0.1);
   color: rgb(255, 59, 48);
+}
+.secondary-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
 }
 .record-meta {
   display: flex;

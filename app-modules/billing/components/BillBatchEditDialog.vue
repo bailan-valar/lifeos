@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div class="dialog-overlay" @click="$emit('cancel')">
+    <div class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="$emit('cancel')">
     <div class="dialog" @click.stop>
       <div class="dialog-header">
         <h3>批量修改</h3>
@@ -36,6 +36,7 @@
             :accounts="accounts"
             :allowed-types="['personal']"
             placeholder="选择出账账户"
+            @create="emit('create-account', $event)"
           />
         </div>
 
@@ -50,6 +51,7 @@
             :accounts="accounts"
             :allowed-types="['personal']"
             placeholder="选择入账账户"
+            @create="emit('create-account', $event)"
           />
         </div>
 
@@ -92,9 +94,15 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, BillCategory, Account } from '~/types/bill'
+import type { Bill, BillCategory, Account, AccountCreatePayload } from '~/types/bill'
+import { getNextZIndex } from '~/composables/useZIndex'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
+
+const overlayZIndex = ref<number | undefined>(undefined)
+onMounted(() => {
+  overlayZIndex.value = getNextZIndex()
+})
 
 const props = defineProps<{
   selectedBills: Bill[]
@@ -105,6 +113,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   confirm: [data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix' }]
   cancel: []
+  'create-account': [payload: AccountCreatePayload]
 }>()
 
 const editCategory = ref(false)
@@ -174,6 +183,7 @@ function handleConfirm() {
 .dialog-overlay {
   position: fixed;
   inset: 0;
+  z-index: var(--z-modal-nested);
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   display: flex;

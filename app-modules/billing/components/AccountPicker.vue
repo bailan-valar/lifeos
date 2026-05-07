@@ -62,23 +62,7 @@
         </div>
 
         <div class="picker-footer">
-          <div v-if="showQuickAdd" class="quick-add-form">
-            <AccountForm v-model="quickAddForm" :categories="categories" />
-            <div class="quick-add-actions">
-              <button
-                type="button"
-                class="btn-confirm"
-                :disabled="!quickAddForm.name.trim()"
-                @click.stop="submitQuickAdd"
-              >
-                添加
-              </button>
-              <button type="button" class="btn-cancel" @click.stop="showQuickAdd = false">
-                取消
-              </button>
-            </div>
-          </div>
-          <button v-else type="button" class="quick-add-btn" @click.stop="startQuickAdd">
+          <button type="button" class="quick-add-btn" @click.stop="startQuickAdd">
             <Icon name="solar:add-circle-linear" size="14" />
             新增账户
           </button>
@@ -89,9 +73,9 @@
 </template>
 
 <script setup lang="ts">
-import type { Account, AccountType, AccountFormData, BillCategory } from '~/types/bill'
-import AccountForm from './AccountForm.vue'
+import type { Account, AccountType, AccountCreatePayload, BillCategory } from '~/types/bill'
 import { nextTick, onBeforeUnmount, onMounted } from 'vue'
+import { getNextZIndex } from '~/composables/useZIndex'
 
 interface AccountGroup {
   key: string
@@ -110,7 +94,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [id: string]
-  create: [data: AccountFormData]
+  create: [payload: AccountCreatePayload]
 }>()
 
 const placeholder = computed(() => props.placeholder || '请选择账户')
@@ -228,7 +212,8 @@ function updatePanelPosition() {
     top: `${rect.bottom + 4}px`,
     left: `${rect.left}px`,
     width: `${rect.width}px`,
-    maxHeight: '320px'
+    maxHeight: '320px',
+    zIndex: String(getNextZIndex())
   }
 }
 
@@ -253,36 +238,15 @@ onBeforeUnmount(() => {
 })
 
 /* ---------- 快捷新增 ---------- */
-const showQuickAdd = ref(false)
-const quickAddForm = ref<AccountFormData>({
-  name: '',
-  type: 'personal',
-  currency: 'CNY',
-  icon: '',
-  color: '',
-  subtype: 'cash',
-  aliases: []
-})
-
 function startQuickAdd() {
-  showQuickAdd.value = true
-  quickAddForm.value = {
-    name: searchQuery.value.trim(),
-    type: 'personal',
-    currency: 'CNY',
-    icon: '',
-    color: '',
-    subtype: 'cash',
-    aliases: []
-  }
-}
-
-function submitQuickAdd() {
-  const name = quickAddForm.value.name.trim()
-  if (!name) return
-  emit('create', quickAddForm.value)
-  showQuickAdd.value = false
+  const defaultName = searchQuery.value.trim()
   open.value = false
+  emit('create', {
+    defaultName,
+    onCreated: (account) => {
+      emit('update:modelValue', account.id)
+    }
+  })
 }
 </script>
 
@@ -346,6 +310,7 @@ function submitQuickAdd() {
   border: 0.5px solid rgba(60, 60, 67, 0.18);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  z-index: var(--z-picker);
 }
 
 .picker-search {
@@ -473,36 +438,5 @@ function submitQuickAdd() {
 }
 .quick-add-btn:hover {
   background: rgba(0, 122, 255, 0.08);
-}
-.quick-add-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.quick-add-actions {
-  display: flex;
-  gap: 8px;
-}
-.btn-confirm,
-.btn-cancel {
-  flex: 1;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-.btn-confirm {
-  background: rgb(0, 122, 255);
-  color: white;
-}
-.btn-confirm:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.btn-cancel {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(60, 60, 67, 0.78);
 }
 </style>

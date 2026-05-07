@@ -1,26 +1,24 @@
 <template>
   <Teleport to="body">
-    <div class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="emit('cancel')">
+    <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
       <div class="dialog" @click.stop>
         <div class="dialog-header">
-          <h3>{{ editing ? '编辑规则' : '保存为规则' }}</h3>
-          <button type="button" class="close-btn" @click="emit('cancel')">
+          <h3>{{ isEditing ? '编辑分类' : '添加分类' }}</h3>
+          <button type="button" class="close-btn" @click="onCancel">
             <Icon name="solar:close-circle-linear" size="20" />
           </button>
         </div>
         <div class="dialog-body">
-          <ImportRuleForm
+          <CategoryForm
             v-model="form"
-            :accounts="accounts"
             :categories="categories"
+            :exclude-id="excludeId"
             @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
-            @create-account="emit('create-account', $event)"
           />
         </div>
         <div class="dialog-footer">
-          <button type="button" class="cancel-btn" @click="emit('cancel')">取消</button>
-          <button type="button" class="confirm-btn" @click="emit('confirm', form)">保存</button>
+          <button type="button" class="cancel-btn" @click="onCancel">取消</button>
+          <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
         </div>
       </div>
     </div>
@@ -28,42 +26,67 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportRuleFormData, Account, BillCategory, CategoryType, AccountCreatePayload } from '~/types/bill'
-import { getNextZIndex } from '~/composables/useZIndex'
-import ImportRuleForm from './ImportRuleForm.vue'
-
-const overlayZIndex = ref<number | undefined>(undefined)
-onMounted(() => {
-  overlayZIndex.value = getNextZIndex()
-})
+import type { BillCategory, CategoryFormData, CategoryType } from '~/types/bill'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
+import CategoryForm from './CategoryForm.vue'
 
 const props = defineProps<{
-  form: ImportRuleFormData
-  accounts: Account[]
+  visible: boolean
+  category?: BillCategory
   categories: BillCategory[]
-  editing?: boolean
+  excludeId?: string
+  defaultType?: CategoryType
+  defaultParentId?: string
+  defaultName?: string
 }>()
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const emit = defineEmits<{
-  (e: 'update:form', value: ImportRuleFormData): void
-  (e: 'confirm', value: ImportRuleFormData): void
-  (e: 'cancel'): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', payload: AccountCreatePayload): void
+  confirm: [data: CategoryFormData, isEditing: boolean, id?: string]
+  cancel: []
+  'create-category': [data: { name: string; type: CategoryType; parentId?: string }]
 }>()
 
-const form = computed({
-  get: () => props.form,
-  set: (v) => emit('update:form', v)
+const form = ref<CategoryFormData>({ name: '', type: 'expense', parentId: '', icon: '', color: '' })
+
+const isEditing = computed(() => !!props.category)
+
+watch(() => props.visible, (v) => {
+  if (!v) return
+  if (props.category) {
+    form.value = {
+      name: props.category.name,
+      type: props.category.type,
+      parentId: props.category.parentId,
+      icon: props.category.icon || '',
+      color: props.category.color || ''
+    }
+  } else {
+    form.value = {
+      name: props.defaultName || '',
+      type: props.defaultType || 'expense',
+      parentId: props.defaultParentId || '',
+      icon: '',
+      color: ''
+    }
+  }
 })
+
+function onConfirm() {
+  if (!form.value.name.trim()) return
+  emit('confirm', form.value, isEditing.value, props.category?.id)
+}
+
+function onCancel() {
+  emit('cancel')
+}
 </script>
 
 <style scoped>
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal-nested);
+  z-index: var(--z-modal);
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   display: flex;
@@ -72,7 +95,7 @@ const form = computed({
 }
 .dialog {
   width: 100%;
-  max-width: 520px;
+  max-width: 480px;
   max-height: 80vh;
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.95);

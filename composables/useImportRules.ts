@@ -2,8 +2,8 @@ import type { ImportRule, ImportRuleFormData, CsvParsedRow } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
 export interface ApplyRulesResult {
-  rule: ImportRule
-  matchedField: 'counterparty' | 'paymentMethod'
+  counterpartyRule?: ImportRule
+  paymentMethodRule?: ImportRule
 }
 
 let _store: ImportRulesStore | null = null
@@ -120,20 +120,26 @@ function createStore(): ImportRulesStore {
   }
 
   /**
-   * 对单行 CSV 应用规则集,返回首个命中的规则及匹配字段(按 priority desc)。
-   * 优先匹配 counterparty,再匹配 paymentMethod。
+   * 对单行 CSV 应用规则集,分别独立匹配 counterparty 与 paymentMethod。
+   * 两者可命中不同规则,各自填充对应账户,实现"分别匹配为出账账户与入账账户"。
    */
   function applyRules(row: CsvParsedRow, source: 'alipay' | 'wechat'): ApplyRulesResult | null {
     const candidates = rules.value.filter(r => r.enabled && (r.source === 'all' || r.source === source))
+    let counterpartyRule: ImportRule | undefined
+    let paymentMethodRule: ImportRule | undefined
+
     for (const rule of candidates) {
-      if (matchOne(rule, row.counterparty || '')) {
-        return { rule, matchedField: 'counterparty' }
+      if (!counterpartyRule && matchOne(rule, row.counterparty || '')) {
+        counterpartyRule = rule
       }
-      if (matchOne(rule, row.paymentMethod || '')) {
-        return { rule, matchedField: 'paymentMethod' }
+      if (!paymentMethodRule && matchOne(rule, row.paymentMethod || '')) {
+        paymentMethodRule = rule
       }
+      if (counterpartyRule && paymentMethodRule) break
     }
-    return null
+
+    if (!counterpartyRule && !paymentMethodRule) return null
+    return { counterpartyRule, paymentMethodRule }
   }
 
   return {

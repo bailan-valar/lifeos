@@ -69,7 +69,7 @@
       <div
         v-if="menu.visible"
         class="block-menu"
-        :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
+        :style="{ left: `${menu.x}px`, top: `${menu.y}px`, zIndex: menuZIndex }"
         @click.stop
         @mousedown.stop
       >
@@ -154,6 +154,7 @@
 
 <script setup lang="ts">
 import type { Block, BlockType, BlockMetadata } from '~/types/block'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 import TextBlock from './blocks/TextBlock.vue'
 import HeadingBlock from './blocks/HeadingBlock.vue'
 import CodeBlock from './blocks/CodeBlock.vue'
@@ -181,6 +182,8 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const menuZIndex = useZIndexOnOpen(() => menu.visible)
 
 const getListNumber = (index: number): number => {
   const currentBlock = props.blocks[index]
@@ -464,7 +467,7 @@ const onMenuDelete = () => {
 
 .block-menu {
   position: fixed;
-  z-index: 9999;
+  z-index: var(--z-dropdown);
   min-width: 160px;
   padding: 6px;
   border-radius: 12px;

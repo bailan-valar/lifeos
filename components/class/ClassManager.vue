@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="modal-overlay" @click="$emit('update:visible', false)">
+      <div v-if="visible" class="modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="$emit('update:visible', false)">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
             <h3>管理类</h3>
@@ -206,6 +206,7 @@
 import type { Class, ClassField, ClassFieldType } from '~/types/block'
 import { generateId } from '~/services/db'
 import { useConfirm } from '~/composables/useConfirm'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 
 interface Props {
   visible: boolean
@@ -213,6 +214,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
 }>()
@@ -439,7 +441,7 @@ const cancelAddField = () => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;

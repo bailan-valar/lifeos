@@ -66,6 +66,7 @@
   },
   "devDependencies": {
     "@nuxt/icon": "^1.8.1",
+    "@playwright/test": "^1.59.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.9.3",

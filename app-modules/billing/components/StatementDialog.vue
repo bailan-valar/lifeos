@@ -1,26 +1,19 @@
 <template>
   <Teleport to="body">
-    <div class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="emit('cancel')">
+    <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
       <div class="dialog" @click.stop>
         <div class="dialog-header">
-          <h3>{{ editing ? '编辑规则' : '保存为规则' }}</h3>
-          <button type="button" class="close-btn" @click="emit('cancel')">
+          <h3>编辑账单周期</h3>
+          <button type="button" class="close-btn" @click="onCancel">
             <Icon name="solar:close-circle-linear" size="20" />
           </button>
         </div>
         <div class="dialog-body">
-          <ImportRuleForm
-            v-model="form"
-            :accounts="accounts"
-            :categories="categories"
-            @create-category="emit('create-category', $event)"
-            @open-category-form="emit('open-category-form', $event)"
-            @create-account="emit('create-account', $event)"
-          />
+          <StatementForm v-model="form" />
         </div>
         <div class="dialog-footer">
-          <button type="button" class="cancel-btn" @click="emit('cancel')">取消</button>
-          <button type="button" class="confirm-btn" @click="emit('confirm', form)">保存</button>
+          <button type="button" class="cancel-btn" @click="onCancel">取消</button>
+          <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
         </div>
       </div>
     </div>
@@ -28,42 +21,55 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportRuleFormData, Account, BillCategory, CategoryType, AccountCreatePayload } from '~/types/bill'
-import { getNextZIndex } from '~/composables/useZIndex'
-import ImportRuleForm from './ImportRuleForm.vue'
-
-const overlayZIndex = ref<number | undefined>(undefined)
-onMounted(() => {
-  overlayZIndex.value = getNextZIndex()
-})
+import type { Statement, StatementFormData } from '~/types/bill'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
+import StatementForm from './StatementForm.vue'
 
 const props = defineProps<{
-  form: ImportRuleFormData
-  accounts: Account[]
-  categories: BillCategory[]
-  editing?: boolean
+  visible: boolean
+  statement?: Statement
 }>()
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const emit = defineEmits<{
-  (e: 'update:form', value: ImportRuleFormData): void
-  (e: 'confirm', value: ImportRuleFormData): void
-  (e: 'cancel'): void
-  (e: 'create-category', data: { name: string; type: CategoryType; parentId?: string }): void
-  (e: 'open-category-form', data: { type: CategoryType; defaultParentId?: string; defaultName?: string }): void
-  (e: 'create-account', payload: AccountCreatePayload): void
+  confirm: [data: StatementFormData, id: string]
+  cancel: []
 }>()
 
-const form = computed({
-  get: () => props.form,
-  set: (v) => emit('update:form', v)
+const form = ref<StatementFormData>({
+  statementAmount: 0, minimumPayment: 0, paidAmount: 0, status: 'pending'
 })
+
+watch(() => props.visible, (v) => {
+  if (!v) return
+  if (props.statement) {
+    form.value = {
+      statementAmount: props.statement.statementAmount,
+      minimumPayment: props.statement.minimumPayment,
+      paidAmount: props.statement.paidAmount,
+      status: props.statement.status
+    }
+  } else {
+    form.value = { statementAmount: 0, minimumPayment: 0, paidAmount: 0, status: 'pending' }
+  }
+})
+
+function onConfirm() {
+  if (!props.statement) return
+  if (form.value.statementAmount < 0 || form.value.paidAmount < 0) return
+  emit('confirm', form.value, props.statement.id)
+}
+
+function onCancel() {
+  emit('cancel')
+}
 </script>
 
 <style scoped>
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal-nested);
+  z-index: var(--z-modal);
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   display: flex;
@@ -72,7 +78,7 @@ const form = computed({
 }
 .dialog {
   width: 100%;
-  max-width: 520px;
+  max-width: 480px;
   max-height: 80vh;
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.95);

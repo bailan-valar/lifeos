@@ -120,7 +120,7 @@
     </div>
 
     <Teleport to="body">
-      <div v-if="modalVisible" class="modal-overlay" @click.self="closeModal">
+      <div v-if="modalVisible" class="modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click.self="closeModal">
         <div class="modal-panel">
           <div class="modal-header">
             <h3>{{ editingId ? '编辑目标' : '添加目标' }}</h3>
@@ -202,6 +202,7 @@
 <script setup lang="ts">
 import { getDB, generateId, now } from '~/services/db'
 import { useConfirm } from '~/composables/useConfirm'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 
 interface Goal {
   id: string
@@ -228,6 +229,7 @@ const allNotes = ref<NoteItem[]>([])
 const expandedId = ref<string | null>(null)
 const modalVisible = ref(false)
 const editingId = ref<string | null>(null)
+const overlayZIndex = useZIndexOnOpen(() => modalVisible.value)
 const filterStatus = ref<string>('all')
 const filterPriority = ref<string>('all')
 
@@ -899,7 +901,7 @@ const deleteGoal = async (id: string) => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="modal-overlay" @click="emitClose">
+      <div v-if="visible" class="modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="emitClose">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
             <h3>{{ isEdit ? '编辑工作空间' : '新建工作空间' }}</h3>
@@ -120,11 +120,13 @@ import type { Workspace, WorkspaceFormData } from '~/types/workspace'
 import { useWorkspaces } from '~/composables/useWorkspaces'
 import { useAuthStore } from '~/stores/auth'
 import { testRemote } from '~/services/sync'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 
 const props = defineProps<{
   visible: boolean
   workspace?: Workspace | null
 }>()
+const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const emit = defineEmits<{
   (e: 'update:visible', v: boolean): void
@@ -224,7 +226,7 @@ async function onSubmit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
