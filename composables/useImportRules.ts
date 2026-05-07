@@ -1,10 +1,24 @@
-import type { ImportRule, ImportRuleFormData, CsvParsedRow } from '~/types/bill'
+import type { ImportRule, ImportRuleFormData, CsvParsedRow, ImportSource, ImportRuleMatchField, ImportRuleMatchMode, BillType, BillCategory, Account } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
 
 export interface ApplyRulesResult {
   counterpartyRule?: ImportRule
   paymentMethodRule?: ImportRule
   descriptionRule?: ImportRule
+}
+
+export interface ExportedImportRule {
+  source: ImportSource | 'all'
+  matchField?: ImportRuleMatchField
+  matchMode: ImportRuleMatchMode
+  pattern: string
+  categoryId: string
+  categoryName?: string
+  accountId: string
+  accountName?: string
+  billType?: BillType
+  priority: number
+  enabled: boolean
 }
 
 let _store: ImportRulesStore | null = null
@@ -17,9 +31,11 @@ interface ImportRulesStore {
   createImportRule: (data: ImportRuleFormData) => Promise<ImportRule>
   updateImportRule: (id: string, data: Partial<ImportRuleFormData>) => Promise<void>
   deleteImportRule: (id: string) => Promise<void>
+  deleteImportRules: (ids: string[]) => Promise<{ deleted: number; failed: number }>
+  updateImportRules: (ids: string[], data: Partial<ImportRuleFormData>) => Promise<{ updated: number; failed: number }>
   applyRules: (row: CsvParsedRow, source: 'alipay' | 'wechat') => ApplyRulesResult | null
-  exportRules: () => ImportRuleFormData[]
-  importRules: (items: ImportRuleFormData[]) => Promise<{ created: number; skipped: number }>
+  exportRules: () => Promise<ExportedImportRule[]>
+  importRules: (items: any[]) => Promise<{ created: number; skipped: number }>
 }
 
 function createStore(): ImportRulesStore {
@@ -61,6 +77,7 @@ function createStore(): ImportRulesStore {
     const rule: ImportRule = {
       id: generateId(),
       source: data.source,
+      matchField: data.matchField,
       matchMode: data.matchMode,
       pattern: data.pattern,
       categoryId: data.categoryId,
@@ -101,6 +118,57 @@ function createStore(): ImportRulesStore {
     if (!doc) return
     await doc.remove()
     rules.value = rules.value.filter(r => r.id !== id)
+  }
+
+  async function deleteImportRules(ids: string[]): Promise<{ deleted: number; failed: number }> {
+    const db = await getDB()
+    let deleted = 0
+    let failed = 0
+    for (const id of ids) {
+      try {
+        const doc = await db.importRules.findOne(id).exec()
+        if (doc) {
+          await doc.remove()
+          deleted++
+        } else {
+          failed++
+        }
+      } catch {
+        failed++
+      }
+    }
+    rules.value = rules.value.filter(r => !ids.includes(r.id))
+    return { deleted, failed }
+  }
+
+  async function updateImportRules(ids: string[], data: Partial<ImportRuleFormData>): Promise<{ updated: number; failed: number }> {
+    const db = await getDB()
+    let updated = 0
+    let failed = 0
+    const patch: Partial<ImportRule> = { ...data, updatedAt: now() }
+    if ('myAccountId' in patch) {
+      delete (patch as any).myAccountId
+    }
+    for (const id of ids) {
+      try {
+        const doc = await db.importRules.findOne(id).exec()
+        if (doc) {
+          await doc.patch(patch)
+          updated++
+        } else {
+          failed++
+        }
+      } catch {
+        failed++
+      }
+    }
+    for (const rule of rules.value) {
+      if (ids.includes(rule.id)) {
+        Object.assign(rule, patch)
+      }
+    }
+    rules.value.sort((a, b) => b.priority - a.priority)
+    return { updated, failed }
   }
 
   function matchOne(rule: ImportRule, target: string): boolean {
@@ -154,22 +222,55 @@ function createStore(): ImportRulesStore {
     return { counterpartyRule, paymentMethodRule, descriptionRule }
   }
 
-  function exportRules(): ImportRuleFormData[] {
+  async function exportRules(): Promise<ExportedImportRule[]> {
+    const db = await getDB()
+    const [catDocs, accDocs] = await Promise.all([
+      db.billCategories.find({}).exec(),
+      db.accounts.find({}).exec(),
+    ])
+    const catMap = new Map<string, string>(catDocs.map((d: any) => [d.toJSON().id as string, d.toJSON().name as string]))
+    const accMap = new Map<string, string>(accDocs.map((d: any) => [d.toJSON().id as string, d.toJSON().name as string]))
+
     return rules.value.map(r => ({
       source: r.source,
       matchField: r.matchField,
       matchMode: r.matchMode,
       pattern: r.pattern,
       categoryId: r.categoryId,
+      categoryName: catMap.get(r.categoryId) || '',
       accountId: r.accountId,
+      accountName: accMap.get(r.accountId) || '',
       billType: r.billType,
       priority: r.priority,
       enabled: r.enabled,
     }))
   }
 
-  async function importRules(items: ImportRuleFormData[]): Promise<{ created: number; skipped: number }> {
+  async function importRules(items: any[]): Promise<{ created: number; skipped: number }> {
     const db = await getDB()
+    const [catDocs, accDocs] = await Promise.all([
+      db.billCategories.find({}).exec(),
+      db.accounts.find({}).exec(),
+    ])
+    const cats = catDocs.map((d: any) => d.toJSON() as BillCategory)
+    const accs = accDocs.map((d: any) => d.toJSON() as Account)
+
+    const categoryIdMap = new Map<string, string>(cats.map(c => [c.id, c.name]))
+    const categoryNameMap = new Map<string, string>()
+    for (const c of cats) {
+      if (!categoryNameMap.has(c.name)) {
+        categoryNameMap.set(c.name, c.id)
+      }
+    }
+
+    const accountIdMap = new Map<string, string>(accs.map(a => [a.id, a.name]))
+    const accountNameMap = new Map<string, string>()
+    for (const a of accs) {
+      if (!accountNameMap.has(a.name)) {
+        accountNameMap.set(a.name, a.id)
+      }
+    }
+
     let created = 0
     let skipped = 0
     const existingKeys = new Set(
@@ -181,10 +282,41 @@ function createStore(): ImportRulesStore {
         skipped++
         continue
       }
+
+      let categoryId = item.categoryId || ''
+      if (categoryId && !categoryIdMap.has(categoryId)) {
+        const categoryName = item.categoryName || ''
+        if (categoryName && categoryNameMap.has(categoryName)) {
+          categoryId = categoryNameMap.get(categoryName)!
+        } else {
+          skipped++
+          continue
+        }
+      }
+
+      let accountId = item.accountId || ''
+      if (accountId && !accountIdMap.has(accountId)) {
+        const accountName = item.accountName || ''
+        if (accountName && accountNameMap.has(accountName)) {
+          accountId = accountNameMap.get(accountName)!
+        } else {
+          skipped++
+          continue
+        }
+      }
+
       existingKeys.add(key)
       const rule: ImportRule = {
         id: generateId(),
-        ...item,
+        source: item.source,
+        matchField: item.matchField,
+        matchMode: item.matchMode,
+        pattern: item.pattern,
+        categoryId,
+        accountId,
+        billType: item.billType,
+        priority: item.priority,
+        enabled: item.enabled,
         createdAt: now(),
         updatedAt: now(),
         isSynced: false,
@@ -205,6 +337,8 @@ function createStore(): ImportRulesStore {
     createImportRule,
     updateImportRule,
     deleteImportRule,
+    deleteImportRules,
+    updateImportRules,
     applyRules,
     exportRules,
     importRules

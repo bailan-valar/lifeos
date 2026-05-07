@@ -14,6 +14,11 @@ export interface ImportCategoriesResult {
   skipped: number
 }
 
+export interface SyncDefaultCategoriesResult {
+  created: number
+  skipped: number
+}
+
 function createStore() {
   const categories = ref<BillCategory[]>([])
   const loading = ref(false)
@@ -210,6 +215,77 @@ function createStore() {
     return { created, skipped }
   }
 
+  async function syncDefaultCategories(): Promise<SyncDefaultCategoriesResult> {
+    const defaults = await import('~/app-modules/billing/data/default-categories.json')
+      .then(m => m.default)
+      .catch(() => null)
+    if (!defaults || !Array.isArray(defaults)) return { created: 0, skipped: 0 }
+
+    // 建立现有分类的去重键
+    const existingMap = new Map<string, string>() // key -> id
+    const nameMap = new Map<string, string>() // id -> name
+    for (const c of categories.value) {
+      nameMap.set(c.id, c.name)
+    }
+    for (const c of categories.value) {
+      const parentName = c.parentId ? (nameMap.get(c.parentId) || '') : ''
+      existingMap.set(`${c.name}|${c.type}|${parentName}`, c.id)
+    }
+
+    const db = await getDB()
+    const ts = now()
+    const toInsert: BillCategory[] = []
+    const idMapping = new Map<string, string>() // tempId -> newId or existingId
+    let skipped = 0
+
+    function processList(list: any[], parentId: string, parentName: string, type: CategoryType) {
+      for (let i = 0; i < list.length; i++) {
+        const item = list[i]
+        const itemType = item.type || type
+        const dupKey = `${item.name}|${itemType}|${parentName}`
+        if (existingMap.has(dupKey)) {
+          skipped++
+          const existingId = existingMap.get(dupKey)!
+          idMapping.set(`${item.name}|${itemType}|${parentId}`, existingId)
+          if (item.children?.length) {
+            processList(item.children, existingId, item.name, itemType)
+          }
+          continue
+        }
+
+        const newId = generateId()
+        idMapping.set(`${item.name}|${itemType}|${parentId}`, newId)
+
+        const cat: BillCategory = {
+          id: newId,
+          name: item.name,
+          type: itemType,
+          parentId,
+          icon: item.icon || '',
+          color: item.color || '',
+          order: i,
+          createdAt: ts,
+          updatedAt: ts,
+          isSynced: false,
+        }
+        toInsert.push(cat)
+
+        if (item.children?.length) {
+          processList(item.children, newId, item.name, itemType)
+        }
+      }
+    }
+
+    processList(defaults, '', '', 'expense')
+
+    for (const cat of toInsert) {
+      await db.billCategories.insert({ ...cat })
+    }
+    categories.value.push(...toInsert)
+
+    return { created: toInsert.length, skipped }
+  }
+
   async function resetCategories(): Promise<boolean> {
     const db = await getDB()
 
@@ -329,6 +405,7 @@ function createStore() {
     buildTree,
     ensureDefaultCategories,
     resetCategories,
+    syncDefaultCategories,
     exportCategories,
     importCategories
   }

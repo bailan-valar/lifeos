@@ -57,7 +57,7 @@
                 />
               </button>
               <span v-else class="expand-placeholder"></span>
-              <span class="category-name">{{ row.node.name }}</span>
+              <span class="category-name" @click.stop="navigateToCategory(row.node.id)">{{ row.node.name }}</span>
             </div>
             <div class="col-year-budget">
               <div v-if="row.hasOwnBudget" class="budget-num">{{ row.yearBudget.toFixed(0) }}</div>
@@ -102,7 +102,7 @@
                 />
               </button>
               <span v-else class="expand-placeholder"></span>
-              <span class="category-name">{{ row.node.name }}</span>
+              <span class="category-name" @click.stop="navigateToCategory(row.node.id)">{{ row.node.name }}</span>
             </div>
             <div class="col-year-budget">
               <div v-if="row.hasOwnBudget" class="budget-num">{{ row.yearBudget.toFixed(0) }}</div>
@@ -332,6 +332,10 @@ function getCellBg(percentage: number, hasBudget: boolean): string {
 function onCellClick(categoryId: string, month: number) {
   emit('edit-cell', categoryId, currentYear.value, month, selectedNoteId.value)
 }
+
+function navigateToCategory(categoryId: string) {
+  navigateTo('/billing/categories/' + categoryId)
+}
 </script>
 
 <style scoped>
@@ -525,6 +529,11 @@ function onCellClick(categoryId: string, month: number) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.category-name:hover {
+  color: rgb(0, 122, 255);
 }
 
 .budget-num {

@@ -3,20 +3,37 @@
     <div class="list-header">
       <div class="list-title">导入规则</div>
       <div class="header-actions">
-        <button type="button" class="btn-secondary" @click="$emit('export')">
-          <Icon name="solar:export-linear" size="14" />
-          <span>导出</span>
-        </button>
-        <button type="button" class="btn-secondary" @click="$emit('import')">
-          <Icon name="solar:import-linear" size="14" />
-          <span>导入</span>
-        </button>
-        <button type="button" class="btn-primary" @click="$emit('add')">
-          <Icon name="solar:add-circle-linear" size="14" />
-          <span>新建规则</span>
-        </button>
+        <template v-if="!batchMode">
+          <button type="button" class="btn-secondary" @click="$emit('export')">
+            <Icon name="solar:export-linear" size="14" />
+            <span>导出</span>
+          </button>
+          <button type="button" class="btn-secondary" @click="$emit('import')">
+            <Icon name="solar:import-linear" size="14" />
+            <span>导入</span>
+          </button>
+          <button type="button" class="btn-secondary" @click="enterBatchMode">
+            <Icon name="solar:checklist-minimalistic-linear" size="14" />
+            <span>批量</span>
+          </button>
+          <button type="button" class="btn-primary" @click="$emit('add')">
+            <Icon name="solar:add-circle-linear" size="14" />
+            <span>新建规则</span>
+          </button>
+        </template>
       </div>
     </div>
+
+    <RuleBatchToolbar
+      v-if="batchMode"
+      :selected-count="selectedIds.length"
+      :total-count="rules.length"
+      @toggle-select-all="handleToggleSelectAll"
+      @batch-delete="$emit('batch-delete', selectedIds)"
+      @batch-enable="$emit('batch-enable', selectedIds)"
+      @batch-disable="$emit('batch-disable', selectedIds)"
+      @exit="exitBatchMode"
+    />
 
     <div v-if="rules.length === 0" class="empty">
       <Icon name="solar:filter-linear" size="32" />
@@ -24,8 +41,21 @@
     </div>
 
     <div v-else class="rule-items">
-      <div v-for="rule in rules" :key="rule.id" class="rule-item" :class="{ disabled: !rule.enabled }">
-        <label class="enabled-toggle" :title="rule.enabled ? '已启用' : '已禁用'">
+      <div
+        v-for="rule in rules"
+        :key="rule.id"
+        class="rule-item"
+        :class="{ disabled: !rule.enabled, selected: isSelected(rule.id) }"
+        @click="handleRowClick(rule.id)"
+      >
+        <label v-if="batchMode" class="row-checkbox" @click.stop>
+          <input
+            type="checkbox"
+            :checked="isSelected(rule.id)"
+            @change="toggleSelect(rule.id)"
+          />
+        </label>
+        <label v-else class="enabled-toggle" :title="rule.enabled ? '已启用' : '已禁用'" @click.stop>
           <input
             type="checkbox"
             :checked="rule.enabled"
@@ -45,11 +75,11 @@
             <span>匹配分类: {{ categoryName(rule.categoryId) || '未指定' }}</span>
           </div>
         </div>
-        <div class="rule-actions">
-          <button type="button" class="action-btn" title="编辑" @click="$emit('edit', rule)">
+        <div v-if="!batchMode" class="rule-actions">
+          <button type="button" class="action-btn" title="编辑" @click.stop="$emit('edit', rule)">
             <Icon name="solar:pen-linear" size="14" />
           </button>
-          <button type="button" class="action-btn danger" title="删除" @click="$emit('delete', rule.id)">
+          <button type="button" class="action-btn danger" title="删除" @click.stop="$emit('delete', rule.id)">
             <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
           </button>
         </div>
@@ -60,6 +90,7 @@
 
 <script setup lang="ts">
 import type { ImportRule, ImportRuleMatchMode, ImportRuleMatchField, ImportSource, Account, BillCategory } from '~/types/bill'
+import RuleBatchToolbar from './RuleBatchToolbar.vue'
 
 const props = defineProps<{
   rules: ImportRule[]
@@ -74,7 +105,49 @@ const emit = defineEmits<{
   (e: 'toggle', id: string, enabled: boolean): void
   (e: 'export'): void
   (e: 'import'): void
+  (e: 'batch-delete', ids: string[]): void
+  (e: 'batch-enable', ids: string[]): void
+  (e: 'batch-disable', ids: string[]): void
 }>()
+
+const batchMode = ref(false)
+const selectedIds = ref<string[]>([])
+
+function enterBatchMode() {
+  batchMode.value = true
+  selectedIds.value = []
+}
+
+function exitBatchMode() {
+  batchMode.value = false
+  selectedIds.value = []
+}
+
+function isSelected(id: string) {
+  return selectedIds.value.includes(id)
+}
+
+function toggleSelect(id: string) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx === -1) {
+    selectedIds.value.push(id)
+  } else {
+    selectedIds.value.splice(idx, 1)
+  }
+}
+
+function handleRowClick(id: string) {
+  if (!batchMode.value) return
+  toggleSelect(id)
+}
+
+function handleToggleSelectAll(select: boolean) {
+  if (select) {
+    selectedIds.value = props.rules.map(r => r.id)
+  } else {
+    selectedIds.value = []
+  }
+}
 
 function onToggle(rule: ImportRule, enabled: boolean) {
   emit('toggle', rule.id, enabled)
@@ -185,10 +258,15 @@ function categoryName(id: string): string {
   background: rgba(255, 255, 255, 0.5);
   border: 0.5px solid rgba(60, 60, 67, 0.12);
   border-radius: 10px;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  cursor: default;
 }
 .rule-item.disabled {
   opacity: 0.5;
+}
+.rule-item.selected {
+  background: rgba(0, 122, 255, 0.08);
+  border-color: rgba(0, 122, 255, 0.25);
 }
 .enabled-toggle {
   display: flex;
@@ -199,6 +277,17 @@ function categoryName(id: string): string {
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+.row-checkbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.row-checkbox input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: rgb(0, 122, 255);
 }
 .rule-info {
   flex: 1;

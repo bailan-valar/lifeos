@@ -69,6 +69,9 @@ const pageTitle = computed(() => {
     '/billing': '账单',
     '/todo': '目标',
   }
+  if (route.path.startsWith('/billing/categories/')) {
+    return '分类详情'
+  }
   return titles[route.path] || 'LifeOS'
 })
 

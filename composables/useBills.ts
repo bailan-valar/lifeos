@@ -112,6 +112,33 @@ export function useBills() {
     await loadBillsPaginated(noteId, currentPage.value + 1)
   }
 
+  async function loadBillsByCategory(categoryId: string, noteId?: string, startDate?: string, endDate?: string) {
+    loading.value = true
+    error.value = null
+    try {
+      const db = await getDB()
+      const selector: Record<string, unknown> = { categoryId }
+      if (noteId) selector.noteId = noteId
+      if (startDate || endDate) {
+        selector.date = {}
+        if (startDate) selector.date.$gte = startDate
+        if (endDate) selector.date.$lte = endDate
+      }
+      const result = await db.bills.find({
+        selector,
+        sort: [{ date: 'desc' }]
+      }).exec()
+      bills.value = result.map((doc: any) => doc.toJSON())
+      hasMore.value = false
+      currentPage.value = 1
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      console.error('Failed to load bills by category:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function loadBillsByDateRange(noteId?: string, startDate?: string, endDate?: string) {
     loading.value = true
     error.value = null
@@ -434,6 +461,7 @@ export function useBills() {
     loadBillsForNotes,
     loadBillsPaginated,
     loadMoreBills,
+    loadBillsByCategory,
     loadBillsByDateRange,
     loadBillStats,
     createBill,

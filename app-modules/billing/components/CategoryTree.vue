@@ -22,7 +22,7 @@
           />
         </button>
         <span v-else class="expand-placeholder" />
-        <span class="node-name">{{ node.name }}</span>
+        <span class="node-name" @click="$emit('view-detail', node)">{{ node.name }}</span>
         <div class="node-actions">
           <button type="button" class="node-action" title="新增子分类" @click="$emit('add-child', node)">
             <Icon name="solar:add-circle-linear" size="14" />
@@ -41,6 +41,7 @@
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"
         @add-child="$emit('add-child', $event)"
+        @view-detail="$emit('view-detail', $event)"
         @contextmenu="$emit('contextmenu', $event)"
       />
     </div>
@@ -58,6 +59,7 @@ const emit = defineEmits<{
   (e: 'edit', node: CategoryTreeNode): void
   (e: 'delete', id: string): void
   (e: 'add-child', node: CategoryTreeNode): void
+  (e: 'view-detail', node: CategoryTreeNode): void
   (e: 'contextmenu', payload: { node: CategoryTreeNode; x: number; y: number }): void
 }>()
 
@@ -116,6 +118,13 @@ function onContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   flex: 1;
   font-size: 14px;
   color: rgba(0, 0, 0, 0.92);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.node-name:hover {
+  color: rgb(0, 122, 255);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .node-actions {
   display: flex;

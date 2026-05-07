@@ -5,9 +5,7 @@
     "icon": "solar:chef-hat-linear",
     "color": "#FF9500",
     "children": [
-      { "name": "早餐", "icon": "solar:cup-hot-linear", "color": "#FF9500" },
-      { "name": "午餐", "icon": "solar:chef-hat-linear", "color": "#FF9500" },
-      { "name": "晚餐", "icon": "solar:wineglass-linear", "color": "#FF9500" },
+      { "name": "正餐", "icon": "solar:chef-hat-linear", "color": "#FF9500" },
       { "name": "零食", "icon": "solar:donut-linear", "color": "#FF9500" },
       { "name": "饮料", "icon": "solar:glass-water-linear", "color": "#FF9500" }
     ]
@@ -39,6 +37,7 @@
       { "name": "数码电器", "icon": "solar:cpu-linear", "color": "#AF52DE" },
       { "name": "服饰鞋包", "icon": "solar:t-shirt-linear", "color": "#AF52DE" },
       { "name": "美妆护肤", "icon": "solar:mirror-linear", "color": "#AF52DE" },
+      { "name": "美容美发", "icon": "solar:scissors-linear", "color": "#AF52DE" },
       { "name": "纪念品", "icon": "solar:box-linear", "color": "#AF52DE" }
     ]
   },
@@ -98,7 +97,8 @@
     "children": [
       { "name": "礼物", "icon": "solar:gift-linear", "color": "#FFCC00" },
       { "name": "红包", "icon": "solar:money-linear", "color": "#FFCC00" },
-      { "name": "请客", "icon": "solar:wineglass-linear", "color": "#FFCC00" }
+      { "name": "请客", "icon": "solar:wineglass-linear", "color": "#FFCC00" },
+      { "name": "鲜花", "icon": "solar:flower-linear", "color": "#FFCC00" }
     ]
   },
   {

@@ -177,9 +177,9 @@
             <Icon name="solar:upload-linear" size="18" />
             导入
           </button>
-          <button type="button" class="add-btn secondary" @click="handleResetCategories">
-            <Icon name="solar:refresh-circle-linear" size="18" />
-            重置默认
+          <button type="button" class="add-btn secondary" @click="handleSyncDefaultCategories">
+            <Icon name="solar:cloud-download-linear" size="18" />
+            分类初始化
           </button>
           <button type="button" class="add-btn" @click="openCategoryDialog()">
             <Icon name="solar:add-circle-linear" size="18" />
@@ -194,6 +194,7 @@
           @edit="openCategoryDialog"
           @delete="handleDeleteCategory"
           @add-child="openAddChildCategoryDialog"
+          @view-detail="navigateToCategoryDetail"
           @contextmenu="openCategoryContextMenu"
         />
       </div>
@@ -204,6 +205,7 @@
           @edit="openCategoryDialog"
           @delete="handleDeleteCategory"
           @add-child="openAddChildCategoryDialog"
+          @view-detail="navigateToCategoryDetail"
           @contextmenu="openCategoryContextMenu"
         />
       </div>
@@ -228,6 +230,9 @@
         @toggle="handleToggleRule"
         @export="handleExportRules"
         @import="handleImportRules"
+        @batch-delete="handleBatchDeleteRules"
+        @batch-enable="handleBatchEnableRules"
+        @batch-disable="handleBatchDisableRules"
       />
     </div>
     </div>
@@ -414,10 +419,10 @@ const { success: showSuccess, error: showError } = useToast()
 
 const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, createBillsBatch, updateBill, updateBills, deleteBill, deleteBills } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
-const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree, ensureDefaultCategories, resetCategories, exportCategories, importCategories: importCategoriesBatch } = useBillCategories()
+const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree, ensureDefaultCategories, syncDefaultCategories, exportCategories, importCategories: importCategoriesBatch } = useBillCategories()
 const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
-const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule, exportRules, importRules: importRulesBatch } = useImportRules()
+const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule, deleteImportRules, updateImportRules, exportRules, importRules: importRulesBatch } = useImportRules()
 const { loadImportRecords, fingerprintsAcrossRecords, getById, rollback, deleteImportRecord } = useImportRecords()
 const { loadNotes, noteOptions } = useNotes()
 
@@ -876,14 +881,13 @@ async function handleDeleteCategory(id: string) {
   }
 }
 
-async function handleResetCategories() {
+async function handleSyncDefaultCategories() {
   if (!await confirm({
-    message: '确定重置为默认分类？\n\n这将删除所有现有分类，并清空关联数据中的分类信息：\n• 账单的分类将被清空\n• 账户的分类将被清空\n• 导入规则的分类将被清空\n• 预算数据将被删除',
-    danger: true
+    message: '确定执行分类初始化？\n\n将保留您的自定义分类，仅添加默认分类中尚未存在的分类。',
   })) return
   try {
-    await resetCategories()
-    showSuccess('已重置为默认分类')
+    const { created, skipped } = await syncDefaultCategories()
+    showSuccess(`分类初始化完成：新增 ${created} 条分类，已存在 ${skipped} 条`)
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
@@ -961,6 +965,10 @@ async function handleSaveImportRule(form: ImportRuleFormData) {
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
+}
+
+function navigateToCategoryDetail(node: CategoryTreeNode) {
+  navigateTo('/billing/categories/' + node.id)
 }
 
 function openCategoryContextMenu(payload: { node: CategoryTreeNode; x: number; y: number }) {
@@ -1063,8 +1071,52 @@ async function handleToggleRule(id: string, enabled: boolean) {
   }
 }
 
-function handleExportRules() {
-  const data = exportRules()
+async function handleBatchDeleteRules(ids: string[]) {
+  if (ids.length === 0) return
+  const ok = await confirm({ message: `确定删除选中的 ${ids.length} 条规则？`, danger: true })
+  if (!ok) return
+  try {
+    const { deleted, failed } = await deleteImportRules(ids)
+    if (failed > 0) {
+      showSuccess(`已删除 ${deleted} 条规则，${failed} 条失败`)
+    } else {
+      showSuccess(`已删除 ${deleted} 条规则`)
+    }
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleBatchEnableRules(ids: string[]) {
+  if (ids.length === 0) return
+  try {
+    const { updated, failed } = await updateImportRules(ids, { enabled: true })
+    if (failed > 0) {
+      showSuccess(`已启用 ${updated} 条规则，${failed} 条失败`)
+    } else {
+      showSuccess(`已启用 ${updated} 条规则`)
+    }
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleBatchDisableRules(ids: string[]) {
+  if (ids.length === 0) return
+  try {
+    const { updated, failed } = await updateImportRules(ids, { enabled: false })
+    if (failed > 0) {
+      showSuccess(`已禁用 ${updated} 条规则，${failed} 条失败`)
+    } else {
+      showSuccess(`已禁用 ${updated} 条规则`)
+    }
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleExportRules() {
+  const data = await exportRules()
   const payload = {
     version: 1,
     exportedAt: new Date().toISOString(),
