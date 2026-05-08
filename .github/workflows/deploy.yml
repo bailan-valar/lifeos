@@ -1,0 +1,100 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+        env:
+          NUXT_PUBLIC_API_BASE: ${{ secrets.NUXT_PUBLIC_API_BASE }}
+          NUXT_PUBLIC_COUCHDB_URL: ${{ secrets.NUXT_PUBLIC_COUCHDB_URL }}
+          NUXT_PUBLIC_COUCHDB_USERNAME: ${{ secrets.NUXT_PUBLIC_COUCHDB_USERNAME }}
+          NUXT_PUBLIC_COUCHDB_PASSWORD: ${{ secrets.NUXT_PUBLIC_COUCHDB_PASSWORD }}
+          NUXT_PUBLIC_COUCHDB_PREFIX: ${{ secrets.NUXT_PUBLIC_COUCHDB_PREFIX }}
+
+      - name: Create ecosystem.production.cjs
+        run: |
+          cat > ecosystem.production.cjs << 'EOF'
+          require('dotenv').config();
+
+          const PORT = process.env.PORT || 3000;
+
+          module.exports = {
+            apps: [
+              {
+                name: 'lifeos-3000',
+                cwd: process.cwd(),
+                script: 'node/server/index.mjs',
+                env: {
+                  NODE_ENV: 'production',
+                  PORT: PORT,
+                  DATABASE_URL: process.env.DATABASE_URL,
+                  JWT_SECRET: process.env.JWT_SECRET,
+                  NUXT_PUBLIC_API_BASE: process.env.NUXT_PUBLIC_API_BASE,
+                  NUXT_PUBLIC_COUCHDB_URL: process.env.NUXT_PUBLIC_COUCHDB_URL,
+                  NUXT_PUBLIC_COUCHDB_USERNAME: process.env.NUXT_PUBLIC_COUCHDB_USERNAME,
+                  NUXT_PUBLIC_COUCHDB_PASSWORD: process.env.NUXT_PUBLIC_COUCHDB_PASSWORD,
+                  NUXT_PUBLIC_COUCHDB_PREFIX: process.env.NUXT_PUBLIC_COUCHDB_PREFIX,
+                },
+                instances: 1,
+                max_memory_restart: '500M',
+                error_file: './logs/pm2-error.log',
+                out_file: './logs/pm2-out.log',
+                log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+              },
+            ],
+          };
+          EOF
+
+      - name: Deploy to server via SSH
+        uses: easingthemes/ssh-deploy@v4
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvc -i --delete"
+          SOURCE: ".output/,ecosystem.production.cjs,package.json"
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          TARGET: ${{ secrets.REMOTE_TARGET_PATH }}
+
+      - name: Copy .env to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ".env"
+          target: ${{ secrets.REMOTE_TARGET_PATH }}
+
+      - name: Install dependencies and restart PM2
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.REMOTE_TARGET_PATH }}
+            npm ci --production
+            mkdir -p logs
+            pm2 delete lifeos-3000 || true
+            pm2 start ecosystem.production.cjs
+            pm2 save
+            pm2 logs lifeos-3000 --lines 20
