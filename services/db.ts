@@ -1,7 +1,6 @@
 import PouchDB from 'pouchdb-browser'
 import PouchDBFind from 'pouchdb-find'
 import { dbName, getActiveId } from '~/services/workspaces'
-import { migrateWorkspaceIfNeeded, fixupCollectionField } from '~/services/migration'
 
 PouchDB.plugin(PouchDBFind)
 
@@ -95,31 +94,25 @@ interface RawPouchDoc {
 }
 
 const COLLECTION_INDEXES: Record<string, string[][]> = {
-  blocks: [['noteId'], ['noteId', 'order']],
-  notes: [['order'], ['createdAt'], ['updatedAt']],
+  blocks: [['noteId', 'order']],
+  notes: [['order'], ['updatedAt']],
   folders: [],
-  tags: [['name']],
-  noteTags: [['noteId'], ['tagId'], ['noteId', 'tagId']],
-  blockLinks: [['sourceBlockId'], ['targetBlockId'], ['sourceBlockId', 'targetBlockId']],
+  tags: [],
+  noteTags: [['noteId']],
+  blockLinks: [],
   classes: [['order']],
   classFields: [['classId'], ['order']],
-  noteClassBindings: [['noteId'], ['classId'], ['noteId', 'classId'], ['order']],
-  module_config: [['noteId'], ['moduleId'], ['noteId', 'moduleId']],
-  module_data: [['noteId'], ['moduleId'], ['noteId', 'moduleId']],
-  goals: [['status'], ['priority'], ['type'], ['plannedEndAt'], ['createdAt']],
-  accounts: [['type'], ['subtype'], ['createdAt']],
-  billCategories: [['type'], ['parentId'], ['order']],
-  bills: [['noteId'], ['type'], ['date'], ['noteId', 'date'], ['status', 'date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['importBatchId']],
-  budgets: [
-    ['noteId'],
-    ['categoryId'],
-    ['categoryId', 'effectiveFromYear', 'effectiveFromMonth'],
-    ['cycleType'],
-    ['createdAt']
-  ],
-  statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status']],
-  importRules: [['source'], ['matchField'], ['matchMode'], ['priority'], ['enabled'], ['accountId']],
-  importRecords: [['noteId'], ['createdAt'], ['source'], ['status'], ['noteId', 'createdAt']]
+  noteClassBindings: [['noteId']],
+  module_config: [['noteId', 'moduleId']],
+  module_data: [['noteId', 'moduleId']],
+  goals: [],
+  accounts: [['createdAt']],
+  billCategories: [['order']],
+  bills: [['date'], ['noteId', 'date'], ['status', 'date']],
+  budgets: [['createdAt']],
+  statements: [['year', 'month'], ['accountId', 'year', 'month']],
+  importRules: [['priority']],
+  importRecords: [['createdAt'], ['noteId', 'createdAt']]
 }
 
 export const COLLECTION_NAMES = Object.keys(COLLECTION_INDEXES)
@@ -376,11 +369,6 @@ export async function initDB(workspaceId?: string): Promise<Database> {
   if (cached) return cached.database
   const pending = initPromises.get(id)
   if (pending) return (await pending).database
-
-  // 从旧的多数据库格式迁移数据（幂等，仅首次运行）
-  await migrateWorkspaceIfNeeded(id)
-  // 修复可能存在的 _collection → collection 字段名问题
-  await fixupCollectionField(id)
 
   const promise = doInitDB(id)
   initPromises.set(id, promise)

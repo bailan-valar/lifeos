@@ -7,7 +7,8 @@ import {
   updateWorkspace,
   deleteWorkspace,
   setActiveId,
-  getActiveId
+  getActiveId,
+  onMetaChange
 } from '~/services/workspaces'
 import {
   initDB,
@@ -16,12 +17,14 @@ import {
 } from '~/services/db'
 import { startSync, stopSync } from '~/services/sync'
 import { useRouteCache } from '~/composables/useRouteCache'
+import { initDefaultBillCategories } from '~/composables/useBillCategories'
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   const list = ref<Workspace[]>([])
   const currentId = ref<string>('')
   const switching = ref(false)
   let switchPromise: Promise<void> | null = null
+  let unsubscribeMetaChange: (() => void) | null = null
 
   const current = computed<Workspace | null>(
     () => list.value.find((w) => w.id === currentId.value) || null
@@ -43,6 +46,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       currentId.value = stored
     } else if (list.value.length > 0) {
       setCurrent(list.value[0].id)
+    }
+
+    // 监听元数据同步变化，自动刷新空间列表
+    if (!unsubscribeMetaChange) {
+      unsubscribeMetaChange = onMetaChange(() => {
+        reload()
+      })
     }
   }
 
@@ -81,7 +91,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
       await initDB(id)
       console.log('[workspace] switchTo -> calling startSync for', id)
-      await startSync(id)
+      try {
+        await startSync(id)
+      } catch (e) {
+        console.warn('[workspace] startSync failed, but continuing:', e)
+      }
     } finally {
       switching.value = false
       resolveLock()
@@ -92,6 +106,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function create(input: WorkspaceFormData): Promise<Workspace> {
     const ws = await createWorkspace(input)
     await reload()
+    await switchTo(ws.id)
+    try {
+      await initDefaultBillCategories()
+    } catch (e) {
+      console.warn('[workspace] 初始化默认分类失败:', e)
+    }
     return ws
   }
 
@@ -101,7 +121,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     if (id === currentId.value) {
       await stopSync(id)
       console.log('[workspace] update -> calling startSync for', id)
-      await startSync(id)
+      try {
+        await startSync(id)
+      } catch (e) {
+        console.warn('[workspace] startSync failed during update:', e)
+      }
     }
     return ws
   }

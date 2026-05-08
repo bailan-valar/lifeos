@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { useWorkspaceStore } from '~/stores/workspace'
 import { stopSync } from '~/services/sync'
 import { closeWorkspaceDB, listLoadedWorkspaceIds } from '~/services/db'
-import { clearActiveId, clearMetaDBCache, closeMetaDB, setCachedUserId, clearCachedUserId } from '~/services/workspaces'
+import { clearActiveId, clearMetaDBCache, closeMetaDB, setCachedUserId, clearCachedUserId, startMetaSync, stopMetaSync } from '~/services/workspaces'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<{ id: string; email: string; name: string | null } | null>(null)
@@ -26,6 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       user.value = response as { id: string; email: string; name: string | null }
       setCachedUserId(user.value.id)
+      await startMetaSync()
       return response
     } catch (error) {
       logout()
@@ -46,6 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = response.token
       localStorage.setItem('token', response.token)
       setCachedUserId(response.user.id)
+      await startMetaSync()
 
       return response
     } catch (error: any) {
@@ -68,6 +70,7 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = response.token
       localStorage.setItem('token', response.token)
       setCachedUserId(response.user.id)
+      await startMetaSync()
 
       return response
     } catch (error: any) {
@@ -90,6 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     localStorage.removeItem('token')
     clearCachedUserId()
+    stopMetaSync()
     clearActiveId()
     await closeMetaDB()
     workspaceStore.currentId = ''

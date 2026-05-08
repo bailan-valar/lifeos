@@ -62,17 +62,15 @@ LifeOS 是一款**个人生活管理系统**，定位为"生活操作系统"（L
 │   └── signup.vue         # 注册
 ├── plugins/               # Nuxt 插件（按顺序执行）
 │   ├── auth.init.ts       # 初始化认证状态
-│   ├── pouchdb.client.ts  # 清理旧 RxDB 数据 + 初始化 PouchDB
+│   ├── pouchdb.client.ts  # 初始化 PouchDB
 │   └── workspace.client.ts # 初始化工作空间 + 启动同步
 ├── server/api/            # API 路由
-│   ├── auth/              # 登录、注册、获取当前用户
-│   └── workspaces/        # 工作空间 CRUD（需 JWT）
+│   └── auth/              # 登录、注册、获取当前用户
 ├── server/utils/          # 服务端工具
 │   ├── auth.ts            # JWT 签发与校验
 │   └── db.ts              # PrismaClient 单例
 ├── services/              # 核心客户端服务
-│   ├── db.ts              # PouchDB 封装（RxDB 风格 API，单数据库架构）
-│   ├── migration.ts       # 旧多数据库格式 → 单数据库格式迁移
+│   ├── db.ts              # PouchDB 封装（单数据库架构）
 │   ├── sync.ts            # CouchDB 双向实时同步（单 sync handle）
 │   ├── workspaces.ts      # 工作空间本地/远端 CRUD
 │   ├── ModuleRegistry.ts  # 模块注册表
@@ -127,7 +125,7 @@ pm2 start ecosystem.config.cjs
 
 ### PouchDB 数据层
 
-项目使用 `pouchdb-browser` + `pouchdb-find` 作为本地数据层。封装在 `services/db.ts` 中，对外暴露 RxDB 风格的 wrapper：
+项目使用 `pouchdb-browser` + `pouchdb-find` 作为本地数据层。封装在 `services/db.ts` 中，对外暴露友好的 wrapper API：
 
 - `db.<collection>.find(opts)` → 返回 `Query<DBDoc[]>`
 - `db.<collection>.findOne(idOrOpts)` → 返回 `Query<DBDoc | null>`
@@ -157,19 +155,11 @@ pm2 start ecosystem.config.cjs
 - `_rev` 由 PouchDB 内部维护，`toJSON()` 已剥离；不要在业务对象里出现
 - `collection` 为内部字段，由 wrapper 自动管理；业务代码不要读取或写入
 - 业务侧可保留 `version` 字段作乐观锁计数，与 PouchDB `_rev` 互不冲突
-- 所有同步相关的文档通常带 `isSynced: boolean` 字段
-
-### 数据迁移
-
-- `services/migration.ts` 负责从旧的「每集合一个数据库」格式迁移到新的单数据库格式
-- 迁移是幂等的，通过 per-workspace localStorage 标志位控制
-- `services/db.ts` 的 `initDB()` 在初始化前自动调用迁移，无需手动触发
-- 迁移完成后旧数据库会被销毁
 
 ### 多工作空间隔离
 
 - 每个工作空间用 UUID v4 作为 `workspaceId`，对应一个独立的 PouchDB 数据库 `lifeos-<workspaceId>`
-- `services/workspaces.ts` 提供工作空间 CRUD（写入 `lifeos-meta-workspaces-{userId}`）
+- `services/workspaces.ts` 提供工作空间本地 CRUD（写入 `lifeos-meta-workspaces-{userId}`），并通过 CouchDB 实时同步空间列表
 - `stores/workspace.ts`（Pinia）协调切换：`switchTo(id)` 顺序为 `stopSync → closeWorkspaceDB → setActiveId → initDB → startSync`
 - `app.vue` 给 `<NuxtPage>` 绑定 `:key="workspaceStore.currentId"`，切换空间时强制重渲染
 
@@ -180,10 +170,13 @@ pm2 start ecosystem.config.cjs
 - 冲突策略沿用 PouchDB 默认的 last-write-wins，不做应用层合并
 - 工作空间未配置 `remoteUrl` 时同步状态为 `disabled`，业务读写完全本地
 
-### 服务端同步（可选）
+### 空间列表同步（CouchDB）
 
-- 登录用户的工作空间元数据（名称、CouchDB 地址等）会通过 `services/workspaces.ts` 同步到服务端 PostgreSQL
-- 实际业务数据（账单、笔记等）不走服务端，只走本地 PouchDB ↔ CouchDB 同步
+- 登录用户的空间列表通过独立的 CouchDB 数据库实时同步：本地 `lifeos-meta-workspaces-{userId}` ↔ 远端 `{remotePrefix}meta-{userId}`
+- `services/workspaces.ts` 中 `startMetaSync()` 启动实时同步（`live: true, retry: true`）
+- Guest 用户仅使用本地存储，不同步到远端
+- 空间列表和业务数据使用同一套 CouchDB 服务器（复用 `NUXT_PUBLIC_COUCHDB_*` 配置），但数据库独立
+- 实际业务数据（账单、笔记等）仍走各工作空间独立的 PouchDB ↔ CouchDB 同步通道
 
 ---
 
@@ -325,8 +318,8 @@ npm run dev
 1. **JWT Secret**：`JWT_SECRET` 必须设置为强随机字符串，用于签发和校验用户 Token
 2. **密码存储**：用户密码使用 `bcryptjs` 哈希后存入 PostgreSQL，不存明文
 3. **本地 Token**：登录后 JWT 存入 `localStorage`，所有需要认证的 API 请求通过 `Authorization: Bearer <token>` 头部发送
-4. **CouchDB 凭据**：工作空间的 CouchDB 凭据（用户名/密码）以明文形式存储在本地 PouchDB（`lifeos-meta-workspaces`）和客户端内存中，**不做加密处理**
-5. **服务端权限**：`server/api/workspaces/*` 路由校验 JWT；`server/api/auth/*` 为公开路由
+4. **CouchDB 凭据**：工作空间的 CouchDB 密码在本地 PouchDB 中通过 `crypto.ts` 加密存储（以 `userId` 为密钥）；元数据同步复用全局 CouchDB 配置（`NUXT_PUBLIC_COUCHDB_*`）
+5. **服务端权限**：`server/api/auth/*` 为公开路由；空间列表不再走服务端 REST API，完全由 CouchDB 负责同步
 6. **数据隔离**：工作空间通过不同的 IndexedDB 数据库（`lifeos-{workspaceId}`）实现客户端数据隔离，但同一浏览器内所有工作空间数据均可被访问
 
 ---
@@ -337,7 +330,7 @@ npm run dev
 |------|------|
 | 看技术栈和依赖 | `package.json`、`nuxt.config.ts` |
 | 看数据模型 | `prisma/schema.prisma`、`types/block.ts`、`types/bill.ts` |
-| 看本地数据库 API | `services/db.ts`、`services/migration.ts` |
+| 看本地数据库 API | `services/db.ts` |
 | 看同步逻辑 | `services/sync.ts` |
 | 看工作空间管理 | `services/workspaces.ts`、`stores/workspace.ts` |
 | 看认证逻辑 | `stores/auth.ts`、`server/utils/auth.ts` |

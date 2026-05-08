@@ -20,6 +20,48 @@ export interface SyncDefaultCategoriesResult {
   skipped: number
 }
 
+export async function initDefaultBillCategories(): Promise<boolean> {
+  const db = await getDB()
+  const existing = await db.billCategories.find({ limit: 1 }).exec()
+  if (existing.length > 0) return false
+
+  const defaults = await import('~/app-modules/billing/data/default-categories.json')
+    .then(m => m.default)
+    .catch(() => null)
+  if (!defaults || !Array.isArray(defaults)) return false
+
+  const ts = now()
+  const toInsert: BillCategory[] = []
+
+  function walk(items: any[], parentId: string, type: CategoryType) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const id = generateId()
+      const cat: BillCategory = {
+        id,
+        name: item.name,
+        type: item.type || type,
+        parentId,
+        icon: item.icon || '',
+        color: item.color || '',
+        order: i,
+        createdAt: ts,
+        updatedAt: ts,
+      }
+      toInsert.push(cat)
+      if (item.children?.length) {
+        walk(item.children, id, cat.type)
+      }
+    }
+  }
+
+  walk(defaults, '', 'expense')
+  for (const cat of toInsert) {
+    await db.billCategories.insert({ ...cat })
+  }
+  return true
+}
+
 const INVALID_ICON_MAP: Record<string, string> = {
   'solar:apple-linear': 'solar:plate-linear',
   'solar:glass-water-linear': 'solar:cup-linear',
@@ -132,43 +174,11 @@ function createStore() {
 
   async function ensureDefaultCategories(): Promise<boolean> {
     if (categories.value.length > 0) return false
-    const defaults = await import('~/app-modules/billing/data/default-categories.json')
-      .then(m => m.default)
-      .catch(() => null)
-    if (!defaults || !Array.isArray(defaults)) return false
-
-    const db = await getDB()
-    const ts = now()
-    const toInsert: BillCategory[] = []
-
-    function walk(items: any[], parentId: string, type: CategoryType) {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        const id = generateId()
-        const cat: BillCategory = {
-          id,
-          name: item.name,
-          type: item.type || type,
-          parentId,
-          icon: item.icon || '',
-          color: item.color || '',
-          order: i,
-          createdAt: ts,
-          updatedAt: ts,
-        }
-        toInsert.push(cat)
-        if (item.children?.length) {
-          walk(item.children, id, cat.type)
-        }
-      }
+    const initialized = await initDefaultBillCategories()
+    if (initialized) {
+      await loadCategories()
     }
-
-    walk(defaults, '', 'expense')
-    for (const cat of toInsert) {
-      await db.billCategories.insert({ ...cat })
-    }
-    categories.value = toInsert
-    return true
+    return initialized
   }
 
   function exportCategories(): ExportedCategory[] {

@@ -494,7 +494,7 @@ const { success: showSuccess, error: showError } = useToast()
 
 const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, createBillsBatch, updateBill, updateBills, deleteBill, deleteBills } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
-const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree, ensureDefaultCategories, syncDefaultCategories, exportCategories, importCategories: importCategoriesBatch } = useBillCategories()
+const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree, syncDefaultCategories, exportCategories, importCategories: importCategoriesBatch } = useBillCategories()
 const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
 const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule, deleteImportRules, updateImportRules, exportRules, importRules: importRulesBatch } = useImportRules()
@@ -729,10 +729,6 @@ onMounted(async () => {
   try {
     await loadAccounts()
     await loadCategories()
-    const initialized = await ensureDefaultCategories()
-    if (initialized) {
-      showSuccess('已为您初始化默认分类')
-    }
     await Promise.all([refreshBills(), loadBudgets(), loadStatements(), loadImportRules(), loadImportRecords(props.noteId), loadNotes()])
     markReady()
   } catch (e) {

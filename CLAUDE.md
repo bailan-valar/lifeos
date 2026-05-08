@@ -52,7 +52,7 @@ feat: 添加块编辑器的 todo 块类型
 ```
 
 ```
-fix: 修复 folderId 为 null 时的 RxDB 代理错误
+fix: 修复 folderId 为 null 时的查询错误
 ```
 
 ```
@@ -62,7 +62,7 @@ refactor: 将块聚焦逻辑提取为 useBlockFocus composable
 多项变更（每条独立列一行）：
 
 ```
-refactor: 数据层从 RxDB 迁移至 PouchDB
+refactor: 简化数据层查询逻辑
 feat: 账单模块新增账户管理、分类树与入账出账账户
 refactor: 将任务模块重命名为目标
 fix: 有序列表序号按缩进层级独立计数
@@ -70,14 +70,14 @@ fix: 有序列表序号按缩进层级独立计数
 
 ```
 feat: 实现笔记树形结构与拖拽排序
-chore: 将 RxDB schema 从 v4 迁移至 v7
+chore: 更新依赖包版本
 ```
 
 ---
 
 # PouchDB 数据层规范
 
-项目使用 PouchDB（`pouchdb-browser` + `pouchdb-find`）作为本地数据层。封装在 [services/db.ts](services/db.ts) 中，对外暴露 RxDB 风格的 wrapper（`find/findOne/insert/upsert` + `doc.toJSON/get/patch/update/remove`）以减少调用点改动。
+项目使用 PouchDB（`pouchdb-browser` + `pouchdb-find`）作为本地数据层。封装在 [services/db.ts](services/db.ts) 中，对外暴露友好的 wrapper API（`find/findOne/insert/upsert` + `doc.toJSON/get/patch/update/remove`）。
 
 ## 单数据库架构
 
@@ -109,16 +109,6 @@ chore: 将 RxDB schema 从 v4 迁移至 v7
 - `_rev` 由 PouchDB 内部维护，`toJSON()` 已剥离；不要在业务对象里出现
 - `collection` 为内部字段，由 wrapper 自动管理；业务代码不要读取或写入
 - 业务侧可保留 `version` 字段作乐观锁计数，与 PouchDB `_rev` 互不冲突
-
-## 数据迁移
-
-- [services/migration.ts](services/migration.ts) 负责从旧的「每集合一个数据库」格式迁移到新的单数据库格式
-- 迁移是幂等的，通过 per-workspace localStorage 标志位控制
-- `initDB()` 在初始化前自动调用迁移，无需手动触发
-
-## 旧数据清理
-
-[plugins/pouchdb.client.ts](plugins/pouchdb.client.ts) 在首次加载时清理 `rxdb-dexie-*` / 旧 per-collection 数据库，幂等性靠 `localStorage['lifeos:legacy-rxdb-cleared']` 控制；同时调用 `ensureBootstrapWorkspace()` 保证至少存在一个本地工作空间并写入 activeId。
 
 ---
 

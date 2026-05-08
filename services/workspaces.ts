@@ -3,6 +3,7 @@ import PouchDBFind from 'pouchdb-find'
 import { v4 as uuidv4 } from 'uuid'
 import type { Workspace, WorkspaceFormData } from '~/types/workspace'
 import { encryptCredential, decryptCredential } from '~/services/crypto'
+import { useRuntimeConfig } from '#imports'
 
 PouchDB.plugin(PouchDBFind)
 
@@ -10,6 +11,10 @@ const ACTIVE_ID_KEY = 'lifeos:active-workspace-id'
 const USER_ID_KEY = 'lifeos:user-id'
 
 const metaDBs = new Map<string, PouchDB.Database>()
+let metaSyncHandle: PouchDB.Replication.Sync<{}> | null = null
+let metaSyncStarting = false
+let lastSyncedUserId: string | null = null
+const metaChangeListeners = new Set<() => void>()
 
 export function setCachedUserId(userId: string): void {
   if (typeof window === 'undefined') return
@@ -21,7 +26,7 @@ export function clearCachedUserId(): void {
   localStorage.removeItem(USER_ID_KEY)
 }
 
-function getCachedUserId(): string | null {
+export function getCachedUserId(): string | null {
   if (typeof window === 'undefined') return null
   return localStorage.getItem(USER_ID_KEY)
 }
@@ -90,13 +95,128 @@ function stripPouchFields<T extends { _id: string; _rev?: string }>(raw: T): Omi
   return { ...(rest as object), id: _id } as any
 }
 
-function isLoggedIn(): boolean {
-  return typeof window !== 'undefined' && !!localStorage.getItem('token')
+function buildRemoteUrl(base: string, dbName: string): string {
+  const trimmed = base.replace(/\/+$/, '')
+  return `${trimmed}/${encodeURIComponent(dbName)}`
 }
 
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('token')
+function notifyMetaChange() {
+  for (const fn of metaChangeListeners) {
+    try {
+      fn()
+    } catch (e) {
+      console.warn('[workspaces] meta change listener failed', e)
+    }
+  }
+}
+
+/**
+ * 启动空间列表的 CouchDB 实时同步。
+ * 每个用户在 CouchDB 上拥有独立的数据库：{prefix}meta-{userId}
+ */
+export async function startMetaSync(): Promise<void> {
+  const userId = getCachedUserId()
+  if (!userId) {
+    console.log('[workspaces] meta sync skipped: no userId (guest mode)')
+    return
+  }
+
+  // 避免重复启动：同一 userId 且正在运行中则跳过
+  if (metaSyncHandle && lastSyncedUserId === userId) {
+    return
+  }
+
+  // 防止并发启动导致多个 sync handle
+  if (metaSyncStarting) {
+    return
+  }
+  metaSyncStarting = true
+
+  try {
+    // 如果已有同步在运行（比如 userId 变了），先停止
+    stopMetaSync()
+
+    const config = useRuntimeConfig()
+    const remoteUrl = (config.public.couchdbUrl as string | undefined) || (import.meta.env.NUXT_PUBLIC_COUCHDB_URL as string | undefined) || ''
+    const remotePrefix = (config.public.couchdbPrefix as string | undefined) || (import.meta.env.NUXT_PUBLIC_COUCHDB_PREFIX as string | undefined) || 'lifeos-'
+    const username = (config.public.couchdbUsername as string | undefined) || (import.meta.env.NUXT_PUBLIC_COUCHDB_USERNAME as string | undefined)
+    const password = (config.public.couchdbPassword as string | undefined) || (import.meta.env.NUXT_PUBLIC_COUCHDB_PASSWORD as string | undefined)
+
+    console.log('[workspaces] meta sync config:', { remoteUrl: remoteUrl || '(empty)', remotePrefix, username: username || '(empty)', password: password ? `[${password.length} chars]` : '(empty)' })
+
+    if (!remoteUrl) {
+      console.log('[workspaces] meta sync disabled: no couchdbUrl configured')
+      return
+    }
+
+    const remoteDbName = `${remotePrefix}meta-${userId}`.toLowerCase()
+    const remoteFullUrl = buildRemoteUrl(remoteUrl, remoteDbName)
+
+    const localDB = getMetaDB()
+
+    const remoteOpts: any = { skip_setup: false }
+    if (username && password) {
+      remoteOpts.auth = { username, password }
+    }
+
+    console.log('[workspaces] meta sync remoteOpts:', JSON.stringify({ ...remoteOpts, auth: remoteOpts.auth ? { username: remoteOpts.auth.username, passwordSet: !!remoteOpts.auth.password } : undefined }))
+    console.log('[workspaces] starting meta sync to', remoteFullUrl)
+    const remoteDB = new PouchDB(remoteFullUrl, remoteOpts)
+    try {
+      const info = await remoteDB.info()
+      console.log('[workspaces] meta remoteDB.info() success:', info)
+    } catch (infoErr: any) {
+      console.warn('[workspaces] meta remoteDB.info() failed:', infoErr?.status, infoErr?.message || infoErr)
+    }
+
+    metaSyncHandle = localDB.sync(remoteDB, {
+      live: true,
+      retry: true,
+      batch_size: 100,
+      batches_limit: 2
+    })
+
+    lastSyncedUserId = userId
+
+    metaSyncHandle.on('change', () => {
+      notifyMetaChange()
+    })
+
+    metaSyncHandle.on('error', (err) => {
+      console.warn('[workspaces] meta sync error:', err)
+    })
+
+    metaSyncHandle.on('paused', (err) => {
+      if (err) {
+        console.warn('[workspaces] meta sync paused with error:', err)
+      } else {
+        console.log('[workspaces] meta sync paused (idle)')
+      }
+    })
+  } catch (e) {
+    console.error('[workspaces] failed to start meta sync:', e)
+  } finally {
+    metaSyncStarting = false
+  }
+}
+
+export function stopMetaSync(): void {
+  if (metaSyncHandle) {
+    try {
+      metaSyncHandle.cancel()
+    } catch (e) {
+      console.warn('[workspaces] stop meta sync failed', e)
+    }
+    metaSyncHandle = null
+  }
+  lastSyncedUserId = null
+}
+
+export function onMetaChange(fn: () => void): () => void {
+  metaChangeListeners.add(fn)
+  return () => {
+    metaChangeListeners.delete(fn)
+  }
 }
 
 export function dbName(workspaceId: string): string {
@@ -132,56 +252,7 @@ async function listLocalWorkspaces(): Promise<Workspace[]> {
   return workspaces
 }
 
-async function syncRemoteToLocal(remoteList: any[]): Promise<void> {
-  const db = getMetaDB()
-
-  // 注意：不再删除本地存在但服务端没有的空间，以遵循 local-first 原则。
-  // 离线创建的工作空间应保留在本地，直到用户在当前设备上显式删除。
-
-  for (const remote of remoteList) {
-    const localId = remote.localId
-    if (!localId) continue
-
-    const userId = getCachedUserId()
-    const doc: any = {
-      _id: localId,
-      id: localId,
-      name: remote.name,
-      remoteUrl: remote.remoteUrl || undefined,
-      remoteUsername: remote.remoteUsername || undefined,
-      remotePassword: await ensureEncryptedPassword(userId, remote.remotePassword),
-      remotePrefix: remote.remotePrefix || 'lifeos-',
-      createdAt: remote.createdAt,
-      updatedAt: remote.updatedAt,
-      remoteId: remote.id,
-    }
-
-    try {
-      const existing = await db.get(localId)
-      doc._rev = existing._rev
-    } catch (e: any) {
-      if (e?.status !== 404) throw e
-    }
-
-    await db.put(doc)
-  }
-}
-
 export async function listWorkspaces(): Promise<Workspace[]> {
-  if (isLoggedIn()) {
-    try {
-      const token = getToken()
-      if (token) {
-        const remoteList = await $fetch('/api/workspaces', {
-          headers: { Authorization: `Bearer ${token}` }
-        }) as any[]
-        await syncRemoteToLocal(remoteList)
-      }
-    } catch (e) {
-      console.warn('[workspaces] 从服务端同步失败，使用本地数据', e)
-    }
-  }
-
   return await listLocalWorkspaces()
 }
 
@@ -216,35 +287,6 @@ export async function createWorkspace(input: WorkspaceFormData): Promise<Workspa
 
   const db = getMetaDB()
   await db.put({ ...doc, _id: id })
-
-  if (isLoggedIn()) {
-    try {
-      const token = getToken()
-      if (token) {
-        const remote = await $fetch('/api/workspaces', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: {
-            name: doc.name,
-            remoteUrl: doc.remoteUrl,
-            remotePrefix: doc.remotePrefix,
-            remoteUsername: doc.remoteUsername,
-            remotePassword: doc.remotePassword,
-            localId: id,
-          }
-        }) as any
-
-        if (remote?.id) {
-          doc.remoteId = remote.id
-          const existing = await db.get(id)
-          await db.put({ ...doc, _id: id, _rev: existing._rev })
-        }
-      }
-    } catch (e) {
-      console.warn('[workspaces] 同步到服务端失败', e)
-    }
-  }
-
   return doc
 }
 
@@ -266,56 +308,16 @@ export async function updateWorkspace(id: string, patch: Partial<WorkspaceFormDa
   if (typeof patch.remotePrefix === 'string') merged.remotePrefix = patch.remotePrefix.trim() || 'lifeos-'
 
   const res = await db.put(merged)
-  const result = stripPouchFields({ ...merged, _rev: res.rev }) as Workspace
-
-  if (isLoggedIn() && result.remoteId) {
-    try {
-      const token = getToken()
-      if (token) {
-        await $fetch(`/api/workspaces/${result.remoteId}`, {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${token}` },
-          body: {
-            name: result.name,
-            remoteUrl: result.remoteUrl,
-            remotePrefix: result.remotePrefix,
-            remoteUsername: result.remoteUsername,
-            remotePassword: result.remotePassword,
-          }
-        })
-      }
-    } catch (e) {
-      console.warn('[workspaces] 同步更新到服务端失败', e)
-    }
-  }
-
-  return result
+  return stripPouchFields({ ...merged, _rev: res.rev }) as Workspace
 }
 
 export async function deleteWorkspace(id: string): Promise<void> {
   const db = getMetaDB()
-  let remoteId: string | undefined
-
   try {
     const existing = await db.get(id)
-    remoteId = (existing as any).remoteId
     await db.remove(existing)
   } catch (e: any) {
     if (e?.status !== 404) throw e
-  }
-
-  if (isLoggedIn() && remoteId) {
-    try {
-      const token = getToken()
-      if (token) {
-        await $fetch(`/api/workspaces/${remoteId}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        })
-      }
-    } catch (e) {
-      console.warn('[workspaces] 同步删除到服务端失败', e)
-    }
   }
 }
 

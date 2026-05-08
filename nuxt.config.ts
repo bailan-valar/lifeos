@@ -26,10 +26,18 @@ export default defineNuxtConfig({
     jwtSecret: '',
     public: {
       apiBase: '/api',
-      couchdbUrl: '',
-      couchdbUsername: '',
-      couchdbPassword: '',
-      couchdbPrefix: 'lifeos-',
+      couchdbUrl: process.env.NUXT_PUBLIC_COUCHDB_URL || '',
+      couchdbUsername: process.env.NUXT_PUBLIC_COUCHDB_USERNAME || '',
+      couchdbPassword: process.env.NUXT_PUBLIC_COUCHDB_PASSWORD || '',
+      couchdbPrefix: process.env.NUXT_PUBLIC_COUCHDB_PREFIX || 'lifeos-',
+    }
+  },
+  vite: {
+    define: {
+      'import.meta.env.NUXT_PUBLIC_COUCHDB_URL': JSON.stringify(process.env.NUXT_PUBLIC_COUCHDB_URL || ''),
+      'import.meta.env.NUXT_PUBLIC_COUCHDB_USERNAME': JSON.stringify(process.env.NUXT_PUBLIC_COUCHDB_USERNAME || ''),
+      'import.meta.env.NUXT_PUBLIC_COUCHDB_PASSWORD': JSON.stringify(process.env.NUXT_PUBLIC_COUCHDB_PASSWORD || ''),
+      'import.meta.env.NUXT_PUBLIC_COUCHDB_PREFIX': JSON.stringify(process.env.NUXT_PUBLIC_COUCHDB_PREFIX || 'lifeos-'),
     }
   }
 })

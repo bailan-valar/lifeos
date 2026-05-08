@@ -1,16 +1,18 @@
 <template>
-  <div class="toast-container" :class="{ 'has-toasts': toasts.length > 0 }">
-    <TransitionGroup name="toast-list" tag="div" class="toast-list">
-      <ToastItem
-        v-for="toast in toasts"
-        :key="toast.id"
-        :message="toast.message"
-        :type="toast.type || 'info'"
-        :duration="toast.duration"
-        @dismiss="dismiss(toast.id)"
-      />
-    </TransitionGroup>
-  </div>
+  <Teleport to="body">
+    <div class="toast-container" :class="{ 'has-toasts': toasts.length > 0 }">
+      <TransitionGroup name="toast-list" tag="div" class="toast-list">
+        <ToastItem
+          v-for="toast in toasts"
+          :key="toast.id"
+          :message="toast.message"
+          :type="toast.type || 'info'"
+          :duration="toast.duration"
+          @dismiss="dismiss(toast.id)"
+        />
+      </TransitionGroup>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">

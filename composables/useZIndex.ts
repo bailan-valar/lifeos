@@ -1,7 +1,7 @@
 import { ref, watch, computed } from 'vue'
 import type { Ref } from 'vue'
 
-let nextZIndex = 2000
+let nextZIndex = 310
 
 export function getNextZIndex(): number {
   return nextZIndex++

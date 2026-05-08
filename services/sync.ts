@@ -2,7 +2,7 @@ import PouchDB from 'pouchdb-browser'
 import type { Workspace, WorkspaceSyncStatus } from '~/types/workspace'
 import { emptySyncStatus } from '~/types/workspace'
 import { getRawPouchDB } from '~/services/db'
-import { getWorkspace } from '~/services/workspaces'
+import { getWorkspace, getCachedUserId } from '~/services/workspaces'
 import { useRuntimeConfig } from '#imports'
 import { useAuthStore } from '~/stores/auth'
 
@@ -49,14 +49,15 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
   await stopSync(workspaceId)
 
   const config = useRuntimeConfig()
-  const defaultUrl = (config.public.couchdbUrl as string | undefined) || ''
-  const defaultPrefix = (config.public.couchdbPrefix as string | undefined) || 'lifeos-'
-  const defaultUsername = (config.public.couchdbUsername as string | undefined) || undefined
-  const defaultPassword = (config.public.couchdbPassword as string | undefined) || undefined
+  const defaultUrl = (config.public.couchdbUrl as string | undefined) || (import.meta.env.NUXT_PUBLIC_COUCHDB_URL as string | undefined) || ''
+  const defaultPrefix = (config.public.couchdbPrefix as string | undefined) || (import.meta.env.NUXT_PUBLIC_COUCHDB_PREFIX as string | undefined) || 'lifeos-'
+  const defaultUsername = (config.public.couchdbUsername as string | undefined) || (import.meta.env.NUXT_PUBLIC_COUCHDB_USERNAME as string | undefined) || undefined
+  const defaultPassword = (config.public.couchdbPassword as string | undefined) || (import.meta.env.NUXT_PUBLIC_COUCHDB_PASSWORD as string | undefined) || undefined
 
   console.log('[sync] runtimeConfig defaultUrl:', defaultUrl || '(empty)')
   console.log('[sync] runtimeConfig defaultPrefix:', defaultPrefix)
   console.log('[sync] runtimeConfig defaultUsername:', defaultUsername || '(empty)')
+  console.log('[sync] runtimeConfig defaultPassword:', defaultPassword ? `[${defaultPassword.length} chars]` : '(empty)')
 
   const ws: Workspace | null = await getWorkspace(workspaceId)
   if (!ws) {
@@ -77,11 +78,15 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
   ).trim()
   const remotePrefix = (override?.remotePrefix ?? ws.remotePrefix ?? defaultPrefix).trim()
   const username = override?.remoteUsername ?? ws.remoteUsername ?? defaultUsername
-  const password = override?.remotePassword ?? ws.remotePassword ?? defaultPassword
+  // 密码回退逻辑：优先用 override，其次用 workspace 配置（需非空），最后用默认配置
+  const password = override?.remotePassword ??
+    ((ws.remotePassword && ws.remotePassword.trim() ? ws.remotePassword : undefined) ??
+      defaultPassword)
 
   console.log('[sync] resolved remoteUrl:', remoteUrl || '(empty)')
   console.log('[sync] resolved remotePrefix:', remotePrefix)
   console.log('[sync] resolved username:', username || '(empty)')
+  console.log('[sync] resolved password:', password ? `[${password.length} chars, startsWith=${password.slice(0, 2)}]` : '(empty)')
 
   const bundle = ensureBundle(workspaceId)
   bundle.status = { ...emptySyncStatus(workspaceId) }
@@ -97,8 +102,11 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
   const localPdb = await getRawPouchDB(workspaceId)
   if (!localPdb) return
 
-  // 远端数据库名：<remotePrefix><workspaceId>
-  const remoteDbName = `${remotePrefix}${workspaceId}`.toLowerCase()
+  // 远端数据库名：<remotePrefix>{userId}-<workspaceId>（登录用户）或 <remotePrefix><workspaceId>（Guest）
+  const userId = getCachedUserId()
+  const remoteDbName = userId
+    ? `${remotePrefix}${userId}-${workspaceId}`.toLowerCase()
+    : `${remotePrefix}${workspaceId}`.toLowerCase()
   const remoteFullUrl = buildRemoteUrl(remoteUrl, remoteDbName)
 
   const remoteOpts: any = { skip_setup: false }
@@ -106,9 +114,18 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
     remoteOpts.auth = { username, password }
   }
 
+  console.log('[sync] remoteOpts:', JSON.stringify({ ...remoteOpts, auth: remoteOpts.auth ? { username: remoteOpts.auth.username, passwordSet: !!remoteOpts.auth.password } : undefined }))
+
   try {
     console.log('[sync] creating remote PouchDB:', remoteFullUrl)
     const remotePdb = new PouchDB(remoteFullUrl, remoteOpts)
+    console.log('[sync] probing remotePdb.info()...')
+    try {
+      const info = await remotePdb.info()
+      console.log('[sync] remotePdb.info() success:', info)
+    } catch (infoErr: any) {
+      console.warn('[sync] remotePdb.info() failed:', infoErr?.status, infoErr?.message || infoErr)
+    }
     console.log('[sync] starting sync live=true retry=true')
     const handle = (localPdb as any).sync(remotePdb, {
       live: true,
