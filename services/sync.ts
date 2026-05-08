@@ -1,18 +1,16 @@
 import PouchDB from 'pouchdb-browser'
-import type { Workspace, WorkspaceSyncState, WorkspaceSyncStatus } from '~/types/workspace'
+import type { Workspace, WorkspaceSyncStatus } from '~/types/workspace'
 import { emptySyncStatus } from '~/types/workspace'
-import { getRawPouchDB, initDB, COLLECTION_NAMES } from '~/services/db'
+import { getRawPouchDB } from '~/services/db'
 import { getWorkspace } from '~/services/workspaces'
 import { useRuntimeConfig } from '#imports'
 import { useAuthStore } from '~/stores/auth'
 
 interface SyncBundle {
   workspaceId: string
-  handles: Map<string, PouchDB.Replication.Sync<{}>>
+  handle: PouchDB.Replication.Sync<{}> | null
   status: WorkspaceSyncStatus
   listeners: Set<(s: WorkspaceSyncStatus) => void>
-  collectionStates: Map<string, WorkspaceSyncState>
-  lastErrorByCollection: Map<string, string>
 }
 
 const bundles = new Map<string, SyncBundle>()
@@ -22,33 +20,16 @@ function ensureBundle(workspaceId: string): SyncBundle {
   if (!bundle) {
     bundle = {
       workspaceId,
-      handles: new Map(),
+      handle: null,
       status: emptySyncStatus(workspaceId),
-      listeners: new Set(),
-      collectionStates: new Map(),
-      lastErrorByCollection: new Map()
+      listeners: new Set()
     }
     bundles.set(workspaceId, bundle)
   }
   return bundle
 }
 
-function aggregateState(bundle: SyncBundle): WorkspaceSyncState {
-  const states = Array.from(bundle.collectionStates.values())
-  if (states.length === 0) return 'disabled'
-  if (states.includes('error')) return 'error'
-  if (states.includes('active')) return 'active'
-  if (states.every((s) => s === 'paused' || s === 'idle')) {
-    return states.every((s) => s === 'idle') ? 'idle' : 'paused'
-  }
-  return 'idle'
-}
-
 function notify(bundle: SyncBundle) {
-  bundle.status = {
-    ...bundle.status,
-    state: aggregateState(bundle)
-  }
   for (const fn of bundle.listeners) {
     try {
       fn(bundle.status)
@@ -58,71 +39,13 @@ function notify(bundle: SyncBundle) {
   }
 }
 
-function setCollectionState(bundle: SyncBundle, collection: string, state: WorkspaceSyncState, opts: { error?: string } = {}) {
-  bundle.collectionStates.set(collection, state)
-  if (state === 'error' && opts.error) {
-    bundle.lastErrorByCollection.set(collection, opts.error)
-    bundle.status = {
-      ...bundle.status,
-      lastError: opts.error,
-      lastChangeAt: new Date().toISOString()
-    }
-  } else if (state !== 'error') {
-    bundle.lastErrorByCollection.delete(collection)
-    if (bundle.lastErrorByCollection.size === 0) {
-      bundle.status = { ...bundle.status, lastError: undefined }
-    }
-  }
-  notify(bundle)
-}
-
 function buildRemoteUrl(base: string, dbName: string): string {
   const trimmed = base.replace(/\/+$/, '')
   return `${trimmed}/${encodeURIComponent(dbName)}`
 }
 
-function attachHandlers(bundle: SyncBundle, collection: string, handle: PouchDB.Replication.Sync<{}>) {
-  setCollectionState(bundle, collection, 'idle')
-
-  handle.on('active', () => {
-    setCollectionState(bundle, collection, 'active')
-  })
-
-  handle.on('paused', (err) => {
-    if (err) {
-      const message = (err as any)?.message || String(err)
-      setCollectionState(bundle, collection, 'error', { error: `${collection}: ${message}` })
-    } else {
-      setCollectionState(bundle, collection, 'idle')
-    }
-  })
-
-  handle.on('change', (info: any) => {
-    const direction = info?.direction
-    const docs = info?.change?.docs?.length || 0
-    if (docs > 0) {
-      bundle.status = {
-        ...bundle.status,
-        lastChangeAt: new Date().toISOString(),
-        pendingPush: direction === 'push' ? bundle.status.pendingPush + docs : bundle.status.pendingPush,
-        pendingPull: direction === 'pull' ? bundle.status.pendingPull + docs : bundle.status.pendingPull
-      }
-      notify(bundle)
-    }
-  })
-
-  handle.on('denied', (err: any) => {
-    const message = err?.message || String(err)
-    setCollectionState(bundle, collection, 'error', { error: `${collection} 权限拒绝: ${message}` })
-  })
-
-  handle.on('error', (err: any) => {
-    const message = err?.message || String(err)
-    setCollectionState(bundle, collection, 'error', { error: `${collection}: ${message}` })
-  })
-}
-
 export async function startSync(workspaceId: string, override?: { remoteUrl?: string; remotePrefix?: string; remoteUsername?: string; remotePassword?: string }): Promise<void> {
+  console.log('[sync] startSync called for workspace:', workspaceId)
   await stopSync(workspaceId)
 
   const config = useRuntimeConfig()
@@ -131,11 +54,23 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
   const defaultUsername = (config.public.couchdbUsername as string | undefined) || undefined
   const defaultPassword = (config.public.couchdbPassword as string | undefined) || undefined
 
+  console.log('[sync] runtimeConfig defaultUrl:', defaultUrl || '(empty)')
+  console.log('[sync] runtimeConfig defaultPrefix:', defaultPrefix)
+  console.log('[sync] runtimeConfig defaultUsername:', defaultUsername || '(empty)')
+
   const ws: Workspace | null = await getWorkspace(workspaceId)
-  if (!ws) return
+  if (!ws) {
+    console.warn('[sync] getWorkspace returned null, aborting')
+    return
+  }
 
   const authStore = useAuthStore()
   const isLoggedIn = !!authStore.token
+
+  console.log('[sync] isLoggedIn:', isLoggedIn)
+  console.log('[sync] ws.remoteUrl:', ws.remoteUrl || '(undefined/empty)')
+  console.log('[sync] ws.remotePrefix:', ws.remotePrefix || '(undefined)')
+  console.log('[sync] ws.remoteUsername:', ws.remoteUsername || '(undefined)')
 
   const remoteUrl = (
     override?.remoteUrl ?? ws.remoteUrl ?? (isLoggedIn ? defaultUrl : '')
@@ -144,77 +79,157 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
   const username = override?.remoteUsername ?? ws.remoteUsername ?? defaultUsername
   const password = override?.remotePassword ?? ws.remotePassword ?? defaultPassword
 
+  console.log('[sync] resolved remoteUrl:', remoteUrl || '(empty)')
+  console.log('[sync] resolved remotePrefix:', remotePrefix)
+  console.log('[sync] resolved username:', username || '(empty)')
+
   const bundle = ensureBundle(workspaceId)
   bundle.status = { ...emptySyncStatus(workspaceId) }
-  bundle.collectionStates.clear()
-  bundle.lastErrorByCollection.clear()
 
   if (!remoteUrl) {
+    console.warn('[sync] remoteUrl is empty -> state: disabled')
+    console.warn('[sync] reason: no override, no ws.remoteUrl, and (not logged in or no defaultUrl)')
     bundle.status = { ...bundle.status, state: 'disabled' }
     notify(bundle)
     return
   }
 
-  await initDB(workspaceId)
+  const localPdb = await getRawPouchDB(workspaceId)
+  if (!localPdb) return
+
+  // 远端数据库名：<remotePrefix><workspaceId>
+  const remoteDbName = `${remotePrefix}${workspaceId}`.toLowerCase()
+  const remoteFullUrl = buildRemoteUrl(remoteUrl, remoteDbName)
 
   const remoteOpts: any = { skip_setup: false }
   if (username && password) {
     remoteOpts.auth = { username, password }
   }
 
-  for (const collection of COLLECTION_NAMES) {
-    const localPdb = await getRawPouchDB(workspaceId, collection)
-    if (!localPdb) continue
-    const remoteDbName = `${remotePrefix}${workspaceId}-${collection}`.toLowerCase()
-    const remoteFullUrl = buildRemoteUrl(remoteUrl, remoteDbName)
-    try {
-      const remotePdb = new PouchDB(remoteFullUrl, remoteOpts)
-      const handle = (localPdb as any).sync(remotePdb, {
-        live: true,
-        retry: true,
-        batch_size: 500,
-        batches_limit: 5
-      }) as PouchDB.Replication.Sync<{}>
-      bundle.handles.set(collection, handle)
-      attachHandlers(bundle, collection, handle)
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e)
-      setCollectionState(bundle, collection, 'error', { error: `${collection}: ${message}` })
-    }
-  }
+  try {
+    console.log('[sync] creating remote PouchDB:', remoteFullUrl)
+    const remotePdb = new PouchDB(remoteFullUrl, remoteOpts)
+    console.log('[sync] starting sync live=true retry=true')
+    const handle = (localPdb as any).sync(remotePdb, {
+      live: true,
+      retry: true,
+      batch_size: 500,
+      batches_limit: 5
+    }) as PouchDB.Replication.Sync<{}>
+    bundle.handle = handle
 
-  notify(bundle)
+    console.log('[sync] sync started successfully, state: idle')
+    bundle.status = { ...bundle.status, state: 'idle' }
+    notify(bundle)
+
+    handle.on('active', () => {
+      console.log('[sync] event: active')
+      bundle.status = { ...bundle.status, state: 'active' }
+      notify(bundle)
+    })
+
+    handle.on('paused', (err) => {
+      if (err) {
+        const message = (err as any)?.message || String(err)
+        console.warn('[sync] event: paused with error:', message)
+        bundle.status = {
+          ...bundle.status,
+          state: 'error',
+          lastError: message,
+          lastChangeAt: new Date().toISOString()
+        }
+      } else {
+        console.log('[sync] event: paused (idle)')
+        bundle.status = { ...bundle.status, state: 'paused' }
+      }
+      notify(bundle)
+    })
+
+    handle.on('change', (info: any) => {
+      const direction = info?.direction
+      const docs = info?.change?.docs?.length || 0
+      if (docs > 0) {
+        bundle.status = {
+          ...bundle.status,
+          lastChangeAt: new Date().toISOString(),
+          pendingPush: direction === 'push' ? (bundle.status.pendingPush || 0) + docs : (bundle.status.pendingPush || 0),
+          pendingPull: direction === 'pull' ? (bundle.status.pendingPull || 0) + docs : (bundle.status.pendingPull || 0)
+        }
+        notify(bundle)
+      }
+    })
+
+    // 当同步进入 paused（空闲）状态时，重置待处理计数器
+    handle.on('paused', () => {
+      if (bundle.status.state !== 'error') {
+        bundle.status = {
+          ...bundle.status,
+          pendingPush: 0,
+          pendingPull: 0
+        }
+        notify(bundle)
+      }
+    })
+
+    handle.on('denied', (err: any) => {
+      const message = err?.message || String(err)
+      console.warn('[sync] event: denied:', message)
+      bundle.status = {
+        ...bundle.status,
+        state: 'error',
+        lastError: `权限拒绝: ${message}`,
+        lastChangeAt: new Date().toISOString()
+      }
+      notify(bundle)
+    })
+
+    handle.on('error', (err: any) => {
+      const message = err?.message || String(err)
+      console.warn('[sync] event: error:', message)
+      bundle.status = {
+        ...bundle.status,
+        state: 'error',
+        lastError: message,
+        lastChangeAt: new Date().toISOString()
+      }
+      notify(bundle)
+    })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    console.error('[sync] startSync exception:', message)
+    bundle.status = {
+      ...bundle.status,
+      state: 'error',
+      lastError: message,
+      lastChangeAt: new Date().toISOString()
+    }
+    notify(bundle)
+  }
 }
 
 export async function stopSync(workspaceId: string): Promise<void> {
   const bundle = bundles.get(workspaceId)
   if (!bundle) return
-  const cancelations: Promise<unknown>[] = []
-  for (const [, handle] of bundle.handles) {
+  if (bundle.handle) {
     try {
-      handle.cancel()
-      cancelations.push(
-        new Promise<void>((resolve) => {
-          let settled = false
-          const finish = () => {
-            if (!settled) {
-              settled = true
-              resolve()
-            }
+      bundle.handle.cancel()
+      await new Promise<void>((resolve) => {
+        let settled = false
+        const finish = () => {
+          if (!settled) {
+            settled = true
+            resolve()
           }
-          handle.on('complete', finish)
-          handle.on('error', finish)
-          setTimeout(finish, 1000)
-        })
-      )
+        }
+        bundle.handle!.on('complete', finish)
+        bundle.handle!.on('error', finish)
+        setTimeout(finish, 1000)
+      })
     } catch (e) {
       console.warn('[sync] cancel failed', workspaceId, e)
     }
+    bundle.handle = null
   }
-  await Promise.all(cancelations)
-  bundle.handles.clear()
-  bundle.collectionStates.clear()
-  bundle.lastErrorByCollection.clear()
   bundle.status = { ...emptySyncStatus(workspaceId), state: 'disabled' }
   notify(bundle)
 }

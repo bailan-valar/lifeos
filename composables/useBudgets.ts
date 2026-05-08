@@ -1,5 +1,6 @@
 import type { BudgetEntry, BudgetFormData, BudgetCycleType } from '~/types/bill'
-import { getDB, generateId, now } from '~/services/db'
+import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 interface BudgetsStore {
   budgets: Ref<BudgetEntry[]>
@@ -13,6 +14,8 @@ interface BudgetsStore {
   getYearCycleType: (categoryId: string, year: number, noteId?: string) => BudgetCycleType | 'mixed' | null
   getMonthlyEquivalent: (categoryId: string, year: number, month: number, noteId?: string) => number
   getCategoryBudgetEntries: (categoryId: string, noteId?: string) => BudgetEntry[]
+  startWatching: () => void
+  stopWatching: () => void
 }
 
 function createStore(): BudgetsStore {
@@ -20,7 +23,11 @@ function createStore(): BudgetsStore {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  let unsubscribe: (() => void) | null = null
+  let lastNoteId: string | undefined = undefined
+
   async function loadBudgets(noteId?: string) {
+    lastNoteId = noteId
     loading.value = true
     error.value = null
     try {
@@ -63,6 +70,25 @@ function createStore(): BudgetsStore {
     } finally {
       loading.value = false
     }
+  }
+
+  function startWatching() {
+    if (unsubscribe) return
+    unsubscribe = onCollectionChange('budgets', () => {
+      loadBudgets(lastNoteId)
+    })
+  }
+
+  function stopWatching() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
+
+  if (getCurrentInstance()) {
+    onMounted(startWatching)
+    onUnmounted(stopWatching)
   }
 
   async function upsertBudget(data: BudgetFormData): Promise<BudgetEntry> {
@@ -196,7 +222,9 @@ function createStore(): BudgetsStore {
     resolveYear,
     getYearCycleType,
     getMonthlyEquivalent,
-    getCategoryBudgetEntries
+    getCategoryBudgetEntries,
+    startWatching,
+    stopWatching
   }
 }
 

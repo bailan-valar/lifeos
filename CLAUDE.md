@@ -77,11 +77,18 @@ chore: 将 RxDB schema 从 v4 迁移至 v7
 
 # PouchDB 数据层规范
 
-项目使用 PouchDB（`pouchdb-browser` + `pouchdb-find`）作为本地数据层。封装在 [services/db.ts](services/db.ts) 中，对外暴露 RxDB-风格的 wrapper（`find/findOne/insert/upsert` + `doc.toJSON/get/patch/update/remove`）以减少调用点改动。
+项目使用 PouchDB（`pouchdb-browser` + `pouchdb-find`）作为本地数据层。封装在 [services/db.ts](services/db.ts) 中，对外暴露 RxDB 风格的 wrapper（`find/findOne/insert/upsert` + `doc.toJSON/get/patch/update/remove`）以减少调用点改动。
 
-## 集合（数据库）
+## 单数据库架构
 
-每个集合是一个独立的 PouchDB 实例，命名前缀 `lifeos-`（例：`lifeos-blocks`、`lifeos-notes`）。在 [services/db.ts](services/db.ts) 的 `COLLECTION_INDEXES` 中声明集合及其 mango 索引。
+**每个工作空间只创建一个 PouchDB 实例**，数据库名为 `lifeos-{workspaceId}`。所有集合的文档存储在同一个数据库中：
+- 文档 `_id` 格式：`{collection}/{businessId}`（例：`blocks/1736abc`）
+- 每个文档附带 `collection` 字段（例：`"blocks"`），用于 Mango 查询的集合级过滤
+- `toJSON()` 自动剥离 `_id`、`_rev`、`collection`，只暴露业务字段和 `id`
+
+## 集合
+
+集合和索引在 [services/db.ts](services/db.ts) 的 `COLLECTION_INDEXES` 中声明。Mango 索引以 `collection` 为首字段。
 
 ## 添加新集合
 
@@ -91,19 +98,27 @@ chore: 将 RxDB schema 从 v4 迁移至 v7
 
 ## 索引规则
 
-- 用于 `find({ selector: { fieldA: ..., fieldB: ... } })` 的字段需建索引
-- 用于 `sort: [{ fieldX: 'asc' }]` 的字段也需建索引（wrapper 会自动把 sort 字段加进 selector）
+- 索引以 `collection` 为首字段，在 [services/db.ts](services/db.ts) 初始化时自动加上
+- 用于 `find({ selector: { fieldA: ..., fieldB: ... } })` 的字段需在 `COLLECTION_INDEXES` 中声明
+- 用于 `sort: [{ fieldX: 'asc' }]` 的字段也需声明（wrapper 会自动把 sort 字段加进 selector）
 - 复合索引顺序敏感：`['noteId', 'order']` 仅对包含 `noteId` 等值条件的查询有效
 
 ## 文档字段
 
-- `id`（业务字段）会被 wrapper 同步到 PouchDB 的 `_id`；不要手写 `_id`
+- `id`（业务字段）会被 wrapper 映射到 PouchDB 的 `_id`（格式：`{collection}/{id}`）；不要手写 `_id`
 - `_rev` 由 PouchDB 内部维护，`toJSON()` 已剥离；不要在业务对象里出现
+- `collection` 为内部字段，由 wrapper 自动管理；业务代码不要读取或写入
 - 业务侧可保留 `version` 字段作乐观锁计数，与 PouchDB `_rev` 互不冲突
 
-## 旧 RxDB 数据清理
+## 数据迁移
 
-[plugins/pouchdb.client.ts](plugins/pouchdb.client.ts) 在首次加载时清理 `rxdb-dexie-*` / `lifeos-notes-*` 旧 IndexedDB 数据库，幂等性靠 `localStorage['lifeos:legacy-rxdb-cleared']` 控制；同时调用 `ensureBootstrapWorkspace()` 保证至少存在一个本地工作空间并写入 activeId。
+- [services/migration.ts](services/migration.ts) 负责从旧的「每集合一个数据库」格式迁移到新的单数据库格式
+- 迁移是幂等的，通过 per-workspace localStorage 标志位控制
+- `initDB()` 在初始化前自动调用迁移，无需手动触发
+
+## 旧数据清理
+
+[plugins/pouchdb.client.ts](plugins/pouchdb.client.ts) 在首次加载时清理 `rxdb-dexie-*` / 旧 per-collection 数据库，幂等性靠 `localStorage['lifeos:legacy-rxdb-cleared']` 控制；同时调用 `ensureBootstrapWorkspace()` 保证至少存在一个本地工作空间并写入 activeId。
 
 ---
 
@@ -111,17 +126,17 @@ chore: 将 RxDB schema 从 v4 迁移至 v7
 
 ## 多工作空间隔离
 
-- 每个工作空间用 UUID v4 作为 `workspaceId`，所有业务数据按 `lifeos-<workspaceId>-<collection>` 前缀写入 IndexedDB，跨空间天然隔离
-- [services/workspaces.ts](services/workspaces.ts) 提供工作空间 CRUD（写入 `lifeos-meta-workspaces`），并维护 `localStorage['lifeos:active-workspace-id']`
+- 每个工作空间用 UUID v4 作为 `workspaceId`，对应一个 PouchDB 数据库 `lifeos-{workspaceId}`，跨空间天然隔离
+- [services/workspaces.ts](services/workspaces.ts) 提供工作空间 CRUD（写入 `lifeos-meta-workspaces-{userId}`），并维护 `localStorage['lifeos:active-workspace-id']`
 - [stores/workspace.ts](stores/workspace.ts)（Pinia）协调切换：`switchTo(id)` 顺序为 `stopSync → closeWorkspaceDB → setActiveId → initDB → startSync`
 - [app.vue](app.vue) 给 `<NuxtPage>` 绑定 `:key="workspaceStore.currentId"`，切换空间时强制重渲染，触发各 composable 的 `loadX()` 在新空间重新加载
 
 ## 远端 CouchDB 同步
 
-- [services/sync.ts](services/sync.ts) 封装 PouchDB 原生 `db.sync(remote, { live: true, retry: true, batch_size: 500, batches_limit: 5 })`，按集合维度建立双向实时复制
-- 远端数据库命名：`<remoteUrl>/<remotePrefix><collection>`（默认 `remotePrefix = 'lifeos-'`）
+- [services/sync.ts](services/sync.ts) 封装 PouchDB 原生 `db.sync(remote, { live: true, retry: true, batch_size: 500, batches_limit: 5 })`，每个工作空间只需一个 sync handle
+- 远端数据库名：`<remotePrefix><workspaceId>`（例：`lifeos-abc123`）
 - 冲突策略沿用 PouchDB 默认的 last-write-wins，不做应用层合并
-- `subscribeStatus(workspaceId, fn)` 暴露聚合状态（`disabled / idle / active / paused / error`）+ pendingPush/pendingPull 计数，供菜单栏徽章订阅
+- `subscribeStatus(workspaceId, fn)` 暴露同步状态（`disabled / idle / active / paused / error`）+ pendingPush/pendingPull 计数，供菜单栏徽章订阅
 - 工作空间未配置 `remoteUrl` 时同步状态为 `disabled`，业务读写完全本地
 
 ---

@@ -2,22 +2,57 @@ import PouchDB from 'pouchdb-browser'
 import PouchDBFind from 'pouchdb-find'
 import { v4 as uuidv4 } from 'uuid'
 import type { Workspace, WorkspaceFormData } from '~/types/workspace'
+import { encryptCredential, decryptCredential } from '~/services/crypto'
 
 PouchDB.plugin(PouchDBFind)
 
 const ACTIVE_ID_KEY = 'lifeos:active-workspace-id'
+const USER_ID_KEY = 'lifeos:user-id'
 
 const metaDBs = new Map<string, PouchDB.Database>()
 
-function getMetaDBName(): string {
-  const token = getToken()
-  if (!token) return 'lifeos-meta-workspaces-guest'
+export function setCachedUserId(userId: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(USER_ID_KEY, userId)
+}
+
+export function clearCachedUserId(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(USER_ID_KEY)
+}
+
+function getCachedUserId(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(USER_ID_KEY)
+}
+
+async function ensureEncryptedPassword(userId: string | null, password: string | undefined): Promise<string | undefined> {
+  if (!password || !userId) return password
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return `lifeos-meta-workspaces-${payload.userId || 'guest'}`
+    await decryptCredential(userId, password)
+    return password // 已经是密文，直接返回
   } catch {
-    return 'lifeos-meta-workspaces-guest'
+    try {
+      return await encryptCredential(userId, password)
+    } catch {
+      return password // 加密失败时保留明文
+    }
   }
+}
+
+async function decryptWorkspacePassword(ws: Workspace): Promise<void> {
+  const userId = getCachedUserId()
+  if (!userId || !ws.remotePassword) return
+  try {
+    ws.remotePassword = await decryptCredential(userId, ws.remotePassword)
+  } catch {
+    // 解密失败时保留原值（可能是明文旧格式）
+  }
+}
+
+function getMetaDBName(): string {
+  const userId = getCachedUserId()
+  return `lifeos-meta-workspaces-${userId || 'guest'}`
 }
 
 function getMetaDB(): PouchDB.Database {
@@ -32,6 +67,17 @@ function getMetaDB(): PouchDB.Database {
 }
 
 export function clearMetaDBCache(): void {
+  metaDBs.clear()
+}
+
+export async function closeMetaDB(): Promise<void> {
+  for (const [name, db] of metaDBs.entries()) {
+    try {
+      await db.close()
+    } catch (e) {
+      console.warn('[workspaces] close meta DB failed', name, e)
+    }
+  }
   metaDBs.clear()
 }
 
@@ -53,45 +99,57 @@ function getToken(): string | null {
   return localStorage.getItem('token')
 }
 
-export function dbPrefix(workspaceId: string): string {
-  return `lifeos-${workspaceId}-`
+export function dbName(workspaceId: string): string {
+  const userId = getCachedUserId()
+  if (userId) {
+    return `lifeos-${userId}-${workspaceId}`
+  }
+  return `lifeos-${workspaceId}`
 }
 
 async function listLocalWorkspaces(): Promise<Workspace[]> {
   const db = getMetaDB()
+  const userId = getCachedUserId()
   const result = await db.allDocs({ include_docs: true })
-  return result.rows
+  const workspaces = result.rows
     .map((r) => r.doc)
     .filter((d): d is PouchDB.Core.ExistingDocument<Workspace & { _id: string }> => !!d && !d._id.startsWith('_'))
     .map((d) => stripPouchFields(d) as Workspace)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+
+  // 解密 CouchDB 凭据
+  if (userId) {
+    for (const ws of workspaces) {
+      if (ws.remotePassword) {
+        try {
+          ws.remotePassword = await decryptCredential(userId, ws.remotePassword)
+        } catch {
+          // 如果解密失败，说明数据是明文旧格式，保留原值
+        }
+      }
+    }
+  }
+  return workspaces
 }
 
 async function syncRemoteToLocal(remoteList: any[]): Promise<void> {
   const db = getMetaDB()
-  const remoteIds = new Set(remoteList.map((r) => r.localId).filter(Boolean))
 
-  // 删除本地存在但服务端已移除的空间
-  const localResult = await db.allDocs({ include_docs: true })
-  for (const row of localResult.rows) {
-    const doc = row.doc as any
-    if (!doc || doc._id.startsWith('_')) continue
-    if (!remoteIds.has(doc._id)) {
-      await db.remove(doc._id, doc._rev)
-    }
-  }
+  // 注意：不再删除本地存在但服务端没有的空间，以遵循 local-first 原则。
+  // 离线创建的工作空间应保留在本地，直到用户在当前设备上显式删除。
 
   for (const remote of remoteList) {
     const localId = remote.localId
     if (!localId) continue
 
+    const userId = getCachedUserId()
     const doc: any = {
       _id: localId,
       id: localId,
       name: remote.name,
       remoteUrl: remote.remoteUrl || undefined,
       remoteUsername: remote.remoteUsername || undefined,
-      remotePassword: remote.remotePassword || undefined,
+      remotePassword: await ensureEncryptedPassword(userId, remote.remotePassword),
       remotePrefix: remote.remotePrefix || 'lifeos-',
       createdAt: remote.createdAt,
       updatedAt: remote.updatedAt,
@@ -131,7 +189,9 @@ export async function getWorkspace(id: string): Promise<Workspace | null> {
   const db = getMetaDB()
   try {
     const raw = await db.get(id)
-    return stripPouchFields(raw as any) as Workspace
+    const ws = stripPouchFields(raw as any) as Workspace
+    await decryptWorkspacePassword(ws)
+    return ws
   } catch (e: any) {
     if (e?.status === 404) return null
     throw e
@@ -140,13 +200,15 @@ export async function getWorkspace(id: string): Promise<Workspace | null> {
 
 export async function createWorkspace(input: WorkspaceFormData): Promise<Workspace> {
   const id = uuidv4()
+  const userId = getCachedUserId()
   const ts = nowIso()
+  const encryptedPassword = await ensureEncryptedPassword(userId, input.remotePassword)
   const doc: Workspace = {
     id,
     name: input.name.trim() || '未命名空间',
     remoteUrl: input.remoteUrl?.trim() || undefined,
     remoteUsername: input.remoteUsername?.trim() || undefined,
-    remotePassword: input.remotePassword?.length ? input.remotePassword : undefined,
+    remotePassword: encryptedPassword,
     remotePrefix: input.remotePrefix?.trim() || 'lifeos-',
     createdAt: ts,
     updatedAt: ts,
@@ -187,6 +249,7 @@ export async function createWorkspace(input: WorkspaceFormData): Promise<Workspa
 }
 
 export async function updateWorkspace(id: string, patch: Partial<WorkspaceFormData>): Promise<Workspace> {
+  const userId = getCachedUserId()
   const db = getMetaDB()
   const existing = await db.get(id)
   const merged: any = {
@@ -197,7 +260,9 @@ export async function updateWorkspace(id: string, patch: Partial<WorkspaceFormDa
   if (typeof patch.name === 'string') merged.name = patch.name.trim() || (existing as any).name
   if (typeof patch.remoteUrl === 'string') merged.remoteUrl = patch.remoteUrl.trim() || undefined
   if (typeof patch.remoteUsername === 'string') merged.remoteUsername = patch.remoteUsername.trim() || undefined
-  if (typeof patch.remotePassword === 'string') merged.remotePassword = patch.remotePassword.length ? patch.remotePassword : undefined
+  if (typeof patch.remotePassword === 'string') {
+    merged.remotePassword = await ensureEncryptedPassword(userId, patch.remotePassword)
+  }
   if (typeof patch.remotePrefix === 'string') merged.remotePrefix = patch.remotePrefix.trim() || 'lifeos-'
 
   const res = await db.put(merged)

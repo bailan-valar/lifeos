@@ -9,6 +9,42 @@
           </button>
         </div>
         <div class="dialog-body">
+          <!-- 导入原数据卡片 -->
+          <div v-if="importSourceItem" class="import-source-card">
+            <div class="import-source-header">
+              <Icon name="solar:file-import-linear" size="14" />
+              <span class="import-source-title">导入原数据</span>
+              <span class="import-source-tag">{{ importSourceLabel }}</span>
+            </div>
+            <div class="import-source-body">
+              <div class="import-source-row">
+                <span class="import-source-label">交易对方</span>
+                <span class="import-source-value">{{ importSourceItem.counterparty || '-' }}</span>
+              </div>
+              <div class="import-source-row">
+                <span class="import-source-label">商品说明</span>
+                <span class="import-source-value">{{ importSourceItem.description || '-' }}</span>
+              </div>
+              <div class="import-source-row">
+                <span class="import-source-label">金额</span>
+                <span class="import-source-value" :class="importSourceItem.direction">
+                  {{ importSourceItem.direction === 'in' ? '+' : '-' }}{{ importSourceItem.amount.toFixed(2) }}
+                </span>
+              </div>
+              <div class="import-source-row">
+                <span class="import-source-label">时间</span>
+                <span class="import-source-value">{{ importSourceItem.date }}</span>
+              </div>
+              <div v-if="importSourceItem.rawType" class="import-source-row">
+                <span class="import-source-label">类型</span>
+                <span class="import-source-value">{{ importSourceItem.rawType }}</span>
+              </div>
+              <div v-if="importSourceItem.paymentMethod" class="import-source-row">
+                <span class="import-source-label">支付方式</span>
+                <span class="import-source-value">{{ importSourceItem.paymentMethod }}</span>
+              </div>
+            </div>
+          </div>
           <BillForm
             v-model="form"
             :accounts="accounts"
@@ -26,8 +62,9 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, BillFormData, Account, BillCategory } from '~/types/bill'
+import type { Bill, BillFormData, Account, BillCategory, ImportRecordItem } from '~/types/bill'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
+import { useImportRecords } from '~/composables/useImportRecords'
 import BillForm from './BillForm.vue'
 
 interface NoteOption {
@@ -60,6 +97,23 @@ const form = ref<BillFormData>({
 })
 
 const isEditing = computed(() => !!props.bill)
+
+/* ---------- 导入原数据 ---------- */
+const { getById } = useImportRecords()
+
+const importSourceItem = computed<ImportRecordItem | null>(() => {
+  const bill = props.bill
+  if (!bill?.importBatchId || !bill.importFingerprint) return null
+  const record = getById(bill.importBatchId)
+  if (!record) return null
+  return record.items.find(item => item.fingerprint === bill.importFingerprint) ?? null
+})
+
+const importSourceLabel = computed(() => {
+  const bill = props.bill
+  if (!bill?.importSource) return '导入'
+  return bill.importSource === 'alipay' ? '支付宝' : bill.importSource === 'wechat' ? '微信' : '导入'
+})
 
 watch(() => props.visible, (v) => {
   if (!v) return
@@ -218,5 +272,66 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
 .confirm-btn {
   background: rgb(0, 122, 255);
   color: white;
+}
+
+/* ---------- 导入原数据卡片 ---------- */
+.import-source-card {
+  margin-bottom: 16px;
+  border: 0.5px solid rgba(0, 122, 255, 0.2);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.04) 0%, rgba(0, 122, 255, 0.02) 100%);
+  overflow: hidden;
+}
+.import-source-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 122, 255, 0.06);
+  border-bottom: 0.5px solid rgba(0, 122, 255, 0.12);
+}
+.import-source-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 122, 255, 0.9);
+}
+.import-source-tag {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
+}
+.import-source-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.import-source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.import-source-label {
+  flex-shrink: 0;
+  width: 60px;
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.55);
+}
+.import-source-value {
+  color: rgba(0, 0, 0, 0.86);
+  word-break: break-all;
+}
+.import-source-value.in {
+  color: rgb(52, 199, 89);
+  font-weight: 600;
+}
+.import-source-value.out {
+  color: rgb(255, 59, 48);
+  font-weight: 600;
 }
 </style>

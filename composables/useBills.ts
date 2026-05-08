@@ -6,9 +6,10 @@ import type {
   ImportRecordItemStatus,
   ImportRecordStatus
 } from '~/types/bill'
-import { getDB, generateId, now } from '~/services/db'
+import { getDB, generateId, now, onCollectionChange } from '~/services/db'
 import { dedupeKey } from '~/services/csvImport'
 import { useImportRecords } from '~/composables/useImportRecords'
+import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 async function updateAccountBalance(id: string, delta: number) {
   if (!id) return
@@ -38,7 +39,18 @@ export function useBills() {
   const pageSize = ref(50)
   const currentPage = ref(1)
 
+  let unsubscribe: (() => void) | null = null
+  let lastReloadContext: {
+    type: 'all' | 'noteId' | 'noteIds' | 'paginated' | 'category' | 'dateRange'
+    noteId?: string
+    noteIds?: string[]
+    categoryId?: string
+    startDate?: string
+    endDate?: string
+  } | null = null
+
   async function loadBills(noteId?: string) {
+    lastReloadContext = { type: noteId ? 'noteId' : 'all', noteId }
     loading.value = true
     error.value = null
     try {
@@ -57,7 +69,47 @@ export function useBills() {
     }
   }
 
+  async function reloadFromRemote() {
+    if (!lastReloadContext) {
+      await loadBills()
+      return
+    }
+    switch (lastReloadContext.type) {
+      case 'all':
+        await loadBills()
+        break
+      case 'noteId':
+        await loadBills(lastReloadContext.noteId)
+        break
+      case 'noteIds':
+        if (lastReloadContext.noteIds) await loadBillsForNotes(lastReloadContext.noteIds)
+        else await loadBills()
+        break
+      case 'paginated':
+        await loadBillsPaginated(lastReloadContext.noteId, 1)
+        break
+      case 'category':
+        await loadBillsByCategory(
+          lastReloadContext.categoryId || '',
+          lastReloadContext.noteId,
+          lastReloadContext.startDate,
+          lastReloadContext.endDate
+        )
+        break
+      case 'dateRange':
+        await loadBillsByDateRange(
+          lastReloadContext.noteId,
+          lastReloadContext.startDate,
+          lastReloadContext.endDate
+        )
+        break
+      default:
+        await loadBills()
+    }
+  }
+
   async function loadBillsForNotes(noteIds: string[]) {
+    lastReloadContext = { type: 'noteIds', noteIds }
     loading.value = true
     error.value = null
     try {
@@ -83,6 +135,7 @@ export function useBills() {
   }
 
   async function loadBillsPaginated(noteId?: string, page = 1) {
+    lastReloadContext = { type: 'paginated', noteId }
     loading.value = true
     error.value = null
     try {
@@ -113,11 +166,12 @@ export function useBills() {
   }
 
   async function loadBillsByCategory(categoryId: string, noteId?: string, startDate?: string, endDate?: string) {
+    lastReloadContext = { type: 'category', categoryId, noteId, startDate, endDate }
     loading.value = true
     error.value = null
     try {
       const db = await getDB()
-      const selector: Record<string, unknown> = { categoryId }
+      const selector: Record<string, any> = { categoryId }
       if (noteId) selector.noteId = noteId
       if (startDate || endDate) {
         selector.date = {}
@@ -140,11 +194,12 @@ export function useBills() {
   }
 
   async function loadBillsByDateRange(noteId?: string, startDate?: string, endDate?: string) {
+    lastReloadContext = { type: 'dateRange', noteId, startDate, endDate }
     loading.value = true
     error.value = null
     try {
       const db = await getDB()
-      const selector: Record<string, unknown> = noteId ? { noteId } : {}
+      const selector: Record<string, any> = noteId ? { noteId } : {}
       if (startDate || endDate) {
         selector.date = {}
         if (startDate) selector.date.$gte = startDate
@@ -167,7 +222,7 @@ export function useBills() {
 
   async function loadBillStats(noteId?: string, startDate?: string, endDate?: string) {
     const db = await getDB()
-    const selector: Record<string, unknown> = { status: 'completed' }
+    const selector: Record<string, any> = { status: 'completed' }
     if (noteId) selector.noteId = noteId
     if (startDate || endDate) {
       selector.date = {}
@@ -424,6 +479,25 @@ export function useBills() {
     }
   }
 
+  function startWatching() {
+    if (unsubscribe) return
+    unsubscribe = onCollectionChange('bills', () => {
+      reloadFromRemote()
+    })
+  }
+
+  function stopWatching() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
+
+  if (getCurrentInstance()) {
+    onMounted(startWatching)
+    onUnmounted(stopWatching)
+  }
+
   const totalIncome = computed(() =>
     bills.value
       .filter(b => b.type === 'income' && b.status === 'completed')
@@ -468,6 +542,9 @@ export function useBills() {
     updateBills,
     deleteBill,
     deleteBills,
-    settleDebt
+    settleDebt,
+    startWatching,
+    stopWatching,
+    reloadFromRemote
   }
 }

@@ -1,7 +1,30 @@
 import type { Bill, ImportRecord, ImportRecordItem } from '~/types/bill'
-import { getDB, now } from '~/services/db'
+import { getDB, now, onCollectionChange } from '~/services/db'
 
 let _store: ImportRecordsStore | null = null
+let _unsub: (() => void) | null = null
+
+function startWatchingImportRecords() {
+  if (_unsub) return
+  _unsub = onCollectionChange('importRecords', () => {
+    if (_store) _store.loadImportRecords()
+  })
+}
+
+function stopWatchingImportRecords() {
+  if (_unsub) {
+    _unsub()
+    _unsub = null
+  }
+}
+
+if (import.meta.client) {
+  window.addEventListener('workspace:changed', () => {
+    stopWatchingImportRecords()
+    startWatchingImportRecords()
+    if (_store) _store.loadImportRecords()
+  })
+}
 
 interface ImportRecordsStore {
   records: Ref<ImportRecord[]>
@@ -158,5 +181,6 @@ export function useImportRecords(): ImportRecordsStore {
   if (!_store) {
     _store = createStore()
   }
+  startWatchingImportRecords()
   return _store
 }

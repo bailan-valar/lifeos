@@ -1,6 +1,7 @@
 import PouchDB from 'pouchdb-browser'
 import PouchDBFind from 'pouchdb-find'
-import { dbPrefix, getActiveId } from '~/services/workspaces'
+import { dbName, getActiveId } from '~/services/workspaces'
+import { migrateWorkspaceIfNeeded, fixupCollectionField } from '~/services/migration'
 
 PouchDB.plugin(PouchDBFind)
 
@@ -23,9 +24,73 @@ interface FindOpts {
   skip?: number
 }
 
+type ChangeListener = () => void
+
+interface ChangeBus {
+  feed: PouchDB.Core.Changes<{}> | null
+  listeners: Map<string, Set<ChangeListener>>
+  timers: Map<string, ReturnType<typeof setTimeout>>
+}
+
+const changeBuses = new Map<string, ChangeBus>()
+const DEFAULT_DEBOUNCE_MS = 300
+
+function ensureChangeBus(workspaceId: string): ChangeBus {
+  let bus = changeBuses.get(workspaceId)
+  if (!bus) {
+    bus = { feed: null, listeners: new Map(), timers: new Map() }
+    changeBuses.set(workspaceId, bus)
+  }
+  return bus
+}
+
+function notifyCollectionChange(workspaceId: string, collection: string) {
+  const bus = changeBuses.get(workspaceId)
+  if (!bus) return
+  const listeners = bus.listeners.get(collection)
+  if (!listeners || listeners.size === 0) return
+
+  const existing = bus.timers.get(collection)
+  if (existing) clearTimeout(existing)
+
+  bus.timers.set(
+    collection,
+    setTimeout(() => {
+      bus.timers.delete(collection)
+      for (const fn of listeners) {
+        try {
+          fn()
+        } catch (e) {
+          console.warn('[db] change listener failed:', e)
+        }
+      }
+    }, DEFAULT_DEBOUNCE_MS)
+  )
+}
+
+function startGlobalChanges(workspaceId: string, pdb: PouchDB.Database) {
+  const bus = ensureChangeBus(workspaceId)
+  if (bus.feed) return
+
+  try {
+    bus.feed = pdb.changes({ live: true, since: 'now', include_docs: false })
+    bus.feed.on('change', (change) => {
+      const coll = change.id.includes('/') ? change.id.split('/')[0] : ''
+      if (!coll) return
+      notifyCollectionChange(workspaceId, coll)
+    })
+    bus.feed.on('error', (err) => {
+      console.warn(`[db] changes feed error for ${workspaceId}:`, err)
+    })
+  } catch (e) {
+    console.warn(`[db] failed to start changes feed for ${workspaceId}:`, e)
+  }
+}
+
 interface RawPouchDoc {
   _id: string
   _rev: string
+  collection?: string
   [key: string]: any
 }
 
@@ -59,9 +124,31 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
 
 export const COLLECTION_NAMES = Object.keys(COLLECTION_INDEXES)
 
+/**
+ * 构建去重后的 Mango 索引列表。
+ * 每个集合的索引以 collection 为首字段，确保按集合过滤后可利用后续字段排序。
+ */
+function buildAllIndexes(): string[][] {
+  const seen = new Set<string>()
+  const result: string[][] = []
+  for (const indexes of Object.values(COLLECTION_INDEXES)) {
+    for (const fields of indexes) {
+      const fullFields = ['collection', ...fields]
+      const key = fullFields.join(',')
+      if (!seen.has(key)) {
+        seen.add(key)
+        result.push(fullFields)
+      }
+    }
+  }
+  return result
+}
+
 function stripPouchFields(raw: RawPouchDoc): AnyDoc {
-  const { _id, _rev, ...rest } = raw
-  return rest as AnyDoc
+  const { _id, _rev, collection: _coll, ...rest } = raw
+  // 从 _id 中提取业务 ID（格式："{collection}/{businessId}"）
+  const id = _id.includes('/') ? _id.substring(_id.indexOf('/') + 1) : _id
+  return { ...rest, id } as AnyDoc
 }
 
 interface DBDoc {
@@ -136,44 +223,37 @@ interface Collection {
   upsert: (data: AnyDoc) => Promise<void>
 }
 
-function ensureSelectorForSort(selector: Selector, sort?: SortSpec): Selector {
-  if (!sort || sort.length === 0) return selector
-  const next: Selector = { ...selector }
-  for (const spec of sort) {
-    const field = Object.keys(spec)[0]
-    if (!(field in next)) {
-      next[field] = { $gt: null }
-    }
-  }
-  return next
-}
-
-function nonEmptySelector(selector: Selector): Selector {
-  return Object.keys(selector).length > 0 ? selector : { _id: { $gt: null } }
-}
-
-function createCollection(name: string, prefix: string, instances: Map<string, PouchDB.Database>): Collection {
-  const pdb = new PouchDB(prefix + name)
-  instances.set(name, pdb)
-  const indexes = COLLECTION_INDEXES[name] || []
-
-  const indexesReady = (async () => {
-    for (const fields of indexes) {
-      try {
-        await pdb.createIndex({ index: { fields } })
-      } catch (e) {
-        console.warn(`[db] failed to create index on ${name}:${fields.join(',')}`, e)
-      }
-    }
-  })()
-
+/**
+ * 创建集合 wrapper。
+ * 所有集合共享同一个 PouchDB 实例（pdb），通过 collection 字段区分。
+ * _id 格式："{collection}/{businessId}"，保证全局唯一。
+ */
+function createCollection(name: string, pdb: PouchDB.Database, indexesReady: Promise<void>): Collection {
   const runFind = async (opts: FindOpts): Promise<DBDoc[]> => {
     await indexesReady
-    const baseSelector = ensureSelectorForSort(opts.selector || {}, opts.sort)
-    const selector = nonEmptySelector(baseSelector)
+    const selector: Selector = {
+      collection: name,
+      ...(opts.selector || {})
+    }
+    let sort = opts.sort
+    if (sort && sort.length > 0) {
+      // PouchDB-find 要求 sort 必须匹配索引前缀。
+      // 所有索引都以 collection 为首字段，因此将 collection  prepend 到 sort 中，
+      // 方向与第一个用户 sort 字段保持一致（同一方向才能命中索引）。
+      const firstDirection = sort[0][Object.keys(sort[0])[0]]
+      sort = [{ collection: firstDirection }, ...sort]
+
+      // 将 sort 字段加入 selector（Mango 查询要求 sort 字段必须出现在 selector 中）
+      for (const spec of sort) {
+        const field = Object.keys(spec)[0]
+        if (!(field in selector)) {
+          selector[field] = { $gt: null }
+        }
+      }
+    }
     const result = await pdb.find({
       selector,
-      sort: opts.sort,
+      sort,
       limit: opts.limit || 100000,
       ...(opts.skip ? { skip: opts.skip } : {})
     })
@@ -182,7 +262,7 @@ function createCollection(name: string, prefix: string, instances: Map<string, P
 
   const runGet = async (id: string): Promise<DBDoc | null> => {
     try {
-      const raw = await pdb.get(id)
+      const raw = await pdb.get(`${name}/${id}`)
       return makeDoc(pdb, raw as RawPouchDoc)
     } catch (e: any) {
       if (e?.status === 404) return null
@@ -205,16 +285,22 @@ function createCollection(name: string, prefix: string, instances: Map<string, P
     },
     async insert(data: AnyDoc) {
       await indexesReady
-      await pdb.put({ ...data, _id: data.id })
+      await pdb.put({ ...data, _id: `${name}/${data.id}`, collection: name })
     },
     async upsert(data: AnyDoc) {
       await indexesReady
+      const fullId = `${name}/${data.id}`
       try {
-        const existing = await pdb.get(data.id)
-        await pdb.put({ ...existing, ...data, _id: data.id, _rev: existing._rev })
+        const existing = await pdb.get(fullId)
+        await pdb.put({
+          ...existing, ...data,
+          _id: fullId,
+          _rev: existing._rev,
+          collection: name
+        })
       } catch (e: any) {
         if (e?.status === 404) {
-          await pdb.put({ ...data, _id: data.id })
+          await pdb.put({ ...data, _id: fullId, collection: name })
           return
         }
         throw e
@@ -227,7 +313,7 @@ type Database = Record<string, Collection>
 
 interface WorkspaceDB {
   database: Database
-  instances: Map<string, PouchDB.Database>
+  instance: PouchDB.Database
 }
 
 const databases = new Map<string, WorkspaceDB>()
@@ -259,13 +345,29 @@ function resolveWorkspaceId(workspaceId?: string): string {
 }
 
 async function doInitDB(workspaceId: string): Promise<WorkspaceDB> {
-  const prefix = dbPrefix(workspaceId)
-  const instances = new Map<string, PouchDB.Database>()
-  const dbs: Database = {}
-  for (const name of Object.keys(COLLECTION_INDEXES)) {
-    dbs[name] = createCollection(name, prefix, instances)
+  const name = dbName(workspaceId)
+  const pdb = new PouchDB(name)
+  if (typeof (pdb as any).setMaxListeners === 'function') {
+    ;(pdb as any).setMaxListeners(100)
   }
-  return { database: dbs, instances }
+
+  const allIndexes = buildAllIndexes()
+  const indexesReady = Promise.all(
+    allIndexes.map((fields) =>
+      pdb.createIndex({ index: { fields } }).catch((e) =>
+        console.warn(`[db] failed to create index [${fields.join(',')}]:`, e)
+      )
+    )
+  ).then(() => {})
+
+  const dbs: Database = {}
+  for (const collName of Object.keys(COLLECTION_INDEXES)) {
+    dbs[collName] = createCollection(collName, pdb, indexesReady)
+  }
+
+  const result: WorkspaceDB = { database: dbs, instance: pdb }
+  startGlobalChanges(workspaceId, pdb)
+  return result
 }
 
 export async function initDB(workspaceId?: string): Promise<Database> {
@@ -274,6 +376,11 @@ export async function initDB(workspaceId?: string): Promise<Database> {
   if (cached) return cached.database
   const pending = initPromises.get(id)
   if (pending) return (await pending).database
+
+  // 从旧的多数据库格式迁移数据（幂等，仅首次运行）
+  await migrateWorkspaceIfNeeded(id)
+  // 修复可能存在的 _collection → collection 字段名问题
+  await fixupCollectionField(id)
 
   const promise = doInitDB(id)
   initPromises.set(id, promise)
@@ -304,11 +411,11 @@ export async function getDB(workspaceId?: string): Promise<Database> {
   }
 }
 
-export async function getRawPouchDB(workspaceId: string, collection: string): Promise<PouchDB.Database | undefined> {
+export async function getRawPouchDB(workspaceId: string): Promise<PouchDB.Database | undefined> {
   const cached = databases.get(workspaceId)
-  if (cached) return cached.instances.get(collection)
+  if (cached) return cached.instance
   await initDB(workspaceId)
-  return databases.get(workspaceId)?.instances.get(collection)
+  return databases.get(workspaceId)?.instance
 }
 
 export function listLoadedWorkspaceIds(): string[] {
@@ -320,41 +427,96 @@ export async function closeWorkspaceDB(workspaceId: string): Promise<void> {
   if (!cached) return
   databases.delete(workspaceId)
   initPromises.delete(workspaceId)
-  await Promise.all(
-    Array.from(cached.instances.values()).map((db) =>
-      db.close().catch((e) => console.warn('[db] close failed', workspaceId, e))
-    )
+
+  const bus = changeBuses.get(workspaceId)
+  if (bus) {
+    if (bus.feed) {
+      try { bus.feed.cancel() } catch {}
+      bus.feed = null
+    }
+    bus.timers.forEach(clearTimeout)
+    bus.timers.clear()
+    bus.listeners.clear()
+    changeBuses.delete(workspaceId)
+  }
+
+  await cached.instance.close().catch((e) =>
+    console.warn('[db] close failed', workspaceId, e)
   )
 }
 
 export async function destroyWorkspaceData(workspaceId: string): Promise<void> {
-  const prefix = dbPrefix(workspaceId)
+  const bus = changeBuses.get(workspaceId)
+  if (bus) {
+    if (bus.feed) {
+      try { bus.feed.cancel() } catch {}
+      bus.feed = null
+    }
+    bus.timers.forEach(clearTimeout)
+    bus.timers.clear()
+    bus.listeners.clear()
+    changeBuses.delete(workspaceId)
+  }
+
   const cached = databases.get(workspaceId)
   if (cached) {
     databases.delete(workspaceId)
     initPromises.delete(workspaceId)
-    await Promise.all(
-      Array.from(cached.instances.values()).map((db) =>
-        db.destroy().catch((e) => console.warn('[db] destroy failed', workspaceId, e))
-      )
+    await cached.instance.destroy().catch((e) =>
+      console.warn('[db] destroy failed', workspaceId, e)
     )
     return
   }
-  for (const name of Object.keys(COLLECTION_INDEXES)) {
-    try {
-      await new PouchDB(prefix + name).destroy()
-    } catch (e) {
-      console.warn('[db] destroy failed', prefix + name, e)
-    }
+  try {
+    await new PouchDB(dbName(workspaceId)).destroy()
+  } catch (e) {
+    console.warn('[db] destroy failed', dbName(workspaceId), e)
   }
 }
 
 export function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for environments without crypto.randomUUID
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}-${Math.random().toString(36).substring(2, 11)}`
 }
 
 export function now(): string {
   return new Date().toISOString()
+}
+
+export function onCollectionChange(
+  collection: string,
+  callback: ChangeListener,
+  options?: { debounceMs?: number; workspaceId?: string }
+): () => void {
+  const workspaceId = options?.workspaceId || getActiveId() || ''
+  if (!workspaceId) {
+    console.warn('[db] onCollectionChange: no active workspace')
+    return () => {}
+  }
+
+  const bus = ensureChangeBus(workspaceId)
+  let set = bus.listeners.get(collection)
+  if (!set) {
+    set = new Set()
+    bus.listeners.set(collection, set)
+  }
+  set.add(callback)
+
+  const wsDB = databases.get(workspaceId)
+  if (wsDB?.instance && !bus.feed) {
+    startGlobalChanges(workspaceId, wsDB.instance)
+  }
+
+  return () => {
+    const s = bus.listeners.get(collection)
+    if (s) {
+      s.delete(callback)
+      if (s.size === 0) bus.listeners.delete(collection)
+    }
+  }
 }
 
 export type { Database, Collection, DBDoc, FindOpts, SortSpec }

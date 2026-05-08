@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { useWorkspaceStore } from '~/stores/workspace'
 import { stopSync } from '~/services/sync'
 import { closeWorkspaceDB, listLoadedWorkspaceIds } from '~/services/db'
-import { clearActiveId, clearMetaDBCache } from '~/services/workspaces'
+import { clearActiveId, clearMetaDBCache, closeMetaDB, setCachedUserId, clearCachedUserId } from '~/services/workspaces'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<{ id: string; email: string; name: string | null } | null>(null)
@@ -25,6 +25,7 @@ export const useAuthStore = defineStore('auth', () => {
       })
 
       user.value = response as { id: string; email: string; name: string | null }
+      setCachedUserId(user.value.id)
       return response
     } catch (error) {
       logout()
@@ -44,6 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = response.user
       token.value = response.token
       localStorage.setItem('token', response.token)
+      setCachedUserId(response.user.id)
 
       return response
     } catch (error: any) {
@@ -65,6 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = response.user
       token.value = response.token
       localStorage.setItem('token', response.token)
+      setCachedUserId(response.user.id)
 
       return response
     } catch (error: any) {
@@ -86,8 +89,9 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     token.value = null
     localStorage.removeItem('token')
+    clearCachedUserId()
     clearActiveId()
-    clearMetaDBCache()
+    await closeMetaDB()
     workspaceStore.currentId = ''
     workspaceStore.list = []
   }
@@ -96,7 +100,11 @@ export const useAuthStore = defineStore('auth', () => {
     const storedToken = localStorage.getItem('token')
     if (storedToken) {
       token.value = storedToken
-      await fetchUser()
+      const userData = await fetchUser()
+      if (!userData) {
+        // fetchUser failed and called logout; ensure clean state
+        clearCachedUserId()
+      }
     }
   }
 

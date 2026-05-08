@@ -1,5 +1,5 @@
 import type { ImportRule, ImportRuleFormData, CsvParsedRow, ImportSource, ImportRuleMatchField, ImportRuleMatchMode, BillType, BillCategory, Account } from '~/types/bill'
-import { getDB, generateId, now } from '~/services/db'
+import { getDB, generateId, now, onCollectionChange } from '~/services/db'
 
 export interface ApplyRulesResult {
   counterpartyRule?: ImportRule
@@ -22,6 +22,29 @@ export interface ExportedImportRule {
 }
 
 let _store: ImportRulesStore | null = null
+let _unsub: (() => void) | null = null
+
+function startWatchingImportRules() {
+  if (_unsub) return
+  _unsub = onCollectionChange('importRules', () => {
+    if (_store) _store.loadImportRules()
+  })
+}
+
+function stopWatchingImportRules() {
+  if (_unsub) {
+    _unsub()
+    _unsub = null
+  }
+}
+
+if (import.meta.client) {
+  window.addEventListener('workspace:changed', () => {
+    stopWatchingImportRules()
+    startWatchingImportRules()
+    if (_store) _store.loadImportRules()
+  })
+}
 
 interface ImportRulesStore {
   rules: Ref<ImportRule[]>
@@ -347,5 +370,6 @@ export function useImportRules(): ImportRulesStore {
   if (!_store) {
     _store = createStore()
   }
+  startWatchingImportRules()
   return _store
 }

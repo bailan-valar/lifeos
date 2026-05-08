@@ -1,5 +1,6 @@
 import type { Note } from '~/types/block'
-import { getDB } from '~/services/db'
+import { getDB, onCollectionChange } from '~/services/db'
+import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 export interface NoteTreeNode extends Note {
   children: NoteTreeNode[]
@@ -10,6 +11,8 @@ export function useNotes() {
   const notes = ref<Note[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  let unsubscribe: (() => void) | null = null
 
   async function loadNotes() {
     loading.value = true
@@ -26,6 +29,25 @@ export function useNotes() {
     } finally {
       loading.value = false
     }
+  }
+
+  function startWatching() {
+    if (unsubscribe) return
+    unsubscribe = onCollectionChange('notes', () => {
+      loadNotes()
+    })
+  }
+
+  function stopWatching() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
+
+  if (getCurrentInstance()) {
+    onMounted(startWatching)
+    onUnmounted(stopWatching)
   }
 
   function buildNoteTree(parentId: string = '', level: number = 0): NoteTreeNode[] {
@@ -74,6 +96,8 @@ export function useNotes() {
     noteOptions,
     loadNotes,
     buildNoteTree,
-    getDescendantNoteIds
+    getDescendantNoteIds,
+    startWatching,
+    stopWatching
   }
 }

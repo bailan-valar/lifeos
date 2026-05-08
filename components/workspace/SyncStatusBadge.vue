@@ -18,7 +18,7 @@ const label = computed(() => {
   switch (props.status.state) {
     case 'active': return '同步中'
     case 'idle': return '已同步'
-    case 'paused': return '暂停'
+    case 'paused': return '已同步'
     case 'error': return '错误'
     case 'disabled':
     default: return '未配置'
@@ -32,7 +32,10 @@ const tooltip = computed(() => {
       return props.status.lastChangeAt
         ? `已同步 · 最近变更 ${new Date(props.status.lastChangeAt).toLocaleTimeString()}`
         : '已同步'
-    case 'paused': return '同步暂停中,稍后继续'
+    case 'paused':
+      return props.status.lastChangeAt
+        ? `已同步 · 最近变更 ${new Date(props.status.lastChangeAt).toLocaleTimeString()}`
+        : '同步就绪，实时监听变更中'
     case 'error': return props.status.lastError || '同步出错'
     case 'disabled':
     default: return '未配置 CouchDB 同步'
@@ -68,7 +71,7 @@ const tooltip = computed(() => {
 }
 
 .state-paused .dot {
-  background: rgba(120, 120, 128, 0.5);
+  background: rgb(52, 199, 89);
 }
 
 .state-error .dot {

@@ -1,5 +1,6 @@
 import type { BillCategory, CategoryFormData, CategoryTreeNode, CategoryType } from '~/types/bill'
-import { getDB, generateId, now } from '~/services/db'
+import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 export interface ExportedCategory {
   name: string
@@ -36,6 +37,8 @@ function createStore() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  let unsubscribe: (() => void) | null = null
+
   async function loadCategories() {
     loading.value = true
     error.value = null
@@ -45,10 +48,10 @@ function createStore() {
         sort: [{ order: 'asc' }]
       }).exec()
       const list = result.map((doc: any) => doc.toJSON()) as BillCategory[]
-      const needsFix = list.filter(c => c.icon && INVALID_ICON_MAP[c.icon])
+      const needsFix = list.filter(c => !!c.icon && INVALID_ICON_MAP[c.icon as string])
       if (needsFix.length > 0) {
         for (const c of needsFix) {
-          c.icon = INVALID_ICON_MAP[c.icon]
+          c.icon = INVALID_ICON_MAP[c.icon as string]
           try {
             const doc = await db.billCategories.findOne(c.id).exec()
             if (doc) await doc.patch({ icon: c.icon, updatedAt: now() })
@@ -64,6 +67,25 @@ function createStore() {
     } finally {
       loading.value = false
     }
+  }
+
+  function startWatching() {
+    if (unsubscribe) return
+    unsubscribe = onCollectionChange('billCategories', () => {
+      loadCategories()
+    })
+  }
+
+  function stopWatching() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
+
+  if (getCurrentInstance()) {
+    onMounted(startWatching)
+    onUnmounted(stopWatching)
   }
 
   async function createCategory(data: CategoryFormData): Promise<BillCategory> {
@@ -428,7 +450,9 @@ function createStore() {
     resetCategories,
     syncDefaultCategories,
     exportCategories,
-    importCategories
+    importCategories,
+    startWatching,
+    stopWatching
   }
 }
 

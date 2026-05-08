@@ -1,5 +1,6 @@
 import type { Account, AccountFormData } from '~/types/bill'
-import { getDB, generateId, now } from '~/services/db'
+import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 function clampDay(d: number | undefined): number | undefined {
   if (typeof d !== 'number' || isNaN(d)) return undefined
@@ -25,6 +26,8 @@ export function useAccounts() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  let unsubscribe: (() => void) | null = null
+
   async function loadAccounts() {
     loading.value = true
     error.value = null
@@ -40,6 +43,25 @@ export function useAccounts() {
     } finally {
       loading.value = false
     }
+  }
+
+  function startWatching() {
+    if (unsubscribe) return
+    unsubscribe = onCollectionChange('accounts', () => {
+      loadAccounts()
+    })
+  }
+
+  function stopWatching() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
+
+  if (getCurrentInstance()) {
+    onMounted(startWatching)
+    onUnmounted(stopWatching)
   }
 
   async function createAccount(data: AccountFormData): Promise<Account> {
@@ -161,6 +183,8 @@ export function useAccounts() {
     createAccount,
     updateAccount,
     deleteAccount,
-    updateBalance
+    updateBalance,
+    startWatching,
+    stopWatching
   }
 }

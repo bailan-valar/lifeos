@@ -71,8 +71,9 @@ LifeOS 是一款**个人生活管理系统**，定位为"生活操作系统"（L
 │   ├── auth.ts            # JWT 签发与校验
 │   └── db.ts              # PrismaClient 单例
 ├── services/              # 核心客户端服务
-│   ├── db.ts              # PouchDB 封装（RxDB 风格 API）
-│   ├── sync.ts            # CouchDB 双向实时同步
+│   ├── db.ts              # PouchDB 封装（RxDB 风格 API，单数据库架构）
+│   ├── migration.ts       # 旧多数据库格式 → 单数据库格式迁移
+│   ├── sync.ts            # CouchDB 双向实时同步（单 sync handle）
 │   ├── workspaces.ts      # 工作空间本地/远端 CRUD
 │   ├── ModuleRegistry.ts  # 模块注册表
 │   └── csvImport.ts       # CSV 导入解析逻辑
@@ -133,9 +134,15 @@ pm2 start ecosystem.config.cjs
 - `db.<collection>.insert(data)` / `db.<collection>.upsert(data)`
 - `doc.toJSON()` / `doc.get(field)` / `doc.patch(partial)` / `doc.update({$set})` / `doc.remove()`
 
-### 集合与索引
+### 单数据库架构
 
-所有集合在 `services/db.ts` 的 `COLLECTION_INDEXES` 中声明，每个集合是一个独立的 PouchDB 实例，命名前缀为 `lifeos-<workspaceId>-<collection>`。
+**每个工作空间只创建一个 PouchDB 实例**，数据库名为 `lifeos-<workspaceId>`。所有集合的文档存储在同一个数据库中，通过 `_id` 前缀和 `collection` 字段区分集合类型。
+
+- 文档 `_id` 格式：`{collection}/{businessId}`（例：`blocks/1736abc`、`notes/1736def`）
+- 每个文档附带 `collection` 字段，值为集合名（例：`"blocks"`），用于 Mango 查询的集合级过滤
+- `toJSON()` 会自动剥离 `_id`、`_rev`、`collection`，只暴露业务字段和 `id`
+
+集合和索引在 `services/db.ts` 的 `COLLECTION_INDEXES` 中声明。Mango 索引以 `collection` 为首字段，确保按集合过滤后可利用后续字段排序。
 
 已声明的集合包括：`blocks`、`notes`、`folders`、`tags`、`noteTags`、`blockLinks`、`classes`、`classFields`、`noteClassBindings`、`module_config`、`module_data`、`goals`、`accounts`、`billCategories`、`bills`、`budgets`、`statements`、`importRules`、`importRecords`。
 
@@ -146,21 +153,30 @@ pm2 start ecosystem.config.cjs
 
 ### 文档字段约定
 
-- `id`（业务字段）会被 wrapper 同步到 PouchDB 的 `_id`；不要手写 `_id`
+- `id`（业务字段）会被 wrapper 映射到 PouchDB 的 `_id`（格式：`{collection}/{id}`）；不要手写 `_id`
 - `_rev` 由 PouchDB 内部维护，`toJSON()` 已剥离；不要在业务对象里出现
+- `collection` 为内部字段，由 wrapper 自动管理；业务代码不要读取或写入
 - 业务侧可保留 `version` 字段作乐观锁计数，与 PouchDB `_rev` 互不冲突
 - 所有同步相关的文档通常带 `isSynced: boolean` 字段
 
+### 数据迁移
+
+- `services/migration.ts` 负责从旧的「每集合一个数据库」格式迁移到新的单数据库格式
+- 迁移是幂等的，通过 per-workspace localStorage 标志位控制
+- `services/db.ts` 的 `initDB()` 在初始化前自动调用迁移，无需手动触发
+- 迁移完成后旧数据库会被销毁
+
 ### 多工作空间隔离
 
-- 每个工作空间用 UUID v4 作为 `workspaceId`，所有业务数据按 `lifeos-<workspaceId>-<collection>` 前缀写入 IndexedDB
-- `services/workspaces.ts` 提供工作空间 CRUD（写入 `lifeos-meta-workspaces`）
+- 每个工作空间用 UUID v4 作为 `workspaceId`，对应一个独立的 PouchDB 数据库 `lifeos-<workspaceId>`
+- `services/workspaces.ts` 提供工作空间 CRUD（写入 `lifeos-meta-workspaces-{userId}`）
 - `stores/workspace.ts`（Pinia）协调切换：`switchTo(id)` 顺序为 `stopSync → closeWorkspaceDB → setActiveId → initDB → startSync`
 - `app.vue` 给 `<NuxtPage>` 绑定 `:key="workspaceStore.currentId"`，切换空间时强制重渲染
 
 ### 远端 CouchDB 同步
 
-- `services/sync.ts` 封装 PouchDB 原生 `db.sync(remote, { live: true, retry: true })`
+- `services/sync.ts` 封装 PouchDB 原生 `db.sync(remote, { live: true, retry: true })`，每个工作空间只需一个 sync handle
+- 远端数据库名：`<remotePrefix><workspaceId>`（例：`lifeos-abc123`）
 - 冲突策略沿用 PouchDB 默认的 last-write-wins，不做应用层合并
 - 工作空间未配置 `remoteUrl` 时同步状态为 `disabled`，业务读写完全本地
 
@@ -311,7 +327,7 @@ npm run dev
 3. **本地 Token**：登录后 JWT 存入 `localStorage`，所有需要认证的 API 请求通过 `Authorization: Bearer <token>` 头部发送
 4. **CouchDB 凭据**：工作空间的 CouchDB 凭据（用户名/密码）以明文形式存储在本地 PouchDB（`lifeos-meta-workspaces`）和客户端内存中，**不做加密处理**
 5. **服务端权限**：`server/api/workspaces/*` 路由校验 JWT；`server/api/auth/*` 为公开路由
-6. **数据隔离**：工作空间通过不同的 IndexedDB 数据库前缀实现客户端数据隔离，但同一浏览器内所有工作空间数据均可被访问
+6. **数据隔离**：工作空间通过不同的 IndexedDB 数据库（`lifeos-{workspaceId}`）实现客户端数据隔离，但同一浏览器内所有工作空间数据均可被访问
 
 ---
 
@@ -321,7 +337,7 @@ npm run dev
 |------|------|
 | 看技术栈和依赖 | `package.json`、`nuxt.config.ts` |
 | 看数据模型 | `prisma/schema.prisma`、`types/block.ts`、`types/bill.ts` |
-| 看本地数据库 API | `services/db.ts` |
+| 看本地数据库 API | `services/db.ts`、`services/migration.ts` |
 | 看同步逻辑 | `services/sync.ts` |
 | 看工作空间管理 | `services/workspaces.ts`、`stores/workspace.ts` |
 | 看认证逻辑 | `stores/auth.ts`、`server/utils/auth.ts` |

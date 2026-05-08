@@ -1,18 +1,49 @@
 import type { Class, ClassField, NoteClassBinding, ClassFieldType } from '~/types/block'
-import { getDB, generateId, now } from '~/services/db'
+import { getDB, generateId, now, onCollectionChange } from '~/services/db'
 
 const classes = ref<Class[]>([])
 const classFields = ref<ClassField[]>([])
 const noteBindings = ref<NoteClassBinding[]>([])
 export const lastCreatedClassId = ref<string | null>(null)
 
-// 工作空间切换时清空全局状态
+let unsubClasses: (() => void) | null = null
+let unsubFields: (() => void) | null = null
+let unsubBindings: (() => void) | null = null
+
+function startWatchingNoteClasses() {
+  if (unsubClasses) unsubClasses()
+  if (unsubFields) unsubFields()
+  if (unsubBindings) unsubBindings()
+
+  unsubClasses = onCollectionChange('classes', loadClasses)
+  unsubFields = onCollectionChange('classFields', loadAllFields)
+  unsubBindings = onCollectionChange('noteClassBindings', loadBindings)
+}
+
+function stopWatchingNoteClasses() {
+  if (unsubClasses) { unsubClasses(); unsubClasses = null }
+  if (unsubFields) { unsubFields(); unsubFields = null }
+  if (unsubBindings) { unsubBindings(); unsubBindings = null }
+}
+
+async function loadAllFields() {
+  const db = await getDB()
+  const result = await db.classFields.find({ sort: [{ order: 'asc' }] }).exec()
+  classFields.value = result.map((doc: any) => doc.toJSON())
+}
+
+// 工作空间切换时清空全局状态并重新订阅
 if (import.meta.client) {
   window.addEventListener('workspace:changed', () => {
     classes.value = []
     classFields.value = []
     noteBindings.value = []
     lastCreatedClassId.value = null
+    stopWatchingNoteClasses()
+    startWatchingNoteClasses()
+    loadClasses()
+    loadBindings()
+    loadAllFields()
   })
 }
 
@@ -213,6 +244,7 @@ export async function getClassForNote(noteId: string): Promise<{
 }
 
 export function useNoteClasses() {
+  startWatchingNoteClasses()
   return {
     classes,
     classFields,

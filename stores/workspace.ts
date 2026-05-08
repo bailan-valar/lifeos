@@ -21,6 +21,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const list = ref<Workspace[]>([])
   const currentId = ref<string>('')
   const switching = ref(false)
+  let switchPromise: Promise<void> | null = null
 
   const current = computed<Workspace | null>(
     () => list.value.find((w) => w.id === currentId.value) || null
@@ -50,9 +51,19 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     if (!list.value.some((w) => w.id === id)) {
       throw new Error(`工作空间不存在: ${id}`)
     }
+    // 等待当前正在进行的切换完成，防止竞态条件
+    if (switchPromise) {
+      await switchPromise
+    }
+
+    let resolveLock!: () => void
+    switchPromise = new Promise<void>((resolve) => {
+      resolveLock = resolve
+    })
+
     switching.value = true
+    const previousId = currentId.value
     try {
-      const previousId = currentId.value
       if (previousId) {
         await stopSync(previousId)
         await closeWorkspaceDB(previousId)
@@ -69,9 +80,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       }
 
       await initDB(id)
+      console.log('[workspace] switchTo -> calling startSync for', id)
       await startSync(id)
     } finally {
       switching.value = false
+      resolveLock()
+      switchPromise = null
     }
   }
 
@@ -86,6 +100,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     await reload()
     if (id === currentId.value) {
       await stopSync(id)
+      console.log('[workspace] update -> calling startSync for', id)
       await startSync(id)
     }
     return ws

@@ -1,5 +1,6 @@
 import type { Bill, Account, Statement, StatementFormData } from '~/types/bill'
-import { getDB, generateId, now } from '~/services/db'
+import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 function pad(n: number): string {
   return String(n).padStart(2, '0')
@@ -47,7 +48,11 @@ export function useStatements() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  let unsubscribe: (() => void) | null = null
+  let lastAccountId: string | undefined = undefined
+
   async function loadStatements(accountId?: string) {
+    lastAccountId = accountId
     loading.value = true
     error.value = null
     try {
@@ -64,6 +69,25 @@ export function useStatements() {
     } finally {
       loading.value = false
     }
+  }
+
+  function startWatching() {
+    if (unsubscribe) return
+    unsubscribe = onCollectionChange('statements', () => {
+      loadStatements(lastAccountId)
+    })
+  }
+
+  function stopWatching() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
+
+  if (getCurrentInstance()) {
+    onMounted(startWatching)
+    onUnmounted(stopWatching)
   }
 
   async function createStatement(
@@ -153,6 +177,8 @@ export function useStatements() {
     createStatement,
     updateStatement,
     deleteStatement,
-    generateForPeriod
+    generateForPeriod,
+    startWatching,
+    stopWatching
   }
 }

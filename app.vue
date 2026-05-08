@@ -36,6 +36,8 @@ import ClassManager from '~/components/class/ClassManager.vue'
 import WorkspaceSwitcher from '~/components/workspace/WorkspaceSwitcher.vue'
 import WorkspaceOnboarding from '~/components/workspace/WorkspaceOnboarding.vue'
 import { useWorkspaceStore } from '~/stores/workspace'
+import { stopSync } from '~/services/sync'
+import { listLoadedWorkspaceIds } from '~/services/db'
 import type { RouteLocationNormalized } from 'vue-router'
 
 const route = useRoute()
@@ -88,6 +90,22 @@ const isAuthPage = computed(() => route.path === '/login' || route.path === '/si
 function onWorkspaceCreated() {
   // WorkspaceOnboarding 内部已调用 workspaceStore.reload() + switchTo()
 }
+
+function onBeforeUnload() {
+  for (const wsId of listLoadedWorkspaceIds()) {
+    stopSync(wsId)
+  }
+}
+
+if (import.meta.client) {
+  window.addEventListener('beforeunload', onBeforeUnload)
+}
+
+onBeforeUnmount(() => {
+  if (import.meta.client) {
+    window.removeEventListener('beforeunload', onBeforeUnload)
+  }
+})
 
 useHead({
   htmlAttrs: {
