@@ -165,7 +165,7 @@ export async function startSync(workspaceId: string, override?: { remoteUrl?: st
   for (const collection of COLLECTION_NAMES) {
     const localPdb = await getRawPouchDB(workspaceId, collection)
     if (!localPdb) continue
-    const remoteDbName = `${remotePrefix}${collection}`.toLowerCase()
+    const remoteDbName = `${remotePrefix}${workspaceId}-${collection}`.toLowerCase()
     const remoteFullUrl = buildRemoteUrl(remoteUrl, remoteDbName)
     try {
       const remotePdb = new PouchDB(remoteFullUrl, remoteOpts)

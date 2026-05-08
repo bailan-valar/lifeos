@@ -67,7 +67,7 @@ export function useStatements() {
   }
 
   async function createStatement(
-    data: Omit<Statement, 'id' | 'createdAt' | 'updatedAt' | 'isSynced'>
+    data: Omit<Statement, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<Statement> {
     const db = await getDB()
     const stmt: Statement = {
@@ -75,7 +75,6 @@ export function useStatements() {
       id: generateId(),
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false
     }
     await db.statements.insert({ ...stmt })
     statements.value.push(stmt)

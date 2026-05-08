@@ -201,7 +201,6 @@ export function useBills() {
       settledAmount: 0,
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false
     }
     await db.bills.insert({ ...bill })
     await applyBalanceChange(bill, false)
@@ -262,7 +261,6 @@ export function useBills() {
           counterpartyRaw: item.counterparty,
           createdAt: now(),
           updatedAt: now(),
-          isSynced: false
         }
         await db.bills.insert({ ...bill })
         await applyBalanceChange(bill, false)

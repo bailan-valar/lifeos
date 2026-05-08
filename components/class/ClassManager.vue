@@ -210,7 +210,6 @@ import { useZIndexOnOpen } from '~/composables/useZIndex'
 
 interface Props {
   visible: boolean
-  userId: string
 }
 
 const props = defineProps<Props>()
@@ -290,12 +289,12 @@ const presetColors = [
 ]
 
 onMounted(() => {
-  loadClasses(props.userId)
+  loadClasses()
 })
 
 watch(() => props.visible, (v) => {
   if (v) {
-    loadClasses(props.userId)
+    loadClasses()
   } else {
     editingClass.value = null
     isCreating.value = false
@@ -308,7 +307,6 @@ const startCreate = () => {
   isCreating.value = true
   editingClass.value = {
     id: '',
-    userId: props.userId,
     name: '',
     icon: 'solar:document-text-linear',
     color: '#007AFF',
@@ -316,7 +314,6 @@ const startCreate = () => {
     order: 0,
     createdAt: '',
     updatedAt: '',
-    isSynced: false
   }
   form.name = ''
   form.icon = 'solar:document-text-linear'
@@ -358,7 +355,6 @@ const saveClass = async () => {
 
   if (isCreating.value) {
     const cls = await createClass({
-      userId: props.userId,
       name: form.name.trim(),
       icon: form.icon,
       color: form.color,
@@ -396,7 +392,7 @@ const saveClass = async () => {
   isCreating.value = false
   showAddField.value = false
   editingFields.value = []
-  await loadClasses(props.userId)
+  await loadClasses()
 
   if (createdClassId) {
     emit('created', createdClassId)
@@ -409,7 +405,7 @@ const { confirm } = useConfirm()
 const confirmDeleteClass = async (cls: Class) => {
   if (!await confirm(`确定删除类「${cls.name}」？关联的笔记属性也会被移除。`)) return
   await deleteClass(cls.id)
-  await loadClasses(props.userId)
+  await loadClasses()
 }
 
 const addField = () => {
@@ -428,7 +424,6 @@ const addField = () => {
     order: editingFields.value.length,
     createdAt: '',
     updatedAt: '',
-    isSynced: false,
     tempId: generateId()
   })
   cancelAddField()

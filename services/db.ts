@@ -30,32 +30,31 @@ interface RawPouchDoc {
 }
 
 const COLLECTION_INDEXES: Record<string, string[][]> = {
-  blocks: [['noteId'], ['noteId', 'order'], ['isSynced']],
-  notes: [['userId'], ['order'], ['createdAt'], ['updatedAt'], ['isSynced']],
-  folders: [['userId'], ['isSynced']],
-  tags: [['name'], ['isSynced']],
-  noteTags: [['noteId'], ['tagId'], ['noteId', 'tagId'], ['isSynced']],
-  blockLinks: [['sourceBlockId'], ['targetBlockId'], ['sourceBlockId', 'targetBlockId'], ['isSynced']],
-  classes: [['userId'], ['order'], ['isSynced']],
-  classFields: [['classId'], ['order'], ['isSynced']],
-  noteClassBindings: [['noteId'], ['classId'], ['noteId', 'classId'], ['order'], ['isSynced']],
-  module_config: [['noteId'], ['moduleId'], ['noteId', 'moduleId'], ['isSynced']],
-  module_data: [['noteId'], ['moduleId'], ['noteId', 'moduleId'], ['isSynced']],
-  goals: [['status'], ['priority'], ['type'], ['plannedEndAt'], ['createdAt'], ['isSynced']],
-  accounts: [['type'], ['subtype'], ['createdAt'], ['isSynced']],
-  billCategories: [['type'], ['parentId'], ['order'], ['isSynced']],
-  bills: [['noteId'], ['type'], ['date'], ['noteId', 'date'], ['status', 'date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['importBatchId'], ['isSynced']],
+  blocks: [['noteId'], ['noteId', 'order']],
+  notes: [['order'], ['createdAt'], ['updatedAt']],
+  folders: [],
+  tags: [['name']],
+  noteTags: [['noteId'], ['tagId'], ['noteId', 'tagId']],
+  blockLinks: [['sourceBlockId'], ['targetBlockId'], ['sourceBlockId', 'targetBlockId']],
+  classes: [['order']],
+  classFields: [['classId'], ['order']],
+  noteClassBindings: [['noteId'], ['classId'], ['noteId', 'classId'], ['order']],
+  module_config: [['noteId'], ['moduleId'], ['noteId', 'moduleId']],
+  module_data: [['noteId'], ['moduleId'], ['noteId', 'moduleId']],
+  goals: [['status'], ['priority'], ['type'], ['plannedEndAt'], ['createdAt']],
+  accounts: [['type'], ['subtype'], ['createdAt']],
+  billCategories: [['type'], ['parentId'], ['order']],
+  bills: [['noteId'], ['type'], ['date'], ['noteId', 'date'], ['status', 'date'], ['fromAccountId'], ['toAccountId'], ['categoryId'], ['importBatchId']],
   budgets: [
     ['noteId'],
     ['categoryId'],
     ['categoryId', 'effectiveFromYear', 'effectiveFromMonth'],
     ['cycleType'],
-    ['createdAt'],
-    ['isSynced']
+    ['createdAt']
   ],
-  statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status'], ['isSynced']],
-  importRules: [['source'], ['matchField'], ['matchMode'], ['priority'], ['enabled'], ['accountId'], ['isSynced']],
-  importRecords: [['noteId'], ['createdAt'], ['source'], ['status'], ['noteId', 'createdAt'], ['isSynced']]
+  statements: [['accountId'], ['year'], ['month'], ['year', 'month'], ['accountId', 'year', 'month'], ['status']],
+  importRules: [['source'], ['matchField'], ['matchMode'], ['priority'], ['enabled'], ['accountId']],
+  importRecords: [['noteId'], ['createdAt'], ['source'], ['status'], ['noteId', 'createdAt']]
 }
 
 export const COLLECTION_NAMES = Object.keys(COLLECTION_INDEXES)

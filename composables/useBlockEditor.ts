@@ -53,7 +53,6 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
       createdAt: now(),
       updatedAt: now(),
       version: 1,
-      isSynced: false
     }
 
     await db.blocks.insert(newBlock)
@@ -166,7 +165,6 @@ export function useBlockEditor(noteId: MaybeRef<string>) {
       createdAt: now(),
       updatedAt: now(),
       version: 1,
-      isSynced: false
     }
 
     await db.blocks.insert(cloned)

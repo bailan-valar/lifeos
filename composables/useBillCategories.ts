@@ -79,7 +79,6 @@ function createStore() {
       order: siblings.length,
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false
     }
     await db.billCategories.insert({ ...category })
     categories.value.push(category)
@@ -134,7 +133,6 @@ function createStore() {
           order: i,
           createdAt: ts,
           updatedAt: ts,
-          isSynced: false
         }
         toInsert.push(cat)
         if (item.children?.length) {
@@ -219,7 +217,6 @@ function createStore() {
           order: i,
           createdAt: ts,
           updatedAt: ts,
-          isSynced: false,
         }
         toInsert.push(cat)
         created++
@@ -291,7 +288,6 @@ function createStore() {
           order: i,
           createdAt: ts,
           updatedAt: ts,
-          isSynced: false,
         }
         toInsert.push(cat)
 

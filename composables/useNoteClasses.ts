@@ -6,10 +6,19 @@ const classFields = ref<ClassField[]>([])
 const noteBindings = ref<NoteClassBinding[]>([])
 export const lastCreatedClassId = ref<string | null>(null)
 
-export async function loadClasses(userId: string): Promise<Class[]> {
+// 工作空间切换时清空全局状态
+if (import.meta.client) {
+  window.addEventListener('workspace:changed', () => {
+    classes.value = []
+    classFields.value = []
+    noteBindings.value = []
+    lastCreatedClassId.value = null
+  })
+}
+
+export async function loadClasses(): Promise<Class[]> {
   const db = await getDB()
   const result = await db.classes.find({
-    selector: { userId },
     sort: [{ order: 'asc' }]
   }).exec()
   classes.value = result.map((doc: any) => doc.toJSON())
@@ -23,12 +32,11 @@ export async function loadBindings(): Promise<NoteClassBinding[]> {
   return noteBindings.value
 }
 
-export async function createClass(data: Partial<Class> & { userId: string; name: string }): Promise<Class> {
+export async function createClass(data: Partial<Class> & { name: string }): Promise<Class> {
   const db = await getDB()
-  const existing = classes.value.filter(c => c.userId === data.userId)
+  const existing = classes.value
   const newClass: Class = {
     id: generateId(),
-    userId: data.userId,
     name: data.name,
     icon: data.icon || 'solar:document-text-linear',
     color: data.color || '#007AFF',
@@ -36,7 +44,6 @@ export async function createClass(data: Partial<Class> & { userId: string; name:
     order: data.order ?? existing.length,
     createdAt: now(),
     updatedAt: now(),
-    isSynced: false
   }
   await db.classes.insert({ ...newClass })
   classes.value.push(newClass)
@@ -103,7 +110,6 @@ export async function createField(
     order: data.order ?? existing.length,
     createdAt: now(),
     updatedAt: now(),
-    isSynced: false
   }
   await db.classFields.insert(newField)
   classFields.value.push(newField)
@@ -142,7 +148,6 @@ export async function bindClass(noteId: string, classId: string): Promise<NoteCl
     values: {},
     createdAt: now(),
     updatedAt: now(),
-    isSynced: false
   }
   await db.noteClassBindings.insert(binding)
   noteBindings.value = noteBindings.value.filter(b => b.noteId !== noteId)

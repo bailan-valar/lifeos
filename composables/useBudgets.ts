@@ -97,7 +97,6 @@ function createStore(): BudgetsStore {
       amount: data.amount,
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false
     }
     await db.budgets.insert({ ...budget })
     budgets.value.push(budget)

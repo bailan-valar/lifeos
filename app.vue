@@ -17,7 +17,7 @@
         </div>
       </div>
 
-      <ClassManager v-if="hasWorkspace" ref="classManagerRef" v-model:visible="classManagerVisible" user-id="default-user" @created="onClassCreated" />
+      <ClassManager v-if="hasWorkspace" ref="classManagerRef" v-model:visible="classManagerVisible" @created="onClassCreated" />
     </template>
 
     <NuxtPage v-else class="flex-1 min-w-0" />

@@ -5,17 +5,34 @@ import type { Workspace, WorkspaceFormData } from '~/types/workspace'
 
 PouchDB.plugin(PouchDBFind)
 
-const META_DB_NAME = 'lifeos-meta-workspaces'
 const ACTIVE_ID_KEY = 'lifeos:active-workspace-id'
 
-let metaDB: PouchDB.Database | null = null
+const metaDBs = new Map<string, PouchDB.Database>()
+
+function getMetaDBName(): string {
+  const token = getToken()
+  if (!token) return 'lifeos-meta-workspaces-guest'
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return `lifeos-meta-workspaces-${payload.userId || 'guest'}`
+  } catch {
+    return 'lifeos-meta-workspaces-guest'
+  }
+}
 
 function getMetaDB(): PouchDB.Database {
-  if (!metaDB) {
-    metaDB = new PouchDB(META_DB_NAME)
-    ;(metaDB as any).type = function () { return (this as any)._adapter || (this as any).adapter }
+  const name = getMetaDBName()
+  let db = metaDBs.get(name)
+  if (!db) {
+    db = new PouchDB(name)
+    ;(db as any).type = function () { return (this as any)._adapter || (this as any).adapter }
+    metaDBs.set(name, db)
   }
-  return metaDB
+  return db
+}
+
+export function clearMetaDBCache(): void {
+  metaDBs.clear()
 }
 
 function nowIso(): string {
@@ -52,6 +69,18 @@ async function listLocalWorkspaces(): Promise<Workspace[]> {
 
 async function syncRemoteToLocal(remoteList: any[]): Promise<void> {
   const db = getMetaDB()
+  const remoteIds = new Set(remoteList.map((r) => r.localId).filter(Boolean))
+
+  // 删除本地存在但服务端已移除的空间
+  const localResult = await db.allDocs({ include_docs: true })
+  for (const row of localResult.rows) {
+    const doc = row.doc as any
+    if (!doc || doc._id.startsWith('_')) continue
+    if (!remoteIds.has(doc._id)) {
+      await db.remove(doc._id, doc._rev)
+    }
+  }
+
   for (const remote of remoteList) {
     const localId = remote.localId
     if (!localId) continue

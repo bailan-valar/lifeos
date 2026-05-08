@@ -115,7 +115,6 @@ class ModuleRegistryImpl implements ModuleRegistry {
         enabled: true,
         createdAt: now(),
         updatedAt: now(),
-        isSynced: false
       })
     }
 
@@ -206,7 +205,6 @@ class ModuleRegistryImpl implements ModuleRegistry {
         createdAt: nowStr,
         updatedAt: nowStr,
         version: 1,
-        isSynced: false
       })
     }
 

@@ -51,7 +51,6 @@ export interface Account {
   categoryId?: string
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 /**
@@ -67,7 +66,6 @@ export interface BillCategory {
   order: number
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 /**
@@ -94,7 +92,6 @@ export interface Bill {
   counterpartyRaw?: string
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 /**
@@ -182,7 +179,6 @@ export interface BudgetEntry {
   amount: number
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 /**
@@ -219,7 +215,6 @@ export interface Statement {
   status: StatementStatus
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 /**
@@ -267,7 +262,6 @@ export interface ImportRule {
   enabled: boolean
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 /**
@@ -430,7 +424,6 @@ export interface ImportRecord {
   finishedAt: string
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 /**

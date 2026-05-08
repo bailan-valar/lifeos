@@ -57,7 +57,6 @@ export function useAccounts() {
       color: data.color || '',
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false,
       ...(isPersonal ? { subtype: data.subtype || 'cash' } : {}),
       ...(isCredit ? {
         creditLimit: typeof data.creditLimit === 'number' ? data.creditLimit : 0,

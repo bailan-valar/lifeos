@@ -15,6 +15,7 @@ import {
   destroyWorkspaceData
 } from '~/services/db'
 import { startSync, stopSync } from '~/services/sync'
+import { useRouteCache } from '~/composables/useRouteCache'
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   const list = ref<Workspace[]>([])
@@ -57,6 +58,16 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         await closeWorkspaceDB(previousId)
       }
       setCurrent(id)
+
+      // 重置路由缓存栈
+      const { resetStack } = useRouteCache()
+      resetStack()
+
+      // 广播空间切换事件，通知各业务模块清理状态
+      if (import.meta.client) {
+        window.dispatchEvent(new CustomEvent('workspace:changed', { detail: { from: previousId, to: id } }))
+      }
+
       await initDB(id)
       await startSync(id)
     } finally {

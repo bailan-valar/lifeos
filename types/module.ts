@@ -135,7 +135,6 @@ export interface ModuleData {
   createdAt: string
   updatedAt: string
   version: number
-  isSynced: boolean
 }
 
 /**
@@ -148,7 +147,6 @@ export interface ModuleConfigData {
   enabled: boolean
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 /**

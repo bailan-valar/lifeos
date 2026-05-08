@@ -94,7 +94,6 @@ import { useZIndexOnOpen } from '~/composables/useZIndex'
 interface Props {
   visible: boolean
   noteId: string
-  userId: string
 }
 
 const props = defineProps<Props>()
@@ -167,7 +166,7 @@ const editCurrentClass = () => {
 
 watch(() => props.visible, (v) => {
   if (v) {
-    loadClasses(props.userId)
+    loadClasses()
     loadBindings()
   }
 })

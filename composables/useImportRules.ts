@@ -87,7 +87,6 @@ function createStore(): ImportRulesStore {
       enabled: data.enabled,
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false
     }
     await db.importRules.insert({ ...rule })
     rules.value.push(rule)
@@ -319,7 +318,6 @@ function createStore(): ImportRulesStore {
         enabled: item.enabled,
         createdAt: now(),
         updatedAt: now(),
-        isSynced: false,
       }
       await db.importRules.insert({ ...rule })
       rules.value.push(rule)

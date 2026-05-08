@@ -2,8 +2,8 @@ import { ref, readonly } from 'vue'
 import { defineStore } from 'pinia'
 import { useWorkspaceStore } from '~/stores/workspace'
 import { stopSync } from '~/services/sync'
-import { closeWorkspaceDB } from '~/services/db'
-import { clearActiveId } from '~/services/workspaces'
+import { closeWorkspaceDB, listLoadedWorkspaceIds } from '~/services/db'
+import { clearActiveId, clearMetaDBCache } from '~/services/workspaces'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<{ id: string; email: string; name: string | null } | null>(null)
@@ -76,17 +76,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     const workspaceStore = useWorkspaceStore()
-    const currentId = workspaceStore.currentId
 
-    if (currentId) {
-      await stopSync(currentId)
-      await closeWorkspaceDB(currentId)
+    // 关闭所有已加载工作空间的数据库与同步
+    for (const wsId of listLoadedWorkspaceIds()) {
+      await stopSync(wsId)
+      await closeWorkspaceDB(wsId)
     }
 
     user.value = null
     token.value = null
     localStorage.removeItem('token')
     clearActiveId()
+    clearMetaDBCache()
     workspaceStore.currentId = ''
     workspaceStore.list = []
   }

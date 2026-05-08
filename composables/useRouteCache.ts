@@ -63,6 +63,13 @@ export function useRouteCache() {
     }
   }
 
+  /**
+   * 重置栈（工作空间切换时调用）
+   */
+  function resetStack() {
+    stack.value = []
+  }
+
   return {
     stack: readonly(stack),
     currentLevel,
@@ -72,5 +79,6 @@ export function useRouteCache() {
     pushOrPop,
     replaceTop,
     initStack,
+    resetStack,
   }
 }

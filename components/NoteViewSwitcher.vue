@@ -111,7 +111,6 @@ const saveModuleData = async (moduleId: 'todo' | 'billing', data: unknown) => {
       createdAt: nowStr,
       updatedAt: nowStr,
       version: 1,
-      isSynced: false
     })
   }
 }

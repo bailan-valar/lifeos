@@ -46,7 +46,7 @@
       </main>
     </div>
 
-    <ClassManager v-model:visible="classManagerVisible" :user-id="userId" />
+    <ClassManager v-model:visible="classManagerVisible" />
   </div>
 </template>
 
@@ -60,7 +60,6 @@ import { loadBindings } from '~/composables/useNoteClasses'
 
 const notes = ref<Note[]>([])
 const activeNoteId = ref<string | null>(null)
-const userId = ref('default-user')
 const sidebarCollapsed = ref(false)
 const classManagerVisible = ref(false)
 const route = useRoute()
@@ -79,10 +78,8 @@ onMounted(async () => {
 const loadNotes = async () => {
   const db = await getDB()
 
-  console.log('[Notes] Loading notes for userId:', userId.value)
   const result = await db.notes
     .find({
-      selector: { userId: userId.value },
       sort: [{ updatedAt: 'desc' }]
     })
     .exec()
@@ -108,7 +105,6 @@ const createNote = async () => {
   const rootSiblings = notes.value.filter(n => !n.parentId)
   const newNote: Note = {
     id: generateId(),
-    userId: userId.value,
     title: '新笔记',
     folderId: '',
     parentId: '',
@@ -116,7 +112,6 @@ const createNote = async () => {
     createdAt: now(),
     updatedAt: now(),
     version: 1,
-    isSynced: false
   }
 
   console.log('[Notes] New note object:', JSON.stringify(newNote, null, 2))
@@ -140,7 +135,6 @@ const createNote = async () => {
     createdAt: now(),
     updatedAt: now(),
     version: 1,
-    isSynced: false
   }
 
   console.log('[Notes] New block object:', JSON.stringify(newBlock, null, 2))
@@ -163,7 +157,6 @@ const createChildNote = async (parentId: string) => {
   const childSiblings = notes.value.filter(n => n.parentId === parentId)
   const newNote: Note = {
     id: generateId(),
-    userId: userId.value,
     title: '新笔记',
     folderId: '',
     parentId,
@@ -171,7 +164,6 @@ const createChildNote = async (parentId: string) => {
     createdAt: now(),
     updatedAt: now(),
     version: 1,
-    isSynced: false
   }
   await db.notes.insert(newNote)
 
@@ -184,7 +176,6 @@ const createChildNote = async (parentId: string) => {
     createdAt: now(),
     updatedAt: now(),
     version: 1,
-    isSynced: false
   }
   await db.blocks.insert(newBlock)
 

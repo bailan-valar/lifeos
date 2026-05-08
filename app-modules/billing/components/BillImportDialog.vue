@@ -242,7 +242,6 @@ async function onFileChange(event: Event) {
       finishedAt: '',
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false
     }
 
     await insertRecord(record)

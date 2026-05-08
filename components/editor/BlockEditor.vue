@@ -142,7 +142,6 @@
     <ClassDrawer
       v-model:visible="drawerVisible"
       :note-id="props.noteId"
-      user-id="default-user"
     />
   </div>
 </template>

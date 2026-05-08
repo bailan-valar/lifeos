@@ -88,7 +88,7 @@
 
     <div class="note-list-footer">
       <button class="class-manager-btn" @click="$emit('open-class-manager')" type="button" title="笔记类管理">
-        <Icon name="solar:folder-library-linear" />
+        <Icon name="solar:library-linear" />
         <span>笔记类管理</span>
       </button>
     </div>

@@ -216,7 +216,6 @@ interface Goal {
   noteIds: string[]
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 interface NoteItem {
@@ -435,7 +434,6 @@ const saveGoal = async () => {
       noteIds: payload.noteIds || [],
       createdAt: now(),
       updatedAt: now(),
-      isSynced: false
     }
     await db.goals.insert(newGoal)
   }

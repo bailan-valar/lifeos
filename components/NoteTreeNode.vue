@@ -50,7 +50,7 @@
         </div>
         <div class="note-meta">
           <span class="note-date">{{ formatDate(note.updatedAt) }}</span>
-          <span v-if="!note.isSynced" class="sync-indicator" title="未同步">
+          <span v-if="false" class="sync-indicator" title="未同步">
             <Icon name="solar:cloud-storage-linear" />
           </span>
         </div>
@@ -185,7 +185,7 @@ const updateMenuPosition = () => {
 const toggleMenu = async () => {
   menuOpen.value = !menuOpen.value
   if (menuOpen.value) {
-    await loadClasses(props.note.userId)
+    await loadClasses()
     nextTick(updateMenuPosition)
   }
 }

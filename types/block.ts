@@ -20,12 +20,10 @@ export interface Block {
   createdAt: string
   updatedAt: string
   version: number
-  isSynced: boolean
 }
 
 export interface Note {
   id: string
-  userId: string
   title: string
   folderId: string
   parentId: string // '' = root level; otherwise the id of the parent note
@@ -33,18 +31,15 @@ export interface Note {
   createdAt: string
   updatedAt: string
   version: number
-  isSynced: boolean
 }
 
 export interface Folder {
   id: string
-  userId: string
   name: string
   parentId: string // '' = root level
   order: number
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 export interface Tag {
@@ -52,7 +47,6 @@ export interface Tag {
   name: string
   color: string
   createdAt: string
-  isSynced: boolean
 }
 
 export interface NoteTag {
@@ -60,7 +54,6 @@ export interface NoteTag {
   noteId: string
   tagId: string
   createdAt: string
-  isSynced: boolean
 }
 
 export interface BlockLink {
@@ -68,14 +61,12 @@ export interface BlockLink {
   sourceBlockId: string
   targetBlockId: string
   createdAt: string
-  isSynced: boolean
 }
 
 export type ClassFieldType = 'text' | 'number' | 'date' | 'select' | 'multiSelect' | 'checkbox' | 'url' | 'email'
 
 export interface Class {
   id: string
-  userId: string
   name: string
   icon: string
   color: string
@@ -83,7 +74,6 @@ export interface Class {
   order: number
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 export interface ClassField {
@@ -96,7 +86,6 @@ export interface ClassField {
   order: number
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 export interface NoteClassBinding {
@@ -106,7 +95,6 @@ export interface NoteClassBinding {
   values: Record<string, any>
   createdAt: string
   updatedAt: string
-  isSynced: boolean
 }
 
 export interface BlockNoteSystem {
