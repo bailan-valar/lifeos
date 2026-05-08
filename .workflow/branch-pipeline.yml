@@ -71,6 +71,7 @@ stages:
             target: /gitee_go/deploy
             dependArtifact: BUILD_ARTIFACT
         script:
+          - chmod +x /gitee_go/deploy/lifeos-prod.tar.gz
           - tar zxvf /gitee_go/deploy/lifeos-prod.tar.gz -C /html/9999/life-os
           - chmod +x /html/9999/life-os/ecosystem.config.cjs
           - pm2 start /html/9999/rich-app/nuxt-rich-book/ecosystem.config.cjs --env prod
