@@ -233,6 +233,7 @@
           @edit="openAccountDialog"
           @delete="handleDeleteAccount"
           @view-statements="openStatementList"
+          @adjust-balance="openBalanceAdjustDialog"
         />
       </div>
     </div>
@@ -451,11 +452,22 @@
       @confirm="handleRuleConfirm"
       @cancel="ruleDialogVisible = false; editingRule = null"
     />
+
+    <BalanceAdjustDialog
+      v-if="balanceAdjustVisible"
+      :visible="balanceAdjustVisible"
+      :account="adjustingAccount || undefined"
+      :adjustments="balanceAdjustments"
+      @confirm="handleBalanceAdjustConfirm"
+      @cancel="balanceAdjustVisible = false; adjustingAccount = null"
+      @delete-record="handleDeleteBalanceAdjustment"
+    />
+
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, AccountCreatePayload, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord, AccountType, BillingCreators } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, AccountCreatePayload, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord, AccountType, BillingCreators, BalanceAdjustment } from '~/types/bill'
 import { provide } from 'vue'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
@@ -466,6 +478,7 @@ import { useStatements } from '~/composables/useStatements'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useConfirm } from '~/composables/useConfirm'
+import { createBalanceAdjustment, loadBalanceAdjustments, deleteBalanceAdjustment } from '~/composables/useBalanceAdjustments'
 import { dedupeKey } from '~/services/csvImport'
 import BillList from './components/BillList.vue'
 import BillTable from './components/BillTable.vue'
@@ -485,6 +498,7 @@ import BillBatchToolbar from './components/BillBatchToolbar.vue'
 import BillBatchEditDialog from './components/BillBatchEditDialog.vue'
 import ImportRuleDialog from './components/ImportRuleDialog.vue'
 import ImportRecordDetail from './components/ImportRecordDetail.vue'
+import BalanceAdjustDialog from './components/BalanceAdjustDialog.vue'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -630,6 +644,7 @@ const statementDialogVisible = ref(false)
 const statementListDialogVisible = ref(false)
 const importDialogVisible = ref(false)
 const ruleDialogVisible = ref(false)
+const balanceAdjustVisible = ref(false)
 
 const editingBill = ref<Bill | null>(null)
 const editingAccount = ref<Account | null>(null)
@@ -640,6 +655,8 @@ const editingBudget = ref<BudgetEntry | null>(null)
 const viewingAccount = ref<Account | null>(null)
 const editingStatement = ref<Statement | null>(null)
 const editingRule = ref<ImportRule | null>(null)
+const adjustingAccount = ref<Account | null>(null)
+const balanceAdjustments = ref<BalanceAdjustment[]>([])
 
 const billDialogRef = ref<InstanceType<typeof BillDialog> | null>(null)
 const budgetDialogRef = ref<InstanceType<typeof BudgetDialog> | null>(null)
@@ -772,6 +789,49 @@ function onBudgetCellEdit(categoryId: string, year: number, month: number, noteI
 function openStatementList(account: Account) {
   viewingAccount.value = account
   statementListDialogVisible.value = true
+}
+
+async function openBalanceAdjustDialog(account: Account) {
+  adjustingAccount.value = account
+  await loadBalanceAdjustHistory(account.id)
+  balanceAdjustVisible.value = true
+}
+
+async function handleBalanceAdjustConfirm(data: { date: string; balance: number; note: string }) {
+  if (!adjustingAccount.value) return
+  try {
+    await createBalanceAdjustment(
+      adjustingAccount.value.id,
+      data.date,
+      data.balance,
+      data.note
+    )
+    showSuccess('余额已调整')
+    await loadBalanceAdjustHistory(adjustingAccount.value.id)
+    balanceAdjustVisible.value = false
+    adjustingAccount.value = null
+  } catch (e) {
+    handleError(e instanceof Error ? e : new Error(String(e)))
+  }
+}
+
+async function loadBalanceAdjustHistory(accountId: string) {
+  try {
+    balanceAdjustments.value = await loadBalanceAdjustments(accountId)
+  } catch (e) {
+    console.error('Failed to load balance adjustments:', e)
+  }
+}
+
+async function handleDeleteBalanceAdjustment(id: string) {
+  if (!await confirm('确定删除此调整记录？')) return
+  try {
+    await deleteBalanceAdjustment(id)
+    balanceAdjustments.value = balanceAdjustments.value.filter(a => a.id !== id)
+    showSuccess('记录已删除')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
 }
 
 function openStatementEdit(stmt: Statement) {

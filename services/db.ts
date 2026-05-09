@@ -112,7 +112,8 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   budgets: [['createdAt']],
   statements: [['year', 'month'], ['accountId', 'year', 'month']],
   importRules: [['priority']],
-  importRecords: [['createdAt'], ['noteId', 'createdAt']]
+  importRecords: [['createdAt'], ['noteId', 'createdAt']],
+  balanceAdjustments: [['accountId', 'date']]
 }
 
 export const COLLECTION_NAMES = Object.keys(COLLECTION_INDEXES)

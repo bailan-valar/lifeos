@@ -9,6 +9,7 @@ import type {
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
 import { dedupeKey } from '~/services/csvImport'
 import { useImportRecords } from '~/composables/useImportRecords'
+import { maybeRecalculateBalance, recalculateBalance } from '~/composables/useBalanceAdjustments'
 import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 async function updateAccountBalance(id: string, delta: number) {
@@ -259,6 +260,8 @@ export function useBills() {
     }
     await db.bills.insert({ ...bill })
     await applyBalanceChange(bill, false)
+    await maybeRecalculateBalance(bill.fromAccountId, bill.date)
+    await maybeRecalculateBalance(bill.toAccountId, bill.date)
     bills.value.push(bill)
     return bill
   }
@@ -274,6 +277,7 @@ export function useBills() {
     let failedCount = 0
 
     const items: ImportRecordItem[] = []
+    const affectedAccountIds = new Set<string>()
 
     for (const item of record.items) {
       const fingerprint = item.fingerprint || dedupeKey(item.date, item.amount, item.counterparty)
@@ -319,6 +323,8 @@ export function useBills() {
         }
         await db.bills.insert({ ...bill })
         await applyBalanceChange(bill, false)
+        if (bill.fromAccountId) affectedAccountIds.add(bill.fromAccountId)
+        if (bill.toAccountId) affectedAccountIds.add(bill.toAccountId)
         bills.value.push(bill)
         billIds.push(billId)
         successCount++
@@ -355,6 +361,9 @@ export function useBills() {
     }
 
     await useImportRecords().updateRecord(record.id, patch)
+    for (const accountId of affectedAccountIds) {
+      await recalculateBalance(accountId)
+    }
     return { ...record, ...patch }
   }
 
@@ -374,6 +383,8 @@ export function useBills() {
 
     const newBill = { ...oldBill, ...patch } as Bill
     await applyBalanceChange(newBill, false)
+    await maybeRecalculateBalance(newBill.fromAccountId, newBill.date)
+    await maybeRecalculateBalance(newBill.toAccountId, newBill.date)
 
     const idx = bills.value.findIndex(b => b.id === id)
     if (idx !== -1) {
@@ -417,6 +428,17 @@ export function useBills() {
       }
     }
 
+    const affectedAccountIds = new Set<string>()
+    for (const id of ids) {
+      const bill = bills.value.find(b => b.id === id)
+      if (bill) {
+        if (bill.fromAccountId) affectedAccountIds.add(bill.fromAccountId)
+        if (bill.toAccountId) affectedAccountIds.add(bill.toAccountId)
+      }
+    }
+    for (const accountId of affectedAccountIds) {
+      await recalculateBalance(accountId)
+    }
     return { updatedCount, failedIds }
   }
 
@@ -428,6 +450,8 @@ export function useBills() {
 
     await applyBalanceChange(bill, true)
     await doc.remove()
+    await maybeRecalculateBalance(bill.fromAccountId, bill.date)
+    await maybeRecalculateBalance(bill.toAccountId, bill.date)
     bills.value = bills.value.filter(b => b.id !== id)
   }
 
@@ -448,6 +472,15 @@ export function useBills() {
 
     await Promise.all(validBills.map(bill => applyBalanceChange(bill, true)))
     await Promise.all(docs.map((doc: any) => doc.remove()))
+
+    const affectedAccountIds = new Set<string>()
+    for (const bill of validBills) {
+      if (bill.fromAccountId) affectedAccountIds.add(bill.fromAccountId)
+      if (bill.toAccountId) affectedAccountIds.add(bill.toAccountId)
+    }
+    for (const accountId of affectedAccountIds) {
+      await recalculateBalance(accountId)
+    }
 
     const deletedIds = new Set(validBills.map(b => b.id))
     bills.value = bills.value.filter(b => !deletedIds.has(b.id))

@@ -112,6 +112,19 @@ export interface BillFormData {
 }
 
 /**
+ * 余额调整记录
+ */
+export interface BalanceAdjustment {
+  id: string
+  accountId: string
+  date: string
+  balanceBefore: number
+  balanceAfter: number
+  note?: string
+  createdAt: string
+}
+
+/**
  * 账户表单数据
  */
 export interface AccountFormData {
