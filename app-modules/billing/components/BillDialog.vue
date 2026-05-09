@@ -65,6 +65,7 @@
 import type { Bill, BillFormData, Account, BillCategory, ImportRecordItem } from '~/types/bill'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import { useImportRecords } from '~/composables/useImportRecords'
+import { useToast } from '~/composables/useToast'
 import BillForm from './BillForm.vue'
 
 interface NoteOption {
@@ -88,6 +89,8 @@ const emit = defineEmits<{
   confirm: [data: BillFormData, isEditing: boolean, id?: string]
   cancel: []
 }>()
+
+const { warning: showWarning } = useToast()
 
 const form = ref<BillFormData>({
   noteId: '', type: 'expense', amount: 0, currency: 'CNY',
@@ -166,13 +169,28 @@ watch(() => form.value.type, (newType, oldType) => {
 })
 
 function onConfirm() {
-  if (form.value.amount <= 0) return
+  if (form.value.amount <= 0) {
+    showWarning('金额必须大于 0')
+    return
+  }
   const t = form.value.type
-  if (t === 'expense' && !form.value.fromAccountId) return
-  if (t === 'income' && !form.value.toAccountId) return
-  if (t === 'transfer' && (!form.value.fromAccountId || !form.value.toAccountId)) return
+  if (t === 'expense' && !form.value.fromAccountId) {
+    showWarning('支出需要选择出账账户')
+    return
+  }
+  if (t === 'income' && !form.value.toAccountId) {
+    showWarning('收入需要选择入账账户')
+    return
+  }
+  if (t === 'transfer' && (!form.value.fromAccountId || !form.value.toAccountId)) {
+    showWarning('转账需要同时选择出账和入账账户')
+    return
+  }
   if (form.value.fromAccountId && form.value.toAccountId &&
-      form.value.fromAccountId === form.value.toAccountId) return
+      form.value.fromAccountId === form.value.toAccountId) {
+    showWarning('出账账户与入账账户不能相同')
+    return
+  }
   emit('confirm', form.value, isEditing.value, props.bill?.id)
 }
 

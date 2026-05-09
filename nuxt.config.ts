@@ -33,6 +33,14 @@ export default defineNuxtConfig({
     }
   },
   vite: {
+    server: {
+      allowedHosts: ['company-dev.capdien.site'],
+      hmr: {
+        protocol: 'wss',
+        host: 'company-dev.capdien.site',
+        clientPort: 443,
+      },
+    },
     define: {
       'import.meta.env.NUXT_PUBLIC_COUCHDB_URL': JSON.stringify(process.env.NUXT_PUBLIC_COUCHDB_URL || ''),
       'import.meta.env.NUXT_PUBLIC_COUCHDB_USERNAME': JSON.stringify(process.env.NUXT_PUBLIC_COUCHDB_USERNAME || ''),

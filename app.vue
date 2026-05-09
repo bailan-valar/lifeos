@@ -36,6 +36,8 @@
 
     <NuxtPage v-else class="flex-1 min-w-0" />
 
+    <GlobalFab v-if="!isAuthPage && hasWorkspace" />
+
     <ToastContainer />
     <ConfirmDialog />
 
@@ -50,6 +52,7 @@ import ClassManager from '~/components/class/ClassManager.vue'
 import WorkspaceSwitcher from '~/components/workspace/WorkspaceSwitcher.vue'
 import WorkspaceOnboarding from '~/components/workspace/WorkspaceOnboarding.vue'
 import MobileDrawer from '~/components/layout/MobileDrawer.vue'
+import GlobalFab from '~/components/layout/GlobalFab.vue'
 import { useWorkspaceStore } from '~/stores/workspace'
 import { stopSync } from '~/services/sync'
 import { listLoadedWorkspaceIds } from '~/services/db'
@@ -93,6 +96,7 @@ const pageTitle = computed(() => {
     '/notes': '笔记',
     '/billing': '账单',
     '/todo': '目标',
+    '/time': '时间',
   }
   if (route.path.startsWith('/billing/categories/')) {
     return '分类详情'

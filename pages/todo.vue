@@ -232,6 +232,11 @@ const editingId = ref<string | null>(null)
 const overlayZIndex = useZIndexOnOpen(() => modalVisible.value)
 const filterStatus = ref<string>('all')
 const filterPriority = ref<string>('all')
+const fab = useGlobalFab()
+
+onMounted(() => {
+  fab.register('todo', openCreate)
+})
 
 const form = reactive({
   title: '',

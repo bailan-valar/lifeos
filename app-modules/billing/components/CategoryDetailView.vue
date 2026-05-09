@@ -145,6 +145,12 @@ const props = defineProps<{
   categoryId: string
 }>()
 
+const fab = useGlobalFab()
+
+onMounted(() => {
+  fab.register('billing-category', () => openBillDialog())
+})
+
 // 路由与状态
 const router = useRouter()
 

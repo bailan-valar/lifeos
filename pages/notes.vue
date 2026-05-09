@@ -94,6 +94,11 @@ const activeNoteId = ref<string | null>(null)
 const sidebarCollapsed = ref(false)
 const classManagerVisible = ref(false)
 const route = useRoute()
+const fab = useGlobalFab()
+
+onMounted(() => {
+  fab.register('notes', createNote)
+})
 
 // 移动端视图状态：list / editor
 const mobileView = ref<'list' | 'editor'>('list')
@@ -106,6 +111,29 @@ onMounted(async () => {
   const noteIdFromQuery = route.query.note as string
   if (noteIdFromQuery) {
     activeNoteId.value = noteIdFromQuery
+  }
+})
+
+onActivated(async () => {
+  await loadNotes()
+  await loadBindings()
+
+  const noteIdFromQuery = route.query.note as string
+  if (noteIdFromQuery) {
+    activeNoteId.value = noteIdFromQuery
+    if (isMobile.value) {
+      mobileView.value = 'editor'
+    }
+  }
+})
+
+watch(() => route.query.note, (noteId) => {
+  if (noteId && typeof noteId === 'string') {
+    activeNoteId.value = noteId
+    if (isMobile.value) {
+      mobileView.value = 'editor'
+    }
+    loadNotes()
   }
 })
 

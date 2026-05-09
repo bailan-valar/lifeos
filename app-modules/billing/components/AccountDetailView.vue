@@ -165,6 +165,12 @@ const props = defineProps<{
   accountId: string
 }>()
 
+const fab = useGlobalFab()
+
+onMounted(() => {
+  fab.register('billing-account', () => openBillDialog())
+})
+
 // 路由与状态
 const router = useRouter()
 

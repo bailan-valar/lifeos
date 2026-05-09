@@ -222,15 +222,7 @@
         </button>
       </div>
 
-      <button
-        v-if="activeTab === 'bills' && !batchMode"
-        type="button"
-        class="fab-btn"
-        title="记一笔 (Ctrl+N)"
-        @click="openBillDialog()"
-      >
-        <Icon name="solar:add-circle-linear" size="24" />
-      </button>
+      <!-- 全局 FAB 已替代此按钮 -->
     </div>
 
     <div v-if="activeTab === 'accounts'" class="tab-panel">
@@ -559,6 +551,11 @@ const viewMode = ref<'card' | 'table' | 'calendar'>('card')
 const VIEW_MODE_KEY = 'lifeos:bill-view-mode'
 const SIDEBAR_COLLAPSED_KEY = 'lifeos:billing-sidebar-collapsed'
 const sidebarCollapsed = ref(false)
+const fab = useGlobalFab()
+
+onMounted(() => {
+  fab.register('billing', () => openBillDialog())
+})
 
 const batchMode = ref(false)
 const selectedIds = ref<string[]>([])
@@ -1992,29 +1989,4 @@ onBeforeUnmount(() => {
   }
 }
 
-.fab-btn {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  width: 56px;
-  height: 56px;
-  border: none;
-  border-radius: 50%;
-  background: linear-gradient(180deg, rgb(10, 132, 255) 0%, rgb(0, 102, 230) 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 122, 255, 0.35);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  z-index: 100;
-}
-.fab-btn:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 24px rgba(0, 122, 255, 0.45);
-}
-.fab-btn:active {
-  transform: scale(0.95);
-}
 </style>
