@@ -151,6 +151,14 @@
           >
             <Icon name="solar:clipboard-list-linear" size="16" />
           </button>
+          <button
+            type="button"
+            class="toggle-btn"
+            :class="{ active: viewMode === 'calendar' }"
+            @click="viewMode = 'calendar'"
+          >
+            <Icon name="solar:calendar-linear" size="16" />
+          </button>
         </div>
         <div v-if="!batchMode" class="header-actions">
           <button type="button" class="add-btn secondary" @click="enterBatchMode">
@@ -171,6 +179,12 @@
         <div v-if="loading && bills.length === 0" class="skeleton-wrap">
           <div v-for="i in 5" :key="i" class="skeleton-row" />
         </div>
+        <BillCalendar
+          v-else-if="viewMode === 'calendar'"
+          :bills="bills"
+          @edit="openBillDialog"
+          @date-change="onCalendarDateChange"
+        />
         <BillList
           v-else-if="viewMode === 'card'"
           :bills="bills"
@@ -234,6 +248,7 @@
           @delete="handleDeleteAccount"
           @view-statements="openStatementList"
           @adjust-balance="openBalanceAdjustDialog"
+          @view-detail="navigateToAccountDetail"
         />
       </div>
     </div>
@@ -521,6 +536,7 @@ import BillBatchEditDialog from './components/BillBatchEditDialog.vue'
 import ImportRuleDialog from './components/ImportRuleDialog.vue'
 import ImportRecordDetail from './components/ImportRecordDetail.vue'
 import BalanceAdjustDialog from './components/BalanceAdjustDialog.vue'
+import BillCalendar from './components/BillCalendar.vue'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -539,7 +555,7 @@ const { loadNotes, noteOptions } = useNotes()
 
 const { isMobile } = useDevice()
 const activeTab = ref('bills')
-const viewMode = ref<'card' | 'table'>('card')
+const viewMode = ref<'card' | 'table' | 'calendar'>('card')
 const VIEW_MODE_KEY = 'lifeos:bill-view-mode'
 const SIDEBAR_COLLAPSED_KEY = 'lifeos:billing-sidebar-collapsed'
 const sidebarCollapsed = ref(false)
@@ -557,10 +573,18 @@ const billYearOptions = computed(() => {
 const billMonthOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 const isDateFiltered = computed(() => billYearFilter.value !== null || billMonthFilter.value !== null)
 
+watch(viewMode, (mode) => {
+  if (mode === 'calendar') {
+    refreshBills()
+  } else if (mode === 'card' && !isDateFiltered.value) {
+    refreshBills()
+  }
+})
+
 function getDateRange() {
-  if (!isDateFiltered.value) return { start: undefined, end: undefined }
+  if (!isDateFiltered.value && viewMode.value !== 'calendar') return { start: undefined, end: undefined }
   const year = billYearFilter.value ?? new Date().getFullYear()
-  const month = billMonthFilter.value
+  const month = billMonthFilter.value ?? (viewMode.value === 'calendar' ? new Date().getMonth() + 1 : null)
   if (month) {
     const start = `${year}-${String(month).padStart(2, '0')}-01T00:00:00.000Z`
     const endMonth = month === 12 ? 1 : month + 1
@@ -575,12 +599,18 @@ function getDateRange() {
 
 async function refreshBills() {
   selectedIds.value = []
-  if (isDateFiltered.value) {
+  if (isDateFiltered.value || viewMode.value === 'calendar') {
     const { start, end } = getDateRange()
     await loadBillsByDateRange(props.noteId, start, end)
   } else {
     await loadBillsPaginated(props.noteId, 1)
   }
+}
+
+function onCalendarDateChange(year: number, month: number) {
+  billYearFilter.value = year
+  billMonthFilter.value = month
+  refreshBills()
 }
 
 async function handleLoadMore() {
@@ -1186,6 +1216,10 @@ async function handleSaveImportRule(form: ImportRuleFormData) {
 
 function navigateToCategoryDetail(node: CategoryTreeNode) {
   navigateTo('/billing/categories/' + node.id)
+}
+
+function navigateToAccountDetail(account: Account) {
+  navigateTo('/billing/accounts/' + account.id)
 }
 
 function openCategoryContextMenu(payload: { node: CategoryTreeNode; x: number; y: number }) {

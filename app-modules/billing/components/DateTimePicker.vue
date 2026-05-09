@@ -11,7 +11,9 @@
         autocomplete="off"
         spellcheck="false"
         @focus="ensureOpen"
+        @click="onInputClick"
         @input="onInputChange"
+        @keydown="onInputKeydown"
         @keydown.esc.prevent="onInputEsc"
         @keydown.enter.prevent="onInputEnter"
       />
@@ -258,6 +260,32 @@ function autoFormatDate(input: string): string {
   return out
 }
 
+/* ---------- 数字输入辅助 ---------- */
+const DIGIT_POSITIONS = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15]
+
+function getNearestDigitPosition(pos: number): number {
+  if (pos <= 0) return 0
+  if (pos >= 16) return 15
+  if (DIGIT_POSITIONS.includes(pos)) return pos
+  if (pos === 4) return 3
+  if (pos === 7) return 6
+  if (pos === 10) return 9
+  if (pos === 13) return 12
+  return pos - 1
+}
+
+function getNextDigitPosition(pos: number): number {
+  const idx = DIGIT_POSITIONS.indexOf(pos)
+  if (idx >= 0 && idx < DIGIT_POSITIONS.length - 1) return DIGIT_POSITIONS[idx + 1]
+  return pos
+}
+
+function getPrevDigitPosition(pos: number): number {
+  const idx = DIGIT_POSITIONS.indexOf(pos)
+  if (idx > 0) return DIGIT_POSITIONS[idx - 1]
+  return pos
+}
+
 /* ---------- 状态 ---------- */
 const open = ref(false)
 const triggerRef = ref<HTMLElement>()
@@ -350,6 +378,80 @@ watch(() => props.modelValue, () => {
 })
 
 /* ---------- 输入框交互 ---------- */
+function onInputClick() {
+  const input = inputRef.value
+  if (!input || !inputText.value) return
+  const pos = input.selectionStart ?? 0
+  const digitPos = getNearestDigitPosition(pos)
+  const maxPos = Math.max(0, inputText.value.length - 1)
+  const clampedPos = Math.min(digitPos, maxPos)
+  if (DIGIT_POSITIONS.includes(clampedPos)) {
+    nextTick(() => {
+      input.setSelectionRange(clampedPos, clampedPos + 1)
+    })
+  }
+}
+
+function onInputKeydown(e: KeyboardEvent) {
+  const input = inputRef.value
+  if (!input) return
+
+  if (e.key === 'Escape' || e.key === 'Enter') return
+
+  if (/^\d$/.test(e.key)) {
+    const start = input.selectionStart ?? 0
+    const end = input.selectionEnd ?? 0
+    if (
+      end - start === 1 &&
+      DIGIT_POSITIONS.includes(start) &&
+      start < inputText.value.length
+    ) {
+      e.preventDefault()
+      const newText = inputText.value.slice(0, start) + e.key + inputText.value.slice(end)
+      inputText.value = newText
+
+      const p = parseUserInput(newText)
+      if (p) {
+        selectedDate.value = { year: p.year, month: p.month, day: p.day }
+        selectedHour.value = clampInt(p.hour, 0, 23)
+        selectedMinute.value = snapMinute(p.minute, props.minuteStep)
+        viewYear.value = p.year
+        viewMonth.value = p.month
+      }
+
+      const nextPos = getNextDigitPosition(start)
+      nextTick(() => {
+        if (inputRef.value && document.activeElement === inputRef.value) {
+          inputRef.value.setSelectionRange(nextPos, nextPos + 1)
+        }
+      })
+    }
+    return
+  }
+
+  if (e.key === 'ArrowRight') {
+    const start = input.selectionStart ?? 0
+    const end = input.selectionEnd ?? 0
+    if (end - start === 1 && DIGIT_POSITIONS.includes(start)) {
+      e.preventDefault()
+      const nextPos = getNextDigitPosition(start)
+      input.setSelectionRange(nextPos, nextPos + 1)
+    }
+    return
+  }
+
+  if (e.key === 'ArrowLeft') {
+    const start = input.selectionStart ?? 0
+    const end = input.selectionEnd ?? 0
+    if (end - start === 1 && DIGIT_POSITIONS.includes(start)) {
+      e.preventDefault()
+      const prevPos = getPrevDigitPosition(start)
+      input.setSelectionRange(prevPos, prevPos + 1)
+    }
+    return
+  }
+}
+
 function onInputChange() {
   const input = inputRef.value
   if (!input) return

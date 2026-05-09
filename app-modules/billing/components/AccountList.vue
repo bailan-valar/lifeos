@@ -9,7 +9,7 @@
       >
         <div class="account-row">
           <div class="account-info">
-            <span class="account-name">{{ account.name }}</span>
+            <span class="account-name" @click="$emit('view-detail', account)">{{ account.name }}</span>
             <span class="account-badge" :class="badgeClass(account)">{{ badgeLabel(account) }}</span>
           </div>
           <div class="account-balance" :class="{ negative: account.balance < 0 }">
@@ -66,6 +66,7 @@ defineEmits<{
   (e: 'delete', id: string): void
   (e: 'view-statements', account: Account): void
   (e: 'adjust-balance', account: Account): void
+  (e: 'view-detail', account: Account): void
 }>()
 
 interface AccountGroup {
@@ -192,6 +193,11 @@ function formatBalance(n: number) {
   font-size: 14px;
   font-weight: 500;
   color: rgba(0, 0, 0, 0.92);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.account-name:hover {
+  color: rgb(0, 122, 255);
 }
 .account-badge {
   font-size: 10px;

@@ -42,10 +42,11 @@ export function useBills() {
 
   let unsubscribe: (() => void) | null = null
   let lastReloadContext: {
-    type: 'all' | 'noteId' | 'noteIds' | 'paginated' | 'category' | 'dateRange'
+    type: 'all' | 'noteId' | 'noteIds' | 'paginated' | 'category' | 'dateRange' | 'account'
     noteId?: string
     noteIds?: string[]
     categoryId?: string
+    accountId?: string
     startDate?: string
     endDate?: string
   } | null = null
@@ -100,6 +101,13 @@ export function useBills() {
       case 'dateRange':
         await loadBillsByDateRange(
           lastReloadContext.noteId,
+          lastReloadContext.startDate,
+          lastReloadContext.endDate
+        )
+        break
+      case 'account':
+        await loadBillsByAccount(
+          lastReloadContext.accountId || '',
           lastReloadContext.startDate,
           lastReloadContext.endDate
         )
@@ -216,6 +224,38 @@ export function useBills() {
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       console.error('Failed to load bills by date range:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadBillsByAccount(accountId: string, startDate?: string, endDate?: string) {
+    lastReloadContext = { type: 'account', accountId, startDate, endDate }
+    loading.value = true
+    error.value = null
+    try {
+      const db = await getDB()
+      const selector: Record<string, any> = {
+        $or: [
+          { fromAccountId: accountId },
+          { toAccountId: accountId }
+        ]
+      }
+      if (startDate || endDate) {
+        selector.date = {}
+        if (startDate) selector.date.$gte = startDate
+        if (endDate) selector.date.$lte = endDate
+      }
+      const result = await db.bills.find({
+        selector,
+        sort: [{ date: 'desc' }]
+      }).exec()
+      bills.value = result.map((doc: any) => doc.toJSON())
+      hasMore.value = false
+      currentPage.value = 1
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      console.error('Failed to load bills by account:', e)
     } finally {
       loading.value = false
     }
@@ -568,6 +608,7 @@ export function useBills() {
     loadMoreBills,
     loadBillsByCategory,
     loadBillsByDateRange,
+    loadBillsByAccount,
     loadBillStats,
     createBill,
     createBillsBatch,
