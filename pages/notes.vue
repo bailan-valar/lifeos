@@ -8,7 +8,8 @@
     </div>
 
     <div class="notes-container">
-      <aside class="notes-sidebar" :class="{ collapsed: sidebarCollapsed }">
+      <!-- 桌面端侧边栏 -->
+      <aside v-if="!isMobile" class="notes-sidebar" :class="{ collapsed: sidebarCollapsed }">
         <NoteList
           :notes="notes"
           :active-note-id="activeNoteId"
@@ -21,11 +22,40 @@
         />
       </aside>
 
-      <div class="sidebar-toggle" :class="{ collapsed: sidebarCollapsed }" @click="sidebarCollapsed = !sidebarCollapsed">
+      <div v-if="!isMobile" class="sidebar-toggle" :class="{ collapsed: sidebarCollapsed }" @click="sidebarCollapsed = !sidebarCollapsed">
         <Icon :name="sidebarCollapsed ? 'solar:alt-arrow-right-linear' : 'solar:alt-arrow-left-linear'" />
       </div>
 
-      <main class="notes-main">
+      <!-- 移动端列表态 -->
+      <div v-if="isMobile && mobileView === 'list'" class="notes-mobile-list">
+        <header class="mobile-nav">
+          <h1 class="mobile-title">全部笔记</h1>
+          <button class="mobile-new-btn" type="button" @click="createNote">
+            <Icon name="solar:add-circle-linear" size="22" />
+          </button>
+        </header>
+        <div class="mobile-list-content">
+          <NoteList
+            :notes="notes"
+            :active-note-id="activeNoteId"
+            @select="selectNoteMobile"
+            @create="createNote"
+            @create-child="createChildNote"
+            @reorder="handleReorder"
+            @delete="deleteNote"
+            @open-class-manager="classManagerVisible = true"
+          />
+        </div>
+      </div>
+
+      <!-- 移动端编辑态 / 桌面端主内容 -->
+      <main v-else class="notes-main" :class="{ mobile: isMobile }">
+        <div v-if="isMobile && activeNoteId" class="mobile-editor-header">
+          <button class="mobile-back-btn" type="button" @click="mobileView = 'list'">
+            <Icon name="solar:alt-arrow-left-linear" size="20" />
+            <span>笔记</span>
+          </button>
+        </div>
         <div v-if="activeNoteId" class="editor-shell">
           <NoteViewSwitcher :note-id="activeNoteId" @title-update="onTitleUpdate" />
         </div>
@@ -58,11 +88,15 @@ import NoteViewSwitcher from '~/components/NoteViewSwitcher.vue'
 import ClassManager from '~/components/class/ClassManager.vue'
 import { loadBindings } from '~/composables/useNoteClasses'
 
+const { isMobile } = useDevice()
 const notes = ref<Note[]>([])
 const activeNoteId = ref<string | null>(null)
 const sidebarCollapsed = ref(false)
 const classManagerVisible = ref(false)
 const route = useRoute()
+
+// 移动端视图状态：list / editor
+const mobileView = ref<'list' | 'editor'>('list')
 
 onMounted(async () => {
   console.log('[Notes] Component mounted, initializing database...')
@@ -90,6 +124,11 @@ const loadNotes = async () => {
 
 const selectNote = async (noteId: string) => {
   activeNoteId.value = noteId
+}
+
+const selectNoteMobile = async (noteId: string) => {
+  activeNoteId.value = noteId
+  mobileView.value = 'editor'
 }
 
 const onTitleUpdate = (noteId: string, title: string) => {
@@ -150,6 +189,9 @@ const createNote = async () => {
 
   await loadNotes()
   activeNoteId.value = newNote.id
+  if (isMobile.value) {
+    mobileView.value = 'editor'
+  }
 }
 
 const createChildNote = async (parentId: string) => {
@@ -181,6 +223,9 @@ const createChildNote = async (parentId: string) => {
 
   await loadNotes()
   activeNoteId.value = newNote.id
+  if (isMobile.value) {
+    mobileView.value = 'editor'
+  }
 }
 
 const deleteNote = async (noteId: string) => {
@@ -339,6 +384,21 @@ const handleReorder = async (payload: {
   animation: drift3 36s ease-in-out infinite;
 }
 
+@media (max-width: 767px) {
+  .bg-blob-1 {
+    width: 280px;
+    height: 280px;
+  }
+  .bg-blob-2 {
+    width: 300px;
+    height: 300px;
+  }
+  .bg-blob-3 {
+    width: 320px;
+    height: 320px;
+  }
+}
+
 .bg-grain {
   position: absolute;
   inset: 0;
@@ -423,6 +483,95 @@ const handleReorder = async (payload: {
   flex-direction: column;
   overflow: hidden;
   padding: 16px 16px 16px 12px;
+}
+
+.notes-main.mobile {
+  padding: 0;
+}
+
+/* 移动端列表态 */
+.notes-mobile-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+
+.mobile-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  padding-top: calc(12px + env(safe-area-inset-top));
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
+}
+
+.mobile-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: rgba(0, 0, 0, 0.88);
+  margin: 0;
+}
+
+.mobile-new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-new-btn:active {
+  opacity: 0.7;
+}
+
+.mobile-list-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+/* 移动端编辑态头部 */
+.mobile-editor-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
+}
+
+.mobile-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 0;
+  border: none;
+  background: transparent;
+  color: rgb(0, 122, 255);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-back-btn:active {
+  opacity: 0.6;
 }
 
 .editor-shell {

@@ -59,14 +59,31 @@ const isActive = (path: string) => {
   align-items: center;
   width: 64px;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.45);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  backdrop-filter: blur(40px) saturate(180%);
-  border-right: 0.5px solid rgba(60, 60, 67, 0.12);
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-right: 0.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset -1px 0 0 rgba(255, 255, 255, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.08);
   z-index: 200;
   padding: 12px 0;
   gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Liquid Glass refraction highlight */
+.app-sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 0% 0%,
+    rgba(255, 255, 255, 0.3) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
 }
 
 .sidebar-top {

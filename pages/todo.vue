@@ -7,7 +7,7 @@
       <div class="bg-grain" />
     </div>
 
-    <div class="goal-container">
+    <div class="goal-container" :class="{ mobile: isMobile }">
       <div class="goal-header">
         <div class="header-left">
           <h2>目标管理</h2>
@@ -120,8 +120,8 @@
     </div>
 
     <Teleport to="body">
-      <div v-if="modalVisible" class="modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click.self="closeModal">
-        <div class="modal-panel">
+      <div v-if="modalVisible" class="modal-overlay" :class="{ mobile: isMobile }" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click.self="closeModal">
+        <div class="modal-panel" :class="{ mobile: isMobile }">
           <div class="modal-header">
             <h3>{{ editingId ? '编辑目标' : '添加目标' }}</h3>
             <button class="modal-close" type="button" @click="closeModal">
@@ -140,7 +140,7 @@
               <textarea v-model="form.description" rows="3" placeholder="输入目标描述..." />
             </div>
 
-            <div class="form-row inline">
+            <div class="form-row inline" :class="{ mobile: isMobile }">
               <div class="form-col">
                 <label>状态</label>
                 <select v-model="form.status">
@@ -161,7 +161,7 @@
               </div>
             </div>
 
-            <div class="form-row inline">
+            <div class="form-row inline" :class="{ mobile: isMobile }">
               <div class="form-col">
                 <label>计划开始</label>
                 <input v-model="form.plannedStartAt" type="datetime-local" />
@@ -223,6 +223,7 @@ interface NoteItem {
   title: string
 }
 
+const { isMobile } = useDevice()
 const goals = ref<Goal[]>([])
 const allNotes = ref<NoteItem[]>([])
 const expandedId = ref<string | null>(null)
@@ -504,6 +505,21 @@ const deleteGoal = async (id: string) => {
   background: radial-gradient(circle, rgb(177, 156, 255) 0%, rgba(177, 156, 255, 0) 70%);
 }
 
+@media (max-width: 767px) {
+  .bg-blob-1 {
+    width: 280px;
+    height: 280px;
+  }
+  .bg-blob-2 {
+    width: 300px;
+    height: 300px;
+  }
+  .bg-blob-3 {
+    width: 320px;
+    height: 320px;
+  }
+}
+
 .bg-grain {
   position: absolute;
   inset: 0;
@@ -521,6 +537,11 @@ const deleteGoal = async (id: string) => {
   height: 100%;
   padding: 20px 24px;
   gap: 16px;
+}
+
+.goal-container.mobile {
+  padding: 16px;
+  gap: 12px;
 }
 
 .goal-header {
@@ -908,6 +929,12 @@ const deleteGoal = async (id: string) => {
   padding: 20px;
 }
 
+.modal-overlay.mobile {
+  align-items: flex-end;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
 .modal-panel {
   width: 520px;
   max-width: 100%;
@@ -922,6 +949,13 @@ const deleteGoal = async (id: string) => {
     0 24px 60px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
+}
+
+.modal-panel.mobile {
+  width: 100%;
+  max-height: 90vh;
+  border-radius: 20px 20px 0 0;
+  border-bottom: none;
 }
 
 .modal-header {
@@ -975,6 +1009,11 @@ const deleteGoal = async (id: string) => {
 .form-row.inline {
   flex-direction: row;
   gap: 12px;
+}
+
+.form-row.inline.mobile {
+  flex-direction: column;
+  gap: 10px;
 }
 
 .form-col {

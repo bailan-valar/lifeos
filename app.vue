@@ -1,10 +1,11 @@
 <template>
   <div class="app-root">
     <template v-if="!isAuthPage">
-      <AppSidebar @open-settings="classManagerVisible = true" />
+      <AppSidebar v-if="!isMobile" @open-settings="classManagerVisible = true" />
 
-      <div class="app-main">
-        <header class="app-menubar">
+      <div class="app-main" :class="{ 'mobile': isMobile }">
+        <!-- 桌面端 Menubar -->
+        <header v-if="!isMobile" class="app-menubar">
           <div class="menubar-left">
             <span class="page-title">{{ pageTitle }}</span>
           </div>
@@ -12,10 +13,23 @@
             <WorkspaceSwitcher />
           </div>
         </header>
-        <div class="app-content">
+
+        <!-- 移动端 Header -->
+        <header v-if="isMobile" class="mobile-header">
+          <button class="header-menu-btn" type="button" @click="drawerOpen = true">
+            <Icon name="solar:hamburger-menu-linear" size="22" />
+          </button>
+          <span class="header-title">{{ pageTitle }}</span>
+          <div class="header-spacer" />
+        </header>
+
+        <div class="app-content" :class="{ 'mobile': isMobile }">
           <NuxtPage :keepalive="{ max: 10 }" :page-key="pageKey" />
         </div>
       </div>
+
+      <!-- 移动端左侧抽屉 -->
+      <MobileDrawer v-if="isMobile" v-model="drawerOpen" @open-settings="classManagerVisible = true" />
 
       <ClassManager v-if="hasWorkspace" ref="classManagerRef" v-model:visible="classManagerVisible" @created="onClassCreated" />
     </template>
@@ -35,12 +49,14 @@ import ConfirmDialog from '~/components/ui/confirm/ConfirmDialog.vue'
 import ClassManager from '~/components/class/ClassManager.vue'
 import WorkspaceSwitcher from '~/components/workspace/WorkspaceSwitcher.vue'
 import WorkspaceOnboarding from '~/components/workspace/WorkspaceOnboarding.vue'
+import MobileDrawer from '~/components/layout/MobileDrawer.vue'
 import { useWorkspaceStore } from '~/stores/workspace'
 import { stopSync } from '~/services/sync'
 import { listLoadedWorkspaceIds } from '~/services/db'
 import type { RouteLocationNormalized } from 'vue-router'
 
 const route = useRoute()
+const drawerOpen = ref(false)
 const classManagerVisible = ref(false)
 const classManagerRef = ref<InstanceType<typeof ClassManager> | null>(null)
 const classManagerCreatedCallback = ref<((classId: string) => void) | null>(null)
@@ -84,8 +100,10 @@ const pageTitle = computed(() => {
   return titles[route.path] || 'LifeOS'
 })
 
+const { isMobile } = useDevice()
 const hasWorkspace = computed(() => workspaceStore.list.length > 0)
 const isAuthPage = computed(() => route.path === '/login' || route.path === '/signup')
+
 
 function onWorkspaceCreated() {
   // WorkspaceOnboarding 内部已调用 workspaceStore.reload() + switchTo()
@@ -123,7 +141,7 @@ html, body, #__nuxt {
 <style scoped>
 .app-root {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -142,12 +160,29 @@ html, body, #__nuxt {
   height: 48px;
   padding: 0 16px;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.45);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  backdrop-filter: blur(40px) saturate(180%);
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 4px 20px rgba(0, 0, 0, 0.06);
   z-index: 200;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Liquid Glass refraction highlight */
+.app-menubar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(255, 255, 255, 0.25) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
 }
 
 .menubar-left {
@@ -167,5 +202,75 @@ html, body, #__nuxt {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.app-content.mobile {
+  overflow-y: auto;
+}
+
+/* 移动端 Header */
+.mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: calc(48px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 12px 0;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 4px 20px rgba(0, 0, 0, 0.06);
+  z-index: 200;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Liquid Glass refraction highlight */
+.mobile-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(255, 255, 255, 0.25) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.header-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+.header-menu-btn:active {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: rgba(0, 0, 0, 0.88);
+  position: relative;
+  z-index: 1;
+}
+
+.header-spacer {
+  width: 36px;
 }
 </style>

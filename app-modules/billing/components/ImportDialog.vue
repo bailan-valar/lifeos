@@ -18,6 +18,7 @@
             @record-created="emit('record-created', $event)"
             @view-record="emit('view-record', $event)"
             @tab-change="emit('tab-change', $event)"
+            @open-rules="emit('open-rules')"
           />
         </div>
       </div>
@@ -44,6 +45,7 @@ const emit = defineEmits<{
   'record-created': [record: ImportRecord]
   'view-record': [recordId: string]
   'tab-change': [tab: 'import' | 'history']
+  'open-rules': []
 }>()
 
 const importRef = ref<InstanceType<typeof BillImportDialog> | null>(null)

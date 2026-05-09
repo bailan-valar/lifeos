@@ -1,6 +1,6 @@
 <template>
-  <div class="billing-view">
-    <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+  <div class="billing-view" :class="{ mobile: isMobile }">
+    <div v-if="!isMobile" class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <button
         type="button"
         class="sidebar-toggle"
@@ -96,7 +96,7 @@
       </template>
     </div>
 
-    <div class="content">
+    <div class="content" :class="{ mobile: isMobile }">
       <div v-if="activeTab === 'bills'" class="tab-panel">
       <div class="panel-header">
         <div v-if="!batchMode" class="stats-bar">
@@ -295,6 +295,12 @@
     </div>
 
     <div v-if="activeTab === 'rules'" class="tab-panel">
+      <div v-if="isMobile" class="mobile-rules-header">
+        <button class="mobile-back-btn" type="button" @click="activeTab = 'bills'">
+          <Icon name="solar:alt-arrow-left-linear" size="20" />
+          <span>返回账单</span>
+        </button>
+      </div>
       <ImportRuleList
         :rules="importRules"
         :accounts="accounts"
@@ -311,6 +317,21 @@
       />
     </div>
     </div>
+
+    <!-- 移动端底部 Tab Bar -->
+    <nav v-if="isMobile" class="billing-mobile-tabbar">
+      <button
+        v-for="tab in mobileTabs"
+        :key="tab.id"
+        type="button"
+        class="billing-tab-item"
+        :class="{ active: activeTab === tab.id }"
+        @click="activeTab = tab.id"
+      >
+        <Icon :name="tab.icon" size="20" />
+        <span>{{ tab.name }}</span>
+      </button>
+    </nav>
 
     <div
       v-if="categoryMenu.visible && categoryMenu.node"
@@ -441,6 +462,7 @@
       @cancel="importDialogVisible = false"
       @record-created="handleRecordCreated"
       @view-record="handleViewRecord"
+      @open-rules="onOpenRulesFromImport"
     />
 
     <RuleDialog
@@ -515,6 +537,7 @@ const { rules: importRules, loadImportRules, createImportRule, updateImportRule,
 const { loadImportRecords, fingerprintsAcrossRecords, getById, rollback, deleteImportRecord } = useImportRecords()
 const { loadNotes, noteOptions } = useNotes()
 
+const { isMobile } = useDevice()
 const activeTab = ref('bills')
 const viewMode = ref<'card' | 'table'>('card')
 const VIEW_MODE_KEY = 'lifeos:bill-view-mode'
@@ -581,6 +604,13 @@ const tabs = [
   { id: 'categories', name: '分类', icon: 'solar:folder-linear' },
   { id: 'budgets', name: '预算', icon: 'solar:chart-2-linear' },
   { id: 'rules', name: '规则', icon: 'solar:filter-linear' }
+]
+
+const mobileTabs = [
+  { id: 'bills', name: '账单', icon: 'solar:wallet-money-linear' },
+  { id: 'accounts', name: '账户', icon: 'solar:wallet-linear' },
+  { id: 'budgets', name: '预算', icon: 'solar:chart-2-linear' },
+  { id: 'categories', name: '分类', icon: 'solar:folder-linear' },
 ]
 
 const accountSubTabs = [
@@ -1235,6 +1265,11 @@ function openImportDialog() {
   importDialogVisible.value = true
 }
 
+function onOpenRulesFromImport() {
+  importDialogVisible.value = false
+  activeTab.value = 'rules'
+}
+
 function openRuleDialog(rule?: ImportRule) {
   editingRule.value = rule || null
   ruleDialogVisible.value = true
@@ -1437,6 +1472,71 @@ onBeforeUnmount(() => {
   height: 100%;
   gap: 0;
 }
+
+.billing-view.mobile {
+  flex-direction: column;
+}
+
+/* 移动端底部 Tab Bar */
+.billing-mobile-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-shrink: 0;
+  height: calc(56px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.3),
+    0 -4px 20px rgba(0, 0, 0, 0.08);
+  z-index: var(--z-drawer);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Liquid Glass 折射高光 */
+.billing-mobile-tabbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(255, 255, 255, 0.25) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.billing-tab-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.5);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.billing-tab-item.active {
+  color: rgb(0, 122, 255);
+}
+
+.billing-tab-item:active {
+  opacity: 0.7;
+}
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -1569,6 +1669,12 @@ onBeforeUnmount(() => {
   padding: 16px;
   gap: 12px;
   overflow: hidden;
+}
+
+.content.mobile {
+  padding: 12px;
+  padding-bottom: calc(12px + 56px + env(safe-area-inset-bottom));
+  gap: 8px;
 }
 .tab-panel {
   flex: 1;
@@ -1799,6 +1905,59 @@ onBeforeUnmount(() => {
   background: rgba(255, 59, 48, 0.1);
   color: rgb(255, 59, 48);
 }
+
+/* 移动端规则页返回头部 */
+.mobile-rules-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  margin-bottom: 4px;
+}
+
+.mobile-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 6px 0;
+  border: none;
+  background: transparent;
+  color: rgb(0, 122, 255);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-back-btn:active {
+  opacity: 0.6;
+}
+
+/* 移动端内容区适配 */
+@media (max-width: 767px) {
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+  .stat-item {
+    text-align: center;
+  }
+  .panel-header {
+    gap: 8px;
+  }
+  .header-actions {
+    flex-wrap: wrap;
+  }
+  .date-filter {
+    order: 1;
+    width: 100%;
+  }
+  .view-toggle {
+    order: 2;
+  }
+}
+
 .fab-btn {
   position: fixed;
   right: 24px;

@@ -18,6 +18,15 @@
         历史
         <span v-if="records.length" class="tab-badge">{{ records.length }}</span>
       </button>
+      <div class="tab-bar-spacer" />
+      <button
+        type="button"
+        class="tab-btn tab-btn-rule"
+        @click="emit('open-rules')"
+      >
+        <Icon name="solar:filter-linear" size="14" />
+        规则管理
+      </button>
     </div>
 
     <div v-if="activeTab === 'import'" class="tab-pane">
@@ -111,6 +120,7 @@ const emit = defineEmits<{
   (e: 'record-created', record: ImportRecord): void
   (e: 'view-record', recordId: string): void
   (e: 'tab-change', tab: 'import' | 'history'): void
+  (e: 'open-rules'): void
 }>()
 
 const { rules: importRules, applyRules } = useImportRules()
@@ -308,6 +318,22 @@ defineExpose({
   display: flex;
   gap: 4px;
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+  align-items: center;
+}
+.tab-bar-spacer {
+  flex: 1;
+}
+.tab-btn-rule {
+  margin-left: auto;
+  color: rgba(0, 122, 255, 0.8);
+  font-size: 12px;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: none;
+  border-radius: 6px;
+}
+.tab-btn-rule:hover {
+  background: rgba(0, 122, 255, 0.08);
 }
 .tab-btn {
   position: relative;
