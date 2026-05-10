@@ -242,6 +242,74 @@ fix: 修复 folderId 为 null 时的数据库错误
 
 ---
 
+## 全局样式限制 — iOS 26 Liquid Glass
+
+本项目所有 UI 组件的视觉风格必须统一遵循 **iOS 26 Liquid Glass（液态玻璃）** 设计规范。Liquid Glass 是一种高阶玻璃拟态（Glassmorphism）风格，核心特征为光学级模糊、厚度层次、折射高光与流动光泽。
+
+### 设计原则
+
+1. **优先使用 Liquid Glass 组件类**：所有新组件必须优先使用 `liquid-glass-*` 系列类名，而非 legacy 的 `ios-*` 或 `glass-*` 类（保留兼容但不再扩展）
+2. **禁止硬编码 glass 数值**：所有模糊度、边框、阴影、圆角必须引用 `main.css` `:root` 中的 CSS 变量（`--liquid-*`），禁止在组件 scoped style 中手写 `backdrop-filter: blur(20px)` 等固定值
+3. **折射高光强制要求**：所有导航栏、弹框、侧边栏、卡片等「承载层级」的容器必须添加 `.liquid-glass-refraction` 类（或伪元素），产生顶部光线折射效果
+4. **0.5px 边框**：所有 glass 容器必须使用 `0.5px` 物理像素边框，通过 `border: var(--liquid-border)` 实现
+5. **内外阴影组合**：必须通过 `inset` 内高光 + 外阴影模拟玻璃厚度，禁止仅用单一阴影
+6. **深色模式兼容**：所有 glass 样式必须同时支持浅色/深色模式（通过 `prefers-color-scheme: dark` 或 `.dark` 类切换 `--liquid-bg*` 变量）
+7. **交互反馈**：可交互元素（按钮、列表项、卡片）必须提供 `hover/active` 状态，使用 `liquid-glass-hover` / `liquid-glass-active` 或自定义 transition
+
+### Liquid Glass 组件类速查
+
+| 类名 | 用途 | 必须组合 |
+|------|------|---------|
+| `.liquid-glass` | 基础玻璃容器 | `.liquid-glass-refraction`（可选） |
+| `.liquid-glass-thick` | 厚玻璃（导航、侧边栏） | `.liquid-glass-refraction` |
+| `.liquid-glass-thin` | 薄玻璃（次级浮层） | — |
+| `.liquid-glass-nav` | 导航栏/标题栏 | 已内置 refraction |
+| `.liquid-glass-sheet` | 底部弹层 | 已内置 refraction |
+| `.liquid-glass-card` | 卡片 | 已内置 refraction + hover 动效 |
+| `.liquid-glass-sidebar` | 侧边栏 | 已内置 refraction |
+| `.liquid-glass-dialog` | 弹框/Dialog | 已内置 refraction |
+| `.liquid-glass-overlay` | 模态遮罩 | — |
+| `.liquid-glass-button` | 按钮 | 已内置 refraction + active 动效 |
+| `.liquid-glass-button-primary` | 主按钮（蓝色） | 已内置 refraction |
+| `.liquid-glass-button-danger` | 危险按钮（红色） | 已内置 refraction |
+| `.liquid-glass-input` | 输入框 | — |
+| `.liquid-glass-list-item` | 列表项 | — |
+| `.liquid-glass-fab` | 悬浮按钮 | 已内置 refraction |
+| `.liquid-glass-shimmer` | 动态光泽动画 | — |
+| `.liquid-glass-transition` | 统一过渡动画 | — |
+
+### Tailwind Token 速查
+
+新代码优先使用 Tailwind utility 配合 Liquid Glass Token：
+
+```html
+<!-- 示例：用 Tailwind + Liquid Glass Token 构建卡片 -->
+<div class="liquid-glass liquid-glass-refraction rounded-ios p-4 shadow-liquid">
+  <h3 class="liquid-text-primary font-semibold">标题</h3>
+  <p class="liquid-text-secondary text-sm">描述文字</p>
+</div>
+```
+
+| Token 类别 | 关键值 |
+|-----------|-------|
+| Colors | `bg-liquid-bg`, `bg-liquid-bg-thick`, `border-liquid-border`, `text-liquid-*` |
+| Shadows | `shadow-liquid`, `shadow-liquid-strong`, `shadow-liquid-nav`, `shadow-liquid-sheet` |
+| Backdrop Blur | `backdrop-blur-2xl` (24px), `backdrop-blur-3xl` (32px), `backdrop-blur-4xl` (40px) |
+| Border Radius | `rounded-ios` (20px), `rounded-ios-lg` (24px), `rounded-ios-xl` (32px) |
+| Background Image | `bg-liquid-refraction`, `bg-liquid-shimmer` |
+| Animation | `animate-liquid-shimmer` |
+
+### 新增组件时的 checklist
+
+- [ ] 是否使用了 `.liquid-glass-*` 系列类而非 legacy 类？
+- [ ] 容器类组件是否添加了折射高光（`.liquid-glass-refraction` 或内置）？
+- [ ] 是否使用了 CSS 变量（`var(--liquid-*)`）而非硬编码数值？
+- [ ] 交互元素是否有 `hover/active` 状态反馈？
+- [ ] 弹框/浮层是否正确使用了 Z-Index 变量体系？
+- [ ] 是否测试了深色模式下的视觉效果？
+
+---
+
 ## UI/UX 规范
 
 ### Z-Index 层级体系

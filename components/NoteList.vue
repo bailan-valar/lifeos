@@ -1,6 +1,6 @@
 <template>
-  <div class="note-list">
-    <div class="note-list-header">
+  <div class="note-list" :class="{ mobile: isMobile }">
+    <div v-if="!isMobile" class="note-list-header">
       <div class="header-text">
         <h3>笔记</h3>
         <span class="note-count" v-if="props.notes.length">{{ props.notes.length }}</span>
@@ -299,6 +299,8 @@ const onRootDrop = () => {
   resetDragState()
 }
 
+const { isMobile } = useDevice()
+
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
   const nowDate = new Date()
@@ -326,6 +328,14 @@ const formatDate = (dateString: string) => {
   backdrop-filter: blur(40px) saturate(180%);
   border-right: 0.5px solid rgba(60, 60, 67, 0.12);
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.3);
+}
+
+.note-list.mobile {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-right: none;
+  box-shadow: none;
 }
 
 .note-list-header {

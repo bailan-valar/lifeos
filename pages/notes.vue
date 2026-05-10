@@ -28,12 +28,6 @@
 
       <!-- 移动端列表态 -->
       <div v-if="isMobile && mobileView === 'list'" class="notes-mobile-list">
-        <header class="mobile-nav">
-          <h1 class="mobile-title">全部笔记</h1>
-          <button class="mobile-new-btn" type="button" @click="createNote">
-            <Icon name="solar:add-circle-linear" size="22" />
-          </button>
-        </header>
         <div class="mobile-list-content">
           <NoteList
             :notes="notes"
@@ -51,13 +45,43 @@
       <!-- 移动端编辑态 / 桌面端主内容 -->
       <main v-else class="notes-main" :class="{ mobile: isMobile }">
         <div v-if="isMobile && activeNoteId" class="mobile-editor-header">
-          <button class="mobile-back-btn" type="button" @click="mobileView = 'list'">
+          <button class="mobile-back-btn" type="button" @click="router.replace({ query: {} })">
             <Icon name="solar:alt-arrow-left-linear" size="20" />
             <span>笔记</span>
           </button>
+
+          <div class="mobile-view-dropdown" v-click-outside="closeViewDropdown">
+            <button
+              class="mobile-view-trigger"
+              type="button"
+              @click="viewDropdownOpen = !viewDropdownOpen"
+            >
+              <span>{{ noteViewSwitcherRef?.currentViewName || '内容' }}</span>
+              <Icon
+                name="solar:alt-arrow-down-linear"
+                size="14"
+                :class="{ 'dropdown-caret-open': viewDropdownOpen }"
+              />
+            </button>
+            <Transition name="view-dropdown">
+              <div v-if="viewDropdownOpen" class="mobile-view-menu" @click.stop>
+                <button
+                  v-for="view in mobileViews"
+                  :key="view.id"
+                  class="mobile-view-item"
+                  :class="{ active: noteViewSwitcherRef?.activeView === view.id }"
+                  type="button"
+                  @click="switchMobileView(view.id)"
+                >
+                  <Icon :name="view.icon" size="16" />
+                  <span>{{ view.name }}</span>
+                </button>
+              </div>
+            </Transition>
+          </div>
         </div>
         <div v-if="activeNoteId" class="editor-shell">
-          <NoteViewSwitcher :note-id="activeNoteId" @title-update="onTitleUpdate" />
+          <NoteViewSwitcher ref="noteViewSwitcherRef" :note-id="activeNoteId" @title-update="onTitleUpdate" />
         </div>
 
         <div v-else class="empty-state">
@@ -83,6 +107,7 @@
 <script setup lang="ts">
 import { getDB, generateId, now } from '~/services/db'
 import type { Note, Block } from '~/types/block'
+import type { Directive } from 'vue'
 import NoteList from '~/components/NoteList.vue'
 import NoteViewSwitcher from '~/components/NoteViewSwitcher.vue'
 import ClassManager from '~/components/class/ClassManager.vue'
@@ -94,6 +119,7 @@ const activeNoteId = ref<string | null>(null)
 const sidebarCollapsed = ref(false)
 const classManagerVisible = ref(false)
 const route = useRoute()
+const router = useRouter()
 const fab = useGlobalFab()
 
 onMounted(() => {
@@ -102,6 +128,43 @@ onMounted(() => {
 
 // 移动端视图状态：list / editor
 const mobileView = ref<'list' | 'editor'>('list')
+
+const noteViewSwitcherRef = ref<InstanceType<typeof NoteViewSwitcher> | null>(null)
+const viewDropdownOpen = ref(false)
+
+const mobileViews = [
+  { id: 'content', name: '内容', icon: 'solar:document-text-linear' },
+  { id: 'todo', name: '待办', icon: 'solar:check-read-linear' },
+  { id: 'billing', name: '账单', icon: 'solar:wallet-money-linear' }
+]
+
+const closeViewDropdown = () => {
+  viewDropdownOpen.value = false
+}
+
+const switchMobileView = (viewId: string) => {
+  viewDropdownOpen.value = false
+  noteViewSwitcherRef.value?.switchView(viewId)
+}
+
+const vClickOutside: Directive<HTMLElement, () => void> = {
+  mounted(el, binding) {
+    const handler = (e: MouseEvent) => {
+      if (!el.contains(e.target as Node)) {
+        binding.value?.()
+      }
+    }
+    ;(el as any).__clickOutside = handler
+    document.addEventListener('mousedown', handler)
+  },
+  unmounted(el) {
+    const handler = (el as any).__clickOutside
+    if (handler) {
+      document.removeEventListener('mousedown', handler)
+      delete (el as any).__clickOutside
+    }
+  }
+}
 
 onMounted(async () => {
   console.log('[Notes] Component mounted, initializing database...')
@@ -134,6 +197,8 @@ watch(() => route.query.note, (noteId) => {
       mobileView.value = 'editor'
     }
     loadNotes()
+  } else if (isMobile.value) {
+    mobileView.value = 'list'
   }
 })
 
@@ -157,6 +222,7 @@ const selectNote = async (noteId: string) => {
 const selectNoteMobile = async (noteId: string) => {
   activeNoteId.value = noteId
   mobileView.value = 'editor'
+  await router.push({ query: { note: noteId } })
 }
 
 const onTitleUpdate = (noteId: string, title: string) => {
@@ -219,6 +285,7 @@ const createNote = async () => {
   activeNoteId.value = newNote.id
   if (isMobile.value) {
     mobileView.value = 'editor'
+    await router.push({ query: { note: newNote.id } })
   }
 }
 
@@ -253,6 +320,7 @@ const createChildNote = async (parentId: string) => {
   activeNoteId.value = newNote.id
   if (isMobile.value) {
     mobileView.value = 'editor'
+    await router.push({ query: { note: newNote.id } })
   }
 }
 
@@ -526,55 +594,24 @@ const handleReorder = async (payload: {
   width: 100%;
 }
 
-.mobile-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  padding-top: calc(12px + env(safe-area-inset-top));
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.5);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
-}
-
-.mobile-title {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: rgba(0, 0, 0, 0.88);
-  margin: 0;
-}
-
-.mobile-new-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: none;
-  background: rgba(0, 122, 255, 0.1);
-  color: rgb(0, 122, 255);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.mobile-new-btn:active {
-  opacity: 0.7;
-}
-
 .mobile-list-content {
   flex: 1;
   overflow-y: auto;
   padding: 8px 12px;
 }
 
+.editor-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* 移动端编辑态头部 */
 .mobile-editor-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 10px 12px;
   padding-top: calc(10px + env(safe-area-inset-top));
   flex-shrink: 0;
@@ -602,11 +639,84 @@ const handleReorder = async (payload: {
   opacity: 0.6;
 }
 
-.editor-shell {
-  flex: 1;
-  min-height: 0;
+.mobile-view-dropdown {
+  position: relative;
+}
+
+.mobile-view-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 0.5px solid rgba(60, 60, 67, 0.15);
+  background: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.85);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.mobile-view-trigger:active {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.dropdown-caret-open {
+  transform: rotate(180deg);
+  transition: transform 0.18s ease;
+}
+
+.mobile-view-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 140px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 0.5px solid rgba(60, 60, 67, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+  padding: 6px;
+  z-index: var(--z-dropdown);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+.mobile-view-item {
+  width: 100%;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.mobile-view-item:active {
+  background: rgba(120, 120, 128, 0.08);
+}
+
+.mobile-view-item.active {
+  color: rgb(0, 122, 255);
+  font-weight: 600;
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.view-dropdown-enter-active,
+.view-dropdown-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.view-dropdown-enter-from,
+.view-dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .empty-state {

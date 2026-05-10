@@ -19,6 +19,15 @@
           </button>
         </div>
 
+        <div class="drawer-workspace" @click="openWorkspaces">
+          <Icon name="solar:folder-2-linear" class="drawer-workspace-icon" />
+          <div class="drawer-workspace-info">
+            <span class="drawer-workspace-name">{{ ws.current.value?.name || '未选择空间' }}</span>
+            <SyncStatusBadge :status="status" show-label />
+          </div>
+          <Icon name="solar:alt-arrow-right-linear" class="drawer-workspace-arrow" />
+        </div>
+
         <div class="drawer-modules">
           <NuxtLink
             v-for="mod in modules"
@@ -45,6 +54,8 @@
 </template>
 
 <script setup lang="ts">
+import SyncStatusBadge from '~/components/workspace/SyncStatusBadge.vue'
+
 const props = defineProps<{
   modelValue: boolean
 }>()
@@ -52,10 +63,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
   (e: 'open-settings'): void
+  (e: 'open-workspaces'): void
 }>()
 
 const route = useRoute()
 const { menuNavigate } = useRouteCache()
+const ws = useWorkspaces()
+const { status } = useSyncStatus()
 
 const modules = [
   { id: 'notes', label: '笔记', icon: 'solar:document-text-linear', path: '/notes' },
@@ -75,6 +89,11 @@ function close() {
 function navigate(path: string) {
   menuNavigate(path)
   close()
+}
+
+function openWorkspaces() {
+  close()
+  emit('open-workspaces')
 }
 </script>
 
@@ -139,6 +158,53 @@ function navigate(path: string) {
 
 .drawer-close:active {
   opacity: 0.6;
+}
+
+.drawer-workspace {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 122, 255, 0.06);
+  border: 0.5px solid rgba(0, 122, 255, 0.12);
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.drawer-workspace:active {
+  background: rgba(0, 122, 255, 0.12);
+}
+
+.drawer-workspace-icon {
+  font-size: 20px;
+  color: rgb(0, 122, 255);
+  flex-shrink: 0;
+}
+
+.drawer-workspace-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.drawer-workspace-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-workspace-arrow {
+  font-size: 14px;
+  color: rgba(60, 60, 67, 0.4);
+  flex-shrink: 0;
 }
 
 .drawer-modules {

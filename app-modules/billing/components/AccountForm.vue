@@ -97,19 +97,7 @@
       />
     </div>
     <div class="form-group">
-      <label class="form-label">图标</label>
-      <div class="icon-picker">
-        <button
-          v-for="icon in presetIcons"
-          :key="icon"
-          type="button"
-          class="icon-option"
-          :class="{ active: form.icon === icon }"
-          @click="form.icon = icon"
-        >
-          <Icon :name="icon" />
-        </button>
-      </div>
+      <IconPicker v-model="form.icon" :icons="presetIcons" label="图标" />
     </div>
 
     <div class="form-group">
@@ -141,6 +129,7 @@
 <script setup lang="ts">
 import type { AccountFormData, AccountType, AccountSubtype, BillCategory } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
+import IconPicker from '~/components/IconPicker.vue'
 
 const props = defineProps<{
   modelValue: AccountFormData
@@ -378,33 +367,6 @@ function onCategoryChange(id: string) {
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
   font-weight: 600;
-}
-.icon-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.icon-option {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.5);
-  color: rgba(60, 60, 67, 0.7);
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.icon-option:hover {
-  background: rgba(0, 122, 255, 0.08);
-}
-.icon-option.active {
-  border-color: rgb(0, 122, 255);
-  background: rgba(0, 122, 255, 0.12);
-  color: rgb(0, 102, 230);
 }
 .color-picker {
   display: flex;

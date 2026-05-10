@@ -1,6 +1,6 @@
 <template>
   <div class="select-picker">
-    <div ref="triggerRef" class="picker-trigger" @click.stop="toggleOpen">
+    <div ref="triggerRef" class="picker-trigger" :class="{ plain: props.plain }" @click.stop="toggleOpen">
       <span :class="{ placeholder: !selectedLabel }">{{ selectedLabel || placeholder }}</span>
       <Icon
         name="solar:alt-arrow-down-linear"
@@ -47,6 +47,8 @@ const props = defineProps<{
   modelValue: string | undefined
   options: { value: string; label: string }[]
   placeholder?: string
+  plain?: boolean
+  minWidth?: string | number
 }>()
 
 const emit = defineEmits<{
@@ -109,13 +111,18 @@ function updatePanelPosition() {
     maxHeight = window.innerHeight - top - MARGIN
   }
 
+  const minWidth = props.minWidth
+    ? (typeof props.minWidth === 'number' ? `${props.minWidth}px` : props.minWidth)
+    : undefined
+
   panelStyle.value = {
     position: 'fixed',
     top: `${top}px`,
     left: `${rect.left}px`,
     width: `${rect.width}px`,
     maxHeight: `${maxHeight}px`,
-    zIndex: String(getNextZIndex())
+    zIndex: String(getNextZIndex()),
+    ...(minWidth ? { minWidth } : {})
   }
 }
 
@@ -171,6 +178,19 @@ onBeforeUnmount(() => {
 }
 .picker-trigger:hover {
   border-color: rgba(60, 60, 67, 0.35);
+}
+.picker-trigger.plain {
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.92);
+  gap: 4px;
+  justify-content: flex-start;
+}
+.picker-trigger.plain:hover {
+  border-color: transparent;
 }
 .picker-trigger .placeholder {
   color: rgba(60, 60, 67, 0.4);

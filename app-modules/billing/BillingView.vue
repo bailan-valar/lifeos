@@ -98,21 +98,63 @@
 
     <div class="content" :class="{ mobile: isMobile }">
       <div v-if="activeTab === 'bills'" class="tab-panel">
-      <div class="panel-header">
-        <div v-if="!batchMode" class="stats-bar">
-          <div class="stat-item">
-            <span class="stat-label">收入</span>
-            <span class="stat-value positive">+{{ totalIncome.toFixed(2) }}</span>
+      <div class="panel-header bills-header">
+        <!-- 第一行：视图切换 | 日期 -->
+        <div class="header-row row-1">
+          <div class="view-toggle">
+            <button
+              type="button"
+              class="toggle-btn"
+              :class="{ active: viewMode === 'card' }"
+              @click="viewMode = 'card'"
+            >
+              <Icon name="solar:widget-2-linear" size="16" />
+            </button>
+            <button
+              type="button"
+              class="toggle-btn"
+              :class="{ active: viewMode === 'table' }"
+              @click="viewMode = 'table'"
+            >
+              <Icon name="solar:clipboard-list-linear" size="16" />
+            </button>
+            <button
+              type="button"
+              class="toggle-btn"
+              :class="{ active: viewMode === 'calendar' }"
+              @click="viewMode = 'calendar'"
+            >
+              <Icon name="solar:calendar-linear" size="16" />
+            </button>
           </div>
-          <div class="stat-item">
-            <span class="stat-label">支出</span>
-            <span class="stat-value negative">-{{ totalExpense.toFixed(2) }}</span>
+          <div class="date-filter">
+            <select v-model="billYearFilter" class="filter-select" @change="refreshBills">
+              <option :value="null">全部年份</option>
+              <option v-for="y in billYearOptions" :key="y" :value="y">{{ y }}年</option>
+            </select>
+            <select v-model="billMonthFilter" class="filter-select" @change="refreshBills">
+              <option :value="null">全部月份</option>
+              <option v-for="m in billMonthOptions" :key="m" :value="m">{{ m }}月</option>
+            </select>
           </div>
-          <div class="stat-item">
-            <span class="stat-label">结余</span>
-            <span class="stat-value" :class="netBalance >= 0 ? 'positive' : 'negative'">
-              {{ netBalance >= 0 ? '+' : '' }}{{ netBalance.toFixed(2) }}
-            </span>
+        </div>
+        <!-- 第二行：统计 / 批量工具栏 -->
+        <div v-if="!batchMode" class="header-row row-2">
+          <div class="stats-bar">
+            <div class="stat-item">
+              <span class="stat-label">收入</span>
+              <span class="stat-value positive">+{{ totalIncome.toFixed(2) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">支出</span>
+              <span class="stat-value negative">-{{ totalExpense.toFixed(2) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">结余</span>
+              <span class="stat-value" :class="netBalance >= 0 ? 'positive' : 'negative'">
+                {{ netBalance >= 0 ? '+' : '' }}{{ netBalance.toFixed(2) }}
+              </span>
+            </div>
           </div>
         </div>
         <BillBatchToolbar
@@ -124,55 +166,29 @@
           @batch-edit="batchEditVisible = true"
           @exit="exitBatchMode"
         />
-        <div class="date-filter">
-          <select v-model="billYearFilter" class="filter-select" @change="refreshBills">
-            <option :value="null">全部年份</option>
-            <option v-for="y in billYearOptions" :key="y" :value="y">{{ y }}年</option>
-          </select>
-          <select v-model="billMonthFilter" class="filter-select" @change="refreshBills">
-            <option :value="null">全部月份</option>
-            <option v-for="m in billMonthOptions" :key="m" :value="m">{{ m }}月</option>
-          </select>
-        </div>
-        <div class="view-toggle">
-          <button
-            type="button"
-            class="toggle-btn"
-            :class="{ active: viewMode === 'card' }"
-            @click="viewMode = 'card'"
-          >
-            <Icon name="solar:widget-2-linear" size="16" />
-          </button>
-          <button
-            type="button"
-            class="toggle-btn"
-            :class="{ active: viewMode === 'table' }"
-            @click="viewMode = 'table'"
-          >
-            <Icon name="solar:clipboard-list-linear" size="16" />
-          </button>
-          <button
-            type="button"
-            class="toggle-btn"
-            :class="{ active: viewMode === 'calendar' }"
-            @click="viewMode = 'calendar'"
-          >
-            <Icon name="solar:calendar-linear" size="16" />
-          </button>
-        </div>
-        <div v-if="!batchMode" class="header-actions">
-          <button type="button" class="add-btn secondary" @click="enterBatchMode">
-            <Icon name="solar:checklist-minimalistic-linear" size="18" />
-            批量
-          </button>
-          <button type="button" class="add-btn secondary" @click="openImportDialog()">
-            <Icon name="solar:upload-linear" size="18" />
-            导入
-          </button>
-          <button type="button" class="add-btn" @click="openBillDialog()">
-            <Icon name="solar:add-circle-linear" size="18" />
-            记一笔
-          </button>
+        <!-- 第三行：预算执行进度条 -->
+        <div v-if="!batchMode && budgetProgress.hasBudget" class="header-row row-3">
+          <div class="budget-progress">
+            <div class="budget-progress-header">
+              <span class="budget-progress-label">预算执行</span>
+              <span class="budget-progress-value" :class="{ over: budgetProgress.isOver }">
+                {{ budgetProgress.actualExpense.toFixed(0) }} / {{ budgetProgress.totalBudget.toFixed(0) }}
+                <template v-if="budgetProgress.isOver">
+                  (超支 {{ (budgetProgress.rawPercentage * 100 - 100).toFixed(0) }}%)
+                </template>
+                <template v-else>
+                  ({{ (budgetProgress.rawPercentage * 100).toFixed(0) }}%)
+                </template>
+              </span>
+            </div>
+            <div class="budget-progress-track">
+              <div
+                class="budget-progress-fill"
+                :class="{ over: budgetProgress.isOver }"
+                :style="{ width: `${budgetProgress.percentage * 100}%` }"
+              />
+            </div>
+          </div>
         </div>
       </div>
       <div class="list-container">
@@ -227,7 +243,14 @@
 
     <div v-if="activeTab === 'accounts'" class="tab-panel">
       <div class="panel-header">
-        <h4>{{ accountSubTabTitle }}</h4>
+        <SelectPicker
+          v-if="isMobile"
+          v-model="activeAccountSubTab"
+          :options="accountSubTabOptions"
+          :min-width="120"
+          plain
+        />
+        <h4 v-else>{{ accountSubTabTitle }}</h4>
         <button type="button" class="add-btn" @click="openAccountDialog(undefined, activeAccountSubTab)">
           <Icon name="solar:add-circle-linear" size="18" />
           添加账户
@@ -529,6 +552,8 @@ import ImportRuleDialog from './components/ImportRuleDialog.vue'
 import ImportRecordDetail from './components/ImportRecordDetail.vue'
 import BalanceAdjustDialog from './components/BalanceAdjustDialog.vue'
 import BillCalendar from './components/BillCalendar.vue'
+import SelectPicker from './components/SelectPicker.vue'
+import { usePageHeaderStore } from '~/stores/pageHeader'
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -539,7 +564,7 @@ const { success: showSuccess, error: showError } = useToast()
 const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, createBillsBatch, updateBill, updateBills, deleteBill, deleteBills } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree, syncDefaultCategories, exportCategories, importCategories: importCategoriesBatch } = useBillCategories()
-const { loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget } = useBudgets()
+const { budgets, loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget, getMonthlyEquivalent } = useBudgets()
 const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
 const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule, deleteImportRules, updateImportRules, exportRules, importRules: importRulesBatch } = useImportRules()
 const { loadImportRecords, fingerprintsAcrossRecords, getById, rollback, deleteImportRecord } = useImportRecords()
@@ -548,6 +573,7 @@ const { loadNotes, noteOptions } = useNotes()
 const { isMobile } = useDevice()
 const activeTab = ref('bills')
 const viewMode = ref<'card' | 'table' | 'calendar'>('card')
+const pageHeaderStore = usePageHeaderStore()
 const VIEW_MODE_KEY = 'lifeos:bill-view-mode'
 const SIDEBAR_COLLAPSED_KEY = 'lifeos:billing-sidebar-collapsed'
 const sidebarCollapsed = ref(false)
@@ -569,6 +595,32 @@ const billYearOptions = computed(() => {
 })
 const billMonthOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 const isDateFiltered = computed(() => billYearFilter.value !== null || billMonthFilter.value !== null)
+
+const currentBudgetYear = computed(() => billYearFilter.value ?? new Date().getFullYear())
+const currentBudgetMonth = computed(() => billMonthFilter.value ?? new Date().getMonth() + 1)
+
+const budgetProgress = computed(() => {
+  const year = currentBudgetYear.value
+  const month = currentBudgetMonth.value
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+
+  let totalBudget = 0
+  const expenseCats = categories.value.filter(c => c.type === 'expense')
+  for (const cat of expenseCats) {
+    totalBudget += getMonthlyEquivalent(cat.id, year, month, props.noteId)
+  }
+
+  const actualExpense = bills.value
+    .filter(b => b.type === 'expense' && b.status === 'completed' && b.date.startsWith(prefix))
+    .reduce((sum, b) => sum + b.amount, 0)
+
+  const hasBudget = totalBudget > 0
+  const isOver = hasBudget && actualExpense > totalBudget
+  const percentage = hasBudget ? Math.min(actualExpense / totalBudget, 1) : 0
+  const rawPercentage = hasBudget ? actualExpense / totalBudget : 0
+
+  return { totalBudget, actualExpense, percentage, rawPercentage, isOver, hasBudget }
+})
 
 watch(viewMode, (mode) => {
   if (mode === 'calendar') {
@@ -643,8 +695,10 @@ const mobileTabs = [
 const accountSubTabs = [
   { type: 'personal' as AccountType, label: '个人账户' },
   { type: 'contact' as AccountType, label: '人员/组织' },
-  { type: 'merchant' as AccountType, label: '商户' }
+  { type: 'merchant' as AccountType, label: '商户' },
+  { type: 'other' as AccountType, label: '其他' }
 ]
+const accountSubTabOptions = computed(() => accountSubTabs.map(s => ({ value: s.type, label: s.label })))
 const activeAccountSubTab = ref<AccountType>('personal')
 const accountsMenuExpanded = ref(true)
 const accountSubTabTitle = computed(() => {
@@ -791,6 +845,22 @@ const accountFrequency = computed(() => {
   return map
 })
 
+function registerHeaderActions() {
+  pageHeaderStore.setActions([
+    { icon: 'solar:checklist-minimalistic-linear', label: '批量操作', handler: enterBatchMode },
+    { icon: 'solar:upload-linear', label: '导入账单', handler: openImportDialog },
+    { icon: 'solar:download-linear', label: '导出账单', handler: handleExportBills }
+  ])
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'bills') {
+    registerHeaderActions()
+  } else {
+    pageHeaderStore.clearActions()
+  }
+})
+
 onMounted(async () => {
   const saved = localStorage.getItem(VIEW_MODE_KEY)
   if (saved === 'card' || saved === 'table') {
@@ -808,6 +878,13 @@ onMounted(async () => {
   } catch (e) {
     handleError(e instanceof Error ? e : new Error(String(e)))
   }
+  if (activeTab.value === 'bills') {
+    registerHeaderActions()
+  }
+})
+
+onBeforeUnmount(() => {
+  pageHeaderStore.clearActions()
 })
 
 watch(viewMode, (mode) => {
@@ -1296,6 +1373,37 @@ function openImportDialog() {
   importDialogVisible.value = true
 }
 
+function handleExportBills() {
+  const headers = ['日期', '类型', '金额', '币种', '分类', '账户', '描述']
+  const rows = bills.value.map(b => {
+    const cat = categories.value.find(c => c.id === b.categoryId)
+    const acc = accounts.value.find(a => a.id === b.fromAccountId || a.id === b.toAccountId)
+    return [
+      b.date,
+      b.type === 'income' ? '收入' : b.type === 'expense' ? '支出' : b.type === 'transfer' ? '转账' : '债权债务',
+      b.amount,
+      b.currency,
+      cat?.name || '',
+      acc?.name || '',
+      b.description
+    ]
+  })
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const year = billYearFilter.value
+  const month = billMonthFilter.value
+  const suffix = year ? (month ? `${year}-${String(month).padStart(2, '0')}` : `${year}`) : new Date().toISOString().slice(0, 10)
+  a.download = `bills-${suffix}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  showSuccess('账单已导出')
+}
+
 function onOpenRulesFromImport() {
   importDialogVisible.value = false
   activeTab.value = 'rules'
@@ -1481,15 +1589,19 @@ function onGlobalKeydown(e: KeyboardEvent) {
   }
 }
 
+function onWindowClick(e: MouseEvent) {
+  closeCategoryMenu()
+}
+
 onMounted(() => {
-  window.addEventListener('click', closeCategoryMenu)
+  window.addEventListener('click', onWindowClick)
   window.addEventListener('contextmenu', closeCategoryMenu, true)
   window.addEventListener('keydown', onGlobalKeydown)
   window.addEventListener('resize', closeCategoryMenu)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('click', closeCategoryMenu)
+  window.removeEventListener('click', onWindowClick)
   window.removeEventListener('contextmenu', closeCategoryMenu, true)
   window.removeEventListener('keydown', onGlobalKeydown)
   window.removeEventListener('resize', closeCategoryMenu)
@@ -1977,6 +2089,9 @@ onBeforeUnmount(() => {
   .panel-header {
     gap: 8px;
   }
+  .panel-header.bills-header {
+    gap: 6px;
+  }
   .header-actions {
     flex-wrap: wrap;
   }
@@ -1986,6 +2101,84 @@ onBeforeUnmount(() => {
   }
   .view-toggle {
     order: 2;
+  }
+}
+
+/* 账单头部三行布局 */
+.panel-header.bills-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-row.row-1 {
+  justify-content: space-between;
+}
+.header-row.row-2 {
+  justify-content: center;
+}
+.header-row.row-2 .stats-bar {
+  display: flex;
+  gap: 24px;
+}
+.header-row.row-3 {
+  justify-content: center;
+}
+.budget-progress {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.budget-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+.budget-progress-label {
+  color: rgba(60, 60, 67, 0.5);
+}
+.budget-progress-value {
+  color: rgba(0, 0, 0, 0.78);
+  font-weight: 500;
+}
+.budget-progress-value.over {
+  color: rgb(255, 59, 48);
+}
+.budget-progress-track {
+  height: 6px;
+  background: rgba(60, 60, 67, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.budget-progress-fill {
+  height: 100%;
+  background: rgb(0, 122, 255);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.budget-progress-fill.over {
+  background: rgb(255, 59, 48);
+}
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .header-row.row-1 {
+    gap: 8px;
+  }
+  .header-row.row-2 .stats-bar {
+    gap: 16px;
+    width: 100%;
+    justify-content: space-around;
+  }
+  .budget-progress {
+    max-width: 100%;
   }
 }
 

@@ -118,6 +118,12 @@ function getWeekStart(date: Date): Date {
   border-radius: 8px;
 }
 
+@media (max-width: 767px) {
+  .view-tabs {
+    display: none;
+  }
+}
+
 .tab-btn {
   padding: 5px 14px;
   border: none;

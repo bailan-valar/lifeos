@@ -24,6 +24,21 @@
         @select-date="selectedDate = $event"
       />
     </div>
+
+    <!-- 手机端底部 Tab -->
+    <nav v-if="isMobile" class="time-mobile-tabbar">
+      <button
+        v-for="v in views"
+        :key="v.value"
+        type="button"
+        class="time-tab-item"
+        :class="{ active: currentView === v.value }"
+        @click="currentView = v.value"
+      >
+        <Icon :name="v.icon" size="20" />
+        <span>{{ v.label }}</span>
+      </button>
+    </nav>
   </div>
 </template>
 
@@ -36,6 +51,15 @@ import DayView from '~/components/time/DayView.vue'
 import type { TimeView } from '~/components/time/TimeHeader.vue'
 
 defineOptions({ name: 'TimePage' })
+
+const { isMobile } = useDevice()
+
+const views = [
+  { value: 'year' as TimeView, label: '年', icon: 'solar:calendar-linear' },
+  { value: 'month' as TimeView, label: '月', icon: 'solar:calendar-date-linear' },
+  { value: 'week' as TimeView, label: '周', icon: 'solar:calendar-mark-linear' },
+  { value: 'day' as TimeView, label: '日', icon: 'solar:clock-circle-linear' },
+]
 
 const currentView = ref<TimeView>('month')
 const currentDate = ref(new Date())
@@ -129,5 +153,65 @@ function onNext() {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  padding-bottom: calc(12px + 56px + env(safe-area-inset-bottom));
+}
+
+.time-mobile-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-shrink: 0;
+  height: calc(56px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.3),
+    0 -4px 20px rgba(0, 0, 0, 0.08);
+  z-index: var(--z-drawer);
+  position: relative;
+  overflow: hidden;
+}
+
+.time-mobile-tabbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(255, 255, 255, 0.25) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.time-tab-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.5);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.time-tab-item.active {
+  color: rgb(0, 122, 255);
+}
+
+.time-tab-item:active {
+  opacity: 0.7;
 }
 </style>

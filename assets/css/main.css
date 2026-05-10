@@ -2,7 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Z-Index 层级体系 — 所有弹框/浮层统一引用，禁止硬编码 */
+/* ============================================================
+   Z-Index 层级体系 — 所有弹框/浮层统一引用，禁止硬编码
+   ============================================================ */
 :root {
   --z-fab: 290;          /* 悬浮按钮（低于弹框，高于抽屉） */
   --z-picker: 450;      /* 下拉选择面板（AccountPicker/CategoryPicker 等） */
@@ -13,6 +15,92 @@
   --z-toast: 500;        /* Toast 通知 */
   --z-confirm: 600;      /* 确认弹框（阻塞式，最高） */
   --z-drag: 700;         /* 拖拽覆盖层 */
+
+  /* ============================================================
+     iOS 26 Liquid Glass — 全局设计 Token
+     所有 glass 组件必须引用这些变量，禁止硬编码数值
+     ============================================================ */
+  --liquid-blur: 20px;
+  --liquid-blur-nav: 24px;
+  --liquid-blur-thick: 32px;
+  --liquid-saturate: 180%;
+
+  /* 浅色模式基底 */
+  --liquid-bg: rgba(255, 255, 255, 0.15);
+  --liquid-bg-thick: rgba(255, 255, 255, 0.22);
+  --liquid-bg-thin: rgba(255, 255, 255, 0.10);
+  --liquid-bg-solid: rgba(255, 255, 255, 0.70);
+
+  /* 深色模式基底 */
+  --liquid-bg-dark: rgba(30, 30, 30, 0.35);
+  --liquid-bg-dark-thick: rgba(30, 30, 30, 0.50);
+  --liquid-bg-dark-thin: rgba(30, 30, 30, 0.22);
+
+  /* 边框 */
+  --liquid-border: 0.5px solid rgba(255, 255, 255, 0.20);
+  --liquid-border-strong: 0.5px solid rgba(255, 255, 255, 0.30);
+  --liquid-border-dark: 0.5px solid rgba(255, 255, 255, 0.12);
+
+  /* 圆角 */
+  --liquid-radius: 20px;
+  --liquid-radius-lg: 24px;
+  --liquid-radius-xl: 32px;
+  --liquid-radius-button: 14px;
+  --liquid-radius-input: 12px;
+
+  /* 阴影系统 */
+  --liquid-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 8px 32px rgba(0, 0, 0, 0.12);
+  --liquid-shadow-light:
+    inset 0 1px 1px rgba(255, 255, 255, 0.20),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+  --liquid-shadow-strong:
+    inset 0 1px 1px rgba(255, 255, 255, 0.30),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 16px 48px rgba(0, 0, 0, 0.18);
+  --liquid-shadow-nav:
+    inset 0 1px 1px rgba(255, 255, 255, 0.30),
+    0 -4px 20px rgba(0, 0, 0, 0.08);
+  --liquid-shadow-sheet:
+    inset 0 1px 1px rgba(255, 255, 255, 0.30),
+    0 -8px 32px rgba(0, 0, 0, 0.12);
+  --liquid-shadow-elevated:
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+
+  /* 折射高光 */
+  --liquid-refraction: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.25) 0%, transparent 60%);
+  --liquid-refraction-strong: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.35) 0%, transparent 55%);
+
+  /* 文字颜色 */
+  --liquid-text-primary: rgba(0, 0, 0, 0.88);
+  --liquid-text-secondary: rgba(0, 0, 0, 0.55);
+  --liquid-text-tertiary: rgba(0, 0, 0, 0.35);
+  --liquid-text-primary-dark: rgba(255, 255, 255, 0.92);
+  --liquid-text-secondary-dark: rgba(255, 255, 255, 0.60);
+}
+
+/* ============================================================
+   深色模式支持（通过 media query 或 .dark 类）
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --liquid-bg: var(--liquid-bg-dark);
+    --liquid-bg-thick: var(--liquid-bg-dark-thick);
+    --liquid-bg-thin: var(--liquid-bg-dark-thin);
+    --liquid-text-primary: var(--liquid-text-primary-dark);
+    --liquid-text-secondary: var(--liquid-text-secondary-dark);
+  }
+}
+
+.dark {
+  --liquid-bg: var(--liquid-bg-dark);
+  --liquid-bg-thick: var(--liquid-bg-dark-thick);
+  --liquid-bg-thin: var(--liquid-bg-dark-thin);
+  --liquid-text-primary: var(--liquid-text-primary-dark);
+  --liquid-text-secondary: var(--liquid-text-secondary-dark);
 }
 
 @layer base {
@@ -126,7 +214,9 @@
 }
 
 @layer components {
-  /* Liquid Glass Card */
+  /* ============================================================
+     Legacy Glass Card — 保留兼容
+     ============================================================ */
   .glass-card {
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -150,57 +240,346 @@
       0 4px 16px rgba(0, 0, 0, 0.1);
   }
 
-  /* iOS 26 Liquid Glass - Navigation Layer */
-  .liquid-glass {
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    background: rgba(255, 255, 255, 0.15);
-    border: 0.5px solid rgba(255, 255, 255, 0.2);
-    box-shadow:
-      inset 0 1px 1px rgba(255, 255, 255, 0.25),
-      inset 0 -1px 1px rgba(0, 0, 0, 0.05),
-      0 8px 32px rgba(0, 0, 0, 0.12);
-  }
+  /* ============================================================
+     iOS 26 Liquid Glass — 核心体系
+     所有新组件必须优先使用以下类名
+     ============================================================ */
 
-  /* Liquid Glass for Navigation Bars / Tab Bars */
-  .liquid-glass-nav {
+  /* —— 基础材质层 —— */
+  .liquid-glass {
     position: relative;
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    background: rgba(255, 255, 255, 0.15);
-    border: 0.5px solid rgba(255, 255, 255, 0.25);
-    box-shadow:
-      inset 0 1px 1px rgba(255, 255, 255, 0.3),
-      0 -4px 20px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    background: var(--liquid-bg);
+    border: var(--liquid-border);
+    border-radius: var(--liquid-radius);
+    box-shadow: var(--liquid-shadow);
     overflow: hidden;
   }
 
-  /* Refraction highlight - pseudo element for light bending effect */
+  .liquid-glass-thick {
+    position: relative;
+    backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    background: var(--liquid-bg-thick);
+    border: var(--liquid-border-strong);
+    border-radius: var(--liquid-radius);
+    box-shadow: var(--liquid-shadow-strong);
+    overflow: hidden;
+  }
+
+  .liquid-glass-thin {
+    position: relative;
+    backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    background: var(--liquid-bg-thin);
+    border: var(--liquid-border);
+    border-radius: var(--liquid-radius);
+    box-shadow: var(--liquid-shadow-light);
+    overflow: hidden;
+  }
+
+  /* —— 折射高光效果（组合类） ——
+     给任意 .liquid-glass-* 元素添加 .liquid-glass-refraction 即可产生顶部折射高光 */
+  .liquid-glass-refraction::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--liquid-refraction);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .liquid-glass-refraction-strong::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--liquid-refraction-strong);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* —— 导航栏 —— */
+  .liquid-glass-nav {
+    position: relative;
+    backdrop-filter: blur(var(--liquid-blur-nav)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur-nav)) saturate(var(--liquid-saturate));
+    background: var(--liquid-bg-thick);
+    border: var(--liquid-border-strong);
+    box-shadow: var(--liquid-shadow-nav);
+    overflow: hidden;
+  }
+
   .liquid-glass-nav::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(
-      ellipse at 50% 0%,
-      rgba(255, 255, 255, 0.25) 0%,
-      transparent 60%
-    );
+    background: var(--liquid-refraction);
     pointer-events: none;
   }
 
-  /* Liquid Glass for Bottom Sheets */
+  /* —— 底部弹层 —— */
   .liquid-glass-sheet {
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    background: rgba(255, 255, 255, 0.2);
-    border: 0.5px solid rgba(255, 255, 255, 0.3);
-    border-radius: 24px 24px 0 0;
-    box-shadow:
-      inset 0 1px 1px rgba(255, 255, 255, 0.3),
-      0 -8px 32px rgba(0, 0, 0, 0.12);
+    position: relative;
+    backdrop-filter: blur(var(--liquid-blur-nav)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur-nav)) saturate(var(--liquid-saturate));
+    background: var(--liquid-bg-thick);
+    border: var(--liquid-border-strong);
+    border-radius: var(--liquid-radius-lg) var(--liquid-radius-lg) 0 0;
+    box-shadow: var(--liquid-shadow-sheet);
+    overflow: hidden;
   }
 
-  /* Shimmer glow for active states */
+  .liquid-glass-sheet::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--liquid-refraction);
+    pointer-events: none;
+  }
+
+  /* —— 卡片 —— */
+  .liquid-glass-card {
+    position: relative;
+    backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    background: var(--liquid-bg);
+    border: var(--liquid-border);
+    border-radius: var(--liquid-radius);
+    box-shadow: var(--liquid-shadow);
+    overflow: hidden;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .liquid-glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--liquid-refraction);
+    pointer-events: none;
+  }
+
+  /* —— 侧边栏 —— */
+  .liquid-glass-sidebar {
+    position: relative;
+    backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    background: var(--liquid-bg-thick);
+    border-right: var(--liquid-border);
+    box-shadow: var(--liquid-shadow-strong);
+    overflow: hidden;
+  }
+
+  .liquid-glass-sidebar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--liquid-refraction);
+    pointer-events: none;
+  }
+
+  /* —— 弹框 / Dialog —— */
+  .liquid-glass-dialog {
+    position: relative;
+    backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    background: var(--liquid-bg-solid);
+    border: var(--liquid-border-strong);
+    border-radius: var(--liquid-radius-lg);
+    box-shadow: var(--liquid-shadow-elevated);
+    overflow: hidden;
+  }
+
+  .liquid-glass-dialog::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--liquid-refraction-strong);
+    pointer-events: none;
+  }
+
+  /* —— 遮罩层 —— */
+  .liquid-glass-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  /* —— 按钮 —— */
+  .liquid-glass-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--liquid-text-primary);
+    background: var(--liquid-bg-thick);
+    backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    border: var(--liquid-border-strong);
+    border-radius: var(--liquid-radius-button);
+    box-shadow: var(--liquid-shadow-light);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.2s ease,
+                background 0.2s ease;
+  }
+
+  .liquid-glass-button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--liquid-refraction);
+    pointer-events: none;
+  }
+
+  .liquid-glass-button:hover {
+    background: var(--liquid-bg-thick);
+    box-shadow: var(--liquid-shadow);
+  }
+
+  .liquid-glass-button:active {
+    transform: scale(0.96);
+    background: var(--liquid-bg-thin);
+    box-shadow: var(--liquid-shadow-light);
+  }
+
+  .liquid-glass-button-primary {
+    background: rgb(0, 122, 255);
+    border: none;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+  }
+
+  .liquid-glass-button-primary::before {
+    background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.25) 0%, transparent 60%);
+  }
+
+  .liquid-glass-button-primary:hover {
+    background: rgb(0, 110, 230);
+    box-shadow: 0 6px 16px rgba(0, 122, 255, 0.5);
+  }
+
+  .liquid-glass-button-primary:active {
+    background: rgb(0, 100, 210);
+    transform: scale(0.96);
+  }
+
+  .liquid-glass-button-danger {
+    background: rgb(255, 59, 48);
+    border: none;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(255, 59, 48, 0.4);
+  }
+
+  .liquid-glass-button-danger::before {
+    background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.25) 0%, transparent 60%);
+  }
+
+  /* —— 输入框 —— */
+  .liquid-glass-input {
+    position: relative;
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--liquid-text-primary);
+    background: var(--liquid-bg-thin);
+    backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    border: var(--liquid-border);
+    border-radius: var(--liquid-radius-input);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .liquid-glass-input::placeholder {
+    color: var(--liquid-text-tertiary);
+  }
+
+  .liquid-glass-input:focus {
+    background: var(--liquid-bg);
+    border-color: rgba(0, 122, 255, 0.5);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 3px rgba(0, 122, 255, 0.15);
+  }
+
+  /* —— 列表项 —— */
+  .liquid-glass-list-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    min-height: 48px;
+    background: transparent;
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
+    color: var(--liquid-text-primary);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+    overflow: hidden;
+  }
+
+  .liquid-glass-list-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .liquid-glass-list-item:active {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  /* —— 悬浮按钮 —— */
+  .liquid-glass-fab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--liquid-bg-thick);
+    backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    border: var(--liquid-border-strong);
+    box-shadow: var(--liquid-shadow-strong);
+    color: var(--liquid-text-primary);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s ease;
+  }
+
+  .liquid-glass-fab::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--liquid-refraction);
+    pointer-events: none;
+  }
+
+  .liquid-glass-fab:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--liquid-shadow-elevated);
+  }
+
+  .liquid-glass-fab:active {
+    transform: scale(0.92) translateY(0);
+    box-shadow: var(--liquid-shadow);
+  }
+
+  /* —— 动态光泽 —— */
   .liquid-glass-shimmer {
     position: relative;
     overflow: hidden;
@@ -233,7 +612,29 @@
     }
   }
 
-  /* iOS 16 Button */
+  /* —— 状态修饰符 —— */
+  .liquid-glass-hover:hover {
+    background: var(--liquid-bg-thick);
+    box-shadow: var(--liquid-shadow);
+  }
+
+  .liquid-glass-active:active {
+    transform: scale(0.97);
+    background: var(--liquid-bg-thin);
+    box-shadow: var(--liquid-shadow-light);
+  }
+
+  /* —— 统一过渡 —— */
+  .liquid-glass-transition {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s ease,
+                background 0.2s ease,
+                border-color 0.2s ease;
+  }
+
+  /* ============================================================
+     Legacy iOS 16 Components — 保留兼容
+     ============================================================ */
   .ios-button {
     @apply rounded-2xl;
     @apply font-semibold;
@@ -267,7 +668,6 @@
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
   }
 
-  /* iOS 16 Navigation Bar */
   .ios-navbar {
     @apply backdrop-blur-xl;
     @apply bg-black/30;
@@ -277,7 +677,6 @@
     min-height: 88px;
   }
 
-  /* iOS 16 Tab Bar */
   .ios-tabbar {
     @apply backdrop-blur-xl;
     @apply bg-black/30;
@@ -287,7 +686,6 @@
     min-height: 83px;
   }
 
-  /* iOS 16 List Item */
   .ios-list-item {
     @apply flex items-center;
     @apply px-4;
@@ -302,7 +700,6 @@
     min-height: 44px;
   }
 
-  /* iOS 16 Search Bar */
   .ios-searchbar {
     @apply rounded-xl;
     @apply backdrop-blur-xl;
@@ -316,7 +713,6 @@
     min-height: 36px;
   }
 
-  /* iOS 16 Modal/Sheet */
   .ios-sheet {
     @apply glass-card;
     @apply rounded-t-[32px];
@@ -328,7 +724,6 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
-  /* iOS 16 Floating Action Button */
   .ios-fab {
     @apply rounded-full;
     @apply w-14;
@@ -347,7 +742,6 @@
     @apply duration-200;
   }
 
-  /* iOS 16 Toggle Switch */
   .ios-toggle {
     @apply w-12;
     @apply h-7;
@@ -438,4 +832,27 @@
   .text-ios-red { color: rgb(255, 59, 48); }
   .text-ios-yellow { color: rgb(255, 204, 0); }
   .text-ios-orange { color: rgb(255, 149, 0); }
+
+  /* Liquid Glass 快速工具类 */
+  .liquid-blur {
+    backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  }
+
+  .liquid-blur-thick {
+    backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+  }
+
+  .liquid-text-primary {
+    color: var(--liquid-text-primary);
+  }
+
+  .liquid-text-secondary {
+    color: var(--liquid-text-secondary);
+  }
+
+  .liquid-text-tertiary {
+    color: var(--liquid-text-tertiary);
+  }
 }

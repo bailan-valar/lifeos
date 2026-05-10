@@ -54,6 +54,8 @@ const emit = defineEmits<{
   (e: 'title-update', noteId: string, title: string): void
 }>()
 
+const { isMobile } = useDevice()
+
 const views = [
   { id: 'content', name: '内容', icon: 'solar:document-text-linear' },
   { id: 'todo', name: '待办', icon: 'solar:check-read-linear' },
@@ -142,6 +144,12 @@ watch(() => props.noteId, async () => {
   todoData.value = null
   billingData.value = null
 }, { immediate: false })
+
+defineExpose({
+  get activeView() { return activeView.value },
+  switchView,
+  get currentViewName() { return views.find(v => v.id === activeView.value)?.name || '内容' },
+})
 </script>
 
 <style scoped>
@@ -181,6 +189,22 @@ watch(() => props.noteId, async () => {
     0 8px 32px rgba(0, 0, 0, 0.06);
 }
 
+@media (max-width: 767px) {
+  .view-tabs {
+    display: none;
+  }
+
+  .view-content {
+    margin: 0;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 .tab-btn {
   display: inline-flex;
   align-items: center;
@@ -213,9 +237,4 @@ watch(() => props.noteId, async () => {
     0 0 0 0.5px rgba(0, 0, 0, 0.04);
 }
 
-.view-content {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
 </style>
