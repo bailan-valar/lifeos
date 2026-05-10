@@ -24,7 +24,7 @@
         </header>
 
         <div class="app-content" :class="{ 'mobile': isMobile }">
-          <NuxtPage :keepalive="{ max: 10 }" :page-key="pageKey" />
+          <NuxtPage :keepalive="{ max: 10 }" :page-key="pageKey" :key="workspaceStore.currentId" />
         </div>
       </div>
 
@@ -173,7 +173,6 @@ html, body, #__nuxt {
     0 4px 20px rgba(0, 0, 0, 0.06);
   z-index: 200;
   position: relative;
-  overflow: hidden;
 }
 
 /* Liquid Glass refraction highlight */

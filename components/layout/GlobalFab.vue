@@ -250,8 +250,8 @@ onBeforeUnmount(() => {
 .global-fab {
   position: fixed;
   right: 20px;
-  bottom: calc(20px + env(safe-area-inset-bottom));
-  z-index: 520;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  z-index: var(--z-fab);
   display: flex;
   flex-direction: column;
   align-items: flex-end;

@@ -4,6 +4,7 @@
 
 /* Z-Index 层级体系 — 所有弹框/浮层统一引用，禁止硬编码 */
 :root {
+  --z-fab: 290;          /* 悬浮按钮（低于弹框，高于抽屉） */
   --z-picker: 450;      /* 下拉选择面板（AccountPicker/CategoryPicker 等） */
   --z-dropdown: 460;     /* 下拉菜单、编辑器浮动菜单 */
   --z-drawer: 200;       /* 抽屉 */
