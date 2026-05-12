@@ -270,8 +270,15 @@
 
     <div v-if="activeTab === 'categories'" class="tab-panel">
       <div class="panel-header">
-        <h4>{{ categorySubTabTitle }}</h4>
-        <div class="header-actions">
+        <SelectPicker
+          v-if="isMobile"
+          v-model="activeCategorySubTab"
+          :options="categorySubTabOptions"
+          :min-width="120"
+          plain
+        />
+        <h4 v-else>{{ categorySubTabTitle }}</h4>
+        <div v-if="!isMobile" class="header-actions">
           <button type="button" class="add-btn secondary" @click="handleExportCategories">
             <Icon name="solar:download-linear" size="18" />
             导出
@@ -289,6 +296,10 @@
             添加分类
           </button>
         </div>
+        <button v-else type="button" class="add-btn" @click="openCategoryDialog(undefined, activeCategorySubTab === 'all' ? undefined : activeCategorySubTab)">
+          <Icon name="solar:add-circle-linear" size="18" />
+          添加分类
+        </button>
       </div>
       <div class="category-list-container">
         <div v-if="activeCategorySubTab === 'all' || activeCategorySubTab === 'income'" class="category-section">
@@ -727,6 +738,7 @@ const categorySubTabs = [
   { type: 'expense' as CategoryType, label: '支出' }
 ]
 const activeCategorySubTab = ref<CategoryType | 'all'>('all')
+const categorySubTabOptions = computed(() => categorySubTabs.map(s => ({ value: s.type, label: s.label })))
 const categoryMenuExpanded = ref(true)
 const categorySubTabTitle = computed(() => {
   const map: Record<string, string> = {
@@ -853,9 +865,19 @@ function registerHeaderActions() {
   ])
 }
 
+function registerCategoryActions() {
+  pageHeaderStore.setActions([
+    { icon: 'solar:download-linear', label: '导出分类', handler: handleExportCategories },
+    { icon: 'solar:upload-linear', label: '导入分类', handler: handleImportCategories },
+    { icon: 'solar:cloud-download-linear', label: '分类初始化', handler: handleSyncDefaultCategories }
+  ])
+}
+
 watch(activeTab, (tab) => {
   if (tab === 'bills') {
     registerHeaderActions()
+  } else if (tab === 'categories') {
+    registerCategoryActions()
   } else {
     pageHeaderStore.clearActions()
   }
@@ -880,6 +902,8 @@ onMounted(async () => {
   }
   if (activeTab.value === 'bills') {
     registerHeaderActions()
+  } else if (activeTab.value === 'categories') {
+    registerCategoryActions()
   }
 })
 
