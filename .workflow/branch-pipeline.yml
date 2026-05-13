@@ -66,7 +66,7 @@ stages:
             dependArtifact: BUILD_ARTIFACT
         script:
           - chmod +x /gitee_go/deploy/lifeos-prod.tar.gz
-          - sudo chown -R ubuntu:ubuntu /html/9999/life-os && tar zxvf /gitee_go/deploy/lifeos-prod.tar.gz -C /html/9999/life-os
+          - sudo chown -R ubuntu:ubuntu /html/9999/life-os && tar zxvf /gitee_go/deploy/lifeos-prod.tar.gz -C /html/9999/life-os 2>&1 > test.log
           - node -v
           - chmod +x /html/9999/life-os/ecosystem.config.cjs
           - sudo chown -R ubuntu:ubuntu /home/ubuntu/.nvm/versions/node/v24.15.0/bin/pm2
