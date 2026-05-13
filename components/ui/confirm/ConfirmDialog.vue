@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
     <Transition name="confirm">
-      <div v-if="state.visible" class="confirm-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
-        <div class="confirm-dialog" @click.stop>
+      <div v-if="state.visible" class="confirm-overlay" :class="{ mobile: isMobile }" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
+        <div class="confirm-dialog" :class="{ mobile: isMobile }" @click.stop>
           <div class="confirm-content">
             <h3 v-if="state.title" class="confirm-title">{{ state.title }}</h3>
             <p class="confirm-message">{{ state.message }}</p>
@@ -31,6 +31,7 @@ import { useConfirm } from '~/composables/useConfirm'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 
 const { state, answer } = useConfirm()
+const { isMobile } = useDevice()
 const overlayZIndex = useZIndexOnOpen(() => state.visible)
 
 function onConfirm() {
@@ -50,26 +51,42 @@ function onCancel() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 20px;
 }
-
+.confirm-overlay.mobile {
+  align-items: flex-end;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
 .confirm-dialog {
   min-width: 320px;
   max-width: 420px;
-  margin: 24px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.85) 100%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  width: 420px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 24px 60px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.confirm-dialog.mobile {
+  width: 100%;
+  max-width: 100%;
+  min-width: auto;
+  border-radius: 20px 20px 0 0;
+  border-bottom: none;
   overflow: hidden;
 }
 
 .confirm-content {
   padding: 24px 24px 16px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .confirm-title {
@@ -93,6 +110,7 @@ function onCancel() {
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 16px 16px;
+  flex-shrink: 0;
 }
 
 .confirm-btn {

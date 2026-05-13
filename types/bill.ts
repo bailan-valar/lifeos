@@ -33,6 +33,16 @@ export type BillStatus = 'pending' | 'completed' | 'cancelled'
 export type CategoryType = 'income' | 'expense'
 
 /**
+ * 账单Tab ID
+ */
+export type TabId = 'bills' | 'accounts' | 'categories' | 'budgets' | 'rules'
+
+/**
+ * 视图模式
+ */
+export type ViewMode = 'card' | 'table' | 'calendar'
+
+/**
  * 账户
  */
 export interface Account {

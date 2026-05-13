@@ -176,7 +176,7 @@ function onWindowClick(e: MouseEvent) {
     const desktop = moreMenuRef.value
     const mobile = moreMenuRefMobile.value
     const target = e.target as Node
-    if ((desktop && !desktop.contains(target)) && (mobile && !mobile.contains(target))) {
+    if ((desktop && !desktop.contains(target)) || (mobile && !mobile.contains(target))) {
       pageHeaderStore.closeMoreMenu()
     }
   }
@@ -280,6 +280,7 @@ html, body, #__nuxt {
 .mobile-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   height: calc(48px + env(safe-area-inset-top));
   padding: env(safe-area-inset-top) 12px 0;
@@ -339,7 +340,7 @@ html, body, #__nuxt {
 }
 
 .header-spacer {
-  width: 36px;
+  width: 32px;
 }
 
 .menubar-right {

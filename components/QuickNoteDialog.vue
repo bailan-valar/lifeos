@@ -141,13 +141,20 @@ async function onConfirm() {
   max-height: 90vh;
   border-radius: 20px 20px 0 0;
   border-bottom: none;
+  overflow: hidden;
+}
+
+.dialog-body {
+  flex: 1;
+  min-height: 0;
 }
 
 .dialog-header {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px 12px;
+  padding: 16px 20px;
   flex-shrink: 0;
 }
 
@@ -156,20 +163,28 @@ async function onConfirm() {
   font-size: 17px;
   font-weight: 700;
   color: rgba(0, 0, 0, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dialog-close {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: 8px;
   background: transparent;
   color: rgba(60, 60, 67, 0.45);
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.dialog-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(60, 60, 67, 0.85);
 }
 
 .dialog-close:hover {

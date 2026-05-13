@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onClose">
-      <div class="dialog" @click.stop>
+    <div v-if="visible" class="dialog-overlay" :class="{ mobile: isMobile }" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onClose">
+      <div class="dialog" :class="{ mobile: isMobile }" @click.stop>
         <div class="dialog-header">
           <h3>{{ account ? `${account.name} 账单周期` : '账单周期' }}</h3>
           <button type="button" class="close-btn" @click="onClose">
@@ -30,6 +30,8 @@ import type { Account, Statement } from '~/types/bill'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import StatementList from './StatementList.vue'
 
+const { isMobile } = useDevice()
+
 const props = defineProps<{
   visible: boolean
   account?: Account
@@ -53,46 +55,78 @@ function onClose() {
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  padding: 20px;
+}
+.dialog-overlay.mobile {
+  align-items: flex-end;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.35);
 }
 .dialog {
-  width: 100%;
-  max-width: 640px;
-  max-height: 80vh;
+  width: 640px;
+  max-width: 100%;
+  max-height: 85vh;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(40px) saturate(180%);
-  border-radius: 16px;
-  border: 0.5px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border: 0.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 24px 60px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
 }
+.dialog.mobile {
+  overflow: hidden;
+  width: 100%;
+  max-height: 90vh;
+  border-radius: 20px 20px 0 0;
+  border-bottom: none;
+}
+.dialog.mobile .dialog-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+  flex-shrink: 0;
 .dialog-header {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  padding: 20px;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+  padding: 16px 20px;
+  flex-shrink: 0;
 }
 .dialog-header h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .close-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
-  color: rgba(60, 60, 67, 0.78);
+  color: rgba(60, 60, 67, 0.45);
   cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(60, 60, 67, 0.85);
 }
 .dialog-body {
   padding: 20px;
@@ -101,6 +135,7 @@ function onClose() {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+  flex-shrink: 0;
   padding: 16px 20px;
   border-top: 0.5px solid rgba(60, 60, 67, 0.12);
 }

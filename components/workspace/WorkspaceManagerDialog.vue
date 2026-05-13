@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="emitClose">
-        <div class="modal-content" @click.stop>
+      <div v-if="visible" class="modal-overlay" :class="{ mobile: isMobile }" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="emitClose">
+        <div class="modal-content" :class="{ mobile: isMobile }" @click.stop>
           <div class="modal-header">
             <h3>工作空间</h3>
             <button class="close-btn" type="button" @click="emitClose">
@@ -106,6 +106,8 @@ import SyncStatusBadge from './SyncStatusBadge.vue'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
 
+const { isMobile } = useDevice()
+
 const props = defineProps<{ visible: boolean }>()
 const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
@@ -183,49 +185,81 @@ function shortUrl(url: string): string {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.32);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: var(--z-modal);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(8px);
+  padding: 20px;
 }
-
+.modal-overlay.mobile {
+  align-items: flex-end;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
 .modal-content {
   width: 560px;
-  max-width: 92vw;
-  max-height: 90vh;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  border: 0.5px solid rgba(60, 60, 67, 0.12);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  max-width: 100%;
+  max-height: 85vh;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 24px 60px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+.modal-content.mobile {
+  width: 100%;
+  max-height: 90vh;
+  border-radius: 20px 20px 0 0;
+  border-bottom: none;
+  overflow: hidden;
+}
+
+.modal-body {
+  flex: 1;
+  min-height: 0;
+}
 
 .modal-header {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+  flex-shrink: 0;
 }
 
 .modal-header h3 {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
   margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   border: none;
+  border-radius: 8px;
   background: transparent;
-  font-size: 20px;
+  color: rgba(60, 60, 67, 0.45);
   cursor: pointer;
-  color: rgba(60, 60, 67, 0.6);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(60, 60, 67, 0.85);
 }
 
 .modal-body {
@@ -394,6 +428,7 @@ function shortUrl(url: string): string {
   gap: 8px;
   padding: 12px 20px;
   border-top: 0.5px solid rgba(60, 60, 67, 0.12);
+  flex-shrink: 0;
 }
 
 .primary-btn {

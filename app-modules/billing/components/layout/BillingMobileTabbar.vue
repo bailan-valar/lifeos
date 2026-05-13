@@ -1,0 +1,103 @@
+<template>
+  <nav class="billing-mobile-tabbar">
+    <button
+      v-for="tab in mobileTabs"
+      :key="tab.id"
+      type="button"
+      class="billing-tab-item"
+      :class="{ active: activeTab === tab.id }"
+      @click="$emit('tab-change', tab.id)"
+    >
+      <Icon :name="tab.icon" size="20" />
+      <span>{{ tab.name }}</span>
+    </button>
+  </nav>
+</template>
+
+<script setup lang="ts">
+import type { TabId } from '~/types/bill'
+
+interface Tab {
+  id: TabId
+  name: string
+  icon: string
+}
+
+const props = defineProps<{
+  activeTab: TabId
+}>()
+
+defineEmits<{
+  (e: 'tab-change', tab: TabId): void
+}>()
+
+const mobileTabs: Tab[] = [
+  { id: 'bills' as TabId, name: '账单', icon: 'solar:wallet-money-linear' },
+  { id: 'accounts' as TabId, name: '账户', icon: 'solar:wallet-linear' },
+  { id: 'budgets' as TabId, name: '预算', icon: 'solar:chart-2-linear' },
+  { id: 'categories' as TabId, name: '分类', icon: 'solar:folder-linear' }
+]
+</script>
+
+<style scoped>
+/* 移动端底部 Tab Bar */
+.billing-mobile-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-shrink: 0;
+  height: calc(56px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.3),
+    0 -4px 20px rgba(0, 0, 0, 0.08);
+  z-index: var(--z-drawer);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Liquid Glass 折射高光 */
+.billing-mobile-tabbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(255, 255, 255, 0.25) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.billing-tab-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.5);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.billing-tab-item.active {
+  color: rgb(0, 122, 255);
+}
+
+.billing-tab-item:active {
+  opacity: 0.7;
+}
+</style>

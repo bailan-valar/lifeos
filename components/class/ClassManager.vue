@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="$emit('update:visible', false)">
-        <div class="modal-content" @click.stop>
+      <div v-if="visible" class="modal-overlay" :class="{ mobile: isMobile }" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="$emit('update:visible', false)">
+        <div class="modal-content" :class="{ mobile: isMobile }" @click.stop>
           <div class="modal-header">
             <h3>管理类</h3>
             <button class="close-btn" @click="$emit('update:visible', false)" type="button">
@@ -196,6 +196,8 @@ import { generateId } from '~/services/db'
 import { useConfirm } from '~/composables/useConfirm'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import IconPicker from '~/components/IconPicker.vue'
+
+const { isMobile } = useDevice()
 
 interface Props {
   visible: boolean
@@ -444,56 +446,71 @@ const cancelAddField = () => {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.25);
-  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
+  padding: 20px;
 }
-
+.modal-overlay.mobile {
+  align-items: flex-end;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
 .modal-content {
-  width: 100%;
-  max-width: 520px;
-  max-height: 80vh;
-  margin: 20px;
-  background: rgba(255, 255, 255, 0.85);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  width: 520px;
+  max-width: 100%;
+  max-height: 85vh;
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(40px) saturate(180%);
-  border-radius: 20px;
   border: 0.5px solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 20px 60px rgba(0, 0, 0, 0.15);
+  border-radius: 20px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 24px 60px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+.modal-content.mobile {
+  width: 100%;
+  max-height: 90vh;
+  border-radius: 20px 20px 0 0;
+  border-bottom: none;
   overflow: hidden;
 }
 
 .modal-header {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
+  flex-shrink: 0;
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
   color: rgba(0, 0, 0, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .close-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba(60, 60, 67, 0.55);
+  color: rgba(60, 60, 67, 0.45);
   cursor: pointer;
-  font-size: 18px;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(60, 60, 67, 0.85);
 }
 
 .close-btn:hover {
