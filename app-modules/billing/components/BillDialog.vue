@@ -132,7 +132,7 @@ watch(() => props.visible, (v) => {
       toAccountId: props.bill.toAccountId,
       categoryId: props.bill.categoryId,
       description: props.bill.description,
-      date: props.bill.date.slice(0, 16),
+      date: props.bill.date?.slice(0, 16) || new Date().toISOString().slice(0, 16),
       debtSubtype: props.bill.debtSubtype || 'lend',
       relatedPersonId: props.bill.relatedPersonId
     }

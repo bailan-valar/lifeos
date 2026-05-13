@@ -119,7 +119,7 @@
               </button>
             </template>
             <button
-              v-else-if="record.status !== 'rolled_back' && record.billIds.length > 0"
+              v-else-if="record.status !== 'rolled_back' && (record.billIds?.length || 0) > 0"
               type="button"
               class="confirm-btn danger"
               @click="onRollback"

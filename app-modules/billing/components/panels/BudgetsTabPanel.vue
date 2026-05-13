@@ -9,6 +9,7 @@
 </template>
 
 <script setup lang="ts">
+import BudgetDashboard from '../BudgetDashboard.vue'
 const props = defineProps<{
   budgetYear: number
 }>()

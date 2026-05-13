@@ -14,7 +14,7 @@ export function useBillingNavigation() {
   const activeAccountSubTab = ref<AccountType>('personal')
   const accountsMenuExpanded = ref(true)
 
-  const activeCategorySubTab = ref<CategoryType | 'all'>('all')
+  const activeCategorySubTab = ref<CategoryType | 'all'>('expense')
   const categoryMenuExpanded = ref(true)
 
   // 常量数据

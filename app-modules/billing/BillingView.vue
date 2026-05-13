@@ -397,6 +397,7 @@ const selectedIds = ref<string[]>([])
 const batchEditVisible = ref(false)
 
 const selectedBills = computed(() => bills.value.filter(b => selectedIds.value.includes(b.id)))
+provide('selectedBills', selectedBills)
 
 const filteredAccounts = computed(() => {
   return accounts.value.filter(a => a.type === navigation.activeAccountSubTab.value)
@@ -1029,12 +1030,13 @@ async function handleDeleteRecord(recordId: string) {
 
 function handleRecordCreated(record: ImportRecord) {
   dialogs.closeImportDialog()
-  dialogs.viewingRecordId.value = record.id
+  dialogs.setRecordDetailRecord(record)
   dialogs.recordDetailVisible.value = true
 }
 
 function handleViewRecord(recordId: string) {
-  dialogs.viewingRecordId.value = recordId
+  const record = getById(recordId)
+  dialogs.setRecordDetailRecord(record)
   dialogs.recordDetailVisible.value = true
 }
 
@@ -1188,10 +1190,12 @@ watch(navigation.sidebarCollapsed, (collapsed) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: 16px;
 }
 
 .content.mobile {
   flex: 1;
   overflow-y: auto;
+  padding: 16px;
 }
 </style>

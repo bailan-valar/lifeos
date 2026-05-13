@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
+import ImportRuleList from '../ImportRuleList.vue'
 const props = defineProps<{
   importRules: any[]
   accounts: any[]

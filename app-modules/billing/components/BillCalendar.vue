@@ -91,12 +91,10 @@ const emit = defineEmits<{
   (e: 'date-change', year: number, month: number): void
 }>()
 
-const now = new Date()
-const currentYear = ref(props.year ?? now.getFullYear())
-const currentMonth = ref(props.month ?? now.getMonth() + 1)
+const fallbackDate = new Date()
+const currentYear = computed(() => props.year ?? fallbackDate.getFullYear())
+const currentMonth = computed(() => props.month ?? fallbackDate.getMonth() + 1)
 
-watch(() => props.year, (v) => { if (v) currentYear.value = v })
-watch(() => props.month, (v) => { if (v) currentMonth.value = v })
 const selectedDate = ref<string | null>(null)
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
@@ -110,10 +108,6 @@ watch([currentYear, currentMonth], () => {
     selectedDate.value = null
   }
 }, { immediate: true })
-
-watch([currentYear, currentMonth], () => {
-  emit('date-change', currentYear.value, currentMonth.value)
-})
 
 // 按日期聚合账单数据
 const billsByDate = computed(() => {
@@ -213,19 +207,17 @@ const calendarCells = computed(() => {
 
 function prevMonth() {
   if (currentMonth.value === 1) {
-    currentMonth.value = 12
-    currentYear.value--
+    emit('date-change', currentYear.value - 1, 12)
   } else {
-    currentMonth.value--
+    emit('date-change', currentYear.value, currentMonth.value - 1)
   }
 }
 
 function nextMonth() {
   if (currentMonth.value === 12) {
-    currentMonth.value = 1
-    currentYear.value++
+    emit('date-change', currentYear.value + 1, 1)
   } else {
-    currentMonth.value++
+    emit('date-change', currentYear.value, currentMonth.value + 1)
   }
 }
 

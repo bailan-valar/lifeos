@@ -62,6 +62,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import SelectPicker from '../SelectPicker.vue'
+import CategoryTree from '../CategoryTree.vue'
 
 type CategoryType = 'income' | 'expense'
 

@@ -30,6 +30,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import SelectPicker from '../SelectPicker.vue'
+import AccountList from '../AccountList.vue'
 
 type AccountType = 'personal' | 'contact' | 'merchant' | 'other'
 

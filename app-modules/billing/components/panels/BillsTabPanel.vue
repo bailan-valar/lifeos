@@ -3,24 +3,62 @@
     <div class="panel-header bills-header">
       <!-- 第一行：视图切换 | 日期 -->
       <div class="header-row row-1">
-        <ViewToggle :mode="viewMode" @mode-change="$emit('view-mode-change', $event)" />
-        <DateFilter
-          :year="billYearFilter"
-          :month="billMonthFilter"
-          :year-options="billYearOptions"
-          :month-options="billMonthOptions"
-          @year-change="$emit('year-change', $event)"
-          @month-change="$emit('month-change', $event)"
-        />
+        <div class="view-toggle">
+          <button
+            type="button"
+            class="toggle-btn"
+            :class="{ active: viewMode === 'card' }"
+            @click="$emit('view-mode-change', 'card')"
+          >
+            <Icon name="solar:widget-2-linear" size="16" />
+          </button>
+          <button
+            type="button"
+            class="toggle-btn"
+            :class="{ active: viewMode === 'table' }"
+            @click="$emit('view-mode-change', 'table')"
+          >
+            <Icon name="solar:clipboard-list-linear" size="16" />
+          </button>
+          <button
+            type="button"
+            class="toggle-btn"
+            :class="{ active: viewMode === 'calendar' }"
+            @click="$emit('view-mode-change', 'calendar')"
+          >
+            <Icon name="solar:calendar-linear" size="16" />
+          </button>
+        </div>
+
+        <div class="date-filter">
+          <select :value="billYearFilter" class="filter-select" @change="$emit('year-change', $event.target.value ? Number($event.target.value) : null)">
+            <option :value="null">全部年份</option>
+            <option v-for="y in billYearOptions" :key="y" :value="y">{{ y }}年</option>
+          </select>
+          <select :value="billMonthFilter" class="filter-select" @change="$emit('month-change', $event.target.value ? Number($event.target.value) : null)">
+            <option :value="null">全部月份</option>
+            <option v-for="m in billMonthOptions" :key="m" :value="m">{{ m }}月</option>
+          </select>
+        </div>
       </div>
 
       <!-- 第二行：统计 / 批量工具栏 -->
-      <BillStats
-        v-if="!batchMode"
-        :income="totalIncome"
-        :expense="totalExpense"
-        :balance="netBalance"
-      />
+      <div v-if="!batchMode" class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-label">收入</span>
+          <span class="stat-value positive">+{{ totalIncome.toFixed(2) }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">支出</span>
+          <span class="stat-value negative">-{{ totalExpense.toFixed(2) }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">结余</span>
+          <span class="stat-value" :class="netBalance >= 0 ? 'positive' : 'negative'">
+            {{ netBalance >= 0 ? '+' : '' }}{{ netBalance.toFixed(2) }}
+          </span>
+        </div>
+      </div>
       <BillBatchToolbar
         v-else
         :selected-count="selectedIds.length"
@@ -32,19 +70,40 @@
       />
 
       <!-- 第三行：预算执行进度条 -->
-      <BudgetProgress
-        v-if="!batchMode && budgetProgress.hasBudget"
-        :progress="budgetProgress"
-      />
+      <div v-if="!batchMode && budgetProgress.hasBudget" class="budget-progress">
+        <div class="budget-progress-header">
+          <span class="budget-progress-label">预算执行</span>
+          <span class="budget-progress-value" :class="{ over: budgetProgress.isOver }">
+            {{ budgetProgress.actualExpense.toFixed(0) }} / {{ budgetProgress.totalBudget.toFixed(0) }}
+            <template v-if="budgetProgress.isOver">
+              (超支 {{ (budgetProgress.rawPercentage * 100 - 100).toFixed(0) }}%)
+            </template>
+            <template v-else>
+              ({{ (budgetProgress.rawPercentage * 100).toFixed(0) }}%)
+            </template>
+          </span>
+        </div>
+        <div class="budget-progress-track">
+          <div
+            class="budget-progress-fill"
+            :class="{ over: budgetProgress.isOver }"
+            :style="{ width: `${budgetProgress.percentage * 100}%` }"
+          />
+        </div>
+      </div>
     </div>
 
     <div class="list-container">
-      <BillSkeleton v-if="loading && bills.length === 0" />
+      <div v-if="loading && bills.length === 0" class="skeleton-wrap">
+        <div v-for="i in 5" :key="i" class="skeleton-row" />
+      </div>
       <BillCalendar
         v-else-if="viewMode === 'calendar'"
         :bills="bills"
+        :year="billYearFilter ?? undefined"
+        :month="billMonthFilter ?? undefined"
         @edit="$emit('edit-bill', $event)"
-        @date-change="$emit('calendar-date-change', $event)"
+        @date-change="(year, month) => $emit('calendar-date-change', { year, month })"
       />
       <BillList
         v-else-if="viewMode === 'card'"
@@ -72,16 +131,26 @@
       />
     </div>
 
-    <LoadMoreButton
-      v-if="hasMore && !isDateFiltered && !batchMode"
-      :loading="loading"
-      @click="$emit('load-more')"
-    />
+    <div v-if="hasMore && !isDateFiltered && !batchMode" class="load-more-wrap">
+      <button
+        type="button"
+        class="load-more-btn"
+        :disabled="loading"
+        @click="$emit('load-more')"
+      >
+        <span v-if="loading">加载中...</span>
+        <span v-else>加载更多</span>
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Bill, Account, BillCategory } from '~/types/bill'
+import BillBatchToolbar from '../BillBatchToolbar.vue'
+import BillCalendar from '../BillCalendar.vue'
+import BillList from '../BillList.vue'
+import BillTable from '../BillTable.vue'
 
 interface BudgetProgress {
   totalBudget: number
@@ -92,165 +161,7 @@ interface BudgetProgress {
   hasBudget: boolean
 }
 
-// Helper Component: ViewToggle
-const ViewToggle = {
-  name: 'ViewToggle',
-  props: {
-    mode: {
-      type: String as () => 'card' | 'table' | 'calendar',
-      required: true
-    }
-  },
-  emits: ['mode-change'],
-  template: `
-    <div class="view-toggle">
-      <button
-        type="button"
-        class="toggle-btn"
-        :class="{ active: mode === 'card' }"
-        @click="$emit('mode-change', 'card')"
-      >
-        <Icon name="solar:widget-2-linear" size="16" />
-      </button>
-      <button
-        type="button"
-        class="toggle-btn"
-        :class="{ active: mode === 'table' }"
-        @click="$emit('mode-change', 'table')"
-      >
-        <Icon name="solar:clipboard-list-linear" size="16" />
-      </button>
-      <button
-        type="button"
-        class="toggle-btn"
-        :class="{ active: mode === 'calendar' }"
-        @click="$emit('mode-change', 'calendar')"
-      >
-        <Icon name="solar:calendar-linear" size="16" />
-      </button>
-    </div>
-  `
-}
-
-// Helper Component: DateFilter
-const DateFilter = {
-  name: 'DateFilter',
-  props: {
-    year: [Number, null] as PropType<number | null>,
-    month: [Number, null] as PropType<number | null>,
-    yearOptions: Array as PropType<number[]>,
-    monthOptions: Array as PropType<number[]>
-  },
-  emits: ['year-change', 'month-change'],
-  template: `
-    <div class="date-filter">
-      <select :value="year" class="filter-select" @change="$emit('year-change', $event.target.value ? Number($event.target.value) : null)">
-        <option :value="null">全部年份</option>
-        <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}年</option>
-      </select>
-      <select :value="month" class="filter-select" @change="$emit('month-change', $event.target.value ? Number($event.target.value) : null)">
-        <option :value="null">全部月份</option>
-        <option v-for="m in monthOptions" :key="m" :value="m">{{ m }}月</option>
-      </select>
-    </div>
-  `
-}
-
-// Helper Component: BillStats
-const BillStats = {
-  name: 'BillStats',
-  props: {
-    income: Number,
-    expense: Number,
-    balance: Number
-  },
-  template: `
-    <div class="stats-bar">
-      <div class="stat-item">
-        <span class="stat-label">收入</span>
-        <span class="stat-value positive">+{{ income.toFixed(2) }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">支出</span>
-        <span class="stat-value negative">-{{ expense.toFixed(2) }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">结余</span>
-        <span class="stat-value" :class="balance >= 0 ? 'positive' : 'negative'">
-          {{ balance >= 0 ? '+' : '' }}{{ balance.toFixed(2) }}
-        </span>
-      </div>
-    </div>
-  `
-}
-
-// Helper Component: BudgetProgress
-const BudgetProgress = {
-  name: 'BudgetProgress',
-  props: {
-    progress: {
-      type: Object as PropType<BudgetProgress>,
-      required: true
-    }
-  },
-  template: `
-    <div class="budget-progress">
-      <div class="budget-progress-header">
-        <span class="budget-progress-label">预算执行</span>
-        <span class="budget-progress-value" :class="{ over: progress.isOver }">
-          {{ progress.actualExpense.toFixed(0) }} / {{ progress.totalBudget.toFixed(0) }}
-          <template v-if="progress.isOver">
-            (超支 {{ (progress.rawPercentage * 100 - 100).toFixed(0) }}%)
-          </template>
-          <template v-else>
-            ({{ (progress.rawPercentage * 100).toFixed(0) }}%)
-          </template>
-        </span>
-      </div>
-      <div class="budget-progress-track">
-        <div
-          class="budget-progress-fill"
-          :class="{ over: progress.isOver }"
-          :style="{ width: \`\${progress.percentage * 100}%\` }"
-        />
-      </div>
-    </div>
-  `
-}
-
-// Helper Component: BillSkeleton
-const BillSkeleton = {
-  name: 'BillSkeleton',
-  template: `
-    <div class="skeleton-wrap">
-      <div v-for="i in 5" :key="i" class="skeleton-row" />
-    </div>
-  `
-}
-
-// Helper Component: LoadMoreButton
-const LoadMoreButton = {
-  name: 'LoadMoreButton',
-  props: {
-    loading: Boolean
-  },
-  emits: ['click'],
-  template: `
-    <div class="load-more-wrap">
-      <button
-        type="button"
-        class="load-more-btn"
-        :disabled="loading"
-        @click="$emit('click')"
-      >
-        <span v-if="loading">加载中...</span>
-        <span v-else>加载更多</span>
-      </button>
-    </div>
-  `
-}
-
-const props = defineProps<{
+defineProps<{
   bills: Bill[]
   accounts: Account[]
   categories: BillCategory[]

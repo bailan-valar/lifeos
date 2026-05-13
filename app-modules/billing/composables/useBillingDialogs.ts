@@ -1,5 +1,5 @@
-import { ref, computed } from 'vue'
-import type { Bill, Account, BillCategory, BudgetEntry, Statement, ImportRule } from '~/types/bill'
+import { ref } from 'vue'
+import type { Bill, Account, BillCategory, BudgetEntry, Statement, ImportRule, ImportRecord } from '~/types/bill'
 
 export function useBillingDialogs() {
   // 可见性状态
@@ -49,11 +49,12 @@ export function useBillingDialogs() {
   const adjustingAccount = ref<Account | null>(null)
   const balanceAdjustments = ref<any[]>([])
 
-  // 计算属性
-  const recordDetailRecord = computed(() => {
-    // 需要外部提供getById函数
-    return viewingRecordId.value ? null : null
-  })
+  // 导入记录详情
+  const recordDetailRecord = ref<ImportRecord | null>(null)
+
+  const setRecordDetailRecord = (record: ImportRecord | null) => {
+    recordDetailRecord.value = record
+  }
 
   // 打开操作
   const openBillDialog = (bill?: Bill) => {
@@ -196,6 +197,9 @@ export function useBillingDialogs() {
     recordDetailRecord,
     adjustingAccount,
     balanceAdjustments,
+
+    // 导入记录详情设置
+    setRecordDetailRecord,
 
     // 打开操作
     openBillDialog,
