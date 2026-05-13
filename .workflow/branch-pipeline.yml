@@ -70,7 +70,7 @@ stages:
           - /home/ubuntu/.nvm/versions/node/v24.15.0/bin/node -v
           - chmod +x /html/9999/life-os/ecosystem.config.cjs
           - sudo chown -R ubuntu:ubuntu /home/ubuntu/.nvm/versions/node/v24.15.0/bin/pm2
-          - sudo chown -R ubuntu:ubuntu /html/9999/life-os/ecosystem.config.cjs && /home/ubuntu/.nvm/versions/node/v24.15.0/bin/pm2 start /html/9999/life-os/ecosystem.config.cjs --env prod
+          - sudo chown -R ubuntu:ubuntu /html/9999/life-os/ecosystem.config.cjs && /home/ubuntu/.nvm/versions/node/v24.15.0/bin/pm2 start /html/9999/life-os/ecosystem.config.cjs
           - ''
         notify: []
         strategy:
