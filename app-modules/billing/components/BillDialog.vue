@@ -242,7 +242,7 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
   width: 520px;
   max-width: 100%;
   max-height: 85vh;
-  overflow-y: auto;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(40px) saturate(180%);
   border: 0.5px solid rgba(255, 255, 255, 0.6);
@@ -264,7 +264,6 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
   flex: 1;
   min-height: 0;
 }
-  flex-shrink: 0;
 .dialog-header {
   display: flex;
   flex-direction: row;
@@ -302,6 +301,9 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
 }
 .dialog-body {
   padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 .dialog-footer {
   display: flex;
@@ -387,5 +389,19 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
 .import-source-value.out {
   color: rgb(255, 59, 48);
   font-weight: 600;
+}
+
+.dialog-body::-webkit-scrollbar {
+  width: 5px;
+}
+.dialog-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dialog-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+}
+.dialog-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
 }
 </style>

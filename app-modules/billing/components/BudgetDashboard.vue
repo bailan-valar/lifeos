@@ -443,7 +443,7 @@ function navigateToCategory(categoryId: string) {
 }
 
 .col-category {
-  width: 200px;
+  width: 160px;
   flex-shrink: 0;
   position: sticky;
   left: 0;
@@ -457,10 +457,10 @@ function navigateToCategory(categoryId: string) {
 }
 
 .col-year-budget {
-  width: 90px;
+  width: 72px;
   flex-shrink: 0;
   position: sticky;
-  left: 200px;
+  left: 160px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;

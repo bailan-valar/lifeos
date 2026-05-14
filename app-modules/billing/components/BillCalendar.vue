@@ -4,7 +4,7 @@
       <button type="button" class="nav-btn" @click="prevMonth">
         <Icon name="solar:alt-arrow-left-linear" size="18" />
       </button>
-      <span class="month-label">{{ currentYear }}年 {{ currentMonth }}月</span>
+      <span class="month-label">{{ displayYear }}年 {{ displayMonth }}月</span>
       <button type="button" class="nav-btn" @click="nextMonth">
         <Icon name="solar:alt-arrow-right-linear" size="18" />
       </button>
@@ -16,8 +16,8 @@
 
     <div class="calendar-grid">
       <div
-        v-for="cell in calendarCells"
-        :key="cell.key"
+        v-for="(cell, idx) in displayedCells"
+        :key="idx"
         class="calendar-cell"
         :class="{
           'other-month': !cell.isCurrentMonth,
@@ -28,8 +28,8 @@
         @click="onCellClick(cell)"
       >
         <div class="cell-date">{{ cell.day }}</div>
-        <div v-if="cell.income > 0" class="cell-income">+{{ cell.income.toFixed(0) }}</div>
-        <div v-if="cell.expense > 0" class="cell-expense">-{{ cell.expense.toFixed(0) }}</div>
+        <div v-show="cell.income > 0" class="cell-income">+{{ cell.income.toFixed(0) }}</div>
+        <div v-show="cell.expense > 0" class="cell-expense">-{{ cell.expense.toFixed(0) }}</div>
       </div>
     </div>
 
@@ -84,6 +84,7 @@ const props = defineProps<{
   bills: Bill[]
   year?: number
   month?: number
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -98,16 +99,6 @@ const currentMonth = computed(() => props.month ?? fallbackDate.getMonth() + 1)
 const selectedDate = ref<string | null>(null)
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
-
-// 默认选中今天（如果是当前月）
-watch([currentYear, currentMonth], () => {
-  const now = new Date()
-  if (currentYear.value === now.getFullYear() && currentMonth.value === now.getMonth() + 1) {
-    selectedDate.value = now.toISOString().slice(0, 10)
-  } else {
-    selectedDate.value = null
-  }
-}, { immediate: true })
 
 // 按日期聚合账单数据
 const billsByDate = computed(() => {
@@ -128,25 +119,17 @@ const billsByDate = computed(() => {
   return map
 })
 
-interface CalendarCell {
-  key: string
-  dateStr: string
-  day: number
-  isCurrentMonth: boolean
-  isToday: boolean
-  income: number
-  expense: number
-}
-
-const calendarCells = computed(() => {
-  const year = currentYear.value
-  const month = currentMonth.value
+// 显示状态：在 loading 期间冻结，等数据就绪后一次性同步
+const displayYear = ref(props.year ?? fallbackDate.getFullYear())
+const displayMonth = ref(props.month ?? fallbackDate.getMonth() + 1)
+function buildCells(): CalendarCell[] {
+  const year = displayYear.value
+  const month = displayMonth.value
 
   const firstDayOfMonth = new Date(year, month - 1, 1)
   const lastDayOfMonth = new Date(year, month, 0)
   const daysInMonth = lastDayOfMonth.getDate()
 
-  // 周一为一周第一天，0=周日需要转为7
   let startWeekday = firstDayOfMonth.getDay()
   if (startWeekday === 0) startWeekday = 7
 
@@ -160,7 +143,6 @@ const calendarCells = computed(() => {
     const dateStr = `${month === 1 ? year - 1 : year}-${String(month === 1 ? 12 : month - 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const data = billsByDate.value.get(dateStr)
     cells.push({
-      key: `prev-${day}`,
       dateStr,
       day,
       isCurrentMonth: false,
@@ -175,7 +157,6 @@ const calendarCells = computed(() => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const data = billsByDate.value.get(dateStr)
     cells.push({
-      key: `curr-${day}`,
       dateStr,
       day,
       isCurrentMonth: true,
@@ -185,14 +166,12 @@ const calendarCells = computed(() => {
     })
   }
 
-  // 下月补位，凑满6行42格或最少5行35格
-  const remaining = (7 - (cells.length % 7)) % 7
-  const totalCells = cells.length + remaining < 35 ? 35 - cells.length : remaining
+  // 下月补位，固定凑满6行42格
+  const totalCells = 42 - cells.length
   for (let day = 1; day <= totalCells; day++) {
     const dateStr = `${month === 12 ? year + 1 : year}-${String(month === 12 ? 1 : month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const data = billsByDate.value.get(dateStr)
     cells.push({
-      key: `next-${day}`,
       dateStr,
       day,
       isCurrentMonth: false,
@@ -203,7 +182,42 @@ const calendarCells = computed(() => {
   }
 
   return cells
+}
+
+const displayedCells = computed(() => buildCells())
+
+// 监听外部状态，只在非 loading 时同步显示（避免"新日期+旧数据"的中间态闪烁）
+watch([() => props.year, () => props.month, () => props.bills, () => props.loading], () => {
+  if (!props.loading) {
+    displayYear.value = props.year ?? fallbackDate.getFullYear()
+    displayMonth.value = props.month ?? fallbackDate.getMonth() + 1
+
+    // 同步重置 selectedDate
+    const now = new Date()
+    if (displayYear.value === now.getFullYear() && displayMonth.value === now.getMonth() + 1) {
+      selectedDate.value = now.toISOString().slice(0, 10)
+    } else {
+      selectedDate.value = null
+    }
+  }
 })
+
+// loading 期间禁用点击，避免选中态被后续同步覆盖
+function onCellClick(cell: CalendarCell) {
+  if (props.loading) return
+  selectedDate.value = cell.dateStr
+}
+
+interface CalendarCell {
+  dateStr: string
+  day: number
+  isCurrentMonth: boolean
+  isToday: boolean
+  income: number
+  expense: number
+}
+
+
 
 function prevMonth() {
   if (currentMonth.value === 1) {
@@ -221,9 +235,7 @@ function nextMonth() {
   }
 }
 
-function onCellClick(cell: CalendarCell) {
-  selectedDate.value = cell.dateStr
-}
+
 
 const dayBills = computed(() => {
   if (!selectedDate.value) return []
@@ -354,13 +366,13 @@ function amountPrefix(bill: Bill) {
   background: rgba(255, 255, 255, 0.4);
   border: 0.5px solid rgba(60, 60, 67, 0.06);
   cursor: pointer;
-  transition: all 0.15s ease;
   gap: 1px;
 }
 
 .calendar-cell:hover {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(0, 122, 255, 0.2);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .calendar-cell.other-month {

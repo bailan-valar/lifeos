@@ -137,7 +137,7 @@ function formatBalance(n: number) {
   width: 520px;
   max-width: 100%;
   max-height: 85vh;
-  overflow-y: auto;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(40px) saturate(180%);
   border: 0.5px solid rgba(255, 255, 255, 0.6);
@@ -158,7 +158,6 @@ function formatBalance(n: number) {
   flex: 1;
   min-height: 0;
 }
-  flex-shrink: 0;
 .dialog-header {
   display: flex;
   flex-direction: row;
@@ -199,6 +198,9 @@ function formatBalance(n: number) {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 .form-group {
   display: flex;
@@ -272,5 +274,19 @@ function formatBalance(n: number) {
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.dialog-body::-webkit-scrollbar {
+  width: 5px;
+}
+.dialog-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dialog-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+}
+.dialog-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
 }
 </style>

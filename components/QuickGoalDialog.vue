@@ -221,7 +221,7 @@ async function onConfirm() {
   width: 520px;
   max-width: 100%;
   max-height: 85vh;
-  overflow-y: auto;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(40px) saturate(180%);
   border: 0.5px solid rgba(255, 255, 255, 0.6);
@@ -244,6 +244,11 @@ async function onConfirm() {
 .dialog-body {
   flex: 1;
   min-height: 0;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
 }
 
 .dialog-header {
@@ -289,13 +294,6 @@ async function onConfirm() {
   color: rgba(60, 60, 67, 0.85);
 }
 
-.dialog-body {
-  padding: 0 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  overflow-y: auto;
-}
 
 .dialog-footer {
   display: flex;
@@ -410,5 +408,19 @@ async function onConfirm() {
 
 .btn-primary:hover {
   background: rgb(0, 110, 250);
+}
+
+.dialog-body::-webkit-scrollbar {
+  width: 5px;
+}
+.dialog-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dialog-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+}
+.dialog-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
 }
 </style>

@@ -11,9 +11,9 @@ export function useBillingFilters(noteId: string) {
     hasBudget: boolean
   }
 
-  // 筛选状态
-  const billYearFilter = ref<number | null>(null)
-  const billMonthFilter = ref<number | null>(null)
+  // 筛选状态，默认当年当月
+  const billYearFilter = ref<number | null>(new Date().getFullYear())
+  const billMonthFilter = ref<number | null>(new Date().getMonth() + 1)
   const budgetYear = ref(new Date().getFullYear())
   const budgetMonth = ref(new Date().getMonth() + 1)
 

@@ -8,7 +8,7 @@
       <div class="calendar-grid">
         <div
           v-for="cell in calendarCells"
-          :key="cell.key"
+          :key="cell.dateStr"
           class="calendar-cell"
           :class="{
             'other-month': !cell.isCurrentMonth,
@@ -18,8 +18,8 @@
           @click="onSelect(cell.dateStr)"
         >
           <span class="cell-day">{{ cell.day }}</span>
-          <span v-if="cell.income > 0" class="cell-income">+{{ cell.income.toFixed(0) }}</span>
-          <span v-if="cell.expense > 0" class="cell-expense">-{{ cell.expense.toFixed(0) }}</span>
+          <span v-show="cell.income > 0" class="cell-income">+{{ cell.income.toFixed(0) }}</span>
+          <span v-show="cell.expense > 0" class="cell-expense">-{{ cell.expense.toFixed(0) }}</span>
         </div>
       </div>
     </div>
@@ -86,7 +86,6 @@ const billsByDate = computed(() => {
 
 // 月日历格子
 interface CalendarCell {
-  key: string
   dateStr: string
   day: number
   isCurrentMonth: boolean
@@ -115,7 +114,6 @@ const calendarCells = computed(() => {
     const dateStr = `${month === 1 ? year - 1 : year}-${String(month === 1 ? 12 : month - 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const data = billsByDate.value.get(dateStr)
     cells.push({
-      key: `prev-${day}`,
       dateStr,
       day,
       isCurrentMonth: false,
@@ -130,7 +128,6 @@ const calendarCells = computed(() => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const data = billsByDate.value.get(dateStr)
     cells.push({
-      key: `curr-${day}`,
       dateStr,
       day,
       isCurrentMonth: true,
@@ -140,14 +137,12 @@ const calendarCells = computed(() => {
     })
   }
 
-  // 下月补位
-  const remaining = (7 - (cells.length % 7)) % 7
-  const totalCells = cells.length + remaining < 35 ? 35 - cells.length : remaining
+  // 下月补位，固定凑满6行42格
+  const totalCells = 42 - cells.length
   for (let day = 1; day <= totalCells; day++) {
     const dateStr = `${month === 12 ? year + 1 : year}-${String(month === 12 ? 1 : month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const data = billsByDate.value.get(dateStr)
     cells.push({
-      key: `next-${day}`,
       dateStr,
       day,
       isCurrentMonth: false,

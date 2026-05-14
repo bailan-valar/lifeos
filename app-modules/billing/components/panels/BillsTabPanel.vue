@@ -102,6 +102,7 @@
         :bills="bills"
         :year="billYearFilter ?? undefined"
         :month="billMonthFilter ?? undefined"
+        :loading="loading"
         @edit="$emit('edit-bill', $event)"
         @date-change="(year, month) => $emit('calendar-date-change', { year, month })"
       />
