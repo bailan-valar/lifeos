@@ -1,17 +1,15 @@
 <template>
   <div class="date-filter">
     <select
-      :value="year"
+      v-model="yearModel"
       class="filter-select"
-      @change="$emit('year-change', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
     >
       <option :value="null">全部年份</option>
       <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}年</option>
     </select>
     <select
-      :value="month"
+      v-model="monthModel"
       class="filter-select"
-      @change="$emit('month-change', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
     >
       <option :value="null">全部月份</option>
       <option v-for="m in monthOptions" :key="m" :value="m">{{ m }}月</option>
@@ -20,17 +18,25 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  year: number | null
-  month: number | null
-  yearOptions: number[]
-  monthOptions: number[]
-}>()
+import { computed } from 'vue'
+import { useBillingStore } from '~/stores/billing'
+import { storeToRefs } from 'pinia'
 
-defineEmits<{
-  (e: 'year-change', year: number | null): void
-  (e: 'month-change', month: number | null): void
-}>()
+const store = useBillingStore()
+const { billYearFilter, billMonthFilter, billYearOptions } = storeToRefs(store)
+
+const yearOptions = computed(() => billYearOptions.value)
+const monthOptions = store.billMonthOptions
+
+const yearModel = computed({
+  get: () => billYearFilter.value,
+  set: (v) => { billYearFilter.value = v }
+})
+
+const monthModel = computed({
+  get: () => billMonthFilter.value,
+  set: (v) => { billMonthFilter.value = v }
+})
 </script>
 
 <style scoped>

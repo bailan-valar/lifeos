@@ -79,22 +79,24 @@
 <script setup lang="ts">
 import type { Bill, BillType } from '~/types/bill'
 import { computed, ref, watch, nextTick } from 'vue'
+import { useBillingStore } from '~/stores/billing'
+import { storeToRefs } from 'pinia'
 
 const props = defineProps<{
   bills: Bill[]
-  year?: number
-  month?: number
   loading?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'edit', bill: Bill): void
-  (e: 'date-change', year: number, month: number): void
 }>()
 
+const store = useBillingStore()
+const { billYearFilter, billMonthFilter } = storeToRefs(store)
+
 const fallbackDate = new Date()
-const currentYear = computed(() => props.year ?? fallbackDate.getFullYear())
-const currentMonth = computed(() => props.month ?? fallbackDate.getMonth() + 1)
+const currentYear = computed(() => billYearFilter.value ?? fallbackDate.getFullYear())
+const currentMonth = computed(() => billMonthFilter.value ?? fallbackDate.getMonth() + 1)
 
 const selectedDate = ref<string | null>(null)
 
@@ -123,8 +125,8 @@ const billsByDate = computed(() => {
 })
 
 // 显示状态：用于用户界面显示
-const displayYear = ref(props.year ?? fallbackDate.getFullYear())
-const displayMonth = ref(props.month ?? fallbackDate.getMonth() + 1)
+const displayYear = ref(billYearFilter.value ?? fallbackDate.getFullYear())
+const displayMonth = ref(billMonthFilter.value ?? fallbackDate.getMonth() + 1)
 
 function buildCells(): CalendarCell[] {
   const year = displayYear.value
@@ -191,9 +193,9 @@ function buildCells(): CalendarCell[] {
 const displayedCells = computed(() => buildCells())
 
 // 监听外部状态变化
-watch([() => props.year, () => props.month], async () => {
-  const newYear = props.year ?? fallbackDate.getFullYear()
-  const newMonth = props.month ?? fallbackDate.getMonth() + 1
+watch([billYearFilter, billMonthFilter], async () => {
+  const newYear = billYearFilter.value ?? fallbackDate.getFullYear()
+  const newMonth = billMonthFilter.value ?? fallbackDate.getMonth() + 1
 
   // 标记正在等待更新
   pendingYearMonthUpdate.value = true
@@ -238,17 +240,21 @@ interface CalendarCell {
 
 function prevMonth() {
   if (currentMonth.value === 1) {
-    emit('date-change', currentYear.value - 1, 12)
+    billYearFilter.value = currentYear.value - 1
+    billMonthFilter.value = 12
   } else {
-    emit('date-change', currentYear.value, currentMonth.value - 1)
+    billYearFilter.value = currentYear.value
+    billMonthFilter.value = currentMonth.value - 1
   }
 }
 
 function nextMonth() {
   if (currentMonth.value === 12) {
-    emit('date-change', currentYear.value + 1, 1)
+    billYearFilter.value = currentYear.value + 1
+    billMonthFilter.value = 1
   } else {
-    emit('date-change', currentYear.value, currentMonth.value + 1)
+    billYearFilter.value = currentYear.value
+    billMonthFilter.value = currentMonth.value + 1
   }
 }
 

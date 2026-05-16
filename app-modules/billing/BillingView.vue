@@ -12,29 +12,13 @@
         :batch-mode="batchMode"
         :selected-ids="selectedIds"
         :loading="loading"
-        :has-more="hasMore"
-        :bill-year-filter="billYearFilter"
-        :bill-month-filter="billMonthFilter"
-        :bill-year-options="store.billYearOptions"
-        :bill-month-options="store.billMonthOptions"
-        :budget-progress="budgetProgress"
-        :is-date-filtered="isDateFiltered"
         :note-id="props.noteId"
-        :existing-fingerprints="existingFingerprints"
-        :delete-bills="deleteBills"
-        :update-bills="updateBills"
-        :create-bills-batch="createBillsBatch"
-        :load-more-bills="loadMoreBills"
-        @year-change="handleYearChange"
-        @month-change="handleMonthChange"
-        @calendar-date-change="onCalendarDateChange"
-        @load-more="loadMoreBills"
-        @record-created="handleRecordCreated"
-        @view-record="handleViewRecord"
+        @toggle-select-all="handleToggleSelectAll"
+        @exit-batch-mode="exitBatchMode"
+        @select-bill="toggleBillSelect"
+        @select-all-bills="selectAllBills"
+        @unselect-all-bills="unselectAllBills"
         @open-rules-from-import="onOpenRulesFromImport"
-        @import-record="handleImportRecord"
-        @rollback-record="handleRollbackRecord"
-        @delete-record="handleDeleteRecord"
       />
 
       <!-- 账户Tab -->
@@ -82,7 +66,6 @@ import { useStatements } from '~/composables/useStatements'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useConfirm } from '~/composables/useConfirm'
-import { dedupeKey } from '~/services/csvImport'
 import { usePageHeaderStore } from '~/stores/pageHeader'
 import { storeToRefs } from 'pinia'
 import { useBillingStore } from '~/stores/billing'
@@ -123,13 +106,13 @@ const store = useBillingStore()
 const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, currentBudgetMonth, activeTab, viewMode, sidebarCollapsed } = storeToRefs(store)
 
 // 数据获取
-const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, createBillsBatch, updateBill, updateBills, deleteBill, deleteBills } = useBills()
+const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, updateBill, updateBills, deleteBill, deleteBills } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount } = useAccounts()
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree, syncDefaultCategories, exportCategories, importCategories: importCategoriesBatch } = useBillCategories()
-const { budgets, loadBudgets, getMonthlyEquivalent } = useBudgets()
+const { budgets, loadBudgets } = useBudgets()
 const { loadStatements } = useStatements()
 const { rules: importRules, loadImportRules, createImportRule, exportRules, importRules: importRulesBatch } = useImportRules()
-const { loadImportRecords, fingerprintsAcrossRecords, getById, rollback, deleteImportRecord } = useImportRecords()
+const { loadImportRecords, fingerprintsAcrossRecords } = useImportRecords()
 const { loadNotes, noteOptions } = useNotes()
 
 // 对话框状态
@@ -160,16 +143,6 @@ const lifecycle = useBillingLifecycle({
   openBillDialog: () => billDialogs.openBillDialog(),
   activeTab,
   billDialogVisible: computed(() => billDialogs.billDialogVisible.value)
-})
-
-// 现有指纹（用于导入去重）
-const existingFingerprints = computed(() => {
-  const set = new Set<string>()
-  for (const b of bills.value) {
-    set.add(dedupeKey(b.date, b.amount, b.counterpartyRaw || b.description || ''))
-  }
-  for (const fp of fingerprintsAcrossRecords.value) set.add(fp)
-  return set
 })
 
 // Provide业务逻辑（深层组件需要）
@@ -232,29 +205,6 @@ const accountFrequency = computed(() => {
 
 // storeToRefs 已在上方解构出 billYearFilter, billMonthFilter, isDateFiltered 等
 
-const budgetProgress = computed(() => {
-  const year = currentBudgetYear.value
-  const month = currentBudgetMonth.value
-  const prefix = `${year}-${String(month).padStart(2, '0')}`
-
-  let totalBudget = 0
-  const expenseCats = categories.value.filter(c => c.type === 'expense')
-  for (const cat of expenseCats) {
-    totalBudget += getMonthlyEquivalent(cat.id, year, month, props.noteId)
-  }
-
-  const actualExpense = bills.value
-    .filter(b => b.type === 'expense' && b.status === 'completed' && b.date.startsWith(prefix))
-    .reduce((sum, b) => sum + b.amount, 0)
-
-  const hasBudget = totalBudget > 0
-  const isOver = hasBudget && actualExpense > totalBudget
-  const percentage = hasBudget ? Math.min(actualExpense / totalBudget, 1) : 0
-  const rawPercentage = hasBudget ? actualExpense / totalBudget : 0
-
-  return { totalBudget, actualExpense, percentage, rawPercentage, isOver, hasBudget }
-})
-
 const budgetYear = ref(new Date().getFullYear())
 
 // 树形结构
@@ -278,17 +228,6 @@ function registerCategoryActions() {
     { icon: 'solar:upload-linear', label: '导入分类', handler: () => {} },
     { icon: 'solar:cloud-download-linear', label: '分类初始化', handler: () => {} }
   ])
-}
-
-// 事件处理函数
-function handleYearChange(year: number | null) {
-  billYearFilter.value = year
-  refreshBills()
-}
-
-function handleMonthChange(month: number | null) {
-  billMonthFilter.value = month
-  refreshBills()
 }
 
 function refreshBills() {
@@ -317,100 +256,9 @@ function getDateRange() {
   return { start, end }
 }
 
-function onCalendarDateChange(year: number, month: number) {
-  billYearFilter.value = year
-  billMonthFilter.value = month
-  refreshBills()
-}
-
-async function handleLoadMore() {
-  if (isDateFiltered.value) return
-  await loadMoreBills(props.noteId)
-}
-
-// CRUD操作处理
-async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: string) {
-  try {
-    if (isEditing && id) {
-      await updateBill(id, data)
-    } else {
-      await createBill(data, props.noteId)
-    }
-    billDialogs.lastBillDefaults.value = {
-      type: data.type,
-      fromAccountId: data.fromAccountId,
-      toAccountId: data.toAccountId,
-      categoryId: data.categoryId,
-      currency: data.currency
-    }
-    billDialogs.closeBillDialog()
-  } catch (e) {
-    handleError(e instanceof Error ? e : new Error(String(e)))
-  }
-}
-
-async function handleDeleteBill(id: string) {
-  if (!await confirm('确定删除此账单？')) return
-  await deleteBill(id)
-}
-
 function onOpenRulesFromImport() {
   billDialogs.closeImportDialog()
   store.activeTab = 'rules'
-}
-
-async function handleImportRecord(record: ImportRecord) {
-  try {
-    const result = await createBillsBatch(record, props.noteId)
-    if (result.failedCount > 0) {
-      showError(`已导入 ${result.successCount} 条 · 跳过 ${result.skippedCount} 条 · 失败 ${result.failedCount} 条`)
-    } else {
-      showSuccess(`已导入 ${result.successCount} 条 · 跳过 ${result.skippedCount} 条`)
-    }
-    billDialogs.closeRecordDetail()
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleRollbackRecord(record: ImportRecord) {
-  const ok = await confirm(`确定回滚此次导入?将删除 ${record.billIds.length} 条账单并恢复账户余额。`)
-  if (!ok) return
-  try {
-    const { rolledBack, missing } = await rollback(record.id)
-    if (missing > 0) {
-      showSuccess(`已回滚 ${rolledBack} 条,${missing} 条已不存在`)
-    } else {
-      showSuccess(`已回滚 ${rolledBack} 条`)
-    }
-    billDialogs.closeRecordDetail()
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleDeleteRecord(recordId: string) {
-  const ok = await confirm('确定删除此导入记录?')
-  if (!ok) return
-  try {
-    await deleteImportRecord(recordId)
-    showSuccess('导入记录已删除')
-    billDialogs.closeRecordDetail()
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-function handleRecordCreated(record: ImportRecord) {
-  billDialogs.closeImportDialog()
-  billDialogs.setRecordDetailRecord(record)
-  billDialogs.recordDetailVisible.value = true
-}
-
-function handleViewRecord(recordId: string) {
-  const record = getById(recordId)
-  billDialogs.setRecordDetailRecord(record)
-  billDialogs.recordDetailVisible.value = true
 }
 
 // 生命周期
@@ -458,6 +306,8 @@ watch(() => store.viewMode, (mode) => {
     refreshBills()
   }
 })
+
+watch([billYearFilter, billMonthFilter], refreshBills)
 
 watch(() => store.sidebarCollapsed, (collapsed) => {
   localStorage.setItem('lifeos:billing-sidebar-collapsed', collapsed ? '1' : '0')

@@ -114,7 +114,7 @@ const store = useBillingStore()
   flex-direction: column;
   gap: 2px;
   width: 160px;
-  padding: 12px 8px;
+  padding: 40px 8px 12px;
   background: rgba(0, 0, 0, 0.03);
   border-right: 0.5px solid rgba(60, 60, 67, 0.08);
   flex-shrink: 0;
@@ -125,7 +125,7 @@ const store = useBillingStore()
 
 .sidebar.collapsed {
   width: 52px;
-  padding: 12px 4px;
+  padding: 40px 4px 12px;
 }
 
 .sidebar-toggle {

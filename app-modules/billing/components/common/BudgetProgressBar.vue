@@ -1,5 +1,5 @@
 <template>
-  <div class="budget-progress">
+  <div v-if="progress.hasBudget" class="budget-progress">
     <div class="budget-progress-header">
       <span class="budget-progress-label">预算执行</span>
       <span class="budget-progress-value" :class="{ over: progress.isOver }">
@@ -23,18 +23,45 @@
 </template>
 
 <script setup lang="ts">
-interface BudgetProgress {
-  totalBudget: number
-  actualExpense: number
-  percentage: number
-  rawPercentage: number
-  isOver: boolean
-  hasBudget: boolean
-}
+import { computed } from 'vue'
+import { useBillingStore } from '~/stores/billing'
+import { useBudgets } from '~/composables/useBudgets'
+import { useBillCategories } from '~/composables/useBillCategories'
+import { useBills } from '~/composables/useBills'
+import { storeToRefs } from 'pinia'
 
-defineProps<{
-  progress: BudgetProgress
+const props = defineProps<{
+  noteId: string
 }>()
+
+const store = useBillingStore()
+const { currentBudgetYear, currentBudgetMonth } = storeToRefs(store)
+const { getMonthlyEquivalent } = useBudgets()
+const { categories } = useBillCategories()
+const { bills } = useBills()
+
+const progress = computed(() => {
+  const year = currentBudgetYear.value
+  const month = currentBudgetMonth.value
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+
+  let totalBudget = 0
+  const expenseCats = categories.value.filter(c => c.type === 'expense')
+  for (const cat of expenseCats) {
+    totalBudget += getMonthlyEquivalent(cat.id, year, month, props.noteId)
+  }
+
+  const actualExpense = bills.value
+    .filter(b => b.type === 'expense' && b.status === 'completed' && b.date.startsWith(prefix))
+    .reduce((sum, b) => sum + b.amount, 0)
+
+  const hasBudget = totalBudget > 0
+  const isOver = hasBudget && actualExpense > totalBudget
+  const percentage = hasBudget ? Math.min(actualExpense / totalBudget, 1) : 0
+  const rawPercentage = hasBudget ? actualExpense / totalBudget : 0
+
+  return { totalBudget, actualExpense, percentage, rawPercentage, isOver, hasBudget }
+})
 </script>
 
 <style scoped>

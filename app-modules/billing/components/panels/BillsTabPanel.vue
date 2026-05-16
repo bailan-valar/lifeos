@@ -4,14 +4,7 @@
       <!-- 第一行：视图切换 | 日期 -->
       <div class="header-row row-1">
         <BillViewToggle :mode="store.viewMode" @mode-change="store.viewMode = $event" />
-        <BillDateFilter
-          :year="billYearFilter"
-          :month="billMonthFilter"
-          :year-options="billYearOptions"
-          :month-options="billMonthOptions"
-          @year-change="emit('year-change', $event)"
-          @month-change="emit('month-change', $event)"
-        />
+        <BillDateFilter />
       </div>
 
       <!-- 第二行：统计 / 批量工具栏 -->
@@ -32,21 +25,15 @@
       />
 
       <!-- 第三行：预算执行进度条 -->
-      <BudgetProgressBar
-        v-if="!batchMode && budgetProgress.hasBudget"
-        :progress="budgetProgress"
-      />
+      <BudgetProgressBar v-if="!batchMode" :note-id="noteId" />
     </div>
 
     <div class="list-container">
       <BillCalendar
         v-if="store.viewMode === 'calendar'"
         :bills="bills"
-        :year="billYearFilter ?? undefined"
-        :month="billMonthFilter ?? undefined"
         :loading="loading"
         @edit="(bill) => billDialogs.openBillDialog(bill)"
-        @date-change="(year, month) => emit('calendar-date-change', year, month)"
       />
       <BillSkeleton v-else-if="loading && bills.length === 0" />
       <BillList
@@ -109,8 +96,8 @@
       :categories="categories"
       :existing-fingerprints="existingFingerprints"
       @cancel="importDialogVisible = false"
-      @record-created="emit('record-created', $event)"
-      @view-record="emit('view-record', $event)"
+      @record-created="handleRecordCreated"
+      @view-record="handleViewRecord"
       @open-rules="emit('open-rules-from-import')"
     />
     <ImportRecordDetail
@@ -120,24 +107,26 @@
       :accounts="accounts"
       :categories="categories"
       @close="recordDetailVisible = false"
-      @import="emit('import-record', $event)"
-      @rollback="emit('rollback-record', $event)"
-      @delete="emit('delete-record', $event)"
+      @import="handleImportRecord"
+      @rollback="handleRollbackRecord"
+      @delete="handleDeleteRecord"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Bill, BillFormData } from '~/types/bill'
+import type { Bill, BillFormData, ImportRecord } from '~/types/bill'
 import { useBillingStore } from '~/stores/billing'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useNotes } from '~/composables/useNotes'
+import { useImportRecords } from '~/composables/useImportRecords'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
-import type { ImportRecord } from '~/types/bill'
+import { dedupeKey } from '~/services/csvImport'
+import { storeToRefs } from 'pinia'
 import BillDialog from '../BillDialog.vue'
 import BillBatchEditDialog from '../BillBatchEditDialog.vue'
 import ImportDialog from '../ImportDialog.vue'
@@ -154,61 +143,32 @@ import BillSkeleton from '../common/BillSkeleton.vue'
 import LoadMoreButton from '../common/LoadMoreButton.vue'
 import { useBillDialogs } from '../../composables/useBillDialogs'
 
-interface BudgetProgress {
-  totalBudget: number
-  actualExpense: number
-  percentage: number
-  rawPercentage: number
-  isOver: boolean
-  hasBudget: boolean
-}
-
 const props = defineProps<{
   bills: Bill[]
   batchMode: boolean
   selectedIds: string[]
   loading: boolean
-  hasMore: boolean
-  billYearFilter: number | null
-  billMonthFilter: number | null
-  billYearOptions: number[]
-  billMonthOptions: number[]
-  budgetProgress: BudgetProgress
-  isDateFiltered: boolean
   noteId: string
-  existingFingerprints: Set<string>
-  deleteBills: (ids: string[]) => Promise<{ deletedCount: number }>
-  updateBills: (ids: string[], data: Partial<BillFormData>) => Promise<{ updatedCount: number; failedIds: string[] }>
-  createBillsBatch: (record: ImportRecord, noteId: string) => Promise<ImportRecord>
-  loadMoreBills: (noteId: string) => Promise<void>
 }>()
 
 const emit = defineEmits<{
-  (e: 'year-change', year: number | null): void
-  (e: 'month-change', month: number | null): void
   (e: 'toggle-select-all', select: boolean): void
-  (e: 'batch-delete'): void
   (e: 'exit-batch-mode'): void
-  (e: 'calendar-date-change', year: number, month: number): void
-  (e: 'load-more'): void
-  (e: 'record-created', record: any): void
-  (e: 'view-record', recordId: string): void
   (e: 'open-rules-from-import'): void
-  (e: 'import-record', record: any): void
-  (e: 'rollback-record', record: any): void
-  (e: 'delete-record', recordId: string): void
   (e: 'select-bill', id: string): void
   (e: 'select-all-bills'): void
   (e: 'unselect-all-bills'): void
 }>()
 
 const store = useBillingStore()
+const { isDateFiltered } = storeToRefs(store)
 const { confirm } = useConfirm()
 const { success: showSuccess, error: showError } = useToast()
 const { accounts } = useAccounts()
 const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
-const { createBill, updateBill, deleteBill } = useBills()
+const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore } = useBills()
+const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords } = useImportRecords()
 
 // 对话框状态（使用单例与 BillingView 同步）
 const billDialogs = useBillDialogs()
@@ -227,6 +187,16 @@ const netBalance = computed(() => totalIncome.value - totalExpense.value)
 
 const selectedBills = computed(() => props.bills.filter(b => props.selectedIds.includes(b.id)))
 
+// 现有指纹（用于导入去重）
+const existingFingerprints = computed(() => {
+  const set = new Set<string>()
+  for (const b of props.bills) {
+    set.add(dedupeKey(b.date, b.amount, b.counterpartyRaw || b.description || ''))
+  }
+  for (const fp of fingerprintsAcrossRecords.value) set.add(fp)
+  return set
+})
+
 // 事件处理
 async function handleDeleteBill(id: string) {
   if (!await confirm('确定删除此账单？')) return
@@ -237,12 +207,12 @@ async function handleBatchDelete() {
   if (props.selectedIds.length === 0) return
   const ok = await confirm({ message: `确定删除选中的 ${props.selectedIds.length} 条账单？`, danger: true })
   if (!ok) return
-  await props.deleteBills(props.selectedIds)
+  await deleteBills(props.selectedIds)
   emit('exit-batch-mode')
 }
 
 async function handleLoadMore() {
-  await props.loadMoreBills(props.noteId)
+  await loadMoreBills(props.noteId)
 }
 
 async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: string) {
@@ -271,10 +241,65 @@ async function handleBatchEditConfirm(data: Partial<BillFormData>) {
   const ids = props.selectedIds
   if (ids.length === 0) return
   try {
-    await props.updateBills(ids, data)
+    await updateBills(ids, data)
     showSuccess(`已更新 ${ids.length} 条账单`)
     batchEditVisible.value = false
     emit('exit-batch-mode')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+// 导入相关事件（内化处理）
+function handleRecordCreated(record: ImportRecord) {
+  billDialogs.closeImportDialog()
+  billDialogs.setRecordDetailRecord(record)
+  billDialogs.recordDetailVisible.value = true
+}
+
+function handleViewRecord(recordId: string) {
+  const record = getById(recordId)
+  billDialogs.setRecordDetailRecord(record)
+  billDialogs.recordDetailVisible.value = true
+}
+
+async function handleImportRecord(record: ImportRecord) {
+  try {
+    const result = await createBillsBatch(record, props.noteId)
+    if (result.failedCount > 0) {
+      showError(`已导入 ${result.successCount} 条 · 跳过 ${result.skippedCount} 条 · 失败 ${result.failedCount} 条`)
+    } else {
+      showSuccess(`已导入 ${result.successCount} 条 · 跳过 ${result.skippedCount} 条`)
+    }
+    billDialogs.closeRecordDetail()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleRollbackRecord(record: ImportRecord) {
+  const ok = await confirm(`确定回滚此次导入?将删除 ${record.billIds.length} 条账单并恢复账户余额。`)
+  if (!ok) return
+  try {
+    const { rolledBack, missing } = await rollback(record.id)
+    if (missing > 0) {
+      showSuccess(`已回滚 ${rolledBack} 条,${missing} 条已不存在`)
+    } else {
+      showSuccess(`已回滚 ${rolledBack} 条`)
+    }
+    billDialogs.closeRecordDetail()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleDeleteRecord(recordId: string) {
+  const ok = await confirm('确定删除此导入记录?')
+  if (!ok) return
+  try {
+    await deleteImportRecord(recordId)
+    showSuccess('导入记录已删除')
+    billDialogs.closeRecordDetail()
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
