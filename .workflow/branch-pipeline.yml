@@ -70,7 +70,6 @@ stages:
           - /home/ubuntu/.nvm/versions/node/v24.15.0/bin/node -v
           - chmod +x /html/9999/life-os/ecosystem.config.cjs
           - export PATH="/home/ubuntu/.nvm/versions/node/bin:$PATH"
-          - source ~/.bashrc
           - sudo chown -R ubuntu:ubuntu /home/ubuntu/.nvm/versions/node/v24.15.0/bin/pm2
           - sudo chown -R ubuntu:ubuntu /html/9999/life-os/ecosystem.config.cjs && /home/ubuntu/.nvm/versions/node/v24.15.0/bin/pm2 start /html/9999/life-os/ecosystem.config.cjs
           - ''
