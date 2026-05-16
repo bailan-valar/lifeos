@@ -9,8 +9,8 @@
           :month="billMonthFilter"
           :year-options="billYearOptions"
           :month-options="billMonthOptions"
-          @year-change="handleYearChange"
-          @month-change="handleMonthChange"
+          @year-change="emit('year-change', $event)"
+          @month-change="emit('month-change', $event)"
         />
       </div>
 
@@ -25,10 +25,10 @@
         v-else
         :selected-count="selectedIds.length"
         :total-count="bills.length"
-        @toggle-select-all="$emit('toggle-select-all', $event)"
-        @batch-delete="$emit('batch-delete')"
-        @batch-edit="dialogs.batchEditVisible.value = true"
-        @exit="$emit('exit-batch-mode')"
+        @toggle-select-all="emit('toggle-select-all', $event)"
+        @batch-delete="handleBatchDelete"
+        @batch-edit="batchEditVisible = true"
+        @exit="emit('exit-batch-mode')"
       />
 
       <!-- 第三行：预算执行进度条 -->
@@ -46,19 +46,19 @@
         :year="billYearFilter ?? undefined"
         :month="billMonthFilter ?? undefined"
         :loading="loading"
-        @edit="$emit('edit-bill', $event)"
-        @date-change="handleCalendarDateChange"
+        @edit="openBillDialog"
+        @date-change="(year, month) => emit('calendar-date-change', year, month)"
       />
       <BillList
         v-else-if="store.viewMode === 'card'"
         :bills="bills"
         :selectable="batchMode"
         :selected-ids="selectedIds"
-        @edit="$emit('edit-bill', $event)"
-        @delete="$emit('delete-bill', $event)"
-        @select="$emit('select-bill', $event)"
-        @select-all="$emit('select-all-bills')"
-        @unselect-all="$emit('unselect-all-bills')"
+        @edit="openBillDialog"
+        @delete="handleDeleteBill"
+        @select="emit('select-bill', $event)"
+        @select-all="emit('select-all-bills')"
+        @unselect-all="emit('unselect-all-bills')"
       />
       <BillTable
         v-else
@@ -67,74 +67,77 @@
         :categories="categories"
         :selectable="batchMode"
         :selected-ids="selectedIds"
-        @edit="$emit('edit-bill', $event)"
-        @delete="$emit('delete-bill', $event)"
-        @select="$emit('select-bill', $event)"
-        @select-all="$emit('select-all-bills')"
-        @unselect-all="$emit('unselect-all-bills')"
+        @edit="openBillDialog"
+        @delete="handleDeleteBill"
+        @select="emit('select-bill', $event)"
+        @select-all="emit('select-all-bills')"
+        @unselect-all="emit('unselect-all-bills')"
       />
     </div>
 
     <LoadMoreButton
       v-if="hasMore && !isDateFiltered && !batchMode"
       :loading="loading"
-      @click="$emit('load-more')"
+      @click="handleLoadMore"
     />
 
     <BillDialog
-      v-if="dialogs.billDialogVisible.value"
-      :visible="dialogs.billDialogVisible.value"
-      :bill="dialogs.editingBill.value || undefined"
+      v-if="billDialogVisible"
+      :visible="billDialogVisible"
+      :bill="editingBill"
       :accounts="accounts"
       :categories="categories"
       :note-options="noteOptions"
       :default-note-id="noteId"
-      :default-form-values="dialogs.editingBill.value ? undefined : dialogs.lastBillDefaults.value || undefined"
-      @confirm="(data, isEditing, id) => $emit('bill-confirm', data, isEditing, id)"
-      @cancel="dialogs.closeBillDialog"
+      :default-form-values="editingBill ? undefined : lastBillDefaults"
+      @confirm="handleBillConfirm"
+      @cancel="closeBillDialog"
     />
     <BillBatchEditDialog
-      v-if="dialogs.batchEditVisible.value"
+      v-if="batchEditVisible"
       :selected-bills="selectedBills"
       :accounts="accounts"
       :categories="categories"
-      @confirm="(data) => $emit('batch-edit-confirm', data)"
-      @cancel="dialogs.batchEditVisible.value = false"
+      @confirm="handleBatchEditConfirm"
+      @cancel="batchEditVisible = false"
     />
     <ImportDialog
-      v-if="dialogs.importDialogVisible.value"
-      :visible="dialogs.importDialogVisible.value"
+      v-if="importDialogVisible"
+      :visible="importDialogVisible"
       :note-id="noteId"
       :accounts="accounts"
       :categories="categories"
       :existing-fingerprints="existingFingerprints"
-      @cancel="dialogs.closeImportDialog"
-      @record-created="(record) => $emit('record-created', record)"
-      @view-record="(recordId) => $emit('view-record', recordId)"
-      @open-rules="$emit('open-rules-from-import')"
+      @cancel="importDialogVisible = false"
+      @record-created="emit('record-created', $event)"
+      @view-record="emit('view-record', $event)"
+      @open-rules="emit('open-rules-from-import')"
     />
     <ImportRecordDetail
-      v-if="dialogs.recordDetailVisible.value && dialogs.recordDetailRecord.value"
-      :visible="dialogs.recordDetailVisible.value"
-      :record="dialogs.recordDetailRecord.value"
+      v-if="recordDetailVisible && recordDetailRecord"
+      :visible="recordDetailVisible"
+      :record="recordDetailRecord"
       :accounts="accounts"
       :categories="categories"
-      @close="dialogs.closeRecordDetail"
-      @import="(record) => $emit('import-record', record)"
-      @rollback="(record) => $emit('rollback-record', record)"
-      @delete="(recordId) => $emit('delete-record', recordId)"
+      @close="recordDetailVisible = false"
+      @import="emit('import-record', $event)"
+      @rollback="emit('rollback-record', $event)"
+      @delete="emit('delete-record', $event)"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Bill } from '~/types/bill'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import type { Bill, BillFormData } from '~/types/bill'
 import { useBillingStore } from '~/stores/billing'
+import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useNotes } from '~/composables/useNotes'
-import { useBillDialogs } from '../../composables/useBillDialogs'
+import { useConfirm } from '~/composables/useConfirm'
+import { useToast } from '~/composables/useToast'
+import type { ImportRecord } from '~/types/bill'
 import BillDialog from '../BillDialog.vue'
 import BillBatchEditDialog from '../BillBatchEditDialog.vue'
 import ImportDialog from '../ImportDialog.vue'
@@ -173,6 +176,10 @@ const props = defineProps<{
   isDateFiltered: boolean
   noteId: string
   existingFingerprints: Set<string>
+  deleteBills: (ids: string[]) => Promise<{ deletedCount: number }>
+  updateBills: (ids: string[], data: Partial<BillFormData>) => Promise<{ updatedCount: number; failedIds: string[] }>
+  createBillsBatch: (record: ImportRecord, noteId: string) => Promise<ImportRecord>
+  loadMoreBills: (noteId: string) => Promise<void>
 }>()
 
 const emit = defineEmits<{
@@ -181,29 +188,37 @@ const emit = defineEmits<{
   (e: 'toggle-select-all', select: boolean): void
   (e: 'batch-delete'): void
   (e: 'exit-batch-mode'): void
-  (e: 'edit-bill', bill: Bill): void
-  (e: 'delete-bill', id: string): void
-  (e: 'select-bill', id: string): void
-  (e: 'select-all-bills'): void
-  (e: 'unselect-all-bills'): void
-  (e: 'calendar-date-change', data: { year: number; month: number }): void
+  (e: 'calendar-date-change', year: number, month: number): void
   (e: 'load-more'): void
-  (e: 'bill-confirm', data: any, isEditing: boolean, id?: string): void
-  (e: 'batch-edit-confirm', data: any): void
   (e: 'record-created', record: any): void
   (e: 'view-record', recordId: string): void
   (e: 'open-rules-from-import'): void
   (e: 'import-record', record: any): void
   (e: 'rollback-record', record: any): void
   (e: 'delete-record', recordId: string): void
+  (e: 'select-bill', id: string): void
+  (e: 'select-all-bills'): void
+  (e: 'unselect-all-bills'): void
 }>()
 
 const store = useBillingStore()
+const { confirm } = useConfirm()
+const { success: showSuccess, error: showError } = useToast()
 const { accounts } = useAccounts()
 const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
-const dialogs = useBillDialogs()
+const { createBill, updateBill, deleteBill } = useBills()
 
+// 对话框状态
+const billDialogVisible = ref(false)
+const editingBill = ref<Bill | undefined>(undefined)
+const lastBillDefaults = ref<Partial<BillFormData> | undefined>(undefined)
+const batchEditVisible = ref(false)
+const importDialogVisible = ref(false)
+const recordDetailVisible = ref(false)
+const recordDetailRecord = ref<ImportRecord | null>(null)
+
+// 计算属性
 const totalIncome = computed(() =>
   props.bills.filter(b => b.type === 'income' && b.status === 'completed').reduce((sum, b) => sum + b.amount, 0)
 )
@@ -216,16 +231,68 @@ const netBalance = computed(() => totalIncome.value - totalExpense.value)
 
 const selectedBills = computed(() => props.bills.filter(b => props.selectedIds.includes(b.id)))
 
-function handleYearChange(year: number | null) {
-  emit('year-change', year)
+// 对话框操作
+function openBillDialog(bill?: Bill) {
+  editingBill.value = bill
+  billDialogVisible.value = true
 }
 
-function handleMonthChange(month: number | null) {
-  emit('month-change', month)
+function closeBillDialog() {
+  billDialogVisible.value = false
+  editingBill.value = undefined
 }
 
-function handleCalendarDateChange(year: number, month: number) {
-  emit('calendar-date-change', { year, month })
+// 事件处理
+async function handleDeleteBill(id: string) {
+  if (!await confirm('确定删除此账单？')) return
+  await deleteBill(id)
+}
+
+async function handleBatchDelete() {
+  if (props.selectedIds.length === 0) return
+  const ok = await confirm({ message: `确定删除选中的 ${props.selectedIds.length} 条账单？`, danger: true })
+  if (!ok) return
+  await props.deleteBills(props.selectedIds)
+  emit('exit-batch-mode')
+}
+
+async function handleLoadMore() {
+  await props.loadMoreBills(props.noteId)
+}
+
+async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: string) {
+  try {
+    if (isEditing && id) {
+      await updateBill(id, data)
+      showSuccess('账单已更新')
+    } else {
+      await createBill(data, props.noteId)
+      showSuccess('账单已添加')
+    }
+    lastBillDefaults.value = {
+      type: data.type,
+      fromAccountId: data.fromAccountId,
+      toAccountId: data.toAccountId,
+      categoryId: data.categoryId,
+      currency: data.currency
+    }
+    closeBillDialog()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleBatchEditConfirm(data: Partial<BillFormData>) {
+  const ids = props.selectedIds
+  if (ids.length === 0) return
+  try {
+    await props.updateBills(ids, data)
+    showSuccess(`已更新 ${ids.length} 条账单`)
+    batchEditVisible.value = false
+    emit('exit-batch-mode')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
 }
 </script>
 

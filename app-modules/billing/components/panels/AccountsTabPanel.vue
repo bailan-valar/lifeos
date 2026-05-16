@@ -10,7 +10,7 @@
         @change="store.activeAccountSubTab = $event"
       />
       <h4 v-else>{{ store.accountSubTabTitle }}</h4>
-      <button type="button" class="add-btn" @click="dialogs.openAccountDialog()">
+      <button type="button" class="add-btn" @click="openAccountDialog()">
         <Icon name="solar:add-circle-linear" size="18" />
         添加账户
       </button>
@@ -18,60 +18,63 @@
     <div class="list-container">
       <AccountList
         :accounts="filteredAccounts"
-        @edit="dialogs.openAccountDialog($event)"
-        @delete="$emit('delete-account', $event)"
-        @view-statements="dialogs.openStatementList($event)"
-        @adjust-balance="dialogs.openBalanceAdjustDialog($event)"
+        @edit="openAccountDialog"
+        @delete="handleDeleteAccount"
+        @view-statements="openStatementList"
+        @adjust-balance="openBalanceAdjustDialog"
         @view-detail="navigateTo('/billing/accounts/' + $event.id)"
       />
     </div>
 
-    <!-- 账户域对话框 -->
+    <!-- 账户对话框 -->
     <AccountDialog
-      v-if="dialogs.accountDialogVisible.value"
-      :visible="dialogs.accountDialogVisible.value"
-      :account="dialogs.editingAccount.value || undefined"
+      v-if="accountDialogVisible"
+      :visible="accountDialogVisible"
+      :account="editingAccount"
       :categories="categories"
-      :default-name="dialogs.accountFormDefaults.value?.defaultName"
-      :default-type="dialogs.accountFormDefaults.value?.defaultType"
-      @confirm="(data, isEditing, id) => $emit('account-confirm', data, isEditing, id)"
-      @cancel="dialogs.closeAccountDialog"
+      :default-name="accountFormDefaults?.defaultName"
+      :default-type="accountFormDefaults?.defaultType as AccountType | undefined"
+      @confirm="handleAccountConfirm"
+      @cancel="closeAccountDialog"
     />
     <BalanceAdjustDialog
-      v-if="dialogs.balanceAdjustVisible.value"
-      :visible="dialogs.balanceAdjustVisible.value"
-      :account="dialogs.adjustingAccount.value || undefined"
-      :adjustments="dialogs.balanceAdjustments.value"
-      @confirm="(data) => $emit('balance-adjust-confirm', data)"
-      @cancel="dialogs.closeBalanceAdjust"
-      @delete-record="(id) => $emit('delete-balance-adjustment', id)"
+      v-if="balanceAdjustVisible"
+      :visible="balanceAdjustVisible"
+      :account="adjustingAccount"
+      :adjustments="balanceAdjustments"
+      @confirm="handleBalanceAdjustConfirm"
+      @cancel="closeBalanceAdjust"
+      @delete-record="handleDeleteBalanceAdjustment"
     />
     <StatementDialog
-      v-if="dialogs.statementDialogVisible.value"
-      :visible="dialogs.statementDialogVisible.value"
-      :statement="dialogs.editingStatement.value || undefined"
-      @confirm="(data, id) => $emit('statement-confirm', data, id)"
-      @cancel="dialogs.closeStatementDialog"
+      v-if="statementDialogVisible"
+      :visible="statementDialogVisible"
+      :statement="editingStatement"
+      @confirm="handleStatementConfirm"
+      @cancel="closeStatementDialog"
     />
     <StatementListDialog
-      v-if="dialogs.statementListDialogVisible.value"
-      :visible="dialogs.statementListDialogVisible.value"
-      :account="dialogs.viewingAccount.value || undefined"
+      v-if="statementListDialogVisible"
+      :visible="statementListDialogVisible"
+      :account="viewingAccount"
       :statements="viewingAccountStatements"
-      @edit="dialogs.openStatementEdit($event)"
-      @generate="(year, month) => $emit('generate-statement', year, month)"
-      @close="$emit('statement-list-close')"
+      @edit="openStatementEdit"
+      @generate="handleGenerateStatement"
+      @close="closeStatementList"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useBillingStore } from '~/stores/billing'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useStatements } from '~/composables/useStatements'
-import { useAccountDialogs } from '../../composables/useAccountDialogs'
+import { createBalanceAdjustment, loadBalanceAdjustments, deleteBalanceAdjustment } from '~/composables/useBalanceAdjustments'
+import { useConfirm } from '~/composables/useConfirm'
+import { useToast } from '~/composables/useToast'
+import type { AccountFormData, Account, AccountType, StatementFormData, Statement, BalanceAdjustment } from '~/types/bill'
 import SelectPicker from '../SelectPicker.vue'
 import AccountList from '../AccountList.vue'
 import AccountDialog from '../AccountDialog.vue'
@@ -79,33 +82,175 @@ import BalanceAdjustDialog from '../BalanceAdjustDialog.vue'
 import StatementDialog from '../StatementDialog.vue'
 import StatementListDialog from '../StatementListDialog.vue'
 
-const emit = defineEmits<{
-  (e: 'delete-account', id: string): void
-  (e: 'account-confirm', data: any, isEditing: boolean, id?: string): void
-  (e: 'balance-adjust-confirm', data: any): void
-  (e: 'delete-balance-adjustment', id: string): void
-  (e: 'statement-confirm', data: any, id: string): void
-  (e: 'generate-statement', year: number, month: number): void
-  (e: 'statement-list-close'): void
-}>()
-
 const store = useBillingStore()
 const { isMobile } = useDevice()
+const { confirm } = useConfirm()
+const { success: showSuccess, error: showError } = useToast()
 
-const dialogs = useAccountDialogs()
-const { accounts } = useAccounts()
+const { accounts, createAccount, updateAccount, deleteAccount } = useAccounts()
 const { categories } = useBillCategories()
-const { statements } = useStatements()
+const { statements, updateStatement, generateForPeriod } = useStatements()
 
+// 对话框状态
+const accountDialogVisible = ref(false)
+const editingAccount = ref<Account | undefined>(undefined)
+const accountFormDefaults = ref<{ defaultName?: string; defaultType?: string } | undefined>(undefined)
+
+const balanceAdjustVisible = ref(false)
+const adjustingAccount = ref<Account | undefined>(undefined)
+const balanceAdjustments = ref<BalanceAdjustment[]>([])
+
+const statementDialogVisible = ref(false)
+const editingStatement = ref<Statement | undefined>(undefined)
+
+const statementListDialogVisible = ref(false)
+const viewingAccount = ref<Account | undefined>(undefined)
+
+// 计算属性
 const filteredAccounts = computed(() => {
-  return accounts.value.filter((a: any) => a.type === store.activeAccountSubTab)
+  return accounts.value.filter((a: Account) => a.type === store.activeAccountSubTab)
 })
 
 const viewingAccountStatements = computed(() =>
-  dialogs.viewingAccount.value
-    ? statements.value.filter((s: any) => s.accountId === dialogs.viewingAccount.value!.id)
+  viewingAccount.value
+    ? statements.value.filter((s: any) => s.accountId === viewingAccount.value!.id)
     : []
 )
+
+// 对话框操作
+function openAccountDialog(account?: Account, defaults?: { defaultName?: string; defaultType?: string }) {
+  editingAccount.value = account
+  accountFormDefaults.value = defaults
+  accountDialogVisible.value = true
+}
+
+function closeAccountDialog() {
+  accountDialogVisible.value = false
+  editingAccount.value = undefined
+  accountFormDefaults.value = undefined
+}
+
+function openBalanceAdjustDialog(account: Account) {
+  adjustingAccount.value = account
+  loadBalanceAdjustHistory(account.id)
+  balanceAdjustVisible.value = true
+}
+
+function closeBalanceAdjust() {
+  balanceAdjustVisible.value = false
+  adjustingAccount.value = undefined
+  balanceAdjustments.value = []
+}
+
+function openStatementList(account: Account) {
+  viewingAccount.value = account
+  statementListDialogVisible.value = true
+}
+
+function closeStatementList() {
+  statementListDialogVisible.value = false
+  viewingAccount.value = undefined
+}
+
+function openStatementEdit(statement: any) {
+  editingStatement.value = statement
+  statementListDialogVisible.value = false
+  statementDialogVisible.value = true
+}
+
+function closeStatementDialog() {
+  statementDialogVisible.value = false
+  editingStatement.value = undefined
+  if (viewingAccount.value) {
+    statementListDialogVisible.value = true
+  }
+}
+
+// 事件处理
+async function handleDeleteAccount(id: string) {
+  if (!await confirm('确定删除此账户？')) return
+  try {
+    await deleteAccount(id)
+    showSuccess('账户已删除')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleAccountConfirm(data: AccountFormData, isEditing: boolean, id?: string) {
+  try {
+    if (isEditing && id) {
+      await updateAccount(id, data)
+      showSuccess('账户已更新')
+    } else {
+      await createAccount(data)
+      showSuccess('账户已添加')
+    }
+    closeAccountDialog()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleBalanceAdjustConfirm(data: { date: string; balance: number; note: string }) {
+  if (!adjustingAccount.value) return
+  try {
+    await createBalanceAdjustment(
+      adjustingAccount.value.id,
+      data.date,
+      data.balance,
+      data.note
+    )
+    showSuccess('余额已调整')
+    await loadBalanceAdjustHistory(adjustingAccount.value.id)
+    closeBalanceAdjust()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function loadBalanceAdjustHistory(accountId: string) {
+  try {
+    balanceAdjustments.value = await loadBalanceAdjustments(accountId)
+  } catch (e) {
+    console.error('Failed to load balance adjustments:', e)
+  }
+}
+
+async function handleDeleteBalanceAdjustment(id: string) {
+  if (!await confirm('确定删除此调整记录？')) return
+  try {
+    await deleteBalanceAdjustment(id)
+    balanceAdjustments.value = balanceAdjustments.value.filter(a => a.id !== id)
+    showSuccess('记录已删除')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleStatementConfirm(data: StatementFormData, id: string) {
+  try {
+    if (data.statementAmount < 0 || data.paidAmount < 0) {
+      showError('金额不能为负数')
+      return
+    }
+    await updateStatement(id, data)
+    showSuccess('对账单已更新')
+    closeStatementDialog()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleGenerateStatement(year: number, month: number) {
+  if (!viewingAccount.value) return
+  try {
+    await generateForPeriod(viewingAccount.value, [], year, month)
+    showSuccess('账单周期已生成')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
 </script>
 
 <style scoped>

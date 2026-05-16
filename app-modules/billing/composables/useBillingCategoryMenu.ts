@@ -10,8 +10,8 @@ export interface CategoryMenuState {
 
 export interface UseBillingCategoryMenuOptions {
   categoryMenu: Ref<CategoryMenuState>
-  openCategoryDialog: (category?: BillCategory, defaultType?: CategoryType) => void
-  handleDeleteCategory: (id: string) => Promise<void>
+  openCategoryDialog: (category?: BillCategory, defaults?: { type?: CategoryType; defaultParentId?: string; defaultName?: string }) => void
+  handleDeleteCategory: (id: string) => void | Promise<void>
 }
 
 export function useBillingCategoryMenu(options: UseBillingCategoryMenuOptions) {
@@ -35,7 +35,7 @@ export function useBillingCategoryMenu(options: UseBillingCategoryMenuOptions) {
   }
 
   function openAddChildCategoryDialog(parent: CategoryTreeNode) {
-    options.openCategoryDialog(undefined, parent.type)
+    options.openCategoryDialog(undefined, { type: parent.type, defaultParentId: parent.id })
   }
 
   function onMenuAddChild() {

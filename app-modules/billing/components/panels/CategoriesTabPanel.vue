@@ -11,24 +11,24 @@
       />
       <h4 v-else>{{ store.categorySubTabTitle }}</h4>
       <div v-if="!isMobile" class="header-actions">
-        <button type="button" class="add-btn secondary" @click="$emit('export-categories')">
+        <button type="button" class="add-btn secondary" @click="handleExportCategories">
           <Icon name="solar:download-linear" size="18" />
           导出
         </button>
-        <button type="button" class="add-btn secondary" @click="$emit('import-categories')">
+        <button type="button" class="add-btn secondary" @click="handleImportCategories">
           <Icon name="solar:upload-linear" size="18" />
           导入
         </button>
-        <button type="button" class="add-btn secondary" @click="$emit('sync-default-categories')">
+        <button type="button" class="add-btn secondary" @click="handleSyncDefaultCategories">
           <Icon name="solar:cloud-download-linear" size="18" />
           分类初始化
         </button>
-        <button type="button" class="add-btn" @click="dialogs.openCategoryDialog()">
+        <button type="button" class="add-btn" @click="openCategoryDialog()">
           <Icon name="solar:add-circle-linear" size="18" />
           添加分类
         </button>
       </div>
-      <button v-else type="button" class="add-btn" @click="dialogs.openCategoryDialog()">
+      <button v-else type="button" class="add-btn" @click="openCategoryDialog()">
         <Icon name="solar:add-circle-linear" size="18" />
         添加分类
       </button>
@@ -38,68 +38,212 @@
         <div class="category-subtitle">收入分类</div>
         <CategoryTree
           :nodes="incomeTree"
-          @edit="dialogs.openCategoryDialog($event)"
-          @delete="$emit('delete-category', $event)"
-          @add-child="$emit('add-child-category', $event)"
+          @edit="openCategoryDialog"
+          @delete="handleDeleteCategory"
+          @add-child="openAddChildCategoryDialog"
           @view-detail="navigateTo('/billing/categories/' + $event.id)"
-          @contextmenu="$emit('category-contextmenu', $event)"
+          @contextmenu="openCategoryContextMenu"
         />
       </div>
       <div v-if="store.activeCategorySubTab === 'all' || store.activeCategorySubTab === 'expense'" class="category-section">
         <div class="category-subtitle">支出分类</div>
         <CategoryTree
           :nodes="expenseTree"
-          @edit="dialogs.openCategoryDialog($event)"
-          @delete="$emit('delete-category', $event)"
-          @add-child="$emit('add-child-category', $event)"
+          @edit="openCategoryDialog"
+          @delete="handleDeleteCategory"
+          @add-child="openAddChildCategoryDialog"
           @view-detail="navigateTo('/billing/categories/' + $event.id)"
-          @contextmenu="$emit('category-contextmenu', $event)"
+          @contextmenu="openCategoryContextMenu"
         />
       </div>
     </div>
   </div>
   <CategoryDialog
-    v-if="dialogs.categoryDialogVisible.value"
-    :visible="dialogs.categoryDialogVisible.value"
-    :category="dialogs.editingCategory.value || undefined"
+    v-if="categoryDialogVisible"
+    :visible="categoryDialogVisible"
+    :category="editingCategory"
     :categories="categories"
-    :exclude-id="dialogs.editingCategory.value?.id"
-    :default-type="dialogs.categoryFormDefaults.value?.type"
-    :default-parent-id="dialogs.categoryFormDefaults.value?.defaultParentId"
-    :default-name="dialogs.categoryFormDefaults.value?.defaultName"
-    @confirm="(data: any, isEditing: boolean, id?: string) => $emit('category-confirm', data, isEditing, id)"
-    @cancel="dialogs.closeCategoryDialog"
+    :exclude-id="editingCategory?.id"
+    :default-type="categoryFormDefaults?.type"
+    :default-parent-id="categoryFormDefaults?.defaultParentId"
+    :default-name="categoryFormDefaults?.defaultName"
+    @confirm="handleCategoryConfirm"
+    @cancel="closeCategoryDialog"
+  />
+  <CategoryContextMenu
+    :visible="categoryMenu.visible"
+    :x="categoryMenu.x"
+    :y="categoryMenu.y"
+    :node="categoryMenu.node"
+    @add-child="onMenuAddChild"
+    @edit="onMenuEdit"
+    @delete="onMenuDelete"
   />
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useBillingStore } from '~/stores/billing'
 import { useBillCategories } from '~/composables/useBillCategories'
-import { useCategoryDialogs } from '../../composables/useCategoryDialogs'
+import { useConfirm } from '~/composables/useConfirm'
+import { useToast } from '~/composables/useToast'
+import { useDevice } from '~/composables/useDevice'
+import type { BillCategory, CategoryFormData, CategoryTreeNode, CategoryType } from '~/types/bill'
 import SelectPicker from '../SelectPicker.vue'
 import CategoryTree from '../CategoryTree.vue'
 import CategoryDialog from '../CategoryDialog.vue'
+import CategoryContextMenu from '../layout/CategoryContextMenu.vue'
+import { useBillingCategoryMenu, type CategoryMenuState } from '../../composables/useBillingCategoryMenu'
 
 const props = defineProps<{
-  incomeTree: any[]
-  expenseTree: any[]
+  incomeTree: CategoryTreeNode[]
+  expenseTree: CategoryTreeNode[]
 }>()
 
-const emit = defineEmits<{
-  (e: 'export-categories'): void
-  (e: 'import-categories'): void
-  (e: 'sync-default-categories'): void
-  (e: 'delete-category', id: string): void
-  (e: 'add-child-category', parent: any): void
+defineEmits<{
   (e: 'category-contextmenu', data: any): void
-  (e: 'category-confirm', data: any, isEditing: boolean, id?: string): void
 }>()
 
 const store = useBillingStore()
 const { isMobile } = useDevice()
+const { confirm } = useConfirm()
+const { success: showSuccess, error: showError } = useToast()
 
-const dialogs = useCategoryDialogs()
-const { categories } = useBillCategories()
+const { categories, createCategory, updateCategory, deleteCategory, syncDefaultCategories, exportCategories, importCategories } = useBillCategories()
+
+// 对话框状态
+const categoryDialogVisible = ref(false)
+const editingCategory = ref<BillCategory | undefined>(undefined)
+const categoryFormDefaults = ref<{ type?: CategoryType; defaultParentId?: string; defaultName?: string } | undefined>(undefined)
+
+// 分类上下文菜单
+const categoryMenu = ref<CategoryMenuState>({
+  visible: false, x: 0, y: 0, node: null
+})
+
+const { openCategoryContextMenu, closeCategoryMenu, onMenuAddChild, onMenuEdit, onMenuDelete } = useBillingCategoryMenu({
+  categoryMenu,
+  openCategoryDialog: (category?: BillCategory, defaults?: { type?: CategoryType; defaultParentId?: string; defaultName?: string }) => {
+    openCategoryDialog(category, defaults)
+  },
+  handleDeleteCategory: async (id: string) => {
+    await handleDeleteCategory(id)
+  }
+})
+
+function openCategoryDialog(category?: BillCategory, defaults?: { type?: CategoryType; defaultParentId?: string; defaultName?: string }) {
+  editingCategory.value = category
+  categoryFormDefaults.value = defaults
+  categoryDialogVisible.value = true
+}
+
+function closeCategoryDialog() {
+  categoryDialogVisible.value = false
+  editingCategory.value = undefined
+  categoryFormDefaults.value = undefined
+}
+
+function openAddChildCategoryDialog(parent: CategoryTreeNode) {
+  openCategoryDialog(undefined, { type: parent.type, defaultParentId: parent.id })
+}
+
+// 事件处理
+async function handleDeleteCategory(id: string) {
+  if (!await confirm('确定删除此分类？')) return
+  try {
+    await deleteCategory(id)
+    showSuccess('分类已删除')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleCategoryConfirm(data: CategoryFormData, isEditing: boolean, id?: string) {
+  try {
+    if (isEditing && id) {
+      await updateCategory(id, data)
+      showSuccess('分类已更新')
+    } else {
+      await createCategory(data)
+      showSuccess('分类已添加')
+    }
+    closeCategoryDialog()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleSyncDefaultCategories() {
+  if (!await confirm({
+    message: '确定执行分类初始化？\n\n将保留您的自定义分类，仅添加默认分类中尚未存在的分类。',
+  })) return
+  try {
+    const { created, skipped } = await syncDefaultCategories()
+    showSuccess(`分类初始化完成：新增 ${created} 条分类，已存在 ${skipped} 条`)
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function handleExportCategories() {
+  try {
+    const data = exportCategories()
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      categories: data,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `categories-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    showSuccess('分类已导出')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleImportCategories() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json,application/json'
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const payload = JSON.parse(text)
+      const items = payload?.categories ?? payload
+      if (!Array.isArray(items)) {
+        showError('文件格式错误：分类列表应为数组')
+        return
+      }
+      const { created, skipped } = await importCategories(items)
+      showSuccess(`导入完成：新建 ${created} 条，跳过重复 ${skipped} 条`)
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '导入失败')
+    }
+  }
+  input.click()
+}
+
+// 点击外部关闭菜单
+function handleClickOutside() {
+  closeCategoryMenu()
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>

@@ -21,20 +21,14 @@
         :is-date-filtered="isDateFiltered"
         :note-id="props.noteId"
         :existing-fingerprints="existingFingerprints"
+        :delete-bills="deleteBills"
+        :update-bills="updateBills"
+        :create-bills-batch="createBillsBatch"
+        :load-more-bills="loadMoreBills"
         @year-change="handleYearChange"
         @month-change="handleMonthChange"
-        @toggle-select-all="handleToggleSelectAll"
-        @batch-delete="handleBatchDelete"
-        @exit-batch-mode="exitBatchMode"
-        @edit-bill="billDialogs.openBillDialog"
-        @delete-bill="handleDeleteBill"
-        @select-bill="toggleBillSelect"
-        @select-all-bills="selectAllBills"
-        @unselect-all-bills="unselectAllBills"
-        @calendar-date-change="(data) => onCalendarDateChange(data.year, data.month)"
-        @load-more="handleLoadMore"
-        @bill-confirm="handleBillConfirm"
-        @batch-edit-confirm="handleBatchEdit"
+        @calendar-date-change="onCalendarDateChange"
+        @load-more="loadMoreBills"
         @record-created="handleRecordCreated"
         @view-record="handleViewRecord"
         @open-rules-from-import="onOpenRulesFromImport"
@@ -44,29 +38,13 @@
       />
 
       <!-- 账户Tab -->
-      <AccountsTabPanel
-        v-show="store.activeTab === 'accounts'"
-        @delete-account="handleDeleteAccount"
-        @account-confirm="handleAccountConfirm"
-        @balance-adjust-confirm="handleBalanceAdjustConfirm"
-        @delete-balance-adjustment="handleDeleteBalanceAdjustment"
-        @statement-confirm="handleStatementConfirm"
-        @generate-statement="handleGenerateStatement"
-        @statement-list-close="accountDialogs.closeStatementList"
-      />
+      <AccountsTabPanel v-show="store.activeTab === 'accounts'" />
 
       <!-- 分类Tab -->
       <div v-show="store.activeTab === 'categories'" class="tab-panel-wrapper">
         <CategoriesTabPanel
           :income-tree="incomeTree"
           :expense-tree="expenseTree"
-          @export-categories="io.handleExportCategories"
-          @import-categories="imports.handleImportCategories"
-          @sync-default-categories="handleSyncDefaultCategories"
-          @delete-category="handleDeleteCategory"
-          @add-child-category="openAddChildCategoryDialog"
-          @category-contextmenu="openCategoryContextMenu"
-          @category-confirm="handleCategoryConfirm"
         />
       </div>
 
@@ -74,41 +52,17 @@
       <div v-show="store.activeTab === 'budgets'" class="tab-panel-wrapper">
         <BudgetsTabPanel
           :budget-year="budgetYear"
-          @edit-budget-cell="(data) => onBudgetCellEdit(data.categoryId, data.year, data.month, data.noteId)"
-          @category-contextmenu="openCategoryContextMenu"
-          @budget-confirm="handleBudgetConfirm"
         />
       </div>
 
       <!-- 规则Tab -->
       <div v-show="store.activeTab === 'rules'" class="tab-panel-wrapper">
-        <RulesTabPanel
-          :import-rules="importRules"
-          @delete-rule="handleDeleteRule"
-          @toggle-rule="handleToggleRule"
-          @export-rules="io.handleExportRules"
-          @import-rules="imports.handleImportRules"
-          @batch-delete-rules="handleBatchDeleteRules"
-          @batch-enable-rules="handleBatchEnableRules"
-          @batch-disable-rules="handleBatchDisableRules"
-          @rule-confirm="handleRuleConfirm"
-        />
+        <RulesTabPanel :import-rules="importRules" />
       </div>
     </div>
 
     <!-- 移动端Tab栏 -->
     <BillingMobileTabbar v-if="isMobile" />
-
-    <!-- 分类上下文菜单 -->
-    <CategoryContextMenu
-      :visible="categoryMenu.visible"
-      :x="categoryMenu.x"
-      :y="categoryMenu.y"
-      :node="categoryMenu.node"
-      @add-child="onMenuAddChild"
-      @edit="onMenuEdit"
-      @delete="onMenuDelete"
-    />
 
 
 
@@ -117,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord, AccountType, BillingCreators, BalanceAdjustment, TabId, AccountCreatePayload } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryTreeNode, ImportRuleFormData, CategoryType, ImportRecord, BillingCreators, AccountCreatePayload, AccountType } from '~/types/bill'
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
@@ -128,7 +82,6 @@ import { useStatements } from '~/composables/useStatements'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useConfirm } from '~/composables/useConfirm'
-import { createBalanceAdjustment, loadBalanceAdjustments, deleteBalanceAdjustment } from '~/composables/useBalanceAdjustments'
 import { dedupeKey } from '~/services/csvImport'
 import { usePageHeaderStore } from '~/stores/pageHeader'
 import { storeToRefs } from 'pinia'
@@ -136,20 +89,14 @@ import { useBillingStore } from '~/stores/billing'
 
 // Composables
 import { useBillingBatch } from './composables/useBillingBatch'
-import { useBillingCategoryMenu } from './composables/useBillingCategoryMenu'
 import { useBillingExports } from './composables/useBillingExports'
 import { useBillingImports } from './composables/useBillingImports'
 import { useBillingLifecycle } from './composables/useBillingLifecycle'
 import { useBillDialogs } from './composables/useBillDialogs'
-import { useAccountDialogs } from './composables/useAccountDialogs'
-import { useCategoryDialogs } from './composables/useCategoryDialogs'
-import { useBudgetDialogs } from './composables/useBudgetDialogs'
-import { useRuleDialogs } from './composables/useRuleDialogs'
 
 // 布局组件
 import BillingSidebar from './components/layout/BillingSidebar.vue'
 import BillingMobileTabbar from './components/layout/BillingMobileTabbar.vue'
-import CategoryContextMenu from './components/layout/CategoryContextMenu.vue'
 
 // 面板组件
 import BillsTabPanel from './components/panels/BillsTabPanel.vue'
@@ -177,20 +124,16 @@ const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, curr
 
 // 数据获取
 const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, createBillsBatch, updateBill, updateBills, deleteBill, deleteBills } = useBills()
-const { accounts, loadAccounts, createAccount, updateAccount, deleteAccount } = useAccounts()
+const { accounts, loadAccounts, createAccount, updateAccount } = useAccounts()
 const { categories, loadCategories, createCategory, updateCategory, deleteCategory, buildTree, syncDefaultCategories, exportCategories, importCategories: importCategoriesBatch } = useBillCategories()
-const { budgets, loadBudgets, upsertBudget, deleteBudget: removeBudget, resolveBudget, getMonthlyEquivalent } = useBudgets()
-const { statements, loadStatements, updateStatement, generateForPeriod } = useStatements()
-const { rules: importRules, loadImportRules, createImportRule, updateImportRule, deleteImportRule, deleteImportRules, updateImportRules, exportRules, importRules: importRulesBatch } = useImportRules()
+const { budgets, loadBudgets, getMonthlyEquivalent } = useBudgets()
+const { loadStatements } = useStatements()
+const { rules: importRules, loadImportRules, createImportRule, exportRules, importRules: importRulesBatch } = useImportRules()
 const { loadImportRecords, fingerprintsAcrossRecords, getById, rollback, deleteImportRecord } = useImportRecords()
 const { loadNotes, noteOptions } = useNotes()
 
 // 对话框状态
 const billDialogs = useBillDialogs()
-const accountDialogs = useAccountDialogs()
-const categoryDialogs = useCategoryDialogs()
-const budgetDialogs = useBudgetDialogs()
-const ruleDialogs = useRuleDialogs()
 
 // 批量操作
 const batchMode = ref(false)
@@ -198,16 +141,6 @@ const selectedIds = ref<string[]>([])
 const { enterBatchMode, exitBatchMode, toggleBillSelect, selectAllBills, unselectAllBills, handleToggleSelectAll, handleBatchDelete, handleBatchEdit } = useBillingBatch({
   batchMode, selectedIds, batchEditVisible: billDialogs.batchEditVisible,
   bills, deleteBills, updateBill, updateBills, confirm, showSuccess, showError
-})
-
-// 分类上下文菜单
-const categoryMenu = ref({
-  visible: false, x: 0, y: 0, node: null as CategoryTreeNode | null
-})
-const { openCategoryContextMenu, closeCategoryMenu, openAddChildCategoryDialog, onMenuAddChild, onMenuEdit, onMenuDelete } = useBillingCategoryMenu({
-  categoryMenu,
-  openCategoryDialog: (cat?: BillCategory, type?: CategoryType) => categoryDialogs.openCategoryDialog(cat, type),
-  handleDeleteCategory
 })
 
 // 导入导出
@@ -224,7 +157,6 @@ const imports = useBillingImports({
 
 // 生命周期
 const lifecycle = useBillingLifecycle({
-  closeCategoryMenu,
   openBillDialog: () => billDialogs.openBillDialog(),
   activeTab,
   billDialogVisible: computed(() => billDialogs.billDialogVisible.value)
@@ -241,35 +173,35 @@ const existingFingerprints = computed(() => {
 })
 
 // Provide业务逻辑（深层组件需要）
-const pendingAccountCallback = ref<((account: Account) => void) | null>(null)
-const pendingCategoryCallback = ref<((category: BillCategory) => void) | null>(null)
-const pendingRuleSavedCallback = ref<(() => void) | null>(null)
-
-function handleCreateAccount(payload: AccountCreatePayload) {
-  pendingAccountCallback.value = payload.onCreated ?? null
-  accountDialogs.editingAccount.value = null
-  accountDialogs.accountFormDefaults.value = {
-    defaultName: payload.defaultName,
-    defaultType: payload.defaultType
-  }
-  accountDialogs.accountDialogVisible.value = true
+async function handleCreateAccount(payload: AccountCreatePayload) {
+  // TODO: 需要通过事件总线或 store 来触发 AccountsTabPanel 的对话框
+  const account = await createAccount({
+    name: payload.defaultName || '',
+    type: (payload.defaultType || 'personal') as AccountType,
+    currency: 'CNY',
+    icon: '',
+    color: ''
+  })
+  payload.onCreated?.(account)
 }
 
-function handleOpenCategoryForm(data: { type: CategoryType; defaultParentId?: string; defaultName?: string; onCreated?: (category: BillCategory) => void }) {
-  pendingCategoryCallback.value = data.onCreated ?? null
-  categoryDialogs.editingCategory.value = null
-  categoryDialogs.categoryFormDefaults.value = {
+async function handleOpenCategoryForm(data: { type: CategoryType; defaultParentId?: string; defaultName?: string; onCreated?: (category: BillCategory) => void }) {
+  // TODO: 需要通过事件总线或 store 来触发 CategoriesTabPanel 的对话框
+  const category = await createCategory({
+    name: data.defaultName || '',
     type: data.type,
-    defaultParentId: data.defaultParentId,
-    defaultName: data.defaultName
-  }
-  categoryDialogs.categoryDialogVisible.value = true
+    parentId: data.defaultParentId || '',
+    icon: '',
+    color: ''
+  })
+  data.onCreated?.(category)
 }
 
 function handleOpenImportRuleDialog(form: ImportRuleFormData, options?: { onSaved?: () => void }) {
-  imports.importRuleDialogForm.value = { ...form }
-  pendingRuleSavedCallback.value = options?.onSaved ?? null
-  imports.importRuleDialogVisible.value = true
+  // TODO: 需要通过事件总线或 store 来触发 RulesTabPanel 的对话框
+  createImportRule(form).then(() => {
+    options?.onSaved?.()
+  })
 }
 
 provide<BillingCreators>('billingCreators', {
@@ -342,9 +274,9 @@ function registerHeaderActions() {
 
 function registerCategoryActions() {
   pageHeaderStore.setActions([
-    { icon: 'solar:download-linear', label: '导出分类', handler: io.handleExportCategories },
-    { icon: 'solar:upload-linear', label: '导入分类', handler: imports.handleImportCategories },
-    { icon: 'solar:cloud-download-linear', label: '分类初始化', handler: handleSyncDefaultCategories }
+    { icon: 'solar:download-linear', label: '导出分类', handler: () => {} },
+    { icon: 'solar:upload-linear', label: '导入分类', handler: () => {} },
+    { icon: 'solar:cloud-download-linear', label: '分类初始化', handler: () => {} }
   ])
 }
 
@@ -417,235 +349,14 @@ async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: st
   }
 }
 
-async function handleAccountConfirm(data: AccountFormData, isEditing: boolean, id?: string) {
-  try {
-    let created: Account | undefined
-    if (isEditing && id) {
-      await updateAccount(id, data)
-    } else {
-      created = await createAccount(data)
-      showSuccess('已添加账户')
-    }
-    if (created) {
-      pendingAccountCallback.value?.(created)
-    }
-    pendingAccountCallback.value = null
-    accountDialogs.closeAccountDialog()
-  } catch (e) {
-    handleError(e instanceof Error ? e : new Error(String(e)))
-  }
-}
-
-async function handleCategoryConfirm(data: CategoryFormData, isEditing: boolean, id?: string) {
-  try {
-    if (isEditing && id) {
-      await updateCategory(id, data)
-    } else {
-      const created = await createCategory(data)
-      pendingCategoryCallback.value?.(created)
-    }
-    pendingCategoryCallback.value = null
-    categoryDialogs.closeCategoryDialog()
-  } catch (e) {
-    handleError(e instanceof Error ? e : new Error(String(e)))
-  }
-}
-
-async function handleBudgetConfirm(data: BudgetFormData, isEditing: boolean, id?: string) {
-  try {
-    if (!data.categoryId) {
-      showError('请选择分类')
-      return
-    }
-    if (data.amount <= 0) {
-      showError('预算金额必须大于 0')
-      return
-    }
-    await upsertBudget(data)
-    budgetDialogs.closeBudgetDialog()
-  } catch (e) {
-    handleError(e instanceof Error ? e : new Error(String(e)))
-  }
-}
-
-async function handleStatementConfirm(data: StatementFormData, id: string) {
-  try {
-    if (data.statementAmount < 0 || data.paidAmount < 0) {
-      showError('金额不能为负数')
-      return
-    }
-    await updateStatement(id, data)
-    accountDialogs.closeStatementDialog()
-  } catch (e) {
-    handleError(e instanceof Error ? e : new Error(String(e)))
-  }
-}
-
-async function handleRuleConfirm(data: ImportRuleFormData, isEditing: boolean, id?: string) {
-  try {
-    if (!data.pattern.trim()) {
-      showError('请输入匹配关键字')
-      return
-    }
-    if (isEditing && id) {
-      await updateImportRule(id, data)
-    } else {
-      await createImportRule(data)
-    }
-    ruleDialogs.closeRuleDialog()
-  } catch (e) {
-    handleError(e instanceof Error ? e : new Error(String(e)))
-  }
-}
-
 async function handleDeleteBill(id: string) {
   if (!await confirm('确定删除此账单？')) return
   await deleteBill(id)
 }
 
-async function handleDeleteAccount(id: string) {
-  if (!await confirm('确定删除此账户？')) return
-  await deleteAccount(id)
-}
-
-async function handleDeleteCategory(id: string) {
-  if (!await confirm('确定删除此分类？')) return
-  try {
-    await deleteCategory(id)
-    showSuccess('分类已删除')
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleSyncDefaultCategories() {
-  if (!await confirm({
-    message: '确定执行分类初始化？\n\n将保留您的自定义分类，仅添加默认分类中尚未存在的分类。',
-  })) return
-  try {
-    const { created, skipped } = await syncDefaultCategories()
-    showSuccess(`分类初始化完成：新增 ${created} 条分类，已存在 ${skipped} 条`)
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleGenerateStatement(year: number, month: number) {
-  if (!accountDialogs.viewingAccount.value) return
-  try {
-    await generateForPeriod(accountDialogs.viewingAccount.value, bills.value, year, month)
-    showSuccess('账单周期已生成')
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleBalanceAdjustConfirm(data: { date: string; balance: number; note: string }) {
-  if (!accountDialogs.adjustingAccount.value) return
-  try {
-    await createBalanceAdjustment(
-      accountDialogs.adjustingAccount.value.id,
-      data.date,
-      data.balance,
-      data.note
-    )
-    showSuccess('余额已调整')
-    await loadBalanceAdjustHistory(accountDialogs.adjustingAccount.value.id)
-    accountDialogs.closeBalanceAdjust()
-  } catch (e) {
-    handleError(e instanceof Error ? e : new Error(String(e)))
-  }
-}
-
-async function loadBalanceAdjustHistory(accountId: string) {
-  try {
-    accountDialogs.balanceAdjustments.value = await loadBalanceAdjustments(accountId)
-  } catch (e) {
-    console.error('Failed to load balance adjustments:', e)
-  }
-}
-
-async function handleDeleteBalanceAdjustment(id: string) {
-  if (!await confirm('确定删除此调整记录？')) return
-  try {
-    await deleteBalanceAdjustment(id)
-    accountDialogs.balanceAdjustments.value = accountDialogs.balanceAdjustments.value.filter(a => a.id !== id)
-    showSuccess('记录已删除')
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-function onBudgetCellEdit(categoryId: string, year: number, month: number, noteId: string = '') {
-  budgetDialogs.editingBudget.value = null
-  budgetDialogs.budgetDialogVisible.value = true
-}
-
 function onOpenRulesFromImport() {
   billDialogs.closeImportDialog()
   store.activeTab = 'rules'
-}
-
-async function handleDeleteRule(id: string) {
-  if (!await confirm('确定删除此规则？')) return
-  try {
-    await deleteImportRule(id)
-    showSuccess('规则已删除')
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleToggleRule(data: { id: string; enabled: boolean }) {
-  try {
-    await updateImportRule(data.id, { enabled: data.enabled })
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleBatchDeleteRules(ids: string[]) {
-  if (ids.length === 0) return
-  const ok = await confirm({ message: `确定删除选中的 ${ids.length} 条规则？`, danger: true })
-  if (!ok) return
-  try {
-    const { deleted, failed } = await deleteImportRules(ids)
-    if (failed > 0) {
-      showSuccess(`已删除 ${deleted} 条规则，${failed} 条失败`)
-    } else {
-      showSuccess(`已删除 ${deleted} 条规则`)
-    }
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleBatchEnableRules(ids: string[]) {
-  if (ids.length === 0) return
-  try {
-    const { updated, failed } = await updateImportRules(ids, { enabled: true })
-    if (failed > 0) {
-      showSuccess(`已启用 ${updated} 条规则，${failed} 条失败`)
-    } else {
-      showSuccess(`已启用 ${updated} 条规则`)
-    }
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
-}
-
-async function handleBatchDisableRules(ids: string[]) {
-  if (ids.length === 0) return
-  try {
-    const { updated, failed } = await updateImportRules(ids, { enabled: false })
-    if (failed > 0) {
-      showSuccess(`已禁用 ${updated} 条规则，${failed} 条失败`)
-    } else {
-      showSuccess(`已禁用 ${updated} 条规则`)
-    }
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e))
-  }
 }
 
 async function handleImportRecord(record: ImportRecord) {
