@@ -42,6 +42,7 @@ const emit = defineEmits<{
 }>()
 
 const modules = [
+  { id: 'home', label: '首页', icon: 'solar:home-linear', path: '/' },
   { id: 'notes', label: '笔记', icon: 'solar:document-text-linear', path: '/notes' },
   { id: 'billing', label: '账单', icon: 'solar:wallet-money-linear', path: '/billing' },
   { id: 'goals', label: '目标', icon: 'solar:target-linear', path: '/goals' },

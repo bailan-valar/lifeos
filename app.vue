@@ -5,7 +5,7 @@
 
       <div class="app-main" :class="{ 'mobile': isMobile }">
         <!-- 桌面端 Menubar -->
-        <header v-if="!isMobile" class="app-menubar">
+        <header v-if="!isMobile && !isHomePage" class="app-menubar">
           <div class="menubar-left">
             <span class="page-title">{{ pageTitle }}</span>
           </div>
@@ -54,7 +54,7 @@
           </div>
         </Teleport>
 
-        <div class="app-content" :class="{ 'mobile': isMobile }">
+        <div class="app-content" :class="{ 'mobile': isMobile, 'home-page': isHomePage }">
           <NuxtPage :keepalive="{ max: 10 }" :page-key="pageKey" :key="workspaceStore.currentId" />
         </div>
       </div>
@@ -146,6 +146,7 @@ const pageKey = (route: RouteLocationNormalized) => {
 
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {
+    '/': '首页',
     '/notes': '笔记',
     '/billing': '账单',
     '/todo': '目标',
@@ -160,6 +161,7 @@ const pageTitle = computed(() => {
 const { isMobile } = useDevice()
 const hasWorkspace = computed(() => workspaceStore.list.length > 0)
 const isAuthPage = computed(() => route.path === '/login' || route.path === '/signup')
+const isHomePage = computed(() => route.path === '/')
 const isNoteDetailPage = computed(() => route.path === '/notes' && !!route.query.note)
 
 
