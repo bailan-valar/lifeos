@@ -18,9 +18,12 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { useBillCategories } from '~/composables/useBillCategories'
+import { useNotes } from '~/composables/useNotes'
+import { useBudgetDialogs } from '../../composables/useBudgetDialogs'
 import BudgetDashboard from '../BudgetDashboard.vue'
 import BudgetDialog from '../BudgetDialog.vue'
+
 const props = defineProps<{
   budgetYear: number
 }>()
@@ -31,9 +34,9 @@ defineEmits<{
   (e: 'budget-confirm', data: any, isEditing: boolean, id?: string): void
 }>()
 
-const dialogs = inject('budgetDialogs') as any
-const categories = inject('categories') as any
-const noteOptions = inject('noteOptions') as any
+const dialogs = useBudgetDialogs()
+const { categories } = useBillCategories()
+const { noteOptions } = useNotes()
 </script>
 
 <style scoped>

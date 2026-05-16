@@ -3,14 +3,14 @@
     <div class="panel-header">
       <SelectPicker
         v-if="isMobile"
-        v-model="navigation.activeAccountSubTab.value"
-        :options="navigation.accountSubTabOptions.value"
+        v-model="store.activeAccountSubTab"
+        :options="store.accountSubTabOptions"
         :min-width="120"
         plain
-        @change="navigation.activeAccountSubTab.value = $event"
+        @change="store.activeAccountSubTab = $event"
       />
-      <h4 v-else>{{ navigation.accountSubTabTitle.value }}</h4>
-      <button type="button" class="add-btn" @click="accountDialogs.openAccountDialog()">
+      <h4 v-else>{{ store.accountSubTabTitle }}</h4>
+      <button type="button" class="add-btn" @click="dialogs.openAccountDialog()">
         <Icon name="solar:add-circle-linear" size="18" />
         添加账户
       </button>
@@ -18,47 +18,47 @@
     <div class="list-container">
       <AccountList
         :accounts="filteredAccounts"
-        @edit="accountDialogs.openAccountDialog($event)"
+        @edit="dialogs.openAccountDialog($event)"
         @delete="$emit('delete-account', $event)"
-        @view-statements="accountDialogs.openStatementList($event)"
-        @adjust-balance="accountDialogs.openBalanceAdjustDialog($event)"
+        @view-statements="dialogs.openStatementList($event)"
+        @adjust-balance="dialogs.openBalanceAdjustDialog($event)"
         @view-detail="navigateTo('/billing/accounts/' + $event.id)"
       />
     </div>
 
     <!-- 账户域对话框 -->
     <AccountDialog
-      v-if="accountDialogs.accountDialogVisible.value"
-      :visible="accountDialogs.accountDialogVisible.value"
-      :account="accountDialogs.editingAccount.value || undefined"
+      v-if="dialogs.accountDialogVisible.value"
+      :visible="dialogs.accountDialogVisible.value"
+      :account="dialogs.editingAccount.value || undefined"
       :categories="categories"
-      :default-name="accountDialogs.accountFormDefaults.value?.defaultName"
-      :default-type="accountDialogs.accountFormDefaults.value?.defaultType"
+      :default-name="dialogs.accountFormDefaults.value?.defaultName"
+      :default-type="dialogs.accountFormDefaults.value?.defaultType"
       @confirm="(data, isEditing, id) => $emit('account-confirm', data, isEditing, id)"
-      @cancel="accountDialogs.closeAccountDialog"
+      @cancel="dialogs.closeAccountDialog"
     />
     <BalanceAdjustDialog
-      v-if="accountDialogs.balanceAdjustVisible.value"
-      :visible="accountDialogs.balanceAdjustVisible.value"
-      :account="accountDialogs.adjustingAccount.value || undefined"
-      :adjustments="accountDialogs.balanceAdjustments.value"
+      v-if="dialogs.balanceAdjustVisible.value"
+      :visible="dialogs.balanceAdjustVisible.value"
+      :account="dialogs.adjustingAccount.value || undefined"
+      :adjustments="dialogs.balanceAdjustments.value"
       @confirm="(data) => $emit('balance-adjust-confirm', data)"
-      @cancel="accountDialogs.closeBalanceAdjust"
+      @cancel="dialogs.closeBalanceAdjust"
       @delete-record="(id) => $emit('delete-balance-adjustment', id)"
     />
     <StatementDialog
-      v-if="accountDialogs.statementDialogVisible.value"
-      :visible="accountDialogs.statementDialogVisible.value"
-      :statement="accountDialogs.editingStatement.value || undefined"
+      v-if="dialogs.statementDialogVisible.value"
+      :visible="dialogs.statementDialogVisible.value"
+      :statement="dialogs.editingStatement.value || undefined"
       @confirm="(data, id) => $emit('statement-confirm', data, id)"
-      @cancel="accountDialogs.closeStatementDialog"
+      @cancel="dialogs.closeStatementDialog"
     />
     <StatementListDialog
-      v-if="accountDialogs.statementListDialogVisible.value"
-      :visible="accountDialogs.statementListDialogVisible.value"
-      :account="accountDialogs.viewingAccount.value || undefined"
+      v-if="dialogs.statementListDialogVisible.value"
+      :visible="dialogs.statementListDialogVisible.value"
+      :account="dialogs.viewingAccount.value || undefined"
       :statements="viewingAccountStatements"
-      @edit="accountDialogs.openStatementEdit($event)"
+      @edit="dialogs.openStatementEdit($event)"
       @generate="(year, month) => $emit('generate-statement', year, month)"
       @close="$emit('statement-list-close')"
     />
@@ -66,7 +66,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed } from 'vue'
+import { useBillingStore } from '~/stores/billing'
+import { useAccounts } from '~/composables/useAccounts'
+import { useBillCategories } from '~/composables/useBillCategories'
+import { useStatements } from '~/composables/useStatements'
+import { useAccountDialogs } from '../../composables/useAccountDialogs'
 import SelectPicker from '../SelectPicker.vue'
 import AccountList from '../AccountList.vue'
 import AccountDialog from '../AccountDialog.vue'
@@ -84,21 +89,21 @@ const emit = defineEmits<{
   (e: 'statement-list-close'): void
 }>()
 
-const navigation = inject<any>('billingNavigation')
+const store = useBillingStore()
 const { isMobile } = useDevice()
 
-const accountDialogs = inject('accountDialogs') as any
-const accounts = inject('accounts') as any
-const categories = inject('categories') as any
-const statements = inject('statements') as any
+const dialogs = useAccountDialogs()
+const { accounts } = useAccounts()
+const { categories } = useBillCategories()
+const { statements } = useStatements()
 
 const filteredAccounts = computed(() => {
-  return accounts.value.filter((a: any) => a.type === navigation.activeAccountSubTab.value)
+  return accounts.value.filter((a: any) => a.type === store.activeAccountSubTab)
 })
 
 const viewingAccountStatements = computed(() =>
-  accountDialogs.viewingAccount.value
-    ? statements.value.filter((s: any) => s.accountId === accountDialogs.viewingAccount.value!.id)
+  dialogs.viewingAccount.value
+    ? statements.value.filter((s: any) => s.accountId === dialogs.viewingAccount.value!.id)
     : []
 )
 </script>
@@ -124,29 +129,47 @@ const viewingAccountStatements = computed(() =>
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+  color: rgba(60, 60, 67, 0.8);
 }
 
 .add-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
   background: rgb(0, 122, 255);
   color: white;
-  border: none;
-  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
 }
 
 .add-btn:hover {
-  background: rgb(0, 110, 250);
+  opacity: 0.9;
+}
+
+.add-btn.secondary {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(60, 60, 67, 0.7);
+}
+
+.add-btn.secondary:hover {
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .list-container {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 </style>

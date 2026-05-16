@@ -1,7 +1,33 @@
 import { ref } from 'vue'
 import type { Account, Statement } from '~/types/bill'
 
-export function useAccountDialogs() {
+let _store: AccountDialogsStore | null = null
+
+interface AccountDialogsStore {
+  accountDialogVisible: Ref<boolean>
+  editingAccount: Ref<Account | null>
+  accountFormDefaults: Ref<{
+    defaultName?: string
+    defaultType?: 'personal' | 'contact' | 'merchant' | 'other'
+  } | null>
+  balanceAdjustVisible: Ref<boolean>
+  adjustingAccount: Ref<Account | null>
+  balanceAdjustments: Ref<any[]>
+  statementDialogVisible: Ref<boolean>
+  editingStatement: Ref<Statement | null>
+  statementListDialogVisible: Ref<boolean>
+  viewingAccount: Ref<Account | null>
+  openAccountDialog: (account?: Account, defaultType?: 'personal' | 'contact' | 'merchant' | 'other') => void
+  closeAccountDialog: () => void
+  openBalanceAdjustDialog: (account: Account) => void
+  closeBalanceAdjust: () => void
+  openStatementList: (account: Account) => void
+  closeStatementList: () => void
+  openStatementEdit: (stmt: Statement) => void
+  closeStatementDialog: () => void
+}
+
+function createStore(): AccountDialogsStore {
   const accountDialogVisible = ref(false)
   const editingAccount = ref<Account | null>(null)
   const accountFormDefaults = ref<{
@@ -83,4 +109,9 @@ export function useAccountDialogs() {
     openStatementEdit,
     closeStatementDialog
   }
+}
+
+export function useAccountDialogs(): AccountDialogsStore {
+  if (!_store) _store = createStore()
+  return _store
 }

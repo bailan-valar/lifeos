@@ -1,18 +1,51 @@
 import type { Note } from '~/types/block'
 import { getDB, onCollectionChange } from '~/services/db'
-import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 export interface NoteTreeNode extends Note {
   children: NoteTreeNode[]
   level: number
 }
 
-export function useNotes() {
+let _store: NotesStore | null = null
+let _unsub: (() => void) | null = null
+
+function startWatchingNotes() {
+  if (_unsub) return
+  _unsub = onCollectionChange('notes', () => {
+    if (_store) _store.loadNotes()
+  })
+}
+
+function stopWatchingNotes() {
+  if (_unsub) {
+    _unsub()
+    _unsub = null
+  }
+}
+
+if (import.meta.client) {
+  window.addEventListener('workspace:changed', () => {
+    stopWatchingNotes()
+    startWatchingNotes()
+    if (_store) _store.loadNotes()
+  })
+}
+
+interface NotesStore {
+  notes: Ref<Note[]>
+  loading: Ref<boolean>
+  error: Ref<string | null>
+  noteTree: ComputedRef<NoteTreeNode[]>
+  noteOptions: ComputedRef<{ id: string; title: string; level: number }[]>
+  loadNotes: () => Promise<void>
+  buildNoteTree: (parentId?: string, level?: number) => NoteTreeNode[]
+  getDescendantNoteIds: (noteId: string) => string[]
+}
+
+function createStore(): NotesStore {
   const notes = ref<Note[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-
-  let unsubscribe: (() => void) | null = null
 
   async function loadNotes() {
     loading.value = true
@@ -29,25 +62,6 @@ export function useNotes() {
     } finally {
       loading.value = false
     }
-  }
-
-  function startWatching() {
-    if (unsubscribe) return
-    unsubscribe = onCollectionChange('notes', () => {
-      loadNotes()
-    })
-  }
-
-  function stopWatching() {
-    if (unsubscribe) {
-      unsubscribe()
-      unsubscribe = null
-    }
-  }
-
-  if (getCurrentInstance()) {
-    onMounted(startWatching)
-    onUnmounted(stopWatching)
   }
 
   function buildNoteTree(parentId: string = '', level: number = 0): NoteTreeNode[] {
@@ -96,8 +110,14 @@ export function useNotes() {
     noteOptions,
     loadNotes,
     buildNoteTree,
-    getDescendantNoteIds,
-    startWatching,
-    stopWatching
+    getDescendantNoteIds
   }
+}
+
+export function useNotes(): NotesStore {
+  if (!_store) {
+    _store = createStore()
+    startWatchingNotes()
+  }
+  return _store
 }

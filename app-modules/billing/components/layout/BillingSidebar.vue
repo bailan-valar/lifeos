@@ -1,48 +1,48 @@
 <template>
-  <div class="sidebar" :class="{ collapsed: navigation.sidebarCollapsed.value }">
+  <div class="sidebar" :class="{ collapsed: store.sidebarCollapsed }">
     <button
       type="button"
       class="sidebar-toggle"
-      :title="navigation.sidebarCollapsed.value ? '展开' : '收起'"
-      @click="navigation.toggleSidebar()"
+      :title="store.sidebarCollapsed ? '展开' : '收起'"
+      @click="store.toggleSidebar()"
     >
       <Icon
-        :name="navigation.sidebarCollapsed.value ? 'solar:double-alt-arrow-right-linear' : 'solar:double-alt-arrow-left-linear'"
+        :name="store.sidebarCollapsed ? 'solar:double-alt-arrow-right-linear' : 'solar:double-alt-arrow-left-linear'"
         size="16"
       />
     </button>
 
-    <template v-for="tab in navigation.tabs" :key="tab.id">
+    <template v-for="tab in store.tabs" :key="tab.id">
       <!-- 账户Tab -->
       <template v-if="tab.id === 'accounts'">
         <button
           type="button"
           class="sidebar-btn"
-          :class="{ active: navigation.activeTab.value === 'accounts' }"
-          :title="navigation.sidebarCollapsed.value ? tab.name : ''"
-          @click="navigation.onAccountsTabClick()"
+          :class="{ active: store.activeTab === 'accounts' }"
+          :title="store.sidebarCollapsed ? tab.name : ''"
+          @click="store.onAccountsTabClick()"
         >
           <Icon :name="tab.icon" size="18" />
           <span class="sidebar-btn-text">{{ tab.name }}</span>
           <Icon
-            v-if="!navigation.sidebarCollapsed.value"
+            v-if="!store.sidebarCollapsed"
             name="solar:alt-arrow-down-linear"
             size="14"
             class="submenu-chevron"
-            :class="{ expanded: navigation.accountsMenuExpanded.value }"
+            :class="{ expanded: store.accountsMenuExpanded }"
           />
         </button>
         <div
-          v-if="!navigation.sidebarCollapsed.value && navigation.accountsMenuExpanded.value"
+          v-if="!store.sidebarCollapsed && store.accountsMenuExpanded"
           class="sidebar-submenu"
         >
           <button
-            v-for="sub in navigation.accountSubTabs"
+            v-for="sub in store.accountSubTabs"
             :key="sub.type"
             type="button"
             class="sidebar-submenu-btn"
-            :class="{ active: navigation.activeTab.value === 'accounts' && navigation.activeAccountSubTab.value === sub.type }"
-            @click="navigation.activeAccountSubTab.value = sub.type"
+            :class="{ active: store.activeTab === 'accounts' && store.activeAccountSubTab === sub.type }"
+            @click="store.activeAccountSubTab = sub.type"
           >
             {{ sub.label }}
           </button>
@@ -54,31 +54,31 @@
         <button
           type="button"
           class="sidebar-btn"
-          :class="{ active: navigation.activeTab.value === 'categories' }"
-          :title="navigation.sidebarCollapsed.value ? tab.name : ''"
-          @click="navigation.onCategoriesTabClick()"
+          :class="{ active: store.activeTab === 'categories' }"
+          :title="store.sidebarCollapsed ? tab.name : ''"
+          @click="store.onCategoriesTabClick()"
         >
           <Icon :name="tab.icon" size="18" />
           <span class="sidebar-btn-text">{{ tab.name }}</span>
           <Icon
-            v-if="!navigation.sidebarCollapsed.value"
+            v-if="!store.sidebarCollapsed"
             name="solar:alt-arrow-down-linear"
             size="14"
             class="submenu-chevron"
-            :class="{ expanded: navigation.categoryMenuExpanded.value }"
+            :class="{ expanded: store.categoryMenuExpanded }"
           />
         </button>
         <div
-          v-if="!navigation.sidebarCollapsed.value && navigation.categoryMenuExpanded.value"
+          v-if="!store.sidebarCollapsed && store.categoryMenuExpanded"
           class="sidebar-submenu"
         >
           <button
-            v-for="sub in navigation.categorySubTabs"
+            v-for="sub in store.categorySubTabs"
             :key="sub.type"
             type="button"
             class="sidebar-submenu-btn"
-            :class="{ active: navigation.activeTab.value === 'categories' && navigation.activeCategorySubTab.value === sub.type }"
-            @click="navigation.activeCategorySubTab.value = sub.type"
+            :class="{ active: store.activeTab === 'categories' && store.activeCategorySubTab === sub.type }"
+            @click="store.activeCategorySubTab = sub.type"
           >
             <span class="sub-dot" :class="sub.type" />
             {{ sub.label }}
@@ -91,9 +91,9 @@
         v-else
         type="button"
         class="sidebar-btn"
-        :class="{ active: navigation.activeTab.value === tab.id }"
-        :title="navigation.sidebarCollapsed.value ? tab.name : ''"
-        @click="navigation.activeTab.value = tab.id"
+        :class="{ active: store.activeTab === tab.id }"
+        :title="store.sidebarCollapsed ? tab.name : ''"
+        @click="store.activeTab = tab.id"
       >
         <Icon :name="tab.icon" size="18" />
         <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -103,9 +103,9 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { useBillingStore } from '~/stores/billing'
 
-const navigation = inject<any>('billingNavigation')
+const store = useBillingStore()
 </script>
 
 <style scoped>
@@ -119,72 +119,76 @@ const navigation = inject<any>('billingNavigation')
   border-right: 0.5px solid rgba(60, 60, 67, 0.08);
   flex-shrink: 0;
   transition: width 0.2s ease;
+  overflow-y: auto;
+  position: relative;
 }
 
 .sidebar.collapsed {
-  width: 48px;
-  padding: 12px 6px;
-  align-items: center;
+  width: 52px;
+  padding: 12px 4px;
 }
 
 .sidebar-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-bottom: 4px;
-  align-self: flex-end;
-  border: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
   border-radius: 6px;
+  border: none;
   background: transparent;
   color: rgba(60, 60, 67, 0.5);
   cursor: pointer;
-  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.sidebar:hover .sidebar-toggle {
+  opacity: 1;
 }
 
 .sidebar-toggle:hover {
-  background: rgba(60, 60, 67, 0.08);
-  color: rgba(60, 60, 67, 0.78);
-}
-
-.sidebar.collapsed .sidebar-toggle {
-  align-self: center;
-  margin-bottom: 8px;
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .sidebar-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: none;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 8px;
+  border: none;
   background: transparent;
-  font-size: 14px;
-  font-weight: 500;
   color: rgba(60, 60, 67, 0.7);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
-  white-space: nowrap;
+  position: relative;
+}
+
+.sidebar-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(60, 60, 67, 0.9);
 }
 
 .sidebar-btn.active {
-  background: white;
-  color: rgba(0, 0, 0, 0.92);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
 }
 
 .sidebar.collapsed .sidebar-btn {
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
+  padding: 8px;
 }
 
 .sidebar-btn-text {
-  transition: opacity 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .sidebar.collapsed .sidebar-btn-text {
@@ -194,54 +198,68 @@ const navigation = inject<any>('billingNavigation')
 .submenu-chevron {
   margin-left: auto;
   transition: transform 0.2s ease;
-  color: rgba(60, 60, 67, 0.4);
+  color: rgba(60, 60, 67, 0.3);
 }
 
 .submenu-chevron.expanded {
   transform: rotate(180deg);
 }
 
+.sidebar.collapsed .submenu-chevron {
+  display: none;
+}
+
 .sidebar-submenu {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   padding-left: 8px;
-  margin-left: 8px;
-  border-left: 1.5px solid rgba(60, 60, 67, 0.08);
+  margin-left: 12px;
+  border-left: 1.5px solid rgba(60, 60, 67, 0.06);
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .sidebar-submenu-btn {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
   border: none;
-  border-radius: 8px;
   background: transparent;
-  font-size: 13px;
-  font-weight: 500;
   color: rgba(60, 60, 67, 0.6);
+  font-size: 12px;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
-  white-space: nowrap;
 }
 
 .sidebar-submenu-btn:hover {
-  background: rgba(60, 60, 67, 0.06);
-  color: rgba(60, 60, 67, 0.92);
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(60, 60, 67, 0.8);
 }
 
 .sidebar-submenu-btn.active {
-  background: white;
-  color: rgba(0, 0, 0, 0.92);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  color: rgb(0, 122, 255);
+  font-weight: 500;
 }
 
 .sub-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  margin-right: 8px;
   flex-shrink: 0;
 }
 

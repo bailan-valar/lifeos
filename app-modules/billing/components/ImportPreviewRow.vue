@@ -119,10 +119,8 @@ import type {
   BillType,
   DebtSubtype,
   ImportRecordItem,
-  ImportRule,
-  BillingCreators
+  ImportRule
 } from '~/types/bill'
-import { inject } from 'vue'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
@@ -142,8 +140,6 @@ const emit = defineEmits<{
   (e: 'save-payment-method-rule', row: ImportRecordItem): void
   (e: 'save-description-rule', row: ImportRecordItem): void
 }>()
-
-const creators = inject<BillingCreators>('billingCreators')
 
 const typeOptions: { value: BillType; label: string }[] = [
   { value: 'income', label: '收入' },

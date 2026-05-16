@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import type { Account, AccountType, BillCategory, BillingCreators } from '~/types/bill'
-import { nextTick, onBeforeUnmount, onMounted, inject, type ComputedRef } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
 
 interface AccountGroup {
@@ -102,8 +102,7 @@ const emit = defineEmits<{
 }>()
 
 const creators = inject<BillingCreators>('billingCreators')
-const injectedFreq = inject<ComputedRef<Map<string, number>> | undefined>('accountFrequency', undefined)
-const effectiveFrequencyMap = computed(() => props.frequencyMap || injectedFreq?.value)
+const effectiveFrequencyMap = computed(() => props.frequencyMap)
 
 const placeholder = computed(() => props.placeholder || '请选择账户')
 const open = ref(false)

@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import type { BillCategory, CategoryType, BillingCreators } from '~/types/bill'
-import { nextTick, onBeforeUnmount, onMounted, watch, inject, type ComputedRef } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
 
 interface TreeItem {
@@ -132,8 +132,7 @@ const emit = defineEmits<{
 }>()
 
 const creators = inject<BillingCreators>('billingCreators')
-const injectedFreq = inject<ComputedRef<Map<string, number>> | undefined>('categoryFrequency', undefined)
-const effectiveFrequencyMap = computed(() => props.frequencyMap || injectedFreq?.value)
+const effectiveFrequencyMap = computed(() => props.frequencyMap)
 
 const placeholder = computed(() => props.placeholder || '请选择分类')
 const open = ref(false)

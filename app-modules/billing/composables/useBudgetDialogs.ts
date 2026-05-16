@@ -1,7 +1,16 @@
 import { ref } from 'vue'
 import type { BudgetEntry } from '~/types/bill'
 
-export function useBudgetDialogs() {
+let _store: BudgetDialogsStore | null = null
+
+interface BudgetDialogsStore {
+  budgetDialogVisible: Ref<boolean>
+  editingBudget: Ref<BudgetEntry | null>
+  openBudgetDialog: (budget?: BudgetEntry) => void
+  closeBudgetDialog: () => void
+}
+
+function createStore(): BudgetDialogsStore {
   const budgetDialogVisible = ref(false)
   const editingBudget = ref<BudgetEntry | null>(null)
 
@@ -21,4 +30,9 @@ export function useBudgetDialogs() {
     openBudgetDialog,
     closeBudgetDialog
   }
+}
+
+export function useBudgetDialogs(): BudgetDialogsStore {
+  if (!_store) _store = createStore()
+  return _store
 }

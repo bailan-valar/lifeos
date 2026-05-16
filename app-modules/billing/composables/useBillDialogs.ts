@@ -1,7 +1,33 @@
 import { ref } from 'vue'
 import type { Bill, ImportRecord } from '~/types/bill'
 
-export function useBillDialogs() {
+let _store: BillDialogsStore | null = null
+
+interface BillDialogsStore {
+  billDialogVisible: Ref<boolean>
+  editingBill: Ref<Bill | null>
+  lastBillDefaults: Ref<Partial<{
+    type: 'income' | 'expense' | 'transfer' | 'debt'
+    fromAccountId: string
+    toAccountId: string
+    categoryId: string
+    currency: string
+  }> | null>
+  batchEditVisible: Ref<boolean>
+  importDialogVisible: Ref<boolean>
+  recordDetailVisible: Ref<boolean>
+  viewingRecordId: Ref<string | null>
+  recordDetailRecord: Ref<ImportRecord | null>
+  openBillDialog: (bill?: Bill) => void
+  closeBillDialog: () => void
+  openImportDialog: () => void
+  closeImportDialog: () => void
+  closeBatchEdit: () => void
+  setRecordDetailRecord: (record: ImportRecord | null) => void
+  closeRecordDetail: () => void
+}
+
+function createStore(): BillDialogsStore {
   const billDialogVisible = ref(false)
   const editingBill = ref<Bill | null>(null)
   const lastBillDefaults = ref<Partial<{
@@ -68,4 +94,9 @@ export function useBillDialogs() {
     setRecordDetailRecord,
     closeRecordDetail
   }
+}
+
+export function useBillDialogs(): BillDialogsStore {
+  if (!_store) _store = createStore()
+  return _store
 }

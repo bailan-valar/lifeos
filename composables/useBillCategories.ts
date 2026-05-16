@@ -1,6 +1,5 @@
 import type { BillCategory, CategoryFormData, CategoryTreeNode, CategoryType } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
-import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 export interface ExportedCategory {
   name: string
@@ -18,6 +17,31 @@ export interface ImportCategoriesResult {
 export interface SyncDefaultCategoriesResult {
   created: number
   skipped: number
+}
+
+let _store: BillCategoriesStore | null = null
+let _unsub: (() => void) | null = null
+
+function startWatchingCategories() {
+  if (_unsub) return
+  _unsub = onCollectionChange('billCategories', () => {
+    if (_store) _store.loadCategories()
+  })
+}
+
+function stopWatchingCategories() {
+  if (_unsub) {
+    _unsub()
+    _unsub = null
+  }
+}
+
+if (import.meta.client) {
+  window.addEventListener('workspace:changed', () => {
+    stopWatchingCategories()
+    startWatchingCategories()
+    if (_store) _store.loadCategories()
+  })
 }
 
 export async function initDefaultBillCategories(): Promise<boolean> {
@@ -74,12 +98,28 @@ const INVALID_ICON_MAP: Record<string, string> = {
   'solar:receipt-linear': 'solar:bill-linear',
 }
 
-function createStore() {
+interface BillCategoriesStore {
+  categories: Ref<BillCategory[]>
+  loading: Ref<boolean>
+  error: Ref<string | null>
+  loadCategories: () => Promise<void>
+  createCategory: (data: CategoryFormData) => Promise<BillCategory>
+  updateCategory: (id: string, data: Partial<CategoryFormData>) => Promise<void>
+  deleteCategory: (id: string) => Promise<void>
+  buildTree: (type: 'income' | 'expense') => CategoryTreeNode[]
+  ensureDefaultCategories: () => Promise<boolean>
+  resetCategories: () => Promise<boolean>
+  syncDefaultCategories: () => Promise<SyncDefaultCategoriesResult>
+  exportCategories: () => ExportedCategory[]
+  importCategories: (items: ExportedCategory[], options?: { overwrite?: boolean }) => Promise<ImportCategoriesResult>
+  incomeCategories: ComputedRef<BillCategory[]>
+  expenseCategories: ComputedRef<BillCategory[]>
+}
+
+function createStore(): BillCategoriesStore {
   const categories = ref<BillCategory[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-
-  let unsubscribe: (() => void) | null = null
 
   async function loadCategories() {
     loading.value = true
@@ -109,25 +149,6 @@ function createStore() {
     } finally {
       loading.value = false
     }
-  }
-
-  function startWatching() {
-    if (unsubscribe) return
-    unsubscribe = onCollectionChange('billCategories', () => {
-      loadCategories()
-    })
-  }
-
-  function stopWatching() {
-    if (unsubscribe) {
-      unsubscribe()
-      unsubscribe = null
-    }
-  }
-
-  if (getCurrentInstance()) {
-    onMounted(startWatching)
-    onUnmounted(stopWatching)
   }
 
   async function createCategory(data: CategoryFormData): Promise<BillCategory> {
@@ -460,12 +481,14 @@ function createStore() {
     resetCategories,
     syncDefaultCategories,
     exportCategories,
-    importCategories,
-    startWatching,
-    stopWatching
+    importCategories
   }
 }
 
-export function useBillCategories() {
-  return createStore()
+export function useBillCategories(): BillCategoriesStore {
+  if (!_store) {
+    _store = createStore()
+    startWatchingCategories()
+  }
+  return _store
 }

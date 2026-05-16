@@ -1,6 +1,32 @@
 import type { Bill, Account, Statement, StatementFormData } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
-import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
+
+let _store: StatementsStore | null = null
+let _unsub: (() => void) | null = null
+
+function startWatchingStatements() {
+  if (_unsub) return
+  _unsub = onCollectionChange('statements', () => {
+    if (_store) _store.loadStatements(_lastAccountId)
+  })
+}
+
+function stopWatchingStatements() {
+  if (_unsub) {
+    _unsub()
+    _unsub = null
+  }
+}
+
+let _lastAccountId: string | undefined = undefined
+
+if (import.meta.client) {
+  window.addEventListener('workspace:changed', () => {
+    stopWatchingStatements()
+    startWatchingStatements()
+    if (_store) _store.loadStatements(_lastAccountId)
+  })
+}
 
 function pad(n: number): string {
   return String(n).padStart(2, '0')
@@ -43,16 +69,24 @@ export function computePeriod(account: Account, year: number, month: number) {
   return { billingStartDate, billingEndDate, repaymentDate }
 }
 
-export function useStatements() {
+interface StatementsStore {
+  statements: Ref<Statement[]>
+  loading: Ref<boolean>
+  error: Ref<string | null>
+  loadStatements: (accountId?: string) => Promise<void>
+  createStatement: (data: Omit<Statement, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Statement>
+  updateStatement: (id: string, data: Partial<StatementFormData>) => Promise<void>
+  deleteStatement: (id: string) => Promise<void>
+  generateForPeriod: (account: Account, allBills: Bill[], year: number, month: number) => Promise<Statement>
+}
+
+function createStore(): StatementsStore {
   const statements = ref<Statement[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  let unsubscribe: (() => void) | null = null
-  let lastAccountId: string | undefined = undefined
-
   async function loadStatements(accountId?: string) {
-    lastAccountId = accountId
+    _lastAccountId = accountId
     loading.value = true
     error.value = null
     try {
@@ -69,25 +103,6 @@ export function useStatements() {
     } finally {
       loading.value = false
     }
-  }
-
-  function startWatching() {
-    if (unsubscribe) return
-    unsubscribe = onCollectionChange('statements', () => {
-      loadStatements(lastAccountId)
-    })
-  }
-
-  function stopWatching() {
-    if (unsubscribe) {
-      unsubscribe()
-      unsubscribe = null
-    }
-  }
-
-  if (getCurrentInstance()) {
-    onMounted(startWatching)
-    onUnmounted(stopWatching)
   }
 
   async function createStatement(
@@ -177,8 +192,14 @@ export function useStatements() {
     createStatement,
     updateStatement,
     deleteStatement,
-    generateForPeriod,
-    startWatching,
-    stopWatching
+    generateForPeriod
   }
+}
+
+export function useStatements(): StatementsStore {
+  if (!_store) {
+    _store = createStore()
+    startWatchingStatements()
+  }
+  return _store
 }

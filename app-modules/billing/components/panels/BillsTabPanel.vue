@@ -3,7 +3,7 @@
     <div class="panel-header bills-header">
       <!-- 第一行：视图切换 | 日期 -->
       <div class="header-row row-1">
-        <BillViewToggle :mode="navigation.viewMode.value" @mode-change="navigation.viewMode.value = $event" />
+        <BillViewToggle :mode="store.viewMode" @mode-change="store.viewMode = $event" />
         <BillDateFilter
           :year="billYearFilter"
           :month="billMonthFilter"
@@ -41,7 +41,7 @@
     <div class="list-container">
       <BillSkeleton v-if="loading && bills.length === 0" />
       <BillCalendar
-        v-else-if="navigation.viewMode.value === 'calendar'"
+        v-else-if="store.viewMode === 'calendar'"
         :bills="bills"
         :year="billYearFilter ?? undefined"
         :month="billMonthFilter ?? undefined"
@@ -50,7 +50,7 @@
         @date-change="handleCalendarDateChange"
       />
       <BillList
-        v-else-if="navigation.viewMode.value === 'card'"
+        v-else-if="store.viewMode === 'card'"
         :bills="bills"
         :selectable="batchMode"
         :selected-ids="selectedIds"
@@ -129,7 +129,12 @@
 
 <script setup lang="ts">
 import type { Bill } from '~/types/bill'
-import { inject, computed } from 'vue'
+import { computed } from 'vue'
+import { useBillingStore } from '~/stores/billing'
+import { useAccounts } from '~/composables/useAccounts'
+import { useBillCategories } from '~/composables/useBillCategories'
+import { useNotes } from '~/composables/useNotes'
+import { useBillDialogs } from '../../composables/useBillDialogs'
 import BillDialog from '../BillDialog.vue'
 import BillBatchEditDialog from '../BillBatchEditDialog.vue'
 import ImportDialog from '../ImportDialog.vue'
@@ -166,6 +171,8 @@ const props = defineProps<{
   billMonthOptions: number[]
   budgetProgress: BudgetProgress
   isDateFiltered: boolean
+  noteId: string
+  existingFingerprints: Set<string>
 }>()
 
 const emit = defineEmits<{
@@ -191,14 +198,11 @@ const emit = defineEmits<{
   (e: 'delete-record', recordId: string): void
 }>()
 
-const navigation = inject<any>('billingNavigation')
-const accounts = inject<any>('accounts')
-const categories = inject<any>('categories')
-
-const dialogs = inject<any>('billDialogs')
-const noteId = inject<string>('noteId') ?? ''
-const noteOptions = inject<any>('noteOptions')
-const existingFingerprints = inject<any>('existingFingerprints')
+const store = useBillingStore()
+const { accounts } = useAccounts()
+const { categories } = useBillCategories()
+const { noteOptions } = useNotes()
+const dialogs = useBillDialogs()
 
 const totalIncome = computed(() =>
   props.bills.filter(b => b.type === 'income' && b.status === 'completed').reduce((sum, b) => sum + b.amount, 0)

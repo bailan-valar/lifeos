@@ -1,6 +1,30 @@
 import type { Account, AccountFormData } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
-import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
+
+let _store: AccountsStore | null = null
+let _unsub: (() => void) | null = null
+
+function startWatchingAccounts() {
+  if (_unsub) return
+  _unsub = onCollectionChange('accounts', () => {
+    if (_store) _store.loadAccounts()
+  })
+}
+
+function stopWatchingAccounts() {
+  if (_unsub) {
+    _unsub()
+    _unsub = null
+  }
+}
+
+if (import.meta.client) {
+  window.addEventListener('workspace:changed', () => {
+    stopWatchingAccounts()
+    startWatchingAccounts()
+    if (_store) _store.loadAccounts()
+  })
+}
 
 function clampDay(d: number | undefined): number | undefined {
   if (typeof d !== 'number' || isNaN(d)) return undefined
@@ -21,12 +45,30 @@ function withDefaultSubtype(raw: Account): Account {
   return raw
 }
 
-export function useAccounts() {
+interface AccountsStore {
+  accounts: Ref<Account[]>
+  loading: Ref<boolean>
+  error: Ref<string | null>
+  loadAccounts: () => Promise<void>
+  createAccount: (data: AccountFormData) => Promise<Account>
+  updateAccount: (id: string, data: Partial<AccountFormData>) => Promise<void>
+  deleteAccount: (id: string) => Promise<void>
+  updateBalance: (id: string, delta: number) => Promise<void>
+  personalAccounts: ComputedRef<Account[]>
+  merchantAccounts: ComputedRef<Account[]>
+  contactAccounts: ComputedRef<Account[]>
+  otherAccounts: ComputedRef<Account[]>
+  externalAccounts: ComputedRef<Account[]>
+  cashAccounts: ComputedRef<Account[]>
+  debitAccounts: ComputedRef<Account[]>
+  creditAccounts: ComputedRef<Account[]>
+  onlineAccounts: ComputedRef<Account[]>
+}
+
+function createStore(): AccountsStore {
   const accounts = ref<Account[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-
-  let unsubscribe: (() => void) | null = null
 
   async function loadAccounts() {
     loading.value = true
@@ -43,25 +85,6 @@ export function useAccounts() {
     } finally {
       loading.value = false
     }
-  }
-
-  function startWatching() {
-    if (unsubscribe) return
-    unsubscribe = onCollectionChange('accounts', () => {
-      loadAccounts()
-    })
-  }
-
-  function stopWatching() {
-    if (unsubscribe) {
-      unsubscribe()
-      unsubscribe = null
-    }
-  }
-
-  if (getCurrentInstance()) {
-    onMounted(startWatching)
-    onUnmounted(stopWatching)
   }
 
   async function createAccount(data: AccountFormData): Promise<Account> {
@@ -183,8 +206,14 @@ export function useAccounts() {
     createAccount,
     updateAccount,
     deleteAccount,
-    updateBalance,
-    startWatching,
-    stopWatching
+    updateBalance
   }
+}
+
+export function useAccounts(): AccountsStore {
+  if (!_store) {
+    _store = createStore()
+    startWatchingAccounts()
+  }
+  return _store
 }

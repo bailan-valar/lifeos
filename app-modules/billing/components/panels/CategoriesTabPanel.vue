@@ -3,13 +3,13 @@
     <div class="panel-header">
       <SelectPicker
         v-if="isMobile"
-        v-model="navigation.activeCategorySubTab.value"
-        :options="navigation.categorySubTabOptions.value"
+        v-model="store.activeCategorySubTab"
+        :options="store.categorySubTabOptions"
         :min-width="120"
         plain
-        @change="navigation.activeCategorySubTab.value = $event"
+        @change="store.activeCategorySubTab = $event"
       />
-      <h4 v-else>{{ navigation.categorySubTabTitle.value }}</h4>
+      <h4 v-else>{{ store.categorySubTabTitle }}</h4>
       <div v-if="!isMobile" class="header-actions">
         <button type="button" class="add-btn secondary" @click="$emit('export-categories')">
           <Icon name="solar:download-linear" size="18" />
@@ -34,7 +34,7 @@
       </button>
     </div>
     <div class="category-list-container">
-      <div v-if="navigation.activeCategorySubTab.value === 'all' || navigation.activeCategorySubTab.value === 'income'" class="category-section">
+      <div v-if="store.activeCategorySubTab === 'all' || store.activeCategorySubTab === 'income'" class="category-section">
         <div class="category-subtitle">收入分类</div>
         <CategoryTree
           :nodes="incomeTree"
@@ -45,7 +45,7 @@
           @contextmenu="$emit('category-contextmenu', $event)"
         />
       </div>
-      <div v-if="navigation.activeCategorySubTab.value === 'all' || navigation.activeCategorySubTab.value === 'expense'" class="category-section">
+      <div v-if="store.activeCategorySubTab === 'all' || store.activeCategorySubTab === 'expense'" class="category-section">
         <div class="category-subtitle">支出分类</div>
         <CategoryTree
           :nodes="expenseTree"
@@ -73,7 +73,9 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { useBillingStore } from '~/stores/billing'
+import { useBillCategories } from '~/composables/useBillCategories'
+import { useCategoryDialogs } from '../../composables/useCategoryDialogs'
 import SelectPicker from '../SelectPicker.vue'
 import CategoryTree from '../CategoryTree.vue'
 import CategoryDialog from '../CategoryDialog.vue'
@@ -83,7 +85,7 @@ const props = defineProps<{
   expenseTree: any[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'export-categories'): void
   (e: 'import-categories'): void
   (e: 'sync-default-categories'): void
@@ -93,11 +95,11 @@ defineEmits<{
   (e: 'category-confirm', data: any, isEditing: boolean, id?: string): void
 }>()
 
-const navigation = inject<any>('billingNavigation')
+const store = useBillingStore()
 const { isMobile } = useDevice()
 
-const dialogs = inject('categoryDialogs') as any
-const categories = inject('categories') as any
+const dialogs = useCategoryDialogs()
+const { categories } = useBillCategories()
 </script>
 
 <style scoped>
@@ -121,6 +123,42 @@ const categories = inject('categories') as any
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+  color: rgba(60, 60, 67, 0.8);
+}
+
+.add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: rgb(0, 122, 255);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.add-btn:hover {
+  opacity: 0.9;
+}
+
+.add-btn.secondary {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(60, 60, 67, 0.7);
+}
+
+.add-btn.secondary:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.list-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .header-actions {
@@ -129,40 +167,13 @@ const categories = inject('categories') as any
   align-items: center;
 }
 
-.add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgb(0, 122, 255);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.add-btn:hover {
-  background: rgb(0, 110, 250);
-}
-
-.add-btn.secondary {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(60, 60, 67, 0.92);
-}
-
-.add-btn.secondary:hover {
-  background: rgba(60, 60, 67, 0.18);
-}
-
 .category-list-container {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .category-section {
@@ -172,10 +183,9 @@ const categories = inject('categories') as any
 }
 
 .category-subtitle {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: rgba(60, 60, 67, 0.5);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  padding: 0 4px;
 }
 </style>

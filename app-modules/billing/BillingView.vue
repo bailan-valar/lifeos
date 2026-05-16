@@ -7,7 +7,7 @@
     <div class="content" :class="{ mobile: isMobile }">
       <!-- 账单Tab -->
       <BillsTabPanel
-        v-show="navigation.activeTab.value === 'bills'"
+        v-show="store.activeTab === 'bills'"
         :bills="bills"
         :batch-mode="batchMode"
         :selected-ids="selectedIds"
@@ -15,10 +15,12 @@
         :has-more="hasMore"
         :bill-year-filter="billYearFilter"
         :bill-month-filter="billMonthFilter"
-        :bill-year-options="filters.billYearOptions.value"
-        :bill-month-options="filters.billMonthOptions"
+        :bill-year-options="store.billYearOptions"
+        :bill-month-options="store.billMonthOptions"
         :budget-progress="budgetProgress"
         :is-date-filtered="isDateFiltered"
+        :note-id="props.noteId"
+        :existing-fingerprints="existingFingerprints"
         @year-change="handleYearChange"
         @month-change="handleMonthChange"
         @toggle-select-all="handleToggleSelectAll"
@@ -43,7 +45,7 @@
 
       <!-- 账户Tab -->
       <AccountsTabPanel
-        v-show="navigation.activeTab.value === 'accounts'"
+        v-show="store.activeTab === 'accounts'"
         @delete-account="handleDeleteAccount"
         @account-confirm="handleAccountConfirm"
         @balance-adjust-confirm="handleBalanceAdjustConfirm"
@@ -54,7 +56,7 @@
       />
 
       <!-- 分类Tab -->
-      <div v-show="navigation.activeTab.value === 'categories'" class="tab-panel-wrapper">
+      <div v-show="store.activeTab === 'categories'" class="tab-panel-wrapper">
         <CategoriesTabPanel
           :income-tree="incomeTree"
           :expense-tree="expenseTree"
@@ -69,7 +71,7 @@
       </div>
 
       <!-- 预算Tab -->
-      <div v-show="navigation.activeTab.value === 'budgets'" class="tab-panel-wrapper">
+      <div v-show="store.activeTab === 'budgets'" class="tab-panel-wrapper">
         <BudgetsTabPanel
           :budget-year="budgetYear"
           @edit-budget-cell="(data) => onBudgetCellEdit(data.categoryId, data.year, data.month, data.noteId)"
@@ -79,7 +81,7 @@
       </div>
 
       <!-- 规则Tab -->
-      <div v-show="navigation.activeTab.value === 'rules'" class="tab-panel-wrapper">
+      <div v-show="store.activeTab === 'rules'" class="tab-panel-wrapper">
         <RulesTabPanel
           :import-rules="importRules"
           @delete-rule="handleDeleteRule"
@@ -116,7 +118,7 @@
 
 <script setup lang="ts">
 import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryFormData, BudgetEntry, BudgetFormData, Statement, StatementFormData, CategoryTreeNode, ImportRule, ImportRuleFormData, CategoryType, ImportRecord, AccountType, BillingCreators, BalanceAdjustment, TabId, AccountCreatePayload } from '~/types/bill'
-import { provide, inject, computed, ref, watch, onMounted, onBeforeUnmount, toRaw } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
@@ -129,10 +131,10 @@ import { useConfirm } from '~/composables/useConfirm'
 import { createBalanceAdjustment, loadBalanceAdjustments, deleteBalanceAdjustment } from '~/composables/useBalanceAdjustments'
 import { dedupeKey } from '~/services/csvImport'
 import { usePageHeaderStore } from '~/stores/pageHeader'
+import { storeToRefs } from 'pinia'
+import { useBillingStore } from '~/stores/billing'
 
 // Composables
-import { useBillingNavigation } from './composables/useBillingNavigation'
-import { useBillingFilters } from './composables/useBillingFilters'
 import { useBillingBatch } from './composables/useBillingBatch'
 import { useBillingCategoryMenu } from './composables/useBillingCategoryMenu'
 import { useBillingExports } from './composables/useBillingExports'
@@ -170,8 +172,8 @@ const pageHeaderStore = usePageHeaderStore()
 const fab = useGlobalFab()
 
 // 导航与筛选
-const navigation = useBillingNavigation()
-const filters = useBillingFilters(props.noteId)
+const store = useBillingStore()
+const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, currentBudgetMonth, activeTab, viewMode, sidebarCollapsed } = storeToRefs(store)
 
 // 数据获取
 const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, createBillsBatch, updateBill, updateBills, deleteBill, deleteBills } = useBills()
@@ -211,8 +213,8 @@ const { openCategoryContextMenu, closeCategoryMenu, openAddChildCategoryDialog, 
 // 导入导出
 const io = useBillingExports({
   bills, categories, accounts,
-  billYearFilter: filters.billYearFilter,
-  billMonthFilter: filters.billMonthFilter,
+  billYearFilter,
+  billMonthFilter,
   exportCategories, exportRules, showSuccess
 })
 
@@ -224,25 +226,11 @@ const imports = useBillingImports({
 const lifecycle = useBillingLifecycle({
   closeCategoryMenu,
   openBillDialog: () => billDialogs.openBillDialog(),
-  activeTab: computed(() => navigation.activeTab.value),
+  activeTab,
   billDialogVisible: computed(() => billDialogs.billDialogVisible.value)
 })
 
-// Provide共享数据
-provide('billingNavigation', toRaw(navigation))
-provide('billingFilters', toRaw(filters))
-provide('noteId', props.noteId)
-provide('accounts', accounts)
-provide('categories', categories)
-provide('statements', statements)
-provide('noteOptions', noteOptions)
-provide('billDialogs', billDialogs)
-provide('accountDialogs', accountDialogs)
-provide('categoryDialogs', categoryDialogs)
-provide('budgetDialogs', budgetDialogs)
-provide('ruleDialogs', ruleDialogs)
-
-// existingFingerprints
+// 现有指纹（用于导入去重）
 const existingFingerprints = computed(() => {
   const set = new Set<string>()
   for (const b of bills.value) {
@@ -252,9 +240,7 @@ const existingFingerprints = computed(() => {
   return set
 })
 
-provide('existingFingerprints', existingFingerprints)
-
-// Provide业务逻辑
+// Provide业务逻辑（深层组件需要）
 const pendingAccountCallback = ref<((account: Account) => void) | null>(null)
 const pendingCategoryCallback = ref<((category: BillCategory) => void) | null>(null)
 const pendingRuleSavedCallback = ref<(() => void) | null>(null)
@@ -312,15 +298,7 @@ const accountFrequency = computed(() => {
   return map
 })
 
-provide('categoryFrequency', categoryFrequency)
-provide('accountFrequency', accountFrequency)
-
-// 筛选和预算相关状态
-const billYearFilter = filters.billYearFilter
-const billMonthFilter = filters.billMonthFilter
-const isDateFiltered = filters.isDateFiltered
-const currentBudgetYear = filters.currentBudgetYear
-const currentBudgetMonth = filters.currentBudgetMonth
+// storeToRefs 已在上方解构出 billYearFilter, billMonthFilter, isDateFiltered 等
 
 const budgetProgress = computed(() => {
   const year = currentBudgetYear.value
@@ -383,7 +361,7 @@ function handleMonthChange(month: number | null) {
 
 function refreshBills() {
   selectedIds.value = []
-  if (isDateFiltered.value || navigation.viewMode.value === 'calendar') {
+  if (isDateFiltered.value || store.viewMode === 'calendar') {
     const { start, end } = getDateRange()
     loadBillsByDateRange(props.noteId, start, end)
   } else {
@@ -392,9 +370,9 @@ function refreshBills() {
 }
 
 function getDateRange() {
-  if (!isDateFiltered.value && navigation.viewMode.value !== 'calendar') return { start: undefined, end: undefined }
+  if (!isDateFiltered.value && store.viewMode !== 'calendar') return { start: undefined, end: undefined }
   const year = billYearFilter.value ?? new Date().getFullYear()
-  const month = billMonthFilter.value ?? (navigation.viewMode.value === 'calendar' ? new Date().getMonth() + 1 : null)
+  const month = billMonthFilter.value ?? (store.viewMode === 'calendar' ? new Date().getMonth() + 1 : null)
   if (month) {
     const start = `${year}-${String(month).padStart(2, '0')}-01T00:00:00.000Z`
     const endMonth = month === 12 ? 1 : month + 1
@@ -605,7 +583,7 @@ function onBudgetCellEdit(categoryId: string, year: number, month: number, noteI
 
 function onOpenRulesFromImport() {
   billDialogs.closeImportDialog()
-  navigation.activeTab.value = 'rules'
+  store.activeTab = 'rules'
 }
 
 async function handleDeleteRule(id: string) {
@@ -729,10 +707,10 @@ onMounted(() => {
   fab.register('billing', () => billDialogs.openBillDialog())
 
   if (lifecycle.savedViewMode.value) {
-    navigation.viewMode.value = lifecycle.savedViewMode.value
+    store.viewMode = lifecycle.savedViewMode.value
   }
   if (lifecycle.savedSidebarCollapsed.value) {
-    navigation.sidebarCollapsed.value = true
+    store.sidebarCollapsed = true
   }
 
   ;(async () => {
@@ -746,7 +724,7 @@ onMounted(() => {
     }
   })()
 
-  watch(navigation.activeTab, (tab) => {
+  watch(() => store.activeTab, (tab) => {
     if (tab === 'bills') {
       registerHeaderActions()
     } else if (tab === 'categories') {
@@ -761,7 +739,7 @@ onBeforeUnmount(() => {
   pageHeaderStore.clearActions()
 })
 
-watch(navigation.viewMode, (mode) => {
+watch(() => store.viewMode, (mode) => {
   localStorage.setItem('lifeos:bill-view-mode', mode)
   if (mode === 'calendar') {
     refreshBills()
@@ -770,7 +748,7 @@ watch(navigation.viewMode, (mode) => {
   }
 })
 
-watch(navigation.sidebarCollapsed, (collapsed) => {
+watch(() => store.sidebarCollapsed, (collapsed) => {
   localStorage.setItem('lifeos:billing-sidebar-collapsed', collapsed ? '1' : '0')
 })
 </script>

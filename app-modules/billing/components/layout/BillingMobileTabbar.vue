@@ -1,12 +1,12 @@
 <template>
   <nav class="billing-mobile-tabbar">
     <button
-      v-for="tab in navigation.mobileTabs"
+      v-for="tab in store.mobileTabs"
       :key="tab.id"
       type="button"
       class="billing-tab-item"
-      :class="{ active: navigation.activeTab.value === tab.id }"
-      @click="navigation.activeTab.value = tab.id"
+      :class="{ active: store.activeTab === tab.id }"
+      @click="store.activeTab = tab.id"
     >
       <Icon :name="tab.icon" size="20" />
       <span>{{ tab.name }}</span>
@@ -15,9 +15,9 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { useBillingStore } from '~/stores/billing'
 
-const navigation = inject<any>('billingNavigation')
+const store = useBillingStore()
 </script>
 
 <style scoped>

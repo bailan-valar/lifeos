@@ -1,7 +1,7 @@
 <template>
   <div class="tab-panel">
     <div v-if="isMobile" class="mobile-rules-header">
-      <button class="mobile-back-btn" type="button" @click="navigation.activeTab.value = 'bills'">
+      <button class="mobile-back-btn" type="button" @click="store.activeTab = 'bills'">
         <Icon name="solar:alt-arrow-left-linear" size="20" />
         <span>返回账单</span>
       </button>
@@ -34,7 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { useBillingStore } from '~/stores/billing'
+import { useAccounts } from '~/composables/useAccounts'
+import { useBillCategories } from '~/composables/useBillCategories'
+import { useRuleDialogs } from '../../composables/useRuleDialogs'
 import ImportRuleList from '../ImportRuleList.vue'
 import RuleDialog from '../RuleDialog.vue'
 
@@ -53,12 +56,12 @@ defineEmits<{
   (e: 'rule-confirm', data: any, isEditing: boolean, id?: string): void
 }>()
 
-const navigation = inject<any>('billingNavigation')
+const store = useBillingStore()
 const { isMobile } = useDevice()
 
-const dialogs = inject('ruleDialogs') as any
-const accounts = inject('accounts') as any
-const categories = inject('categories') as any
+const dialogs = useRuleDialogs()
+const { accounts } = useAccounts()
+const { categories } = useBillCategories()
 </script>
 
 <style scoped>
