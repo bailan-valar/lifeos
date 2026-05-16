@@ -233,8 +233,7 @@ function openEditDialog(goal: Goal) {
 
 // 打开目标详情
 function openGoalDetail(goal: Goal) {
-  // TODO: 导航到目标详情页
-  console.log('查看详情:', goal.id)
+  navigateTo(`/goals/${goal.id}`)
 }
 
 // 打开进度记录对话框

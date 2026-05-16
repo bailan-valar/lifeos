@@ -25,6 +25,47 @@
             <textarea v-model="form.description" rows="3" placeholder="输入目标描述..." />
           </div>
 
+          <!-- 量化目标字段 -->
+          <div class="form-section-title">
+            <span class="section-label">量化目标</span>
+          </div>
+
+          <div class="form-row inline" :class="{ mobile: isMobile }">
+            <div class="form-col">
+              <label>目标量</label>
+              <input v-model.number="form.target" type="number" min="1" placeholder="如：3000" />
+            </div>
+            <div class="form-col">
+              <label>单位</label>
+              <select v-model="form.unit">
+                <option value="次">次</option>
+                <option value="分钟">分钟</option>
+                <option value="小时">小时</option>
+                <option value="页">页</option>
+                <option value="章">章</option>
+                <option value="本">本</option>
+                <option value="篇">篇</option>
+                <option value="km">公里</option>
+                <option value="个">个</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 时间范围 -->
+          <div class="form-row">
+            <label>时间范围</label>
+            <DateRangePicker
+              v-model:start-date="form.startDate"
+              v-model:end-date="form.endDate"
+            />
+          </div>
+
+          <!-- 原有字段 -->
+          <div class="form-section-title">
+            <span class="section-label">其他设置</span>
+          </div>
+
           <div class="form-row inline" :class="{ mobile: isMobile }">
             <div class="form-col">
               <label>状态</label>
@@ -85,20 +126,8 @@
 
 <script setup lang="ts">
 import { getDB, generateId, now } from '~/services/db'
-
-interface Goal {
-  id: string
-  title: string
-  description: string
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
-  type: 'short_term' | 'long_term' | 'habit' | 'project'
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  plannedStartAt: string
-  plannedEndAt: string
-  noteIds: string[]
-  createdAt: string
-  updatedAt: string
-}
+import type { Goal } from '~/types/goal'
+import DateRangePicker from '~/components/DateRangePicker.vue'
 
 interface NoteItem {
   id: string
@@ -115,6 +144,12 @@ const titleInput = ref<HTMLInputElement | null>(null)
 const form = reactive({
   title: '',
   description: '',
+  // 量化目标字段
+  target: 0,
+  unit: '次',
+  startDate: '',
+  endDate: '',
+  // 原有字段
   status: 'pending' as Goal['status'],
   type: 'short_term' as Goal['type'],
   priority: 'medium' as Goal['priority'],
@@ -148,6 +183,10 @@ watch(() => props.visible, async (v) => {
   if (v) {
     form.title = ''
     form.description = ''
+    form.target = 0
+    form.unit = '次'
+    form.startDate = ''
+    form.endDate = ''
     form.status = 'pending'
     form.type = 'short_term'
     form.priority = 'medium'
@@ -180,15 +219,39 @@ function onCancel() {
 
 async function onConfirm() {
   const db = await getDB()
+
+  // 验证必填字段
+  if (!form.title.trim()) {
+    alert('请输入目标名称')
+    return
+  }
+
+  if (form.target <= 0) {
+    alert('请输入有效的目标量')
+    return
+  }
+
+  if (!form.startDate || !form.endDate) {
+    alert('请选择时间范围')
+    return
+  }
+
   const newGoal: Goal = {
     id: generateId(),
     title: form.title.trim(),
     description: form.description.trim(),
+    // 量化目标字段
+    target: form.target,
+    currentProgress: 0,
+    unit: form.unit,
+    startDate: new Date(form.startDate).toISOString(),
+    endDate: new Date(form.endDate).toISOString(),
+    // 原有字段
     status: form.status,
     type: form.type,
     priority: form.priority,
-    plannedStartAt: form.plannedStartAt ? new Date(form.plannedStartAt).toISOString() : '',
-    plannedEndAt: form.plannedEndAt ? new Date(form.plannedEndAt).toISOString() : '',
+    plannedStartAt: form.startDate, // 使用startDate作为plannedStartAt
+    plannedEndAt: form.endDate, // 使用endDate作为plannedEndAt
     noteIds: [...form.noteIds],
     createdAt: now(),
     updatedAt: now(),
@@ -307,6 +370,21 @@ async function onConfirm() {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.form-section-title {
+  display: flex;
+  align-items: center;
+  padding: 12px 0 8px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
+}
+
+.section-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--liquid-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .form-row.inline {
