@@ -44,7 +44,7 @@ const emit = defineEmits<{
 const modules = [
   { id: 'notes', label: '笔记', icon: 'solar:document-text-linear', path: '/notes' },
   { id: 'billing', label: '账单', icon: 'solar:wallet-money-linear', path: '/billing' },
-  { id: 'todo', label: '目标', icon: 'solar:check-read-linear', path: '/todo' },
+  { id: 'goals', label: '目标', icon: 'solar:target-linear', path: '/goals' },
   { id: 'time', label: '时间', icon: 'solar:calendar-linear', path: '/time' },
 ]
 

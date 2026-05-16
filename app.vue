@@ -91,6 +91,7 @@ import { useWorkspaceStore } from '~/stores/workspace'
 import { usePageHeaderStore } from '~/stores/pageHeader'
 import { stopSync } from '~/services/sync'
 import { listLoadedWorkspaceIds } from '~/services/db'
+import { useGoalShortcut } from '~/composables/useGoalShortcut'
 import type { RouteLocationNormalized } from 'vue-router'
 
 const route = useRoute()
@@ -135,6 +136,7 @@ function onClassCreated(classId: string) {
 }
 
 const workspaceStore = useWorkspaceStore()
+const { registerShortcut, unregisterShortcut } = useGoalShortcut()
 const { currentLevel } = useRouteCache()
 
 const pageKey = (route: RouteLocationNormalized) => {
@@ -185,12 +187,14 @@ function onWindowClick(e: MouseEvent) {
 if (import.meta.client) {
   window.addEventListener('beforeunload', onBeforeUnload)
   window.addEventListener('click', onWindowClick)
+  registerShortcut()
 }
 
 onBeforeUnmount(() => {
   if (import.meta.client) {
     window.removeEventListener('beforeunload', onBeforeUnload)
     window.removeEventListener('click', onWindowClick)
+    unregisterShortcut()
   }
 })
 

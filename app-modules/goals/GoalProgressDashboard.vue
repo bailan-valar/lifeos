@@ -86,7 +86,7 @@
             <span class="unit caption2">{{ goal.unit }}</span>
           </div>
           <div class="col-expected">
-            <span class="expected-value subheadline">{{ calculateStatistics(goal).expectedProgress.toFixed(0) }}</span>
+            <span class="expected-value subheadline">{{ calculateProgressStatistics(goal).expectedProgress.toFixed(0) }}</span>
           </div>
           <div class="col-actual">
             <span class="actual-value subheadline">{{ goal.currentProgress }}</span>
@@ -96,13 +96,13 @@
               :current="goal.currentProgress"
               :target="goal.target"
               :unit="goal.unit"
-              :statistics="calculateStatistics(goal)"
+              :statistics="calculateProgressStatistics(goal)"
               size="compact"
             />
           </div>
           <div class="col-status">
             <GoalStatusBadge
-              :status="calculateStatistics(goal).progressStatus"
+              :status="calculateProgressStatistics(goal).progressStatus"
               size="compact"
             />
           </div>
@@ -135,6 +135,13 @@
       <Icon name="solar:add-circle-linear" size="24" />
     </button>
 
+    <!-- 全局快捷键目标选择对话框 -->
+    <GoalSelectorDialog
+      :visible="goalShortcutDialogVisible"
+      @select="handleShortcutGoalSelect"
+      @close="goalShortcutDialogVisible = false"
+    />
+
     <!-- 对话框组件 -->
     <QuickProgressDialog
       v-if="selectedGoal"
@@ -149,6 +156,8 @@
 <script setup lang="ts">
 import type { Goal } from '~/types/goal'
 import { useGoalProgress, formatDate } from '~/composables/useGoalProgress'
+import { useGoalShortcut } from '~/composables/useGoalShortcut'
+import GoalSelectorDialog from '~/components/GoalSelectorDialog.vue'
 
 const { isMobile } = useDevice()
 
@@ -160,6 +169,9 @@ const {
   recordProgress,
   calculateProgressStatistics
 } = useGoalProgress()
+
+// 全局快捷键
+const { goalShortcutDialogVisible, openQuickProgressDialog } = useGoalShortcut()
 
 // 选中的目标（用于进度记录）
 const selectedGoal = ref<Goal>()
@@ -240,6 +252,12 @@ function openGoalDetail(goal: Goal) {
 function openProgressDialog(goal: Goal) {
   selectedGoal.value = goal
   progressDialogVisible.value = true
+}
+
+// 处理快捷键目标选择
+function handleShortcutGoalSelect(goal: Goal) {
+  goalShortcutDialogVisible.value = false
+  openProgressDialog(goal)
 }
 
 // 处理进度记录
