@@ -33,6 +33,12 @@
       </div>
     </div>
 
+    <!-- 快捷键提示 -->
+    <GoalShortcutHint
+      v-if="showShortcutHint"
+      @dismiss="handleShortcutHintDismiss"
+    />
+
     <!-- 目标表格 -->
     <div class="table-wrapper liquid-glass-card">
       <div v-if="loading" class="loading-state">
@@ -158,6 +164,7 @@ import type { Goal } from '~/types/goal'
 import { useGoalProgress, formatDate } from '~/composables/useGoalProgress'
 import { useGoalShortcut } from '~/composables/useGoalShortcut'
 import GoalSelectorDialog from '~/components/GoalSelectorDialog.vue'
+import GoalShortcutHint from '~/components/GoalShortcutHint.vue'
 
 const { isMobile } = useDevice()
 
@@ -176,6 +183,17 @@ const { goalShortcutDialogVisible, openQuickProgressDialog } = useGoalShortcut()
 // 选中的目标（用于进度记录）
 const selectedGoal = ref<Goal>()
 const progressDialogVisible = ref(false)
+
+// 快捷键提示（带本地存储持久化）
+const shortcutHintStorageKey = 'lifeos:goal-shortcut-hint-dismissed'
+const showShortcutHint = ref(!import.meta.client || !localStorage.getItem(shortcutHintStorageKey))
+
+function handleShortcutHintDismiss() {
+  showShortcutHint.value = false
+  if (import.meta.client) {
+    localStorage.setItem(shortcutHintStorageKey, '1')
+  }
+}
 
 // 统计数据
 const completedCount = computed(() =>
