@@ -42,7 +42,7 @@
             type="button"
             class="sidebar-submenu-btn"
             :class="{ active: store.activeTab === 'accounts' && store.activeAccountSubTab === sub.type }"
-            @click="store.activeAccountSubTab = sub.type"
+            @click="store.setActiveTab('accounts'); store.activeAccountSubTab = sub.type"
           >
             {{ sub.label }}
           </button>
@@ -78,7 +78,7 @@
             type="button"
             class="sidebar-submenu-btn"
             :class="{ active: store.activeTab === 'categories' && store.activeCategorySubTab === sub.type }"
-            @click="store.activeCategorySubTab = sub.type"
+            @click="store.setActiveTab('categories'); store.activeCategorySubTab = sub.type"
           >
             <span class="sub-dot" :class="sub.type" />
             {{ sub.label }}
@@ -93,7 +93,7 @@
         class="sidebar-btn"
         :class="{ active: store.activeTab === tab.id }"
         :title="store.sidebarCollapsed ? tab.name : ''"
-        @click="store.activeTab = tab.id"
+        @click="store.setActiveTab(tab.id)"
       >
         <Icon :name="tab.icon" size="18" />
         <span class="sidebar-btn-text">{{ tab.name }}</span>

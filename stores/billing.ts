@@ -8,9 +8,27 @@ export type BillingCategoryType = 'income' | 'expense'
 
 export const useBillingStore = defineStore('billing', () => {
   // ========== 导航状态 ==========
-  const activeTab = ref<BillingTabId>('bills')
+  // 从 localStorage 读取初始状态
+  const getStoredSidebarCollapsed = () => {
+    if (import.meta.client) {
+      return localStorage.getItem('lifeos:billing-sidebar-collapsed') === '1'
+    }
+    return false
+  }
+
+  const getStoredActiveTab = (): BillingTabId => {
+    if (import.meta.client) {
+      const stored = localStorage.getItem('lifeos:billing-active-tab')
+      if (stored && ['bills', 'accounts', 'categories', 'budgets', 'rules'].includes(stored)) {
+        return stored as BillingTabId
+      }
+    }
+    return 'bills'
+  }
+
+  const activeTab = ref<BillingTabId>(getStoredActiveTab())
   const viewMode = ref<BillingViewMode>('card')
-  const sidebarCollapsed = ref(false)
+  const sidebarCollapsed = ref(getStoredSidebarCollapsed())
 
   const activeAccountSubTab = ref<BillingAccountType>('personal')
   const accountsMenuExpanded = ref(true)
@@ -71,15 +89,21 @@ export const useBillingStore = defineStore('billing', () => {
   // 操作
   function toggleSidebar() {
     sidebarCollapsed.value = !sidebarCollapsed.value
-    const SIDEBAR_COLLAPSED_KEY = 'lifeos:billing-sidebar-collapsed'
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, sidebarCollapsed.value ? '1' : '0')
+    localStorage.setItem('lifeos:billing-sidebar-collapsed', sidebarCollapsed.value ? '1' : '0')
+  }
+
+  function setActiveTab(tab: BillingTabId) {
+    activeTab.value = tab
+    if (import.meta.client) {
+      localStorage.setItem('lifeos:billing-active-tab', tab)
+    }
   }
 
   function onAccountsTabClick() {
     if (activeTab.value === 'accounts') {
       accountsMenuExpanded.value = !accountsMenuExpanded.value
     } else {
-      activeTab.value = 'accounts'
+      setActiveTab('accounts')
       accountsMenuExpanded.value = true
     }
   }
@@ -88,7 +112,7 @@ export const useBillingStore = defineStore('billing', () => {
     if (activeTab.value === 'categories') {
       categoryMenuExpanded.value = !categoryMenuExpanded.value
     } else {
-      activeTab.value = 'categories'
+      setActiveTab('categories')
       categoryMenuExpanded.value = true
     }
   }
@@ -145,6 +169,7 @@ export const useBillingStore = defineStore('billing', () => {
     accountSubTabOptions,
     categorySubTabOptions,
     toggleSidebar,
+    setActiveTab,
     onAccountsTabClick,
     onCategoriesTabClick,
 

@@ -85,6 +85,7 @@ const props = defineProps<{
   defaultNoteId?: string
   defaultFormValues?: Partial<BillFormData>
 }>()
+
 const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const emit = defineEmits<{

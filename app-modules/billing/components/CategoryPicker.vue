@@ -20,6 +20,18 @@
       </div>
     </div>
 
+    <!-- 复用分类对话框 -->
+    <CategoryDialog
+      :visible="showCategoryDialog"
+      :categories="categories"
+      :exclude-id="excludeId"
+      :default-type="type"
+      :default-name="dialogDefaultName"
+      :default-parent-id="dialogDefaultParentId"
+      @confirm="handleCreateCategory"
+      @cancel="showCategoryDialog = false"
+    />
+
     <Teleport to="body">
       <div v-if="open" ref="panelRef" class="picker-panel category-picker-panel" :style="panelStyle">
         <div class="picker-search">
@@ -73,7 +85,7 @@
                   class="add-child-btn"
                   :class="{ 'always-visible': searchQuery.trim() }"
                   title="新增子分类"
-                  @click.stop="creators?.openCategoryForm({ type: props.type || 'expense', defaultParentId: item.id, defaultName: searchQuery.trim(), onCreated: (c) => { emit('update:modelValue', c.id); open = false; searchQuery = '' } })"
+                  @click.stop="startQuickAddChild(item.id)"
                 >
                   <Icon name="solar:add-circle-linear" size="14" />
                 </button>
@@ -92,7 +104,7 @@
           <button
             type="button"
             class="quick-add-btn"
-            @click.stop="creators?.openCategoryForm({ type: props.type || 'expense', defaultParentId: renderItems[activeIndex]?.id || undefined, defaultName: searchQuery.trim(), onCreated: (c) => { emit('update:modelValue', c.id); open = false; searchQuery = '' } })"
+            @click.stop="startQuickAdd"
           >
             <Icon name="solar:add-circle-linear" size="14" />
             {{ searchQuery.trim() ? `新增分类「${searchQuery.trim()}」` : '新增分类' }}
@@ -104,9 +116,11 @@
 </template>
 
 <script setup lang="ts">
-import type { BillCategory, CategoryType, BillingCreators } from '~/types/bill'
+import type { BillCategory, CategoryType, CategoryFormData } from '~/types/bill'
 import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
+import { useBillCategories } from '~/composables/useBillCategories'
+import CategoryDialog from './CategoryDialog.vue'
 
 interface TreeItem {
   id: string
@@ -131,12 +145,15 @@ const emit = defineEmits<{
   'update:modelValue': [id: string]
 }>()
 
-const creators = inject<BillingCreators>('billingCreators')
+const { createCategory } = useBillCategories()
 const effectiveFrequencyMap = computed(() => props.frequencyMap)
 
 const placeholder = computed(() => props.placeholder || '请选择分类')
 const open = ref(false)
 const searchQuery = ref('')
+const showCategoryDialog = ref(false)
+const dialogDefaultName = ref('')
+const dialogDefaultParentId = ref('')
 const triggerRef = ref<HTMLElement>()
 const searchRef = ref<HTMLInputElement>()
 const panelRef = ref<HTMLElement>()
@@ -418,13 +435,7 @@ function selectActive() {
   }
   // 无匹配结果且有搜索文字时，回车快捷新增
   if (activeIndex.value === -1 && searchQuery.value.trim()) {
-    creators?.openCategoryForm({
-      type: props.type || 'expense',
-      defaultParentId: undefined,
-      defaultName: searchQuery.value.trim(),
-      onCreated: (c) => { emit('update:modelValue', c.id); open.value = false; searchQuery.value = '' }
-    })
-    open.value = false
+    startQuickAdd()
   }
 }
 
@@ -447,6 +458,32 @@ function onKeyDown(e: KeyboardEvent) {
     e.preventDefault()
     e.stopPropagation()
     open.value = false
+  }
+}
+
+/* ---------- 快捷新增 ---------- */
+function startQuickAdd() {
+  dialogDefaultName.value = searchQuery.value.trim()
+  dialogDefaultParentId.value = ''
+  open.value = false
+  showCategoryDialog.value = true
+}
+
+function startQuickAddChild(parentId: string) {
+  dialogDefaultName.value = searchQuery.value.trim()
+  dialogDefaultParentId.value = parentId
+  open.value = false
+  showCategoryDialog.value = true
+}
+
+async function handleCreateCategory(data: CategoryFormData) {
+  try {
+    const category = await createCategory(data)
+    showCategoryDialog.value = false
+    searchQuery.value = ''
+    emit('update:modelValue', category.id)
+  } catch (e) {
+    console.error('创建分类失败:', e)
   }
 }
 

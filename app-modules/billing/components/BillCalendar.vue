@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import type { Bill, BillType } from '~/types/bill'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 
 const props = defineProps<{
   bills: Bill[]
@@ -97,6 +97,9 @@ const currentYear = computed(() => props.year ?? fallbackDate.getFullYear())
 const currentMonth = computed(() => props.month ?? fallbackDate.getMonth() + 1)
 
 const selectedDate = ref<string | null>(null)
+
+// 标记是否正在等待 props 更新完成
+const pendingYearMonthUpdate = ref(false)
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
 
@@ -119,9 +122,10 @@ const billsByDate = computed(() => {
   return map
 })
 
-// 显示状态：在 loading 期间冻结，等数据就绪后一次性同步
+// 显示状态：用于用户界面显示
 const displayYear = ref(props.year ?? fallbackDate.getFullYear())
 const displayMonth = ref(props.month ?? fallbackDate.getMonth() + 1)
+
 function buildCells(): CalendarCell[] {
   const year = displayYear.value
   const month = displayMonth.value
@@ -186,13 +190,26 @@ function buildCells(): CalendarCell[] {
 
 const displayedCells = computed(() => buildCells())
 
-// 监听外部状态，只在非 loading 时同步显示（避免"新日期+旧数据"的中间态闪烁）
-watch([() => props.year, () => props.month, () => props.bills, () => props.loading], () => {
-  if (!props.loading) {
-    displayYear.value = props.year ?? fallbackDate.getFullYear()
-    displayMonth.value = props.month ?? fallbackDate.getMonth() + 1
+// 监听外部状态变化
+watch([() => props.year, () => props.month], async () => {
+  const newYear = props.year ?? fallbackDate.getFullYear()
+  const newMonth = props.month ?? fallbackDate.getMonth() + 1
 
-    // 同步重置 selectedDate
+  // 标记正在等待更新
+  pendingYearMonthUpdate.value = true
+
+  // 等待所有 props 更新完成（包括 loading）
+  await nextTick()
+
+  // 现在更新显示状态，此时 loading prop 应该已经是最新的
+  displayYear.value = newYear
+  displayMonth.value = newMonth
+  pendingYearMonthUpdate.value = false
+})
+
+// 数据加载完成后重置选中日期
+watch([() => props.bills, () => props.loading], () => {
+  if (!props.loading) {
     const now = new Date()
     if (displayYear.value === now.getFullYear() && displayMonth.value === now.getMonth() + 1) {
       selectedDate.value = now.toISOString().slice(0, 10)
@@ -202,9 +219,9 @@ watch([() => props.year, () => props.month, () => props.bills, () => props.loadi
   }
 })
 
-// loading 期间禁用点击，避免选中态被后续同步覆盖
+// loading 或等待更新期间禁用点击
 function onCellClick(cell: CalendarCell) {
-  if (props.loading) return
+  if (props.loading || pendingYearMonthUpdate.value) return
   selectedDate.value = cell.dateStr
 }
 

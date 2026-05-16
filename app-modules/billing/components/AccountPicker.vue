@@ -20,6 +20,15 @@
       </div>
     </div>
 
+    <!-- 复用账户对话框 -->
+    <AccountDialog
+      :visible="showAccountDialog"
+      :default-name="dialogDefaultName"
+      :categories="categories"
+      @confirm="handleCreateAccount"
+      @cancel="showAccountDialog = false"
+    />
+
     <Teleport to="body">
       <div v-if="open" ref="panelRef" class="picker-panel account-picker-panel" :style="panelStyle">
         <div class="picker-search">
@@ -77,9 +86,11 @@
 </template>
 
 <script setup lang="ts">
-import type { Account, AccountType, BillCategory, BillingCreators } from '~/types/bill'
-import { nextTick, onBeforeUnmount, onMounted } from 'vue'
+import type { Account, AccountType, BillCategory, AccountFormData } from '~/types/bill'
+import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
+import { useAccounts } from '~/composables/useAccounts'
+import AccountDialog from './AccountDialog.vue'
 
 interface AccountGroup {
   key: string
@@ -101,12 +112,14 @@ const emit = defineEmits<{
   'update:modelValue': [id: string]
 }>()
 
-const creators = inject<BillingCreators>('billingCreators')
+const { createAccount } = useAccounts()
 const effectiveFrequencyMap = computed(() => props.frequencyMap)
 
 const placeholder = computed(() => props.placeholder || '请选择账户')
 const open = ref(false)
 const searchQuery = ref('')
+const showAccountDialog = ref(false)
+const dialogDefaultName = ref('')
 const triggerRef = ref<HTMLElement>()
 const searchRef = ref<HTMLInputElement>()
 const panelRef = ref<HTMLElement>()
@@ -367,14 +380,20 @@ watch(filteredAccounts, (items) => {
 
 /* ---------- 快捷新增 ---------- */
 function startQuickAdd() {
-  const defaultName = searchQuery.value.trim()
+  dialogDefaultName.value = searchQuery.value.trim()
   open.value = false
-  creators?.openAccountCreator({
-    defaultName,
-    onCreated: (account) => {
-      emit('update:modelValue', account.id)
-    }
-  })
+  showAccountDialog.value = true
+}
+
+async function handleCreateAccount(data: AccountFormData) {
+  try {
+    const account = await createAccount(data)
+    showAccountDialog.value = false
+    searchQuery.value = ''
+    emit('update:modelValue', account.id)
+  } catch (e) {
+    console.error('创建账户失败:', e)
+  }
 }
 </script>
 

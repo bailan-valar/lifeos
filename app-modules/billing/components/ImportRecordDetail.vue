@@ -142,10 +142,9 @@ import type {
   ImportRecordStatus,
   ImportRule,
   ImportRuleFormData,
-  ImportSource,
-  BillingCreators
+  ImportSource
 } from '~/types/bill'
-import { ref, watch, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
@@ -166,9 +165,8 @@ const emit = defineEmits<{
   (e: 'import', record: ImportRecord): void
   (e: 'rollback', record: ImportRecord): void
   (e: 'delete', recordId: string): void
+  (e: 'open-rule-dialog', form: ImportRuleFormData, options?: { onSaved?: () => void }): void
 }>()
-
-const creators = inject<BillingCreators>('billingCreators')
 
 // 点击弹框外关闭 + ESC 关闭
 const overlayRef = ref<HTMLDivElement | null>(null)
@@ -307,7 +305,7 @@ async function promptApplyRuleAfterSave() {
 
 function openRuleOverlay(item: ImportRecordItem) {
   const counterparty = (item.counterparty || '').trim()
-  creators?.openRuleDialog({
+  emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
     matchMode: 'fuzzy',
@@ -322,7 +320,7 @@ function openRuleOverlay(item: ImportRecordItem) {
 
 function openCounterpartyRule(item: ImportRecordItem) {
   const counterparty = (item.counterparty || '').trim()
-  creators?.openRuleDialog({
+  emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
     matchMode: 'fuzzy',
@@ -337,7 +335,7 @@ function openCounterpartyRule(item: ImportRecordItem) {
 
 function openPaymentMethodRule(item: ImportRecordItem) {
   const paymentMethod = (item.paymentMethod || '').trim()
-  creators?.openRuleDialog({
+  emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
     matchMode: 'fuzzy',
@@ -352,7 +350,7 @@ function openPaymentMethodRule(item: ImportRecordItem) {
 
 function openDescriptionRule(item: ImportRecordItem) {
   const description = (item.description || '').trim()
-  creators?.openRuleDialog({
+  emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'description',
     matchMode: 'fuzzy',

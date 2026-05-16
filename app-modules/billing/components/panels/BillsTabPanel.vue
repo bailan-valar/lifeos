@@ -39,22 +39,22 @@
     </div>
 
     <div class="list-container">
-      <BillSkeleton v-if="loading && bills.length === 0" />
       <BillCalendar
-        v-else-if="store.viewMode === 'calendar'"
+        v-if="store.viewMode === 'calendar'"
         :bills="bills"
         :year="billYearFilter ?? undefined"
         :month="billMonthFilter ?? undefined"
         :loading="loading"
-        @edit="openBillDialog"
+        @edit="(bill) => billDialogs.openBillDialog(bill)"
         @date-change="(year, month) => emit('calendar-date-change', year, month)"
       />
+      <BillSkeleton v-else-if="loading && bills.length === 0" />
       <BillList
         v-else-if="store.viewMode === 'card'"
         :bills="bills"
         :selectable="batchMode"
         :selected-ids="selectedIds"
-        @edit="openBillDialog"
+        @edit="(bill) => billDialogs.openBillDialog(bill)"
         @delete="handleDeleteBill"
         @select="emit('select-bill', $event)"
         @select-all="emit('select-all-bills')"
@@ -67,7 +67,7 @@
         :categories="categories"
         :selectable="batchMode"
         :selected-ids="selectedIds"
-        @edit="openBillDialog"
+        @edit="(bill) => billDialogs.openBillDialog(bill)"
         @delete="handleDeleteBill"
         @select="emit('select-bill', $event)"
         @select-all="emit('select-all-bills')"
@@ -84,14 +84,14 @@
     <BillDialog
       v-if="billDialogVisible"
       :visible="billDialogVisible"
-      :bill="editingBill"
+      :bill="(editingBill ?? undefined) as Bill | undefined"
       :accounts="accounts"
       :categories="categories"
       :note-options="noteOptions"
       :default-note-id="noteId"
-      :default-form-values="editingBill ? undefined : lastBillDefaults"
+      :default-form-values="(editingBill ? undefined : lastBillDefaults ?? undefined) as Partial<BillFormData> | undefined"
       @confirm="handleBillConfirm"
-      @cancel="closeBillDialog"
+      @cancel="billDialogs.closeBillDialog"
     />
     <BillBatchEditDialog
       v-if="batchEditVisible"
@@ -128,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { Bill, BillFormData } from '~/types/bill'
 import { useBillingStore } from '~/stores/billing'
 import { useBills } from '~/composables/useBills'
@@ -152,6 +152,7 @@ import BillStatsBar from '../common/BillStatsBar.vue'
 import BudgetProgressBar from '../common/BudgetProgressBar.vue'
 import BillSkeleton from '../common/BillSkeleton.vue'
 import LoadMoreButton from '../common/LoadMoreButton.vue'
+import { useBillDialogs } from '../../composables/useBillDialogs'
 
 interface BudgetProgress {
   totalBudget: number
@@ -209,14 +210,9 @@ const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
 const { createBill, updateBill, deleteBill } = useBills()
 
-// 对话框状态
-const billDialogVisible = ref(false)
-const editingBill = ref<Bill | undefined>(undefined)
-const lastBillDefaults = ref<Partial<BillFormData> | undefined>(undefined)
-const batchEditVisible = ref(false)
-const importDialogVisible = ref(false)
-const recordDetailVisible = ref(false)
-const recordDetailRecord = ref<ImportRecord | null>(null)
+// 对话框状态（使用单例与 BillingView 同步）
+const billDialogs = useBillDialogs()
+const { billDialogVisible, editingBill, lastBillDefaults, batchEditVisible, importDialogVisible, recordDetailVisible, recordDetailRecord } = billDialogs
 
 // 计算属性
 const totalIncome = computed(() =>
@@ -230,17 +226,6 @@ const totalExpense = computed(() =>
 const netBalance = computed(() => totalIncome.value - totalExpense.value)
 
 const selectedBills = computed(() => props.bills.filter(b => props.selectedIds.includes(b.id)))
-
-// 对话框操作
-function openBillDialog(bill?: Bill) {
-  editingBill.value = bill
-  billDialogVisible.value = true
-}
-
-function closeBillDialog() {
-  billDialogVisible.value = false
-  editingBill.value = undefined
-}
 
 // 事件处理
 async function handleDeleteBill(id: string) {
@@ -269,14 +254,14 @@ async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: st
       await createBill(data, props.noteId)
       showSuccess('账单已添加')
     }
-    lastBillDefaults.value = {
+    billDialogs.lastBillDefaults.value = {
       type: data.type,
       fromAccountId: data.fromAccountId,
       toAccountId: data.toAccountId,
       categoryId: data.categoryId,
       currency: data.currency
     }
-    closeBillDialog()
+    billDialogs.closeBillDialog()
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
