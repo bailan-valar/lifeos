@@ -69,7 +69,7 @@ stages:
           - sudo chown -R ubuntu:ubuntu /html/9999/life-os && tar zxvf /gitee_go/deploy/lifeos-prod.tar.gz -C /html/9999/life-os 2>&1 > test.log
           - /home/ubuntu/.nvm/versions/node/v24.15.0/bin/node -v
           - chmod +x /html/9999/life-os/ecosystem.config.cjs
-          - export PATH="/home/ubuntu/.nvm/versions/node/bin:$PATH"
+          - export PATH="/home/ubuntu/.nvm/versions/node/v24.15.0/bin:$PATH"
           - sudo chown -R ubuntu:ubuntu /home/ubuntu/.nvm/versions/node/v24.15.0/bin/pm2
           - sudo chown -R ubuntu:ubuntu /html/9999/life-os/ecosystem.config.cjs && /home/ubuntu/.nvm/versions/node/v24.15.0/bin/pm2 start /html/9999/life-os/ecosystem.config.cjs
           - ''
