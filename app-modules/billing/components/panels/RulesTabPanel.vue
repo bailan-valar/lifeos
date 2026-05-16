@@ -1,7 +1,7 @@
 <template>
   <div class="tab-panel">
     <div v-if="isMobile" class="mobile-rules-header">
-      <button class="mobile-back-btn" type="button" @click="$emit('back')">
+      <button class="mobile-back-btn" type="button" @click="navigation.activeTab.value = 'bills'">
         <Icon name="solar:alt-arrow-left-linear" size="20" />
         <span>返回账单</span>
       </button>
@@ -11,8 +11,8 @@
       :rules="importRules"
       :accounts="accounts"
       :categories="categories"
-      @add="$emit('add-rule')"
-      @edit="$emit('edit-rule', $event)"
+      @add="dialogs.openRuleDialog()"
+      @edit="dialogs.openRuleDialog($event)"
       @delete="$emit('delete-rule', $event)"
       @toggle="(id: string, enabled: boolean) => $emit('toggle-rule', { id, enabled })"
       @export="$emit('export-rules')"
@@ -22,21 +22,27 @@
       @batch-disable="$emit('batch-disable-rules', $event)"
     />
   </div>
+  <RuleDialog
+    v-if="dialogs.ruleDialogVisible.value"
+    :visible="dialogs.ruleDialogVisible.value"
+    :rule="dialogs.editingRule.value || undefined"
+    :accounts="accounts"
+    :categories="categories"
+    @confirm="(data: any, isEditing: boolean, id?: string) => $emit('rule-confirm', data, isEditing, id)"
+    @cancel="dialogs.closeRuleDialog"
+  />
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue'
 import ImportRuleList from '../ImportRuleList.vue'
+import RuleDialog from '../RuleDialog.vue'
+
 const props = defineProps<{
   importRules: any[]
-  accounts: any[]
-  categories: any[]
-  isMobile: boolean
 }>()
 
 defineEmits<{
-  (e: 'back'): void
-  (e: 'add-rule'): void
-  (e: 'edit-rule', rule: any): void
   (e: 'delete-rule', id: string): void
   (e: 'toggle-rule', data: { id: string; enabled: boolean }): void
   (e: 'export-rules'): void
@@ -44,7 +50,15 @@ defineEmits<{
   (e: 'batch-delete-rules', ids: string[]): void
   (e: 'batch-enable-rules', ids: string[]): void
   (e: 'batch-disable-rules', ids: string[]): void
+  (e: 'rule-confirm', data: any, isEditing: boolean, id?: string): void
 }>()
+
+const navigation = inject<any>('billingNavigation')
+const { isMobile } = useDevice()
+
+const dialogs = inject('ruleDialogs') as any
+const accounts = inject('accounts') as any
+const categories = inject('categories') as any
 </script>
 
 <style scoped>

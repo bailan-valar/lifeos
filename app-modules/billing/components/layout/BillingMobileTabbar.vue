@@ -1,12 +1,12 @@
 <template>
   <nav class="billing-mobile-tabbar">
     <button
-      v-for="tab in mobileTabs"
+      v-for="tab in navigation.mobileTabs"
       :key="tab.id"
       type="button"
       class="billing-tab-item"
-      :class="{ active: activeTab === tab.id }"
-      @click="$emit('tab-change', tab.id)"
+      :class="{ active: navigation.activeTab.value === tab.id }"
+      @click="navigation.activeTab.value = tab.id"
     >
       <Icon :name="tab.icon" size="20" />
       <span>{{ tab.name }}</span>
@@ -15,28 +15,9 @@
 </template>
 
 <script setup lang="ts">
-import type { TabId } from '~/types/bill'
+import { inject } from 'vue'
 
-interface Tab {
-  id: TabId
-  name: string
-  icon: string
-}
-
-const props = defineProps<{
-  activeTab: TabId
-}>()
-
-defineEmits<{
-  (e: 'tab-change', tab: TabId): void
-}>()
-
-const mobileTabs: Tab[] = [
-  { id: 'bills' as TabId, name: '账单', icon: 'solar:wallet-money-linear' },
-  { id: 'accounts' as TabId, name: '账户', icon: 'solar:wallet-linear' },
-  { id: 'budgets' as TabId, name: '预算', icon: 'solar:chart-2-linear' },
-  { id: 'categories' as TabId, name: '分类', icon: 'solar:folder-linear' }
-]
+const navigation = inject<any>('billingNavigation')
 </script>
 
 <style scoped>

@@ -1,48 +1,48 @@
 <template>
-  <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+  <div class="sidebar" :class="{ collapsed: navigation.sidebarCollapsed.value }">
     <button
       type="button"
       class="sidebar-toggle"
-      :title="sidebarCollapsed ? '展开' : '收起'"
-      @click="$emit('toggle-sidebar')"
+      :title="navigation.sidebarCollapsed.value ? '展开' : '收起'"
+      @click="navigation.toggleSidebar()"
     >
       <Icon
-        :name="sidebarCollapsed ? 'solar:double-alt-arrow-right-linear' : 'solar:double-alt-arrow-left-linear'"
+        :name="navigation.sidebarCollapsed.value ? 'solar:double-alt-arrow-right-linear' : 'solar:double-alt-arrow-left-linear'"
         size="16"
       />
     </button>
 
-    <template v-for="tab in tabs" :key="tab.id">
+    <template v-for="tab in navigation.tabs" :key="tab.id">
       <!-- 账户Tab -->
       <template v-if="tab.id === 'accounts'">
         <button
           type="button"
           class="sidebar-btn"
-          :class="{ active: activeTab === 'accounts' }"
-          :title="sidebarCollapsed ? tab.name : ''"
-          @click="$emit('accounts-tab-click')"
+          :class="{ active: navigation.activeTab.value === 'accounts' }"
+          :title="navigation.sidebarCollapsed.value ? tab.name : ''"
+          @click="navigation.onAccountsTabClick()"
         >
           <Icon :name="tab.icon" size="18" />
           <span class="sidebar-btn-text">{{ tab.name }}</span>
           <Icon
-            v-if="!sidebarCollapsed"
+            v-if="!navigation.sidebarCollapsed.value"
             name="solar:alt-arrow-down-linear"
             size="14"
             class="submenu-chevron"
-            :class="{ expanded: accountsMenuExpanded }"
+            :class="{ expanded: navigation.accountsMenuExpanded.value }"
           />
         </button>
         <div
-          v-if="!sidebarCollapsed && accountsMenuExpanded"
+          v-if="!navigation.sidebarCollapsed.value && navigation.accountsMenuExpanded.value"
           class="sidebar-submenu"
         >
           <button
-            v-for="sub in accountSubTabs"
+            v-for="sub in navigation.accountSubTabs"
             :key="sub.type"
             type="button"
             class="sidebar-submenu-btn"
-            :class="{ active: activeTab === 'accounts' && activeAccountSubTab === sub.type }"
-            @click="$emit('account-sub-tab-change', sub.type)"
+            :class="{ active: navigation.activeTab.value === 'accounts' && navigation.activeAccountSubTab.value === sub.type }"
+            @click="navigation.activeAccountSubTab.value = sub.type"
           >
             {{ sub.label }}
           </button>
@@ -54,31 +54,31 @@
         <button
           type="button"
           class="sidebar-btn"
-          :class="{ active: activeTab === 'categories' }"
-          :title="sidebarCollapsed ? tab.name : ''"
-          @click="$emit('categories-tab-click')"
+          :class="{ active: navigation.activeTab.value === 'categories' }"
+          :title="navigation.sidebarCollapsed.value ? tab.name : ''"
+          @click="navigation.onCategoriesTabClick()"
         >
           <Icon :name="tab.icon" size="18" />
           <span class="sidebar-btn-text">{{ tab.name }}</span>
           <Icon
-            v-if="!sidebarCollapsed"
+            v-if="!navigation.sidebarCollapsed.value"
             name="solar:alt-arrow-down-linear"
             size="14"
             class="submenu-chevron"
-            :class="{ expanded: categoryMenuExpanded }"
+            :class="{ expanded: navigation.categoryMenuExpanded.value }"
           />
         </button>
         <div
-          v-if="!sidebarCollapsed && categoryMenuExpanded"
+          v-if="!navigation.sidebarCollapsed.value && navigation.categoryMenuExpanded.value"
           class="sidebar-submenu"
         >
           <button
-            v-for="sub in categorySubTabs"
+            v-for="sub in navigation.categorySubTabs"
             :key="sub.type"
             type="button"
             class="sidebar-submenu-btn"
-            :class="{ active: activeTab === 'categories' && activeCategorySubTab === sub.type }"
-            @click="$emit('category-sub-tab-change', sub.type)"
+            :class="{ active: navigation.activeTab.value === 'categories' && navigation.activeCategorySubTab.value === sub.type }"
+            @click="navigation.activeCategorySubTab.value = sub.type"
           >
             <span class="sub-dot" :class="sub.type" />
             {{ sub.label }}
@@ -91,9 +91,9 @@
         v-else
         type="button"
         class="sidebar-btn"
-        :class="{ active: activeTab === tab.id }"
-        :title="sidebarCollapsed ? tab.name : ''"
-        @click="$emit('tab-change', tab.id)"
+        :class="{ active: navigation.activeTab.value === tab.id }"
+        :title="navigation.sidebarCollapsed.value ? tab.name : ''"
+        @click="navigation.activeTab.value = tab.id"
       >
         <Icon :name="tab.icon" size="18" />
         <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -103,54 +103,9 @@
 </template>
 
 <script setup lang="ts">
-import type { TabId } from '~/types/bill'
+import { inject } from 'vue'
 
-type AccountType = 'personal' | 'contact' | 'merchant' | 'other'
-type CategoryType = 'income' | 'expense'
-
-interface Tab {
-  id: TabId
-  name: string
-  icon: string
-}
-
-const props = defineProps<{
-  activeTab: TabId
-  activeAccountSubTab: AccountType
-  activeCategorySubTab: CategoryType | 'all'
-  sidebarCollapsed: boolean
-  accountsMenuExpanded: boolean
-  categoryMenuExpanded: boolean
-}>()
-
-defineEmits<{
-  (e: 'toggle-sidebar'): void
-  (e: 'accounts-tab-click'): void
-  (e: 'categories-tab-click'): void
-  (e: 'account-sub-tab-change', type: AccountType): void
-  (e: 'category-sub-tab-change', type: CategoryType): void
-  (e: 'tab-change', id: TabId): void
-}>()
-
-const tabs: Tab[] = [
-  { id: 'bills' as TabId, name: '账单', icon: 'solar:wallet-money-linear' },
-  { id: 'accounts' as TabId, name: '账户', icon: 'solar:wallet-linear' },
-  { id: 'categories' as TabId, name: '分类', icon: 'solar:folder-linear' },
-  { id: 'budgets' as TabId, name: '预算', icon: 'solar:chart-2-linear' },
-  { id: 'rules' as TabId, name: '规则', icon: 'solar:filter-linear' }
-]
-
-const accountSubTabs = [
-  { type: 'personal' as AccountType, label: '个人账户' },
-  { type: 'contact' as AccountType, label: '人员/组织' },
-  { type: 'merchant' as AccountType, label: '商户' },
-  { type: 'other' as AccountType, label: '其他' }
-]
-
-const categorySubTabs = [
-  { type: 'income' as CategoryType, label: '收入' },
-  { type: 'expense' as CategoryType, label: '支出' }
-]
+const navigation = inject<any>('billingNavigation')
 </script>
 
 <style scoped>

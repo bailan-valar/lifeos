@@ -3,13 +3,13 @@
     <div class="panel-header">
       <SelectPicker
         v-if="isMobile"
-        v-model="localActiveSubTab"
-        :options="categorySubTabOptions"
+        v-model="navigation.activeCategorySubTab.value"
+        :options="navigation.categorySubTabOptions.value"
         :min-width="120"
         plain
-        @change="$emit('category-sub-tab-change', $event)"
+        @change="navigation.activeCategorySubTab.value = $event"
       />
-      <h4 v-else>{{ categorySubTabTitle }}</h4>
+      <h4 v-else>{{ navigation.categorySubTabTitle.value }}</h4>
       <div v-if="!isMobile" class="header-actions">
         <button type="button" class="add-btn secondary" @click="$emit('export-categories')">
           <Icon name="solar:download-linear" size="18" />
@@ -23,77 +23,81 @@
           <Icon name="solar:cloud-download-linear" size="18" />
           分类初始化
         </button>
-        <button type="button" class="add-btn" @click="$emit('add-category')">
+        <button type="button" class="add-btn" @click="dialogs.openCategoryDialog()">
           <Icon name="solar:add-circle-linear" size="18" />
           添加分类
         </button>
       </div>
-      <button v-else type="button" class="add-btn" @click="$emit('add-category')">
+      <button v-else type="button" class="add-btn" @click="dialogs.openCategoryDialog()">
         <Icon name="solar:add-circle-linear" size="18" />
         添加分类
       </button>
     </div>
     <div class="category-list-container">
-      <div v-if="activeCategorySubTab === 'all' || activeCategorySubTab === 'income'" class="category-section">
+      <div v-if="navigation.activeCategorySubTab.value === 'all' || navigation.activeCategorySubTab.value === 'income'" class="category-section">
         <div class="category-subtitle">收入分类</div>
         <CategoryTree
           :nodes="incomeTree"
-          @edit="$emit('edit-category', $event)"
+          @edit="dialogs.openCategoryDialog($event)"
           @delete="$emit('delete-category', $event)"
           @add-child="$emit('add-child-category', $event)"
-          @view-detail="$emit('view-category-detail', $event)"
+          @view-detail="navigateTo('/billing/categories/' + $event.id)"
           @contextmenu="$emit('category-contextmenu', $event)"
         />
       </div>
-      <div v-if="activeCategorySubTab === 'all' || activeCategorySubTab === 'expense'" class="category-section">
+      <div v-if="navigation.activeCategorySubTab.value === 'all' || navigation.activeCategorySubTab.value === 'expense'" class="category-section">
         <div class="category-subtitle">支出分类</div>
         <CategoryTree
           :nodes="expenseTree"
-          @edit="$emit('edit-category', $event)"
+          @edit="dialogs.openCategoryDialog($event)"
           @delete="$emit('delete-category', $event)"
           @add-child="$emit('add-child-category', $event)"
-          @view-detail="$emit('view-category-detail', $event)"
+          @view-detail="navigateTo('/billing/categories/' + $event.id)"
           @contextmenu="$emit('category-contextmenu', $event)"
         />
       </div>
     </div>
   </div>
+  <CategoryDialog
+    v-if="dialogs.categoryDialogVisible.value"
+    :visible="dialogs.categoryDialogVisible.value"
+    :category="dialogs.editingCategory.value || undefined"
+    :categories="categories"
+    :exclude-id="dialogs.editingCategory.value?.id"
+    :default-type="dialogs.categoryFormDefaults.value?.type"
+    :default-parent-id="dialogs.categoryFormDefaults.value?.defaultParentId"
+    :default-name="dialogs.categoryFormDefaults.value?.defaultName"
+    @confirm="(data: any, isEditing: boolean, id?: string) => $emit('category-confirm', data, isEditing, id)"
+    @cancel="dialogs.closeCategoryDialog"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { inject } from 'vue'
 import SelectPicker from '../SelectPicker.vue'
 import CategoryTree from '../CategoryTree.vue'
-
-type CategoryType = 'income' | 'expense'
+import CategoryDialog from '../CategoryDialog.vue'
 
 const props = defineProps<{
   incomeTree: any[]
   expenseTree: any[]
-  activeCategorySubTab: CategoryType | 'all'
-  categorySubTabTitle: string
-  categorySubTabOptions: { value: CategoryType; label: string }[]
-  isMobile: boolean
 }>()
 
 defineEmits<{
-  (e: 'category-sub-tab-change', type: CategoryType): void
   (e: 'export-categories'): void
   (e: 'import-categories'): void
   (e: 'sync-default-categories'): void
-  (e: 'add-category'): void
-  (e: 'edit-category', category: any): void
   (e: 'delete-category', id: string): void
   (e: 'add-child-category', parent: any): void
-  (e: 'view-category-detail', node: any): void
   (e: 'category-contextmenu', data: any): void
+  (e: 'category-confirm', data: any, isEditing: boolean, id?: string): void
 }>()
 
-const localActiveSubTab = ref(props.activeCategorySubTab)
+const navigation = inject<any>('billingNavigation')
+const { isMobile } = useDevice()
 
-watch(() => props.activeCategorySubTab, (val) => {
-  localActiveSubTab.value = val
-})
+const dialogs = inject('categoryDialogs') as any
+const categories = inject('categories') as any
 </script>
 
 <style scoped>
