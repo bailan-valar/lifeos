@@ -80,6 +80,25 @@
       </button>
     </div>
 
+    <!-- 可视化图表 -->
+    <div v-if="goal" class="charts-section">
+      <div class="chart-card liquid-glass-card">
+        <ProgressTrendChart
+          :goal="goal"
+          :progress-logs="progressLogs"
+          :loading="loadingLogs"
+        />
+      </div>
+
+      <div class="chart-card liquid-glass-card">
+        <MonthlyProgressHeatmap
+          :goal-id="goal.id"
+          :progress-logs="progressLogs"
+          :loading="loadingLogs"
+        />
+      </div>
+    </div>
+
     <!-- 进度历史时间线 -->
     <div class="timeline-section liquid-glass-card">
       <div class="section-header">
@@ -128,6 +147,8 @@
 <script setup lang="ts">
 import type { Goal } from '~/types/goal'
 import { useGoalProgress, formatDate } from '~/composables/useGoalProgress'
+import ProgressTrendChart from '~/components/ProgressTrendChart.vue'
+import MonthlyProgressHeatmap from '~/components/MonthlyProgressHeatmap.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -364,6 +385,17 @@ useHead(() => ({
   justify-content: center;
   gap: 8px;
   padding: 14px;
+}
+
+/* 图表区域 */
+.charts-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.chart-card {
+  min-height: 300px;
 }
 
 /* 时间线 */
