@@ -20,30 +20,38 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const id = getRouterParam(event, 'id')
+
+  if (!id) {
+    throw createError({
+      statusCode: 400,
+      message: '反馈 ID 不能为空',
+    })
+  }
+
   const { prisma } = await import('~/server/utils/db')
 
-  const feedbacks = await prisma.feedback.findMany({
+  // 验证反馈属于当前用户
+  const feedback = await prisma.feedback.findFirst({
     where: {
+      id,
       userId: user.id,
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take: 20,
-    select: {
-      id: true,
-      content: true,
-      category: true,
-      rating: true,
-      status: true,
-      reply: true,
-      repliedAt: true,
-      createdAt: true,
-    },
+  })
+
+  if (!feedback) {
+    throw createError({
+      statusCode: 404,
+      message: '反馈不存在或无权删除',
+    })
+  }
+
+  await prisma.feedback.delete({
+    where: { id },
   })
 
   return {
     success: true,
-    data: feedbacks,
+    message: '删除成功',
   }
 })

@@ -90,11 +90,11 @@
           <div class="form-row inline" :class="{ mobile: isMobile }">
             <div class="form-col">
               <label>计划开始</label>
-              <input v-model="form.plannedStartAt" type="datetime-local" />
+              <DateTimePicker v-model="form.plannedStartAt" placeholder="选择开始时间" />
             </div>
             <div class="form-col">
               <label>截止时间</label>
-              <input v-model="form.plannedEndAt" type="datetime-local" />
+              <DateTimePicker v-model="form.plannedEndAt" placeholder="选择截止时间" />
             </div>
           </div>
 
@@ -128,6 +128,7 @@
 import { getDB, generateId, now } from '~/services/db'
 import type { Goal } from '~/types/goal'
 import DateRangePicker from '~/components/DateRangePicker.vue'
+import DateTimePicker from '~/app-modules/billing/components/DateTimePicker.vue'
 
 interface NoteItem {
   id: string
@@ -250,8 +251,8 @@ async function onConfirm() {
     status: form.status,
     type: form.type,
     priority: form.priority,
-    plannedStartAt: form.startDate, // 使用startDate作为plannedStartAt
-    plannedEndAt: form.endDate, // 使用endDate作为plannedEndAt
+    plannedStartAt: form.plannedStartAt ? new Date(form.plannedStartAt).toISOString() : form.startDate,
+    plannedEndAt: form.plannedEndAt ? new Date(form.plannedEndAt).toISOString() : form.endDate,
     noteIds: [...form.noteIds],
     createdAt: now(),
     updatedAt: now(),
