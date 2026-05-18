@@ -54,7 +54,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  if (rating !== undefined && (typeof rating !== 'number' || rating < 1 || rating > 5)) {
+  if (rating != null && (typeof rating !== 'number' || rating < 1 || rating > 5)) {
     throw createError({
       statusCode: 400,
       message: '评分必须是 1-5 之间的整数',

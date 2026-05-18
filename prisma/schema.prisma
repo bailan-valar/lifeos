@@ -44,6 +44,8 @@ model Feedback {
   category   String   @default("other")
   rating     Int?
   status     String   @default("pending")
+  reply      String?  @db.Text
+  repliedAt  DateTime?
   createdAt  DateTime @default(now())
 
   user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)

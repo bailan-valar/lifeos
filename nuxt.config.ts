@@ -34,12 +34,8 @@ export default defineNuxtConfig({
   },
   vite: {
     server: {
-      allowedHosts: ['company-dev.capdien.site'],
-      hmr: {
-        protocol: 'wss',
-        host: 'company-dev.capdien.site',
-        clientPort: 443,
-      },
+      // HMR 配置会自动适配本地开发，无需手动指定
+      // 生产环境部署时通过环境变量覆盖
     },
     define: {
       'import.meta.env.NUXT_PUBLIC_COUCHDB_URL': JSON.stringify(process.env.NUXT_PUBLIC_COUCHDB_URL || ''),

@@ -110,19 +110,31 @@
       @import="handleImportRecord"
       @rollback="handleRollbackRecord"
       @delete="handleDeleteRecord"
+      @open-rule-dialog="handleOpenRuleDialog"
+    />
+    <RuleDialog
+      v-if="ruleDialogVisible"
+      :visible="ruleDialogVisible"
+      :rule="editingRule"
+      :initial-form="initialRuleForm"
+      :accounts="accounts"
+      :categories="categories"
+      @confirm="handleRuleConfirm"
+      @cancel="closeRuleDialog"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Bill, BillFormData, ImportRecord } from '~/types/bill'
+import { computed, ref } from 'vue'
+import type { Bill, BillFormData, ImportRecord, ImportRule, ImportRuleFormData } from '~/types/bill'
 import { useBillingStore } from '~/stores/billing'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useNotes } from '~/composables/useNotes'
 import { useImportRecords } from '~/composables/useImportRecords'
+import { useImportRules } from '~/composables/useImportRules'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
 import { dedupeKey } from '~/services/csvImport'
@@ -131,6 +143,7 @@ import BillDialog from '../BillDialog.vue'
 import BillBatchEditDialog from '../BillBatchEditDialog.vue'
 import ImportDialog from '../ImportDialog.vue'
 import ImportRecordDetail from '../ImportRecordDetail.vue'
+import RuleDialog from '../RuleDialog.vue'
 import BillBatchToolbar from '../BillBatchToolbar.vue'
 import BillCalendar from '../BillCalendar.vue'
 import BillList from '../BillList.vue'
@@ -169,10 +182,17 @@ const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
 const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore } = useBills()
 const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords } = useImportRecords()
+const { createImportRule, updateImportRule } = useImportRules()
 
 // 对话框状态（使用单例与 BillingView 同步）
 const billDialogs = useBillDialogs()
 const { billDialogVisible, editingBill, lastBillDefaults, batchEditVisible, importDialogVisible, recordDetailVisible, recordDetailRecord } = billDialogs
+
+// 规则对话框状态
+const ruleDialogVisible = ref(false)
+const editingRule = ref<ImportRule | undefined>(undefined)
+const initialRuleForm = ref<ImportRuleFormData | undefined>(undefined)
+const pendingRuleCallback = ref<(() => void) | undefined>(undefined)
 
 // 计算属性
 const totalIncome = computed(() =>
@@ -303,6 +323,41 @@ async function handleDeleteRecord(recordId: string) {
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
+}
+
+// 规则对话框事件处理
+function handleOpenRuleDialog(form: ImportRuleFormData, options?: { onSaved?: () => void }) {
+  editingRule.value = undefined
+  initialRuleForm.value = { ...form }
+  pendingRuleCallback.value = options?.onSaved
+  ruleDialogVisible.value = true
+}
+
+async function handleRuleConfirm(data: ImportRuleFormData, isEditing: boolean, id?: string) {
+  try {
+    if (!data.pattern.trim()) {
+      showError('请输入匹配关键字')
+      return
+    }
+    if (isEditing && id) {
+      await updateImportRule(id, data)
+      showSuccess('规则已更新')
+    } else {
+      await createImportRule(data)
+      showSuccess('规则已添加')
+    }
+    closeRuleDialog()
+    pendingRuleCallback.value?.()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function closeRuleDialog() {
+  ruleDialogVisible.value = false
+  editingRule.value = undefined
+  initialRuleForm.value = undefined
+  pendingRuleCallback.value = undefined
 }
 </script>
 
