@@ -235,7 +235,7 @@ interface Feedback {
     email: string
     name: string | null
   }
-  replies: FeedbackReply[]
+  replies?: FeedbackReply[]
 }
 
 interface Props {
@@ -248,7 +248,30 @@ const emit = defineEmits(['close', 'saved'])
 const isOpen = ref(true)
 const isLoading = ref(false)
 const isLoadingReplies = ref(false)
-const replies = ref<FeedbackReply[]>([...props.feedback.replies])
+const replies = ref<FeedbackReply[]>([...(props.feedback.replies || [])])
+
+// 加载对话记录
+onMounted(async () => {
+  try {
+    isLoadingReplies.value = true
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await $fetch(`/api/__admin/feedbacks/${props.feedback.id}/replies`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    replies.value = (response as any).data || []
+  }
+  catch (error: any) {
+    console.error('加载对话记录失败:', error)
+  }
+  finally {
+    isLoadingReplies.value = false
+  }
+})
 
 // 新回复
 const newReplyContent = ref('')

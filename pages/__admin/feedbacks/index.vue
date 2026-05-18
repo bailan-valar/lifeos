@@ -265,8 +265,10 @@ const changePage = (page: number) => {
 
 // 查看反馈详情
 const viewFeedback = (feedbackId: string) => {
-  // 可以跳转到详情页面或打开弹窗
-  navigateTo(`/__admin/feedbacks/${feedbackId}`)
+  const feedback = feedbacks.value.find(f => f.id === feedbackId)
+  if (feedback) {
+    selectedFeedback.value = feedback
+  }
 }
 
 // 处理反馈

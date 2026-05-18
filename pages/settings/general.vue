@@ -33,7 +33,7 @@
 
             <div class="setting-row">
               <div class="setting-info">
-                <Icon name="solar:letter-spacing-linear" class="setting-icon" />
+                <Icon name="solar:align-vertical-spacing-linear" class="setting-icon" />
                 <div class="setting-text">
                   <div class="setting-name">紧凑布局</div>
                   <div class="setting-desc">减小列表项之间的间距</div>

@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
             name: true,
           },
         },
-        replier: {
+        repliers: {
           select: {
             id: true,
             email: true,
@@ -75,7 +75,11 @@ export default defineEventHandler(async (event) => {
   return {
     success: true,
     data: {
-      feedbacks,
+      feedbacks: feedbacks.map((f: any) => ({
+        ...f,
+        adminReply: f.reply,
+        replier: f.repliers?.[0] || null,
+      })),
       pagination: {
         page,
         limit,

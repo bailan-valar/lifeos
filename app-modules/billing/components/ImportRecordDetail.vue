@@ -89,26 +89,33 @@
 
             <!-- 已完成只读态 -->
             <template v-else>
-              <div class="record-items">
-                <div
-                  v-for="item in record.items"
-                  :key="item.rawIndex"
-                  class="record-item"
-                  :class="item.status"
-                >
-                  <div class="item-main">
-                    <span class="item-counterparty">{{ item.counterparty || '-' }}</span>
-                    <span class="item-amount" :class="item.direction">
-                      {{ item.direction === 'in' ? '+' : '-' }}{{ item.amount.toFixed(2) }}
-                    </span>
+              <VirtualList
+                :items="record.items"
+                :item-height="72"
+                :container-height="400"
+                :buffer="5"
+                :gap="4"
+                class="record-items"
+              >
+                <template #default="{ item }">
+                  <div
+                    class="record-item"
+                    :class="item.status"
+                  >
+                    <div class="item-main">
+                      <span class="item-counterparty">{{ item.counterparty || '-' }}</span>
+                      <span class="item-amount" :class="item.direction">
+                        {{ item.direction === 'in' ? '+' : '-' }}{{ item.amount.toFixed(2) }}
+                      </span>
+                    </div>
+                    <div class="item-meta">
+                      <span>{{ item.date }}</span>
+                      <span class="item-status">{{ itemStatusLabel(item.status) }}</span>
+                    </div>
+                    <div v-if="item.errorMessage" class="item-error">{{ item.errorMessage }}</div>
                   </div>
-                  <div class="item-meta">
-                    <span>{{ item.date }}</span>
-                    <span class="item-status">{{ itemStatusLabel(item.status) }}</span>
-                  </div>
-                  <div v-if="item.errorMessage" class="item-error">{{ item.errorMessage }}</div>
-                </div>
-              </div>
+                </template>
+              </VirtualList>
             </template>
           </div>
 
@@ -726,9 +733,7 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
   max-height: 50vh;
 }
 .record-items {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  max-height: 50vh;
 }
 .record-item {
   padding: 8px 10px;

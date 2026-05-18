@@ -61,13 +61,90 @@
           </div>
         </div>
         <p class="feedback-content">{{ item.content }}</p>
-        <div v-if="item.reply" class="feedback-reply">
+
+        <!-- 旧版官方回复兼容 -->
+        <div v-if="item.reply && !feedbackReplies[item.id]?.length" class="feedback-reply">
           <div class="reply-label">
             <Icon name="solar:reply-linear" size="14" />
             <span>官方回复</span>
             <span v-if="item.repliedAt" class="reply-date">{{ formatDate(item.repliedAt) }}</span>
           </div>
           <p class="reply-content">{{ item.reply }}</p>
+        </div>
+
+        <!-- 对话区域 -->
+        <div class="conversation-wrapper">
+          <button
+            class="toggle-replies-btn"
+            @click="toggleReplies(item.id)"
+          >
+            <Icon
+              :name="expandedFeedbackId === item.id ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'"
+              size="14"
+            />
+            <span v-if="expandedFeedbackId === item.id">收起对话</span>
+            <span v-else>
+              查看对话
+              <template v-if="replyCounts[item.id] > 0">({{ replyCounts[item.id] }})</template>
+            </span>
+          </button>
+
+          <div v-if="expandedFeedbackId === item.id" class="conversation-body">
+            <div v-if="loadingReplies[item.id]" class="conversation-loading">
+              <Icon name="solar:widget-2-linear" class="spin-icon" size="16" />
+              <span>加载中...</span>
+            </div>
+
+            <div v-else-if="!feedbackReplies[item.id]?.length" class="conversation-empty">
+              暂无回复，您可以继续补充说明
+            </div>
+
+            <div v-else class="conversation-list">
+              <div
+                v-for="reply in feedbackReplies[item.id]"
+                :key="reply.id"
+                :class="['conversation-bubble', reply.isAdmin ? 'admin' : 'user']"
+              >
+                <div class="bubble-avatar">
+                  {{ reply.isAdmin
+                    ? (reply.user?.name?.[0] || reply.user?.email?.[0] || 'A')
+                    : (authStore.user?.name?.[0] || authStore.user?.email?.[0] || '我')
+                  }}
+                </div>
+                <div class="bubble-main">
+                  <div class="bubble-header">
+                    <span class="bubble-author">
+                      {{ reply.isAdmin ? (reply.user?.name || '官方') : '我' }}
+                    </span>
+                    <span class="bubble-time">{{ formatDate(reply.createdAt) }}</span>
+                  </div>
+                  <p class="bubble-text">{{ reply.content }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 回复输入 -->
+            <div class="reply-input-area">
+              <textarea
+                v-model="replyInputs[item.id]"
+                class="reply-textarea"
+                placeholder="输入回复内容..."
+                rows="2"
+                maxlength="2000"
+              />
+              <div class="reply-input-footer">
+                <span class="char-hint">{{ (replyInputs[item.id] || '').length }} / 2000</span>
+                <button
+                  class="send-reply-btn"
+                  :disabled="!replyInputs[item.id]?.trim() || sendingReply[item.id]"
+                  @click="sendReply(item.id)"
+                >
+                  <Icon v-if="sendingReply[item.id]" name="solar:widget-2-linear" class="spin-icon" size="14" />
+                  <span>{{ sendingReply[item.id] ? '发送中...' : '发送回复' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -107,6 +184,14 @@ const loading = ref(true)
 const userFeedbacks = ref<any[]>([])
 const showModal = ref(false)
 
+// 对话相关状态
+const expandedFeedbackId = ref<string | null>(null)
+const feedbackReplies = ref<Record<string, any[]>>({})
+const loadingReplies = ref<Record<string, boolean>>({})
+const replyInputs = ref<Record<string, string>>({})
+const sendingReply = ref<Record<string, boolean>>({})
+const replyCounts = ref<Record<string, number>>({})
+
 onMounted(() => {
   if (!authStore.user) {
     router.push('/login')
@@ -129,11 +214,88 @@ async function loadFeedbacks() {
 
     if (response && typeof response === 'object' && 'success' in response && response.success) {
       userFeedbacks.value = (response as any).data || []
+      // 预加载每条反馈的回复数量（可选优化）
+      for (const fb of userFeedbacks.value) {
+        loadReplyCount(fb.id)
+      }
     }
   } catch (e) {
     console.warn('Failed to load feedbacks:', e)
   } finally {
     loading.value = false
+  }
+}
+
+async function loadReplyCount(feedbackId: string) {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const response = await $fetch(`/api/feedbacks/${feedbackId}/replies`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }) as any
+    const replies = response?.data || []
+    replyCounts.value[feedbackId] = replies.length
+    // 如果已经展开，同时缓存数据
+    if (expandedFeedbackId.value === feedbackId) {
+      feedbackReplies.value[feedbackId] = replies
+    }
+  } catch (e) {
+    replyCounts.value[feedbackId] = 0
+  }
+}
+
+async function toggleReplies(feedbackId: string) {
+  if (expandedFeedbackId.value === feedbackId) {
+    expandedFeedbackId.value = null
+    return
+  }
+  expandedFeedbackId.value = feedbackId
+  if (!feedbackReplies.value[feedbackId]) {
+    loadingReplies.value[feedbackId] = true
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      const response = await $fetch(`/api/feedbacks/${feedbackId}/replies`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }) as any
+      feedbackReplies.value[feedbackId] = response?.data || []
+      replyCounts.value[feedbackId] = feedbackReplies.value[feedbackId].length
+    } catch (e) {
+      console.warn('Failed to load replies:', e)
+      feedbackReplies.value[feedbackId] = []
+    } finally {
+      loadingReplies.value[feedbackId] = false
+    }
+  }
+}
+
+async function sendReply(feedbackId: string) {
+  const content = replyInputs.value[feedbackId]?.trim()
+  if (!content) return
+
+  sendingReply.value[feedbackId] = true
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await $fetch(`/api/feedbacks/${feedbackId}/replies`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { content },
+    }) as any
+
+    if (response?.data) {
+      if (!feedbackReplies.value[feedbackId]) {
+        feedbackReplies.value[feedbackId] = []
+      }
+      feedbackReplies.value[feedbackId].push(response.data)
+      replyInputs.value[feedbackId] = ''
+      replyCounts.value[feedbackId] = (replyCounts.value[feedbackId] || 0) + 1
+    }
+  } catch (e: any) {
+    alert(e?.data?.message || '发送失败，请重试')
+  } finally {
+    sendingReply.value[feedbackId] = false
   }
 }
 
@@ -486,6 +648,210 @@ function formatDate(dateStr: string): string {
   word-break: break-word;
 }
 
+/* 对话区域样式 */
+.conversation-wrapper {
+  position: relative;
+  z-index: 1;
+  margin-top: 10px;
+}
+
+.toggle-replies-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0, 122, 255, 0.08);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(0, 122, 255);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-replies-btn:hover {
+  background: rgba(0, 122, 255, 0.15);
+}
+
+.conversation-body {
+  margin-top: 12px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  border: 0.5px solid rgba(60, 60, 67, 0.06);
+}
+
+.conversation-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--liquid-text-tertiary);
+  font-size: 13px;
+}
+
+.conversation-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--liquid-text-tertiary);
+}
+
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.conversation-bubble {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.conversation-bubble.user {
+  flex-direction: row-reverse;
+}
+
+.bubble-avatar {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.conversation-bubble.admin .bubble-avatar {
+  background: linear-gradient(135deg, rgb(0, 122, 255), rgb(88, 86, 214));
+  color: white;
+}
+
+.conversation-bubble.user .bubble-avatar {
+  background: var(--liquid-bg-elevated);
+  color: var(--liquid-text-secondary);
+  border: var(--liquid-border);
+}
+
+.bubble-main {
+  max-width: 75%;
+}
+
+.bubble-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.conversation-bubble.user .bubble-header {
+  justify-content: flex-end;
+}
+
+.bubble-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--liquid-text-secondary);
+}
+
+.bubble-time {
+  font-size: 11px;
+  color: var(--liquid-text-tertiary);
+}
+
+.bubble-text {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 10px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.conversation-bubble.admin .bubble-text {
+  background: rgba(0, 122, 255, 0.08);
+  color: var(--liquid-text-primary);
+  border-bottom-left-radius: 4px;
+}
+
+.conversation-bubble.user .bubble-text {
+  background: var(--liquid-bg-elevated);
+  color: var(--liquid-text-primary);
+  border: var(--liquid-border);
+  border-bottom-right-radius: 4px;
+}
+
+.reply-input-area {
+  padding-top: 12px;
+  border-top: 0.5px solid rgba(60, 60, 67, 0.08);
+}
+
+.reply-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--liquid-text-primary);
+  background: rgba(255, 255, 255, 0.5);
+  border: 0.5px solid rgba(60, 60, 67, 0.12);
+  border-radius: 10px;
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reply-textarea:focus {
+  border-color: rgba(0, 122, 255, 0.4);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.08);
+}
+
+.reply-input-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.char-hint {
+  font-size: 11px;
+  color: var(--liquid-text-tertiary);
+}
+
+.send-reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  background: rgb(0, 122, 255);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.send-reply-btn:hover:not(:disabled) {
+  background: rgb(0, 110, 230);
+}
+
+.send-reply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .feedback-list-header {
     flex-direction: column;
@@ -504,6 +870,10 @@ function formatDate(dateStr: string): string {
   .feedback-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .bubble-main {
+    max-width: 80%;
   }
 }
 </style>

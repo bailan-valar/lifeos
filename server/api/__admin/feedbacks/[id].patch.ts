@@ -70,9 +70,8 @@ export default defineEventHandler(async (event) => {
 
   // 如果提供了回复内容
   if (adminReply !== undefined && adminReply.trim()) {
-    updateData.adminReply = adminReply.trim()
+    updateData.reply = adminReply.trim()
     updateData.repliedAt = new Date()
-    updateData.repliedBy = admin.id
   }
 
   // 更新反馈
@@ -87,7 +86,7 @@ export default defineEventHandler(async (event) => {
           name: true,
         },
       },
-      replier: {
+      repliers: {
         select: {
           id: true,
           email: true,
@@ -102,6 +101,10 @@ export default defineEventHandler(async (event) => {
 
   return {
     success: true,
-    data: updatedFeedback,
+    data: {
+      ...updatedFeedback,
+      adminReply: (updatedFeedback as any).reply,
+      replier: (updatedFeedback as any).repliers?.[0] || null,
+    },
   }
 })
