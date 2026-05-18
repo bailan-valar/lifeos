@@ -34,6 +34,7 @@ const { isMobile } = useDevice()
 const props = defineProps<{
   visible: boolean
   rule?: ImportRule
+  initialForm?: ImportRuleFormData
   accounts: Account[]
   categories: BillCategory[]
 }>()
@@ -51,6 +52,11 @@ const form = ref<ImportRuleFormData>({
 
 const isEditing = computed(() => !!props.rule)
 
+const defaultForm: ImportRuleFormData = {
+  source: 'all', matchField: 'account', matchMode: 'fuzzy', pattern: '', categoryId: '',
+  accountId: '', billType: undefined, priority: 100, enabled: true
+}
+
 watch(() => props.visible, (v) => {
   if (!v) return
   if (props.rule) {
@@ -65,11 +71,10 @@ watch(() => props.visible, (v) => {
       priority: props.rule.priority,
       enabled: props.rule.enabled
     }
+  } else if (props.initialForm) {
+    form.value = { ...props.initialForm }
   } else {
-    form.value = {
-      source: 'all', matchField: 'account', matchMode: 'fuzzy', pattern: '', categoryId: '',
-      accountId: '', billType: undefined, priority: 100, enabled: true
-    }
+    form.value = { ...defaultForm }
   }
 }, { immediate: true })
 

@@ -214,8 +214,10 @@ const expenseTree = computed(() => buildTree('expense'))
 const selectedBills = computed(() => bills.value.filter(b => selectedIds.value.includes(b.id)))
 
 // 页面头部操作
+const BILLING_MODULE_KEY = 'billing'
+
 function registerHeaderActions() {
-  pageHeaderStore.setActions([
+  pageHeaderStore.setActions(BILLING_MODULE_KEY, [
     { icon: 'solar:checklist-minimalistic-linear', label: '批量操作', handler: enterBatchMode },
     { icon: 'solar:upload-linear', label: '导入账单', handler: () => billDialogs.openImportDialog() },
     { icon: 'solar:download-linear', label: '导出账单', handler: io.handleExportBills }
@@ -223,7 +225,7 @@ function registerHeaderActions() {
 }
 
 function registerCategoryActions() {
-  pageHeaderStore.setActions([
+  pageHeaderStore.setActions(BILLING_MODULE_KEY, [
     { icon: 'solar:download-linear', label: '导出分类', handler: () => {} },
     { icon: 'solar:upload-linear', label: '导入分类', handler: () => {} },
     { icon: 'solar:cloud-download-linear', label: '分类初始化', handler: () => {} }
@@ -289,13 +291,13 @@ onMounted(() => {
     } else if (tab === 'categories') {
       registerCategoryActions()
     } else {
-      pageHeaderStore.clearActions()
+      pageHeaderStore.clearActions(BILLING_MODULE_KEY)
     }
   }, { immediate: true })
 })
 
 onBeforeUnmount(() => {
-  pageHeaderStore.clearActions()
+  pageHeaderStore.clearActions(BILLING_MODULE_KEY)
 })
 
 watch(() => store.viewMode, (mode) => {

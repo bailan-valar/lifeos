@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 export interface HeaderAction {
   icon: string
@@ -8,15 +8,27 @@ export interface HeaderAction {
 }
 
 export const usePageHeaderStore = defineStore('pageHeader', () => {
-  const actions = ref<HeaderAction[]>([])
+  const actionsMap = ref<Map<string, HeaderAction[]>>(new Map())
+  const activeModule = ref<string>('')
   const moreMenuOpen = ref(false)
 
-  function setActions(newActions: HeaderAction[]) {
-    actions.value = newActions
+  const actions = computed(() => actionsMap.value.get(activeModule.value) || [])
+
+  function setActions(moduleKey: string, newActions: HeaderAction[]) {
+    actionsMap.value.set(moduleKey, newActions)
+    activeModule.value = moduleKey
   }
 
-  function clearActions() {
-    actions.value = []
+  function clearActions(moduleKey?: string) {
+    if (moduleKey) {
+      actionsMap.value.delete(moduleKey)
+      if (activeModule.value === moduleKey) {
+        activeModule.value = ''
+      }
+    } else {
+      actionsMap.value.clear()
+      activeModule.value = ''
+    }
     moreMenuOpen.value = false
   }
 
@@ -31,6 +43,7 @@ export const usePageHeaderStore = defineStore('pageHeader', () => {
   return {
     actions,
     moreMenuOpen,
+    activeModule,
     setActions,
     clearActions,
     toggleMoreMenu,
