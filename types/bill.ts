@@ -337,6 +337,7 @@ export interface ImportPreviewRow extends CsvParsedRow {
   categoryId: string
   fromAccountId: string
   toAccountId: string
+  remark?: string
 }
 
 /**
@@ -421,6 +422,7 @@ export interface ImportRecordItem {
   myAccountId?: string | null
   paymentMethod?: string
   rawType?: string
+  remark?: string
   // --- post-import 字段 ---
   billId?: string
   errorMessage?: string

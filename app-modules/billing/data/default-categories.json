@@ -302,7 +302,14 @@
       {
         "name": "礼物",
         "icon": "solar:gift-linear",
-        "color": "#FFCC00"
+        "color": "#FFCC00",
+        "children": [
+          {
+            "name": "鲜花",
+            "icon": "solar:leaf-linear",
+            "color": "#FFCC00"
+          }
+        ]
       },
       {
         "name": "红包",
@@ -312,11 +319,6 @@
       {
         "name": "请客",
         "icon": "solar:wineglass-linear",
-        "color": "#FFCC00"
-      },
-      {
-        "name": "鲜花",
-        "icon": "solar:leaf-linear",
         "color": "#FFCC00"
       }
     ]

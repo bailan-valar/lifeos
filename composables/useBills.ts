@@ -348,7 +348,7 @@ export function useBills() {
           fromAccountId: item.fromAccountId || '',
           toAccountId: item.toAccountId || '',
           categoryId: item.categoryId || '',
-          description: item.description || '',
+          description: [item.description, item.remark].filter(Boolean).join(' | ') || '',
           date: toIsoMinutes(item.date),
           status: 'completed',
           debtSubtype: item.debtSubtype || 'lend',

@@ -52,6 +52,16 @@
       <button
         v-if="!row.duplicate && !row.skipped"
         type="button"
+        class="action-btn"
+        :class="{ active: row.remark }"
+        title="编辑备注"
+        @click="$emit('edit-remark', row)"
+      >
+        <Icon name="solar:pen-new-square-linear" size="14" />
+      </button>
+      <button
+        v-if="!row.duplicate && !row.skipped"
+        type="button"
         class="action-btn save-rule-btn"
         title="保存为规则"
         @click="$emit('save-as-rule', row)"
@@ -139,6 +149,7 @@ const emit = defineEmits<{
   (e: 'save-counterparty-rule', row: ImportRecordItem): void
   (e: 'save-payment-method-rule', row: ImportRecordItem): void
   (e: 'save-description-rule', row: ImportRecordItem): void
+  (e: 'edit-remark', row: ImportRecordItem): void
 }>()
 
 const typeOptions: { value: BillType; label: string }[] = [
@@ -469,6 +480,11 @@ function formatAmount(n: number): string {
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
   border-color: rgba(0, 122, 255, 0.4);
+}
+.action-btn.active {
+  background: rgba(255, 149, 0, 0.1);
+  color: rgb(255, 149, 0);
+  border-color: rgba(255, 149, 0, 0.4);
 }
 .action-btn.save-rule-btn {
   width: auto;

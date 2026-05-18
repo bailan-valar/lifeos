@@ -82,6 +82,7 @@
                     @save-counterparty-rule="openCounterpartyRule"
                     @save-payment-method-rule="openPaymentMethodRule"
                     @save-description-rule="openDescriptionRule"
+                    @edit-remark="openRemarkEditor"
                   />
                 </template>
               </VirtualList>
@@ -112,6 +113,7 @@
                       <span>{{ item.date }}</span>
                       <span class="item-status">{{ itemStatusLabel(item.status) }}</span>
                     </div>
+                    <div v-if="item.remark" class="item-remark">📝 {{ item.remark }}</div>
                     <div v-if="item.errorMessage" class="item-error">{{ item.errorMessage }}</div>
                   </div>
                 </template>
@@ -142,6 +144,29 @@
             >
               一键回滚
             </button>
+          </div>
+
+          <!-- 备注编辑弹框 -->
+          <div v-if="remarkEditor.visible" class="remark-overlay" @click="closeRemarkEditor">
+            <div class="remark-card" @click.stop>
+              <div class="remark-header">
+                <span>编辑备注</span>
+                <button type="button" class="close-btn" @click="closeRemarkEditor">
+                  <Icon name="solar:close-circle-linear" size="16" />
+                </button>
+              </div>
+              <textarea
+                v-model="remarkEditor.text"
+                class="remark-textarea"
+                rows="3"
+                placeholder="输入备注内容..."
+                @keydown.stop
+              />
+              <div class="remark-footer">
+                <button type="button" class="cancel-btn" @click="closeRemarkEditor">取消</button>
+                <button type="button" class="confirm-btn" @click="saveRemark">保存</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -217,6 +242,38 @@ const { confirm } = useConfirm()
 
 const importing = ref(false)
 const filter = ref<'all' | 'unmatched' | 'matched' | 'duplicate'>('all')
+
+// 备注编辑弹框
+const remarkEditor = ref<{
+  visible: boolean
+  rawIndex: number | null
+  text: string
+}>({ visible: false, rawIndex: null, text: '' })
+
+function openRemarkEditor(item: ImportRecordItem) {
+  remarkEditor.value = {
+    visible: true,
+    rawIndex: item.rawIndex,
+    text: item.remark || ''
+  }
+}
+
+function closeRemarkEditor() {
+  remarkEditor.value.visible = false
+  remarkEditor.value.rawIndex = null
+}
+
+function saveRemark() {
+  const { rawIndex, text } = remarkEditor.value
+  if (rawIndex !== null) {
+    const idx = localItems.value.findIndex(i => i.rawIndex === rawIndex)
+    if (idx !== -1) {
+      localItems.value[idx] = { ...localItems.value[idx], remark: text.trim() || undefined }
+      scheduleSave()
+    }
+  }
+  closeRemarkEditor()
+}
 const filterOptions = [
   { value: 'all' as const, label: '全部' },
   { value: 'unmatched' as const, label: '未完善' },
@@ -529,6 +586,7 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
   overflow-y: auto;
 }
 .record-modal-card {
+  position: relative;
   width: 100%;
   max-width: 760px;
   max-height: 85vh;
@@ -785,5 +843,70 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
 .item-error {
   font-size: 11px;
   color: rgb(255, 59, 48);
+}
+.item-remark {
+  font-size: 11px;
+  color: rgba(0, 122, 255, 0.85);
+  background: rgba(0, 122, 255, 0.06);
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.remark-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border-radius: 16px;
+}
+.remark-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.remark-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.remark-textarea {
+  margin: 12px 16px;
+  padding: 10px 12px;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(0, 0, 0, 0.92);
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  min-height: 60px;
+}
+.remark-textarea:focus {
+  border-color: rgb(0, 122, 255);
+}
+.remark-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 0 16px 12px;
 }
 </style>
