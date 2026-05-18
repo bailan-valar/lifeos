@@ -15,11 +15,14 @@ model User {
   email     String   @unique
   password  String
   name      String?
+  role      String   @default("user")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions   Session[]
-  feedbacks  Feedback[]
+  sessions           Session[]
+  feedbacks          Feedback[]
+  repliedFeedbacks   Feedback[]         @relation("FeedbackReplier")
+  feedbackReplies    FeedbackReply[]
 }
 
 model Session {
@@ -35,15 +38,34 @@ model Session {
 }
 
 model Feedback {
-  id        String   @id @default(cuid())
-  userId    String
-  content   String   @db.Text
-  category  String   @default("other")
-  rating    Int?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  content    String   @db.Text
+  category   String   @default("other")
+  rating     Int?
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies  FeedbackReply[]
 
   @@index([userId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model FeedbackReply {
+  id         String   @id @default(cuid())
+  feedbackId String
+  userId     String
+  content    String   @db.Text
+  isAdmin    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([feedbackId])
   @@index([createdAt])
 }

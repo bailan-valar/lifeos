@@ -36,14 +36,22 @@
 <script setup lang="ts">
 const route = useRoute()
 const { menuNavigate } = useRouteCache()
+const authStore = useAuthStore()
 
-const modules = [
-  { id: 'home', label: '首页', icon: 'solar:home-linear', path: '/' },
-  { id: 'notes', label: '笔记', icon: 'solar:document-text-linear', path: '/notes' },
-  { id: 'billing', label: '账单', icon: 'solar:wallet-money-linear', path: '/billing' },
-  { id: 'goals', label: '目标', icon: 'solar:target-linear', path: '/goals' },
-  { id: 'time', label: '时间', icon: 'solar:calendar-linear', path: '/time' },
+const allModules = [
+  { id: 'home', label: '首页', icon: 'solar:home-linear', path: '/', requiresAdmin: false },
+  { id: 'notes', label: '笔记', icon: 'solar:document-text-linear', path: '/notes', requiresAdmin: false },
+  { id: 'billing', label: '账单', icon: 'solar:wallet-money-linear', path: '/billing', requiresAdmin: false },
+  { id: 'goals', label: '目标', icon: 'solar:target-linear', path: '/goals', requiresAdmin: false },
+  { id: 'time', label: '时间', icon: 'solar:calendar-linear', path: '/time', requiresAdmin: false },
+  { id: 'admin', label: '管理', icon: 'solar:shield-check-linear', path: '/__admin', requiresAdmin: true },
 ]
+
+// 根据用户角色过滤显示的模块
+const modules = computed(() => {
+  const isAdmin = authStore.user?.role === 'admin'
+  return allModules.filter(mod => !mod.requiresAdmin || isAdmin)
+})
 
 const isActive = (path: string) => {
   return route.path === path || route.path.startsWith(path + '/')

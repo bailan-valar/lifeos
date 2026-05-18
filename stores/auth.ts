@@ -6,7 +6,7 @@ import { closeWorkspaceDB, listLoadedWorkspaceIds } from '~/services/db'
 import { clearActiveId, clearMetaDBCache, closeMetaDB, setCachedUserId, clearCachedUserId, startMetaSync, stopMetaSync } from '~/services/workspaces'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<{ id: string; email: string; name: string | null } | null>(null)
+  const user = ref<{ id: string; email: string; name: string | null; role: string } | null>(null)
   const token = ref<string | null>(null)
   const isLoading = ref(false)
 
@@ -24,7 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
         },
       })
 
-      user.value = response as { id: string; email: string; name: string | null }
+      user.value = response as { id: string; email: string; name: string | null; role: string }
       setCachedUserId(user.value.id)
       await startMetaSync()
       return response
@@ -41,7 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await $fetch('/api/auth/login', {
         method: 'POST',
         body: { email, password },
-      }) as { user: { id: string; email: string; name: string | null }; token: string }
+      }) as { user: { id: string; email: string; name: string | null; role: string }; token: string }
 
       user.value = response.user
       token.value = response.token
@@ -64,7 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await $fetch('/api/auth/signup', {
         method: 'POST',
         body: { email, password, name },
-      }) as { user: { id: string; email: string; name: string | null }; token: string }
+      }) as { user: { id: string; email: string; name: string | null; role: string }; token: string }
 
       user.value = response.user
       token.value = response.token
