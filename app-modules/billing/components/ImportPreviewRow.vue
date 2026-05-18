@@ -242,10 +242,11 @@ function formatAmount(n: number): string {
 .preview-row {
   display: grid;
   grid-template-columns: 32px minmax(160px, 1fr) 100px auto;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto 1fr;
   align-items: center;
   gap: 6px 10px;
   padding: 10px 12px;
+  min-height: 100px;
   background: rgba(255, 255, 255, 0.5);
   border: 0.5px solid rgba(60, 60, 67, 0.12);
   border-radius: 8px;

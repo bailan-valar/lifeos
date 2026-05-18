@@ -26,22 +26,20 @@
 
 <script setup lang="ts">
 import type { ImportRuleFormData, Account, BillCategory } from '~/types/bill'
-import { getNextZIndex } from '~/composables/useZIndex'
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 import ImportRuleForm from './ImportRuleForm.vue'
-
-const { isMobile } = useDevice()
-
-const overlayZIndex = ref<number | undefined>(undefined)
-onMounted(() => {
-  overlayZIndex.value = getNextZIndex()
-})
 
 const props = defineProps<{
   form: ImportRuleFormData
   accounts: Account[]
   categories: BillCategory[]
   editing?: boolean
+  visible?: boolean
 }>()
+
+const { isMobile } = useDevice()
+
+const overlayZIndex = useZIndexOnOpen(() => props.visible ?? true)
 
 const emit = defineEmits<{
   (e: 'update:form', value: ImportRuleFormData): void

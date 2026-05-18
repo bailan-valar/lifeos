@@ -43,10 +43,10 @@
         </div>
 
         <div class="drawer-footer">
-          <button class="drawer-footer-btn" type="button" @click="emit('open-settings')">
+          <NuxtLink to="/settings/general" class="drawer-footer-btn" @click="close">
             <Icon name="solar:settings-linear" size="18" />
             <span>设置</span>
-          </button>
+          </NuxtLink>
         </div>
       </nav>
     </Transition>
@@ -62,7 +62,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
-  (e: 'open-settings'): void
   (e: 'open-workspaces'): void
 }>()
 

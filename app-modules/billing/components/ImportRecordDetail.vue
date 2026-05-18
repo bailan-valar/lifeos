@@ -61,21 +61,30 @@
               </div>
 
               <div v-if="filteredItems.length === 0" class="empty-tip">当前筛选下无记录</div>
-              <div v-else class="preview-list">
-                <ImportPreviewRow
-                  v-for="item in filteredItems"
-                  :key="item.rawIndex"
-                  :row="item"
-                  :accounts="accounts"
-                  :categories="categories"
-                  :matched-rule="ruleById(item.matchedRuleId) ?? ruleById(item.paymentMethodRuleId) ?? ruleById(item.descriptionRuleId)"
-                  @update:row="(v) => onItemUpdate(item.rawIndex, v)"
-                  @save-as-rule="openRuleOverlay"
-                  @save-counterparty-rule="openCounterpartyRule"
-                  @save-payment-method-rule="openPaymentMethodRule"
-                  @save-description-rule="openDescriptionRule"
-                />
-              </div>
+              <VirtualList
+                v-else
+                :items="filteredItems"
+                :item-height="100"
+                :container-height="400"
+                :buffer="5"
+                :gap="4"
+                class="preview-list"
+              >
+                <template #default="{ item }">
+                  <ImportPreviewRow
+                    :key="item.rawIndex"
+                    :row="item"
+                    :accounts="accounts"
+                    :categories="categories"
+                    :matched-rule="ruleById(item.matchedRuleId) ?? ruleById(item.paymentMethodRuleId) ?? ruleById(item.descriptionRuleId)"
+                    @update:row="(v) => onItemUpdate(item.rawIndex, v)"
+                    @save-as-rule="openRuleOverlay"
+                    @save-counterparty-rule="openCounterpartyRule"
+                    @save-payment-method-rule="openPaymentMethodRule"
+                    @save-description-rule="openDescriptionRule"
+                  />
+                </template>
+              </VirtualList>
             </template>
 
             <!-- 已完成只读态 -->
@@ -151,6 +160,7 @@ import { useZIndexOnOpen } from '~/composables/useZIndex'
 import { useConfirm } from '~/composables/useConfirm'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
 import ImportPreviewRow from './ImportPreviewRow.vue'
+import VirtualList from './VirtualList.vue'
 
 const props = defineProps<{
   visible: boolean
@@ -713,11 +723,7 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
   font-size: 12px;
 }
 .preview-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   max-height: 50vh;
-  overflow-y: auto;
 }
 .record-items {
   display: flex;

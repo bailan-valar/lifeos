@@ -22,14 +22,13 @@
     </div>
 
     <div class="sidebar-bottom">
-      <button
+      <NuxtLink
+        to="/settings/general"
         class="sidebar-btn"
-        type="button"
         title="设置"
-        @click="emit('openSettings')"
       >
         <Icon name="solar:settings-linear" class="sidebar-btn-icon" />
-      </button>
+      </NuxtLink>
     </div>
   </nav>
 </template>
@@ -37,9 +36,6 @@
 <script setup lang="ts">
 const route = useRoute()
 const { menuNavigate } = useRouteCache()
-const emit = defineEmits<{
-  (e: 'openSettings'): void
-}>()
 
 const modules = [
   { id: 'home', label: '首页', icon: 'solar:home-linear', path: '/' },

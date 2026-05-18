@@ -1,7 +1,7 @@
 <template>
   <div class="app-root">
     <template v-if="!isAuthPage">
-      <AppSidebar v-if="!isMobile" @open-settings="classManagerVisible = true" />
+      <AppSidebar v-if="!isMobile" />
 
       <div class="app-main" :class="{ 'mobile': isMobile }">
         <!-- 桌面端 Menubar -->
@@ -60,7 +60,7 @@
       </div>
 
       <!-- 移动端左侧抽屉 -->
-      <MobileDrawer v-if="isMobile" v-model="drawerOpen" @open-settings="classManagerVisible = true" @open-workspaces="workspaceManagerVisible = true" />
+      <MobileDrawer v-if="isMobile" v-model="drawerOpen" @open-workspaces="workspaceManagerVisible = true" />
 
       <ClassManager v-if="hasWorkspace" ref="classManagerRef" v-model:visible="classManagerVisible" @created="onClassCreated" />
     </template>
@@ -154,6 +154,9 @@ const pageTitle = computed(() => {
   }
   if (route.path.startsWith('/billing/categories/')) {
     return '分类详情'
+  }
+  if (route.path.startsWith('/settings')) {
+    return '设置'
   }
   return titles[route.path] || 'LifeOS'
 })
