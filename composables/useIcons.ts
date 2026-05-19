@@ -8,7 +8,7 @@ export const ICONS = {
   textBold: 'solar:text-bold-linear',
   textItalic: 'solar:text-italic-linear',
   textUnderline: 'solar:text-underline-linear',
-  textStrikeThrough: 'solar:text-strike-through-linear',
+  textStrikeThrough: 'solar:text-cross-linear',
 
   // === 列表 ===
   list: 'solar:list-linear',

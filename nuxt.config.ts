@@ -3,6 +3,13 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
   modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt', '@vueuse/nuxt', '@nuxt/icon'],
+  icon: {
+    // 使用本地图标集，避免 CDN 加载延迟
+    clientBundle: {
+      include: ['solar'],
+      scan: true,
+    },
+  },
   ssr: false,
   app: {
     head: {
