@@ -1,5 +1,6 @@
 import { storeToRefs } from 'pinia'
 import { useChangelogStore } from '~/stores/changelog'
+import { useAuthStore } from '~/stores/auth'
 import type { Changelog, ChangelogCreateInput, ChangelogUpdateInput } from '~/types/changelog'
 
 export function useChangelog() {
@@ -64,9 +65,14 @@ export function useChangelog() {
 }
 
 export function useAdminChangelog() {
+  const authStore = useAuthStore()
+
   async function createChangelog(data: ChangelogCreateInput) {
     const response = await $fetch<{ data: Changelog }>('/api/__admin/changelog', {
       method: 'POST',
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      },
       body: data
     })
     return response.data
@@ -75,6 +81,9 @@ export function useAdminChangelog() {
   async function updateChangelog(id: string, data: ChangelogUpdateInput) {
     const response = await $fetch<{ data: Changelog }>(`/api/__admin/changelog/${id}`, {
       method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      },
       body: data
     })
     return response.data
@@ -82,7 +91,10 @@ export function useAdminChangelog() {
 
   async function deleteChangelog(id: string) {
     await $fetch(`/api/__admin/changelog/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      }
     })
   }
 

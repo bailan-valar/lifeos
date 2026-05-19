@@ -80,6 +80,7 @@
   --liquid-text-tertiary: rgba(0, 0, 0, 0.35);
   --liquid-text-primary-dark: rgba(255, 255, 255, 0.92);
   --liquid-text-secondary-dark: rgba(255, 255, 255, 0.60);
+	  --liquid-text-tertiary-dark: rgba(255, 255, 255, 0.38);
 }
 
 /* ============================================================
@@ -92,6 +93,7 @@
     --liquid-bg-thin: var(--liquid-bg-dark-thin);
     --liquid-text-primary: var(--liquid-text-primary-dark);
     --liquid-text-secondary: var(--liquid-text-secondary-dark);
+	  --liquid-text-tertiary: var(--liquid-text-tertiary-dark);
   }
 }
 
@@ -100,6 +102,7 @@
   --liquid-bg-thick: var(--liquid-bg-dark-thick);
   --liquid-bg-thin: var(--liquid-bg-dark-thin);
   --liquid-text-primary: var(--liquid-text-primary-dark);
+  --liquid-text-tertiary: var(--liquid-text-tertiary-dark);
   --liquid-text-secondary: var(--liquid-text-secondary-dark);
 }
 

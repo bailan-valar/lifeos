@@ -213,3 +213,63 @@ border-radius: var(--liquid-radius);
 深色模式通过 `@media (prefers-color-scheme: dark)` 自动切换变量值，组件无需额外处理。
 
 详细规范见 [STYLE_GUIDE.md](STYLE_GUIDE.md)
+
+## 图标使用规范
+
+项目使用 `@nuxt/icon` + `@iconify-json/solar`，Solar 图标集已本地安装。
+
+### 核心原则
+
+**禁止硬编码图标名称字符串**：必须使用 `composables/useIcons.ts` 中定义的图标常量。
+
+### 使用方式
+
+```vue
+<script setup lang="ts">
+import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
+</script>
+
+<template>
+  <!-- 方式1: 使用扁平常量 -->
+  <Icon :name="ICONS.addCircle" />
+
+  <!-- 方式2: 使用分类常量（推荐） -->
+  <Icon :name="SOLAR_ICONS.action.add" />
+  <Icon :name="SOLAR_ICONS.editor.bold" />
+  <Icon :name="SOLAR_ICONS.nav.back" />
+</template>
+```
+
+### 图标分类
+
+`SOLAR_ICONS` 按功能分类组织：
+
+| 分类 | 说明 | 示例 |
+|------|------|------|
+| `editor` | 文本编辑 | `bold`, `italic`, `underline`, `strikeThrough` |
+| `action` | 通用操作 | `add`, `edit`, `delete`, `save` |
+| `nav` | 导航箭头 | `back`, `forward`, `up`, `down` |
+| `doc` | 文档相关 | `default`, `text`, `notebook` |
+| `search` | 搜索 | `default`, `minimal` |
+| `settings` | 设置/认证 | `gear`, `login`, `logout` |
+| `status` | 状态指示 | `success`, `error`, `warning` |
+
+### 约束
+
+```html
+<!-- ❌ 错误：硬编码图标名称 -->
+<Icon name="solar:add-circle-linear" />
+<Icon :name="`solar:${iconName}-linear`" />
+
+<!-- ✅ 正确：使用常量 -->
+<Icon :name="SOLAR_ICONS.action.add" />
+<Icon :name="ICONS.addCircle" />
+```
+
+### 添加新图标
+
+1. 在 https://icones.js.org/ 搜索验证图标名称
+2. 在 `composables/useIcons.ts` 中添加常量
+3. IDE 自动在所有文件中可用
+
+详细图标列表见 [composables/useIcons.ts](composables/useIcons.ts)

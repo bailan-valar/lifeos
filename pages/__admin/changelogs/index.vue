@@ -107,10 +107,8 @@
 
                 <div class="form-group">
                   <label class="form-label">描述</label>
-                  <textarea
+                  <RichTextEditor
                     v-model="formData.description"
-                    class="liquid-glass-input"
-                    rows="4"
                     placeholder="详细描述（可选）"
                   />
                 </div>
@@ -142,6 +140,7 @@
 
 <script setup lang="ts">
 import type { Changelog, ChangelogCreateInput } from '~/types/changelog'
+import RichTextEditor from '~/components/editor/RichTextEditor.vue'
 
 definePageMeta({
   middleware: 'admin',

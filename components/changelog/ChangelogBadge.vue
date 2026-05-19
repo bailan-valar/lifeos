@@ -13,10 +13,8 @@
 <script setup lang="ts">
 const { unreadCount, markAllAsRead } = useChangelog()
 
-const dialog = computed(() => {
-  // Nuxt 会自动获取组件
-  return useState('changelog-dialog', () => false)
-})
+// Nuxt 会自动获取组件
+const dialog = useState('changelog-dialog', () => false)
 
 function openDialog() {
   dialog.value = true

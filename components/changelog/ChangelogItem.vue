@@ -2,8 +2,8 @@
   <div class="changelog-item">
     <span class="type-badge" :class="`type-${type}`">{{ typeLabel }}</span>
     <div class="item-content">
-      <h4 class="item-title">{{ title }}</h4>
-      <p v-if="description" class="item-description">{{ description }}</p>
+      <h4 class="item-title">{{ item.title }}</h4>
+      <p v-if="item.description" class="item-description">{{ item.description }}</p>
     </div>
   </div>
 </template>
