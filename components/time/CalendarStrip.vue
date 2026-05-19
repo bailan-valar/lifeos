@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import type { Bill } from '~/types/bill'
+import { add } from '~/utils/decimal'
 
 const props = defineProps<{
   year: number
@@ -76,9 +77,9 @@ const billsByDate = computed(() => {
     }
     const entry = map.get(dateStr)!
     if (bill.type === 'income' && bill.status === 'completed') {
-      entry.income += bill.amount
+      entry.income = add(entry.income, bill.amount)
     } else if (bill.type === 'expense' && bill.status === 'completed') {
-      entry.expense += bill.amount
+      entry.expense = add(entry.expense, bill.amount)
     }
   }
   return map

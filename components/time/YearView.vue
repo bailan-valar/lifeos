@@ -66,6 +66,7 @@
 
 <script setup lang="ts">
 import type { Bill, CategoryTreeNode } from '~/types/bill'
+import { add, div } from '~/utils/decimal'
 
 const props = defineProps<{
   year: number
@@ -105,15 +106,15 @@ async function refresh() {
 
   const byCategory = new Map<string, number>()
   for (const b of bills) {
-    byCategory.set(b.categoryId, (byCategory.get(b.categoryId) || 0) + b.amount)
+    byCategory.set(b.categoryId, add(byCategory.get(b.categoryId) || 0, b.amount))
   }
 
   function calcActual(node: CategoryTreeNode): number {
-    let sum = byCategory.get(node.id) || 0
+    let s = byCategory.get(node.id) || 0
     for (const child of node.children) {
-      sum += calcActual(child)
+      s = add(s, calcActual(child))
     }
-    return sum
+    return s
   }
 
   const tree = buildTree('expense')
@@ -122,7 +123,7 @@ async function refresh() {
   for (const node of tree) {
     let budget = 0
     for (let month = 1; month <= 12; month++) {
-      budget += getMonthlyEquivalent(node.id, props.year, month)
+      budget = add(budget, getMonthlyEquivalent(node.id, props.year, month))
     }
     const actual = calcActual(node)
     if (budget > 0 || actual > 0) {
@@ -131,7 +132,7 @@ async function refresh() {
         name: node.name,
         budget,
         actual,
-        percentage: budget > 0 ? actual / budget : 0
+        percentage: budget > 0 ? div(actual, budget) : 0
       })
     }
   }

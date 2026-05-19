@@ -4,6 +4,7 @@
  */
 import type { Goal, ProgressLog, ProgressStatistics, GoalFormData, ProgressRecordFormData, GoalFilter } from '~/types/goal'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { add, sub, mul, div, round } from '~/utils/decimal'
 
 /**
  * 目标进度追踪 Composable
@@ -149,7 +150,7 @@ export function useGoalProgress() {
     }
 
     const goal = goalDoc.toJSON() as Goal
-    const newProgress = goal.currentProgress + data.amount
+    const newProgress = add(goal.currentProgress, data.amount)
 
     await goalDoc.patch({
       currentProgress: newProgress,
@@ -179,27 +180,27 @@ export function useGoalProgress() {
     const remainingDays = getDayDiff(today, goal.endDate)
 
     // 进度百分比
-    const percentage = goal.target > 0 ? (goal.currentProgress / goal.target) * 100 : 0
+    const percentage = goal.target > 0 ? round(mul(div(goal.currentProgress, goal.target), 100), 10) : 0
 
     // 期望进度（基于时间比例）
-    const timeProgressRatio = Math.max(0, Math.min(1, elapsedDays / totalDays))
-    const expectedProgress = goal.target * timeProgressRatio
+    const timeProgressRatio = Math.max(0, Math.min(1, div(elapsedDays, totalDays)))
+    const expectedProgress = mul(goal.target, timeProgressRatio)
 
     // 进度状态
     let progressStatus: 'behind' | 'on_track' | 'ahead' | 'completed'
     if (percentage >= 100) {
       progressStatus = 'completed'
-    } else if (goal.currentProgress < expectedProgress * 0.9) {
+    } else if (goal.currentProgress < mul(expectedProgress, 0.9)) {
       progressStatus = 'behind'
-    } else if (goal.currentProgress > expectedProgress * 1.1) {
+    } else if (goal.currentProgress > mul(expectedProgress, 1.1)) {
       progressStatus = 'ahead'
     } else {
       progressStatus = 'on_track'
     }
 
     // 每日平均值
-    const dailyAverageRequired = remainingDays > 0 ? (goal.target - goal.currentProgress) / remainingDays : 0
-    const dailyAverageActual = elapsedDays > 0 ? goal.currentProgress / elapsedDays : 0
+    const dailyAverageRequired = remainingDays > 0 ? round(div(sub(goal.target, goal.currentProgress), remainingDays), 10) : 0
+    const dailyAverageActual = elapsedDays > 0 ? round(div(goal.currentProgress, elapsedDays), 10) : 0
 
     return {
       current: goal.currentProgress,

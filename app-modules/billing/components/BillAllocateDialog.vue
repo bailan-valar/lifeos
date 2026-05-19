@@ -109,6 +109,7 @@
 import type { Bill, BillAllocateItem } from '~/types/bill'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import Decimal from 'decimal.js'
+import { sum, eq } from '~/utils/decimal'
 
 const props = defineProps<{
   visible: boolean
@@ -125,12 +126,12 @@ const monthCount = ref(3)
 const allocateItems = ref<BillAllocateItem[]>([])
 
 const totalAllocated = computed(() =>
-  allocateItems.value.reduce((sum, item) => sum.plus(item.amount || 0), new Decimal(0)).toNumber()
+  sum(allocateItems.value.map(item => item.amount || 0))
 )
 
 const isTotalValid = computed(() => {
   if (!props.bill) return false
-  return Math.abs(totalAllocated.value - props.bill.amount) < 0.01
+  return eq(totalAllocated.value, props.bill.amount, 0.01)
 })
 
 function formatAmount(amount: number) {
