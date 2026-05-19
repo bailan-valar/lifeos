@@ -28,13 +28,38 @@ export function verifyToken(token: string): JWTPayload | null {
 }
 
 export async function getUserFromToken(token: string): Promise<User | null> {
-  const payload = verifyToken(token)
-  if (!payload) return null
+  // 首先尝试 JWT token
+  const jwtPayload = verifyToken(token)
+  if (jwtPayload) {
+    const { prisma } = await import('./db')
+    return prisma.user.findUnique({
+      where: { id: jwtPayload.userId },
+    })
+  }
 
+  // 尝试 API Token
   const { prisma } = await import('./db')
-  return prisma.user.findUnique({
-    where: { id: payload.userId },
+  const apiToken = await prisma.apiToken.findUnique({
+    where: { token },
+    include: { user: true },
   })
+
+  if (!apiToken) {
+    return null
+  }
+
+  // 检查是否过期
+  if (apiToken.expiresAt && new Date(apiToken.expiresAt) < new Date()) {
+    return null
+  }
+
+  // 更新最后使用时间
+  await prisma.apiToken.update({
+    where: { id: apiToken.id },
+    data: { lastUsedAt: new Date() },
+  })
+
+  return apiToken.user
 }
 
 export async function requireAdmin(token: string): Promise<User> {

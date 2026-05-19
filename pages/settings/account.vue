@@ -81,6 +81,19 @@
                 <span class="toggle-knob" />
               </button>
             </div>
+
+            <div class="setting-divider" />
+
+            <NuxtLink to="/settings/api" class="setting-row clickable">
+              <div class="setting-info">
+                <Icon name="solar:key-minimalistic-square-linear" class="setting-icon" />
+                <div class="setting-text">
+                  <div class="setting-name">API Token</div>
+                  <div class="setting-desc">管理 API 调用令牌</div>
+                </div>
+              </div>
+              <Icon name="solar:alt-arrow-right-linear" class="row-chevron" />
+            </NuxtLink>
           </div>
         </div>
 

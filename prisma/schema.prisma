@@ -23,6 +23,7 @@ model User {
   feedbacks        Feedback[]
   repliedFeedbacks Feedback[]      @relation("FeedbackReplier")
   feedbackReplies  FeedbackReply[]
+  apiTokens        ApiToken[]
 }
 
 model Session {
@@ -71,4 +72,19 @@ model FeedbackReply {
 
   @@index([feedbackId])
   @@index([createdAt])
+}
+
+model ApiToken {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  token       String   @unique
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
 }
