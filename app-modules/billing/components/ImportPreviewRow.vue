@@ -89,15 +89,14 @@
         @update:model-value="updateField('categoryId', $event)"
       />
 
-      <select
+      <SelectPicker
         v-if="showDebtSubtype"
-        class="liquid-glass-select"
-        :value="row.debtSubtype"
-        @change="updateField('debtSubtype', ($event.target as HTMLSelectElement).value as DebtSubtype)"
-      >
-        <option value="lend">借出</option>
-        <option value="borrow">借入</option>
-      </select>
+        :model-value="row.debtSubtype ?? null"
+        :options="debtSubtypeOptions"
+        placeholder="借贷类型"
+        class="compact-picker"
+        @update:model-value="updateField('debtSubtype', $event as DebtSubtype)"
+      />
 
       <AccountPicker
         v-if="showFrom"
@@ -157,6 +156,11 @@ const typeOptions: { value: BillType; label: string }[] = [
   { value: 'expense', label: '支出' },
   { value: 'transfer', label: '转账' },
   { value: 'debt', label: '借贷' }
+]
+
+const debtSubtypeOptions = [
+  { value: 'lend' as const, label: '借出' },
+  { value: 'borrow' as const, label: '借入' }
 ]
 
 const relevantCategories = computed(() => {

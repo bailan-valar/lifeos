@@ -72,3 +72,17 @@ model FeedbackReply {
   @@index([feedbackId])
   @@index([createdAt])
 }
+
+model Changelog {
+  id          String   @id @default(cuid())
+  version     String
+  type        String
+  title       String
+  description String   @db.Text
+  releaseDate DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([version])
+  @@index([releaseDate])
+}

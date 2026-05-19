@@ -82,15 +82,19 @@
               <Icon name="solar:alt-arrow-up-linear" size="12" />
             </button>
             <input
+              ref="hourInputRef"
               type="text"
               class="time-input"
               :value="hourText"
               maxlength="2"
               inputmode="numeric"
-              @input="onHourInput"
+              @focus="onHourFocus"
+              @click="onHourClick"
               @blur="onHourBlur"
+              @keydown="onHourKeydown"
               @keydown.up.prevent="stepHour(1)"
               @keydown.down.prevent="stepHour(-1)"
+              @keydown.right.prevent="focusMinuteInput"
             />
             <button type="button" class="step-btn" @click="stepHour(-1)">
               <Icon name="solar:alt-arrow-down-linear" size="12" />
@@ -102,15 +106,19 @@
               <Icon name="solar:alt-arrow-up-linear" size="12" />
             </button>
             <input
+              ref="minuteInputRef"
               type="text"
               class="time-input"
               :value="minuteText"
               maxlength="2"
               inputmode="numeric"
-              @input="onMinuteInput"
+              @focus="onMinuteFocus"
+              @click="onMinuteClick"
               @blur="onMinuteBlur"
+              @keydown="onMinuteKeydown"
               @keydown.up.prevent="stepMinute(props.minuteStep || 1)"
               @keydown.down.prevent="stepMinute(-(props.minuteStep || 1))"
+              @keydown.left.prevent="focusHourInput"
             />
             <button type="button" class="step-btn" @click="stepMinute(-(props.minuteStep || 1))">
               <Icon name="solar:alt-arrow-down-linear" size="12" />
@@ -290,6 +298,8 @@ function getPrevDigitPosition(pos: number): number {
 const open = ref(false)
 const triggerRef = ref<HTMLElement>()
 const inputRef = ref<HTMLInputElement>()
+const hourInputRef = ref<HTMLInputElement>()
+const minuteInputRef = ref<HTMLInputElement>()
 const panelRef = ref<HTMLElement>()
 const panelStyle = ref<Record<string, string>>({})
 const inputText = ref('')
@@ -555,6 +565,155 @@ function openPanel() {
   })
 }
 
+/* ---------- 时分输入（单数字选中替换模式） ---------- */
+function focusHourInput() {
+  hourInputRef.value?.focus()
+}
+
+function focusMinuteInput() {
+  minuteInputRef.value?.focus()
+}
+
+function selectDigit(input: HTMLInputElement, pos: 0 | 1) {
+  input.setSelectionRange(pos, pos + 1)
+}
+
+function onHourFocus(e: FocusEvent) {
+  const input = e.target as HTMLInputElement
+  nextTick(() => {
+    // 选中第一个数字
+    selectDigit(input, 0)
+  })
+}
+
+function onMinuteFocus(e: FocusEvent) {
+  const input = e.target as HTMLInputElement
+  nextTick(() => {
+    // 选中第一个数字
+    selectDigit(input, 0)
+  })
+}
+
+function onHourKeydown(e: KeyboardEvent) {
+  const input = e.target as HTMLInputElement
+  if (!/^\d$/.test(e.key)) return
+
+  // 获取当前选中的数字位置
+  const selectionStart = input.selectionStart ?? 0
+  const pos: 0 | 1 = selectionStart === 0 ? 0 : 1
+
+  // 阻止默认输入
+  e.preventDefault()
+
+  // 构建新的小时值
+  const currentHour = pad2(selectedHour.value)
+  const newHourStr = currentHour.slice(0, pos) + e.key + currentHour.slice(pos + 1)
+  const newHour = parseInt(newHourStr, 10)
+
+  if (Number.isFinite(newHour)) {
+    selectedHour.value = clampInt(newHour, 0, 23)
+    refreshInputText()
+  }
+
+  // 恢复显示并选中下一个数字
+  nextTick(() => {
+    if (hourInputRef.value) {
+      hourInputRef.value.value = pad2(selectedHour.value)
+      if (pos === 0) {
+        // 选中第二个数字
+        selectDigit(hourInputRef.value, 1)
+      } else {
+        // 两位都输入完了，跳到分钟输入框
+        focusMinuteInput()
+      }
+    }
+  })
+}
+
+function onHourBlur(e: Event) {
+  const input = e.target as HTMLInputElement
+  const raw = input.value.replace(/\D/g, '')
+  const n = raw ? parseInt(raw, 10) : 0
+  selectedHour.value = clampInt(Number.isFinite(n) ? n : 0, 0, 23)
+  refreshInputText()
+}
+
+function onMinuteKeydown(e: KeyboardEvent) {
+  const input = e.target as HTMLInputElement
+  if (!/^\d$/.test(e.key)) return
+
+  // 获取当前选中的数字位置
+  const selectionStart = input.selectionStart ?? 0
+  const pos: 0 | 1 = selectionStart === 0 ? 0 : 1
+
+  // 阻止默认输入
+  e.preventDefault()
+
+  // 构建新的分钟值
+  const currentMinute = pad2(selectedMinute.value)
+  const newMinuteStr = currentMinute.slice(0, pos) + e.key + currentMinute.slice(pos + 1)
+  const newMinute = parseInt(newMinuteStr, 10)
+
+  if (Number.isFinite(newMinute)) {
+    selectedMinute.value = clampInt(newMinute, 0, 59)
+    refreshInputText()
+  }
+
+  // 恢复显示并选中下一个数字
+  nextTick(() => {
+    if (minuteInputRef.value) {
+      minuteInputRef.value.value = pad2(selectedMinute.value)
+      if (pos === 0) {
+        // 选中第二个数字
+        selectDigit(minuteInputRef.value, 1)
+      }
+      // 两位都输入完，保持选中（等待用户确认）
+    }
+  })
+}
+
+function onMinuteBlur(e: Event) {
+  const input = e.target as HTMLInputElement
+  const raw = input.value.replace(/\D/g, '')
+  const n = raw ? parseInt(raw, 10) : 0
+  selectedMinute.value = clampInt(Number.isFinite(n) ? n : 0, 0, 59)
+  refreshInputText()
+}
+
+function onHourClick(e: MouseEvent) {
+  const input = e.target as HTMLInputElement
+  const pos = input.selectionStart ?? 0
+  nextTick(() => {
+    // 根据点击位置选中对应数字
+    selectDigit(input, (pos === 0 ? 0 : 1) as 0 | 1)
+  })
+}
+
+function onMinuteClick(e: MouseEvent) {
+  const input = e.target as HTMLInputElement
+  const pos = input.selectionStart ?? 0
+  nextTick(() => {
+    // 根据点击位置选中对应数字
+    selectDigit(input, (pos === 0 ? 0 : 1) as 0 | 1)
+  })
+}
+
+function stepHour(delta: number) {
+  let h = selectedHour.value + delta
+  if (h < 0) h = 23
+  if (h > 23) h = 0
+  selectedHour.value = h
+  refreshInputText()
+}
+
+function stepMinute(delta: number) {
+  let m = selectedMinute.value + delta
+  while (m < 0) m += 60
+  while (m >= 60) m -= 60
+  selectedMinute.value = m
+  refreshInputText()
+}
+
 function close() {
   if (!open.value) return
   emitCurrent()
@@ -639,57 +798,6 @@ function pickDay(cell: CalCell) {
     viewYear.value = cell.year
     viewMonth.value = cell.month
   }
-  refreshInputText()
-}
-
-/* ---------- 时分 ---------- */
-function stepHour(delta: number) {
-  let h = selectedHour.value + delta
-  if (h < 0) h = 23
-  if (h > 23) h = 0
-  selectedHour.value = h
-  refreshInputText()
-}
-
-function stepMinute(delta: number) {
-  let m = selectedMinute.value + delta
-  while (m < 0) m += 60
-  while (m >= 60) m -= 60
-  selectedMinute.value = m
-  refreshInputText()
-}
-
-function onHourInput(e: Event) {
-  const raw = (e.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 2)
-  if (!raw) return
-  const n = parseInt(raw, 10)
-  if (Number.isFinite(n)) {
-    selectedHour.value = clampInt(n, 0, 23)
-    refreshInputText()
-  }
-}
-
-function onHourBlur(e: Event) {
-  const raw = (e.target as HTMLInputElement).value.replace(/\D/g, '')
-  const n = raw ? parseInt(raw, 10) : 0
-  selectedHour.value = clampInt(Number.isFinite(n) ? n : 0, 0, 23)
-  refreshInputText()
-}
-
-function onMinuteInput(e: Event) {
-  const raw = (e.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 2)
-  if (!raw) return
-  const n = parseInt(raw, 10)
-  if (Number.isFinite(n)) {
-    selectedMinute.value = clampInt(n, 0, 59)
-    refreshInputText()
-  }
-}
-
-function onMinuteBlur(e: Event) {
-  const raw = (e.target as HTMLInputElement).value.replace(/\D/g, '')
-  const n = raw ? parseInt(raw, 10) : 0
-  selectedMinute.value = clampInt(Number.isFinite(n) ? n : 0, 0, 59)
   refreshInputText()
 }
 
@@ -977,9 +1085,13 @@ loadFromValue()
   color: rgba(0, 0, 0, 0.92);
   font-feature-settings: 'tnum';
   outline: none;
+  transition: border-color 0.15s ease;
 }
 .time-input:focus {
   border-color: rgb(0, 122, 255);
+}
+.time-input::selection {
+  background: rgba(0, 122, 255, 0.2);
 }
 .time-colon {
   font-size: 18px;

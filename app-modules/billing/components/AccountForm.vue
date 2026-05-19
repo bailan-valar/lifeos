@@ -117,11 +117,11 @@
 
     <div class="form-group">
       <label class="form-label">币种</label>
-      <select v-model="form.currency" class="liquid-glass-select">
-        <option value="CNY">CNY</option>
-        <option value="USD">USD</option>
-        <option value="EUR">EUR</option>
-      </select>
+      <SelectPicker
+        v-model="form.currency"
+        :options="currencyOptions"
+        placeholder="选择币种"
+      />
     </div>
   </div>
 </template>
@@ -184,6 +184,12 @@ const presetColors = [
   '#5AC8FA',
   '#FFCC00',
   '#8E8E93'
+]
+
+const currencyOptions = [
+  { value: 'CNY', label: 'CNY' },
+  { value: 'USD', label: 'USD' },
+  { value: 'EUR', label: 'EUR' }
 ]
 
 const form = computed({

@@ -13,11 +13,11 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">账单类型</label>
-        <select v-model="form.type" class="liquid-glass-select">
-          <option v-for="t in typeOptions" :key="t.value" :value="t.value">
-            {{ t.label }}
-          </option>
-        </select>
+        <SelectPicker
+          v-model="form.type"
+          :options="typeOptions"
+          placeholder="选择类型"
+        />
       </div>
 
       <div v-if="form.type === 'income' || form.type === 'expense'" class="form-group">
@@ -32,11 +32,11 @@
       </div>
       <div v-else-if="form.type === 'debt'" class="form-group">
         <label class="form-label">借贷类型</label>
-        <select v-model="form.debtSubtype" class="liquid-glass-select">
-          <option v-for="t in debtOptions" :key="t.value" :value="t.value">
-            {{ t.label }}
-          </option>
-        </select>
+        <SelectPicker
+          v-model="form.debtSubtype"
+          :options="debtOptions"
+          placeholder="选择借贷类型"
+        />
       </div>
     </div>
 
@@ -44,11 +44,12 @@
       <label class="form-label">金额</label>
       <div class="amount-row">
         <AmountInput v-model="form.amount" class="amount-input" />
-        <select v-model="form.currency" class="liquid-glass-select currency-select">
-          <option value="CNY">CNY</option>
-          <option value="USD">USD</option>
-          <option value="EUR">EUR</option>
-        </select>
+        <SelectPicker
+          v-model="form.currency"
+          :options="currencyOptions"
+          placeholder="币种"
+          class="currency-select"
+        />
       </div>
     </div>
 
@@ -117,6 +118,12 @@ const debtOptions = [
   { value: 'borrow' as DebtSubtype, label: '借入' }
 ]
 
+const currencyOptions = [
+  { value: 'CNY', label: 'CNY' },
+  { value: 'USD', label: 'USD' },
+  { value: 'EUR', label: 'EUR' }
+]
+
 const form = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v)
@@ -172,7 +179,8 @@ const sameAccountWarning = computed(() =>
   flex: 1;
 }
 .currency-select {
-  min-width: 80px;
+  width: 90px;
+  flex-shrink: 0;
 }
 .account-row {
   display: grid;

@@ -10,12 +10,16 @@
         </div>
       </div>
       <div class="generate-controls">
-        <select v-model.number="genYear" class="liquid-glass-select">
-          <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}年</option>
-        </select>
-        <select v-model.number="genMonth" class="liquid-glass-select">
-          <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
-        </select>
+        <SelectPicker
+          v-model="genYear"
+          :options="yearSelectOptions"
+          placeholder="选择年份"
+        />
+        <SelectPicker
+          v-model="genMonth"
+          :options="monthOptions"
+          placeholder="选择月份"
+        />
         <button type="button" class="generate-btn" @click="$emit('generate', genYear, genMonth)">
           <Icon name="solar:refresh-linear" size="14" />
           生成账单
@@ -82,6 +86,17 @@ const genMonth = ref(now.getMonth() + 1)
 const yearOptions = computed(() => {
   const current = now.getFullYear()
   return [current - 1, current, current + 1]
+})
+
+const yearSelectOptions = computed(() => {
+  return yearOptions.value.map(y => ({ value: y, label: `${y}年` }))
+})
+
+const monthOptions = computed(() => {
+  return Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: `${i + 1}月`
+  }))
 })
 
 function pad(n: number): string {

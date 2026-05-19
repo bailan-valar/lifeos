@@ -71,6 +71,7 @@
 
     <ToastContainer />
     <ConfirmDialog />
+    <ChangelogDialog />
 
     <WorkspaceOnboarding v-if="!hasWorkspace && !isAuthPage" @created="onWorkspaceCreated" />
 
@@ -87,8 +88,10 @@ import WorkspaceOnboarding from '~/components/workspace/WorkspaceOnboarding.vue'
 import WorkspaceManagerDialog from '~/components/workspace/WorkspaceManagerDialog.vue'
 import MobileDrawer from '~/components/layout/MobileDrawer.vue'
 import GlobalFab from '~/components/layout/GlobalFab.vue'
+import ChangelogDialog from '~/components/changelog/ChangelogDialog.vue'
 import { useWorkspaceStore } from '~/stores/workspace'
 import { usePageHeaderStore } from '~/stores/pageHeader'
+import { useChangelog } from '~/composables/useChangelog'
 import { stopSync } from '~/services/sync'
 import { listLoadedWorkspaceIds } from '~/services/db'
 import { useGoalShortcut } from '~/composables/useGoalShortcut'
@@ -162,6 +165,7 @@ const pageTitle = computed(() => {
 })
 
 const { isMobile } = useDevice()
+const { fetchChangelogs } = useChangelog()
 const hasWorkspace = computed(() => workspaceStore.list.length > 0)
 const isAuthPage = computed(() => route.path === '/login' || route.path === '/signup')
 const isHomePage = computed(() => route.path === '/')
@@ -193,6 +197,7 @@ if (import.meta.client) {
   window.addEventListener('beforeunload', onBeforeUnload)
   window.addEventListener('click', onWindowClick)
   registerShortcut()
+  fetchChangelogs().catch(() => {})
 }
 
 onBeforeUnmount(() => {

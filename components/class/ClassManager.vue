@@ -148,11 +148,11 @@
                       class="form-input"
                       placeholder="字段名称"
                     />
-                    <select v-model="newField.type" class="liquid-glass-select">
-                      <option v-for="(label, type) in typeLabels" :key="type" :value="type">
-                        {{ label }}
-                      </option>
-                    </select>
+                    <SelectPicker
+                      v-model="newField.type"
+                      :options="fieldTypeOptions"
+                      placeholder="选择类型"
+                    />
                   </div>
                   <div v-if="newField.type === 'select' || newField.type === 'multiSelect'" class="form-group">
                     <label>选项（用逗号分隔）</label>
@@ -250,6 +250,8 @@ const typeLabels: Record<string, string> = {
   url: '链接',
   email: '邮箱'
 }
+
+const fieldTypeOptions = Object.entries(typeLabels).map(([value, label]) => ({ value, label }))
 
 const presetIcons = [
   'solar:document-text-linear',

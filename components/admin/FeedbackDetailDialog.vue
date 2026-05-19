@@ -150,12 +150,11 @@
         <div class="status-section">
           <div class="form-group">
             <label class="form-label">状态</label>
-            <select v-model="formData.status" class="liquid-glass-select">
-              <option value="pending">待处理</option>
-              <option value="in_progress">处理中</option>
-              <option value="resolved">已解决</option>
-              <option value="closed">已关闭</option>
-            </select>
+            <SelectPicker
+              v-model="formData.status"
+              :options="statusOptions"
+              placeholder="选择状态"
+            />
           </div>
         </div>
 
@@ -287,6 +286,14 @@ const isUpdatingReply = ref(false)
 const formData = ref({
   status: props.feedback.status,
 })
+
+// 状态选项
+const statusOptions = [
+  { value: 'pending', label: '待处理' },
+  { value: 'in_progress', label: '处理中' },
+  { value: 'resolved', label: '已解决' },
+  { value: 'closed', label: '已关闭' }
+]
 
 // 关闭弹窗
 const close = () => {

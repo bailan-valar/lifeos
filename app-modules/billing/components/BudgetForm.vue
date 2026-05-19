@@ -42,9 +42,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">生效月份</label>
-        <select v-model.number="form.effectiveFromMonth" class="liquid-glass-select">
-          <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
-        </select>
+        <SelectPicker
+          v-model.number="form.effectiveFromMonth"
+          :options="monthOptions"
+          placeholder="选择月份"
+        />
       </div>
     </div>
 
@@ -81,6 +83,11 @@ const cycleOptions = [
   { value: 'monthly' as const, label: '月预算' },
   { value: 'yearly' as const, label: '年预算' }
 ]
+
+const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+  value: i + 1,
+  label: `${i + 1}月`
+}))
 
 const form = computed({
   get: () => props.modelValue,

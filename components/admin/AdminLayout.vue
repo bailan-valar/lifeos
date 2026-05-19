@@ -42,6 +42,7 @@ const navItems = [
   { id: 'dashboard', label: '仪表盘', path: '/', icon: 'solar:widget-linear' },
   { id: 'users', label: '用户管理', path: '/users', icon: 'solar:users-group-rounded-linear' },
   { id: 'feedbacks', label: '反馈管理', path: '/feedbacks', icon: 'solar:chat-square-linear' },
+  { id: 'changelogs', label: '更新日志', path: '/changelogs', icon: 'solar:document-text-linear' },
 ]
 
 const isActive = (path: string) => {

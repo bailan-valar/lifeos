@@ -32,10 +32,11 @@
 
         <div class="form-group">
           <label class="form-label">角色</label>
-          <select v-model="formData.role" class="liquid-glass-select">
-            <option value="user">普通用户</option>
-            <option value="admin">管理员</option>
-          </select>
+          <SelectPicker
+            v-model="formData.role"
+            :options="roleOptions"
+            placeholder="选择角色"
+          />
           <p v-if="isSelf && formData.role !== 'admin'" class="form-hint warning">
             警告：您不能修改自己的管理员角色
           </p>
@@ -70,6 +71,12 @@ const emit = defineEmits(['close', 'saved'])
 const isOpen = ref(true)
 const isLoading = ref(false)
 const authStore = useAuthStore()
+
+// 角色选项
+const roleOptions = [
+  { value: 'user', label: '普通用户' },
+  { value: 'admin', label: '管理员' }
+]
 
 // 检查是否为自己
 const isSelf = computed(() => {

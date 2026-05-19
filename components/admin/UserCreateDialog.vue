@@ -70,10 +70,11 @@
 
         <div class="form-group">
           <label class="form-label">角色</label>
-          <select v-model="formData.role" class="liquid-glass-select">
-            <option value="user">普通用户</option>
-            <option value="admin">管理员</option>
-          </select>
+          <SelectPicker
+            v-model="formData.role"
+            :options="roleOptions"
+            placeholder="选择角色"
+          />
         </div>
 
         <div class="dialog-actions">
@@ -100,6 +101,12 @@ const isOpen = ref(true)
 const isLoading = ref(false)
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+
+// 角色选项
+const roleOptions = [
+  { value: 'user', label: '普通用户' },
+  { value: 'admin', label: '管理员' }
+]
 
 // 表单数据
 const formData = ref({

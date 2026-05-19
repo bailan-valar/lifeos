@@ -22,6 +22,7 @@
     </div>
 
     <div class="sidebar-bottom">
+      <ChangelogBadge />
       <NuxtLink
         to="/settings/general"
         class="sidebar-btn"
@@ -34,6 +35,8 @@
 </template>
 
 <script setup lang="ts">
+import ChangelogBadge from '~/components/changelog/ChangelogBadge.vue'
+
 const route = useRoute()
 const { menuNavigate } = useRouteCache()
 const authStore = useAuthStore()
