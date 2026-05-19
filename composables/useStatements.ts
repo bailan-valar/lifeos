@@ -1,5 +1,6 @@
 import type { Bill, Account, Statement, StatementFormData } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { sum, mul, round } from '~/utils/decimal'
 
 let _store: StatementsStore | null = null
 let _unsub: (() => void) | null = null
@@ -156,8 +157,8 @@ function createStore(): StatementsStore {
       b.date.slice(0, 10) >= start &&
       b.date.slice(0, 10) <= end
     )
-    const stmtAmount = periodBills.reduce((sum, b) => sum + b.amount, 0)
-    const minPayment = Math.round(stmtAmount * 0.1 * 100) / 100
+    const stmtAmount = sum(periodBills.map(b => b.amount))
+    const minPayment = round(mul(stmtAmount, 0.1), 2)
 
     const existing = statements.value.find(s =>
       s.accountId === account.id && s.year === year && s.month === month

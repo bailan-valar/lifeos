@@ -138,6 +138,7 @@
 
 <script setup lang="ts">
 import type { Bill, BillCategory } from '~/types/bill'
+import { sum, div, mul } from '~/utils/decimal'
 import BillList from './BillList.vue'
 import BillDialog from './BillDialog.vue'
 
@@ -218,9 +219,9 @@ const filteredBills = computed(() => {
 
 // 统计
 const totalAmount = computed(() =>
-  filteredBills.value
+  sum(filteredBills.value
     .filter(b => b.type === category.value?.type && b.status === 'completed')
-    .reduce((sum, b) => sum + b.amount, 0)
+    .map(b => b.amount))
 )
 
 const monthlyAverage = computed(() => {
@@ -228,14 +229,14 @@ const monthlyAverage = computed(() => {
   if (count === 0) return 0
   // 如果按年筛选，月均 = 总金额 / 12；如果按月筛选，月均 = 总金额；否则按有账单月份数平均
   if (yearFilter.value !== null && monthFilter.value === null) {
-    return totalAmount.value / 12
+    return div(totalAmount.value, 12)
   }
   if (monthFilter.value !== null) {
     return totalAmount.value
   }
   // 计算有账单的独立月份数
   const months = new Set(filteredBills.value.map(b => b.date.slice(0, 7)))
-  return months.size > 0 ? totalAmount.value / months.size : 0
+  return months.size > 0 ? div(totalAmount.value, months.size) : 0
 })
 
 const budgetUsage = computed(() => {
@@ -245,10 +246,10 @@ const budgetUsage = computed(() => {
   const month = monthFilter.value ?? now.getMonth() + 1
   const monthlyBudget = getMonthlyEquivalent(category.value.id, year, month)
   if (monthlyBudget <= 0) return null
-  const actual = filteredBills.value
+  const actual = sum(filteredBills.value
     .filter(b => b.type === 'expense' && b.status === 'completed')
-    .reduce((sum, b) => sum + b.amount, 0)
-  return (actual / monthlyBudget) * 100
+    .map(b => b.amount))
+  return mul(div(actual, monthlyBudget), 100)
 })
 
 // 加载数据

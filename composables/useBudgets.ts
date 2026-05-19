@@ -1,5 +1,6 @@
 import type { BudgetEntry, BudgetFormData, BudgetCycleType } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { div } from '~/utils/decimal'
 import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 interface BudgetsStore {
@@ -197,7 +198,7 @@ function createStore(): BudgetsStore {
   function getMonthlyEquivalent(categoryId: string, year: number, month: number, noteId?: string): number {
     const config = resolveBudget(categoryId, year, month, noteId)
     if (!config) return 0
-    if (config.cycleType === 'yearly') return config.amount / 12
+    if (config.cycleType === 'yearly') return div(config.amount, 12)
     return config.amount
   }
 

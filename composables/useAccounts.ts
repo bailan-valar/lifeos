@@ -1,5 +1,6 @@
 import type { Account, AccountFormData } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { add } from '~/utils/decimal'
 
 let _store: AccountsStore | null = null
 let _unsub: (() => void) | null = null
@@ -144,7 +145,7 @@ function createStore(): AccountsStore {
     const db = await getDB()
     const doc = await db.accounts.findOne(id).exec()
     if (!doc) return
-    const newBalance = (doc.get('balance') as number) + delta
+    const newBalance = add(doc.get('balance') as number, delta)
     await doc.patch({ balance: newBalance, updatedAt: now() })
     const idx = accounts.value.findIndex(a => a.id === id)
     if (idx !== -1) {

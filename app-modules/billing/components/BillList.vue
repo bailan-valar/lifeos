@@ -143,6 +143,7 @@
 import type { Bill, BillType } from '~/types/bill'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useAccounts } from '~/composables/useAccounts'
+import { sum, sub, max } from '~/utils/decimal'
 
 const props = defineProps<{
   bills: Bill[]
@@ -204,7 +205,7 @@ const refundBillsMap = computed(() => {
 const refundTotalMap = computed(() => {
   const map = new Map<string, number>()
   for (const [billId, refunds] of refundBillsMap.value.entries()) {
-    const total = refunds.reduce((sum, r) => sum + r.amount, 0)
+    const total = sum(refunds.map(r => r.amount))
     map.set(billId, total)
   }
   return map
@@ -305,7 +306,7 @@ function displayAmount(bill: Bill): number {
   if (bill.isRefund) return bill.amount
   const refundTotal = refundTotalMap.value.get(bill.id)
   if (!refundTotal) return bill.amount
-  return Math.max(0, bill.amount - refundTotal)
+  return max(0, sub(bill.amount, refundTotal))
 }
 </script>
 

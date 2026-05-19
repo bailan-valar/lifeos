@@ -48,17 +48,17 @@ const progress = computed(() => {
   let totalBudget = 0
   const expenseCats = categories.value.filter(c => c.type === 'expense')
   for (const cat of expenseCats) {
-    totalBudget += getMonthlyEquivalent(cat.id, year, month, props.noteId)
+    totalBudget = add(totalBudget, getMonthlyEquivalent(cat.id, year, month, props.noteId))
   }
 
-  const actualExpense = bills.value
+  const actualExpense = sum(bills.value
     .filter(b => b.type === 'expense' && b.status === 'completed' && b.date.startsWith(prefix))
-    .reduce((sum, b) => sum + b.amount, 0)
+    .map(b => b.amount))
 
   const hasBudget = totalBudget > 0
   const isOver = hasBudget && actualExpense > totalBudget
-  const percentage = hasBudget ? Math.min(actualExpense / totalBudget, 1) : 0
-  const rawPercentage = hasBudget ? actualExpense / totalBudget : 0
+  const percentage = hasBudget ? Math.min(div(actualExpense, totalBudget), 1) : 0
+  const rawPercentage = hasBudget ? div(actualExpense, totalBudget) : 0
 
   return { totalBudget, actualExpense, percentage, rawPercentage, isOver, hasBudget }
 })

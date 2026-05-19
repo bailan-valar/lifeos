@@ -22,6 +22,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Decimal, round as decimalRound } from '~/utils/decimal'
 
 const props = withDefaults(defineProps<{
   modelValue: number
@@ -166,39 +167,39 @@ function evaluate(input: string, allowNegative: boolean): number {
   const eat = () => src[i++]
   const eof = () => i >= src.length
 
-  function expr(): number {
+  function expr(): Decimal {
     let v = term()
     while (!eof() && (peek() === '+' || peek() === '-')) {
       const op = eat()
       const r = term()
-      v = op === '+' ? v + r : v - r
+      v = op === '+' ? v.plus(r) : v.minus(r)
     }
     return v
   }
 
-  function term(): number {
+  function term(): Decimal {
     let v = factor()
     while (!eof() && (peek() === '*' || peek() === '/')) {
       const op = eat()
       const r = factor()
       if (op === '/') {
-        if (r === 0) throw new ExpressionError('div by zero')
-        v /= r
+        if (r.isZero()) throw new ExpressionError('div by zero')
+        v = v.dividedBy(r)
       } else {
-        v *= r
+        v = v.times(r)
       }
     }
     return v
   }
 
-  function factor(): number {
+  function factor(): Decimal {
     if (peek() === '+') {
       eat()
       return factor()
     }
     if (peek() === '-') {
       eat()
-      return -factor()
+      return factor().negated()
     }
     if (peek() === '(') {
       eat()
@@ -210,7 +211,7 @@ function evaluate(input: string, allowNegative: boolean): number {
     return num()
   }
 
-  function num(): number {
+  function num(): Decimal {
     const start = i
     let dotSeen = false
     while (!eof()) {
@@ -228,21 +229,20 @@ function evaluate(input: string, allowNegative: boolean): number {
       break
     }
     if (start === i) throw new ExpressionError('expected number')
-    const n = parseFloat(src.slice(start, i))
-    if (!Number.isFinite(n)) throw new ExpressionError('NaN')
+    const n = new Decimal(src.slice(start, i))
+    if (!n.isFinite()) throw new ExpressionError('NaN')
     return n
   }
 
   const result = expr()
   if (!eof()) throw new ExpressionError('unexpected token')
-  if (!Number.isFinite(result)) throw new ExpressionError('infinite')
-  if (!allowNegative && result < 0) throw new ExpressionError('negative')
-  return result
+  if (!result.isFinite()) throw new ExpressionError('infinite')
+  if (!allowNegative && result.isNegative()) throw new ExpressionError('negative')
+  return result.toNumber()
 }
 
 function roundTo(v: number, p: number): number {
-  const f = Math.pow(10, p)
-  return Math.round(v * f) / f
+  return decimalRound(v, p)
 }
 </script>
 

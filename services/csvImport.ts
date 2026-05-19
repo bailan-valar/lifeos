@@ -1,4 +1,5 @@
 import Papa from 'papaparse'
+import Decimal from 'decimal.js'
 import type { CsvParsedRow, ImportSource } from '~/types/bill'
 
 /**
@@ -11,7 +12,12 @@ export async function decodeCsvFile(file: File, source: ImportSource): Promise<s
 }
 
 function cleanAmount(raw: unknown): number {
-  return parseFloat(String(raw ?? '0').replace(/[¥,\s]/g, '')) || 0
+  const cleaned = String(raw ?? '0').replace(/[¥,\s]/g, '')
+  try {
+    return new Decimal(cleaned).toNumber()
+  } catch {
+    return 0
+  }
 }
 
 /**

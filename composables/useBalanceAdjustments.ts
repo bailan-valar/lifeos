@@ -1,5 +1,6 @@
 import type { BalanceAdjustment, Bill } from '~/types/bill'
 import { getDB, generateId, now } from '~/services/db'
+import { sum, sub, add } from '~/utils/decimal'
 
 async function getLatestAdjustment(accountId: string): Promise<BalanceAdjustment | null> {
   const db = await getDB()
@@ -21,14 +22,14 @@ async function getNetChangeAfter(accountId: string, date: string): Promise<numbe
     }
   }).exec()
 
-  let net = 0
+  const changes: number[] = []
   for (const doc of result) {
     const bill = doc.toJSON() as Bill
     if (bill.type === 'debt') continue
-    if (bill.fromAccountId === accountId) net -= bill.amount
-    if (bill.toAccountId === accountId) net += bill.amount
+    if (bill.fromAccountId === accountId) changes.push(-bill.amount)
+    if (bill.toAccountId === accountId) changes.push(bill.amount)
   }
-  return net
+  return sum(changes)
 }
 
 async function patchAccountBalance(accountId: string, newBalance: number) {
@@ -42,7 +43,7 @@ export async function recalculateBalance(accountId: string): Promise<number | nu
   const adj = await getLatestAdjustment(accountId)
   if (!adj) return null
   const net = await getNetChangeAfter(accountId, adj.date)
-  const newBalance = adj.balanceAfter + net
+  const newBalance = add(adj.balanceAfter, net)
   await patchAccountBalance(accountId, newBalance)
   return newBalance
 }
@@ -67,7 +68,7 @@ export async function createBalanceAdjustment(
   const balanceBefore = accountDoc ? (accountDoc.get('balance') as number) : 0
 
   const net = await getNetChangeAfter(accountId, date)
-  const newBalance = balanceAfter + net
+  const newBalance = add(balanceAfter, net)
   await patchAccountBalance(accountId, newBalance)
 
   const adjustment: BalanceAdjustment = {

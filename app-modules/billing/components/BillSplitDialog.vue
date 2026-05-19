@@ -83,6 +83,7 @@
 <script setup lang="ts">
 import type { Bill, BillCategory, BillSplitItem } from '~/types/bill'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
+import { sum, eq } from '~/utils/decimal'
 import CategoryPicker from './CategoryPicker.vue'
 import AmountInput from './AmountInput.vue'
 
@@ -102,12 +103,12 @@ const splitItems = ref<BillSplitItem[]>([
 ])
 
 const totalAllocated = computed(() =>
-  splitItems.value.reduce((sum, item) => sum + (item.amount || 0), 0)
+  sum(splitItems.value.map(item => item.amount || 0))
 )
 
 const isAmountValid = computed(() => {
   if (!props.bill) return false
-  return Math.abs(totalAllocated.value - props.bill.amount) < 0.01
+  return eq(totalAllocated.value, props.bill.amount, 0.01)
 })
 
 function formatAmount(amount: number) {

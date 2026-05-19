@@ -157,6 +157,7 @@
 
 <script setup lang="ts">
 import type { Account, Bill, BillCategory } from '~/types/bill'
+import { sum, sub, div } from '~/utils/decimal'
 import BillList from './BillList.vue'
 import BillDialog from './BillDialog.vue'
 import AccountDialog from './AccountDialog.vue'
@@ -217,29 +218,29 @@ const filteredBills = computed(() => {
 
 // 统计
 const totalIncome = computed(() =>
-  filteredBills.value
+  sum(filteredBills.value
     .filter(b => b.toAccountId === props.accountId && (b.type === 'income' || b.type === 'transfer') && b.status === 'completed')
-    .reduce((sum, b) => sum + b.amount, 0)
+    .map(b => b.amount))
 )
 
 const totalExpense = computed(() =>
-  filteredBills.value
+  sum(filteredBills.value
     .filter(b => b.fromAccountId === props.accountId && (b.type === 'expense' || b.type === 'transfer') && b.status === 'completed')
-    .reduce((sum, b) => sum + b.amount, 0)
+    .map(b => b.amount))
 )
 
 const monthlyAverage = computed(() => {
   const count = filteredBills.value.length
   if (count === 0) return 0
-  const net = totalIncome.value - totalExpense.value
+  const net = sub(totalIncome.value, totalExpense.value)
   if (yearFilter.value !== null && monthFilter.value === null) {
-    return net / 12
+    return div(net, 12)
   }
   if (monthFilter.value !== null) {
     return net
   }
   const months = new Set(filteredBills.value.map(b => b.date.slice(0, 7)))
-  return months.size > 0 ? net / months.size : 0
+  return months.size > 0 ? div(net, months.size) : 0
 })
 
 // 加载数据

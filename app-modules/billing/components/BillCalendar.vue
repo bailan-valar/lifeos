@@ -80,6 +80,7 @@
 import type { Bill, BillType } from '~/types/bill'
 import { computed, ref, watch, nextTick } from 'vue'
 import { useBillingStore } from '~/stores/billing'
+import { sum, add } from '~/utils/decimal'
 import { storeToRefs } from 'pinia'
 
 const props = defineProps<{
@@ -116,9 +117,9 @@ const billsByDate = computed(() => {
     const entry = map.get(dateStr)!
     entry.bills.push(bill)
     if (bill.type === 'income' && bill.status === 'completed') {
-      entry.income += bill.amount
+      entry.income = add(entry.income, bill.amount)
     } else if (bill.type === 'expense' && bill.status === 'completed') {
-      entry.expense += bill.amount
+      entry.expense = add(entry.expense, bill.amount)
     }
   }
   return map
@@ -268,15 +269,15 @@ const dayBills = computed(() => {
 })
 
 const dayIncome = computed(() => {
-  return dayBills.value
+  return sum(dayBills.value
     .filter(b => b.type === 'income' && b.status === 'completed')
-    .reduce((sum, b) => sum + b.amount, 0)
+    .map(b => b.amount))
 })
 
 const dayExpense = computed(() => {
-  return dayBills.value
+  return sum(dayBills.value
     .filter(b => b.type === 'expense' && b.status === 'completed')
-    .reduce((sum, b) => sum + b.amount, 0)
+    .map(b => b.amount))
 })
 
 function formatSelectedDate(dateStr: string) {

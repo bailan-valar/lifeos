@@ -1,5 +1,6 @@
 import type { Bill, RefundFormData } from '~/types/bill'
 import { getDB, onCollectionChange } from '~/services/db'
+import { sum, sub, max } from '~/utils/decimal'
 import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 export interface RefundStats {
@@ -31,17 +32,17 @@ function createStore(): BillRefundsStore {
 
   async function getEffectiveAmount(billId: string): Promise<number> {
     const refunds = await getRefundsForBill(billId)
-    const totalRefund = refunds.reduce((sum, r) => sum + r.amount, 0)
+    const totalRefund = sum(refunds.map(r => r.amount))
     const db = await getDB()
     const billDoc = await db.bills.findOne(billId).exec()
     if (!billDoc) return 0
     const bill = billDoc.toJSON() as Bill
-    return Math.max(0, bill.amount - totalRefund)
+    return max(0, sub(bill.amount, totalRefund))
   }
 
   async function getRefundStats(billId: string): Promise<RefundStats> {
     const refunds = await getRefundsForBill(billId)
-    const totalRefund = refunds.reduce((sum, r) => sum + r.amount, 0)
+    const totalRefund = sum(refunds.map(r => r.amount))
     const db = await getDB()
     const billDoc = await db.bills.findOne(billId).exec()
     if (!billDoc) {
@@ -50,7 +51,7 @@ function createStore(): BillRefundsStore {
     const bill = billDoc.toJSON() as Bill
     return {
       totalRefund,
-      effectiveAmount: Math.max(0, bill.amount - totalRefund),
+      effectiveAmount: max(0, sub(bill.amount, totalRefund)),
       refundCount: refunds.length
     }
   }

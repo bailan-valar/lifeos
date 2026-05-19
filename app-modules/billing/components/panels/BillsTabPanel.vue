@@ -157,6 +157,7 @@ import type { Bill, BillFormData, ImportRecord, ImportRule, ImportRuleFormData, 
 import { useBillingStore } from '~/stores/billing'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
+import { sum, sub } from '~/utils/decimal'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useNotes } from '~/composables/useNotes'
 import { useImportRecords } from '~/composables/useImportRecords'
@@ -233,14 +234,14 @@ const refundingBill = ref<Bill | undefined>(undefined)
 
 // 计算属性
 const totalIncome = computed(() =>
-  props.bills.filter(b => b.type === 'income' && b.status === 'completed').reduce((sum, b) => sum + b.amount, 0)
+  sum(props.bills.filter(b => b.type === 'income' && b.status === 'completed').map(b => b.amount))
 )
 
 const totalExpense = computed(() =>
-  props.bills.filter(b => b.type === 'expense' && b.status === 'completed').reduce((sum, b) => sum + b.amount, 0)
+  sum(props.bills.filter(b => b.type === 'expense' && b.status === 'completed').map(b => b.amount))
 )
 
-const netBalance = computed(() => totalIncome.value - totalExpense.value)
+const netBalance = computed(() => sub(totalIncome.value, totalExpense.value))
 
 const selectedBills = computed(() => props.bills.filter(b => props.selectedIds.includes(b.id)))
 

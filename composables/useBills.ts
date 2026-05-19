@@ -14,6 +14,7 @@ import { dedupeKey } from '~/services/csvImport'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { maybeRecalculateBalance, recalculateBalance } from '~/composables/useBalanceAdjustments'
 import Decimal from 'decimal.js'
+import { sum, add, sub, mul, eq } from '~/utils/decimal'
 import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 async function updateAccountBalance(id: string, delta: number) {
@@ -21,15 +22,15 @@ async function updateAccountBalance(id: string, delta: number) {
   const db = await getDB()
   const doc = await db.accounts.findOne(id).exec()
   if (!doc) return
-  const newBalance = (doc.get('balance') as number) + delta
+  const newBalance = add(doc.get('balance') as number, delta)
   await doc.patch({ balance: newBalance, updatedAt: now() })
 }
 
 async function applyBalanceChange(bill: Bill, reverse = false) {
   if (bill.type === 'debt') return
   const m = reverse ? -1 : 1
-  if (bill.fromAccountId) await updateAccountBalance(bill.fromAccountId, -bill.amount * m)
-  if (bill.toAccountId) await updateAccountBalance(bill.toAccountId, bill.amount * m)
+  if (bill.fromAccountId) await updateAccountBalance(bill.fromAccountId, mul(bill.amount, -m))
+  if (bill.toAccountId) await updateAccountBalance(bill.toAccountId, mul(bill.amount, m))
 }
 
 function toIsoMinutes(date: string): string {
@@ -283,10 +284,10 @@ export function useBills() {
     }
     const result = await db.bills.find({ selector }).exec()
     const items = result.map((doc: any) => doc.toJSON() as Bill)
-    const income = items.filter(b => b.type === 'income').reduce((sum, b) => sum + b.amount, 0)
-    const expense = items.filter(b => b.type === 'expense').reduce((sum, b) => sum + b.amount, 0)
-    const transfer = items.filter(b => b.type === 'transfer').reduce((sum, b) => sum + b.amount, 0)
-    return { income, expense, transfer, net: income - expense }
+    const income = sum(items.filter(b => b.type === 'income').map(b => b.amount))
+    const expense = sum(items.filter(b => b.type === 'expense').map(b => b.amount))
+    const transfer = sum(items.filter(b => b.type === 'transfer').map(b => b.amount))
+    return { income, expense, transfer, net: sub(income, expense) }
   }
 
   async function createBill(data: BillFormData, noteId?: string): Promise<Bill> {
@@ -546,7 +547,7 @@ export function useBills() {
     const bill = doc.toJSON() as Bill
     if (bill.type !== 'debt') return
 
-    const newSettled = bill.settledAmount + settleAmount
+    const newSettled = add(bill.settledAmount, settleAmount)
     const newStatus = newSettled >= bill.amount ? 'completed' : 'pending'
 
     await doc.patch({
@@ -655,8 +656,8 @@ export function useBills() {
     if (!parentDoc) throw new Error('账单不存在')
     const parent = parentDoc.toJSON() as Bill
 
-    const totalSplitAmount = splitItems.reduce((sum, item) => sum + item.amount, 0)
-    if (Math.abs(totalSplitAmount - parent.amount) > 0.01) {
+    const totalSplitAmount = sum(splitItems.map(item => item.amount))
+    if (!eq(totalSplitAmount, parent.amount, 0.01)) {
       throw new Error(`拆分金额总和(${totalSplitAmount})必须等于原账单金额(${parent.amount})`)
     }
 
@@ -821,12 +822,12 @@ export function useBills() {
    */
   async function getEffectiveAmount(billId: string): Promise<number> {
     const refunds = await getRefundsForBill(billId)
-    const totalRefund = refunds.reduce((sum, r) => sum + r.amount, 0)
+    const totalRefund = sum(refunds.map(r => r.amount))
     const db = await getDB()
     const billDoc = await db.bills.findOne(billId).exec()
     if (!billDoc) return 0
     const bill = billDoc.toJSON() as Bill
-    return bill.amount - totalRefund
+    return sub(bill.amount, totalRefund)
   }
 
   function startWatching() {
@@ -854,24 +855,24 @@ export function useBills() {
   )
 
   const totalIncome = computed(() =>
-    leafBills.value
+    sum(leafBills.value
       .filter(b => b.type === 'income' && b.status === 'completed')
-      .reduce((sum, b) => sum + b.amount, 0)
+      .map(b => b.amount))
   )
 
   const totalExpense = computed(() =>
-    leafBills.value
+    sum(leafBills.value
       .filter(b => b.type === 'expense' && b.status === 'completed')
-      .reduce((sum, b) => sum + b.amount, 0)
+      .map(b => b.amount))
   )
 
   const totalTransfer = computed(() =>
-    leafBills.value
+    sum(leafBills.value
       .filter(b => b.type === 'transfer' && b.status === 'completed')
-      .reduce((sum, b) => sum + b.amount, 0)
+      .map(b => b.amount))
   )
 
-  const netBalance = computed(() => totalIncome.value - totalExpense.value)
+  const netBalance = computed(() => sub(totalIncome.value, totalExpense.value))
 
   return {
     bills,
