@@ -37,79 +37,87 @@
         </select>
       </div>
 
-      <!-- 反馈列表 -->
-      <div v-if="!isLoading && feedbacks" class="feedbacks-list">
-        <div
-          v-for="feedback in feedbacks"
-          :key="feedback.id"
-          class="feedback-item"
-          :class="`status-${feedback.status}`"
-        >
-          <div class="feedback-header">
-            <div class="feedback-user">
-              <div class="user-avatar">
-                {{ feedback.user.name?.charAt(0)?.toUpperCase() || feedback.user.email.charAt(0).toUpperCase() }}
-              </div>
-              <div class="user-info">
-                <div class="user-name">{{ feedback.user.name || '未设置名称' }}</div>
-                <div class="user-email">{{ feedback.user.email }}</div>
-              </div>
-            </div>
-
-            <div class="feedback-meta">
-              <span class="feedback-category" :class="`category-${feedback.category}`">
-                {{ getCategoryLabel(feedback.category) }}
-              </span>
-              <span class="feedback-status" :class="`status-${feedback.status}`">
-                {{ getStatusLabel(feedback.status) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="feedback-content">
-            <p>{{ feedback.content }}</p>
-            <div v-if="feedback.rating" class="feedback-rating">
-              <Icon
-                v-for="i in 5"
-                :key="i"
-                :name="i <= (feedback.rating || 0) ? 'solar:star-bold' : 'solar:star-linear'"
-                :class="{ active: i <= (feedback.rating || 0) }"
-              />
-            </div>
-          </div>
-
-          <div v-if="feedback.adminReply" class="feedback-reply">
-            <div class="reply-header">
-              <Icon name="solar:reply-linear" class="reply-icon" />
-              <span class="reply-label">管理员回复</span>
-              <span v-if="feedback.replier" class="replier-name">
-                - {{ feedback.replier.name || feedback.replier.email }}
-              </span>
-            </div>
-            <p class="reply-content">{{ feedback.adminReply }}</p>
-            <span v-if="feedback.repliedAt" class="reply-time">
-              {{ formatDate(feedback.repliedAt) }}
-            </span>
-          </div>
-
-          <div class="feedback-footer">
-            <span class="feedback-time">{{ formatDate(feedback.createdAt) }}</span>
-            <div class="feedback-actions">
-              <button class="action-btn" @click="viewFeedback(feedback.id)">
-                <Icon name="solar:eye-linear" />
-                查看详情
-              </button>
-              <button class="action-btn primary" @click="handleFeedback(feedback)">
-                <Icon name="solar:chat-square-linear" />
-                {{ feedback.adminReply ? '编辑回复' : '回复' }}
-              </button>
-              <button class="action-btn danger" @click="deleteFeedback(feedback)">
-                <Icon name="solar:trash-bin-minimalistic-linear" />
-                删除
-              </button>
-            </div>
-          </div>
-        </div>
+      <!-- 反馈表格 -->
+      <div v-if="!isLoading && feedbacks" class="feedbacks-table-container">
+        <table class="feedbacks-table">
+          <thead>
+            <tr>
+              <th class="col-user">用户</th>
+              <th class="col-content">反馈内容</th>
+              <th class="col-category">分类</th>
+              <th class="col-status">状态</th>
+              <th class="col-rating">评分</th>
+              <th class="col-time">时间</th>
+              <th class="col-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="feedback in feedbacks"
+              :key="feedback.id"
+              class="feedback-row"
+              :class="`status-${feedback.status}`"
+            >
+              <td class="col-user">
+                <div class="user-cell">
+                  <div class="user-avatar">
+                    {{ feedback.user.name?.charAt(0)?.toUpperCase() || feedback.user.email.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="user-info">
+                    <div class="user-name">{{ feedback.user.name || '未设置名称' }}</div>
+                    <div class="user-email">{{ feedback.user.email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="col-content">
+                <div class="content-cell">
+                  <p class="content-text">{{ feedback.content }}</p>
+                  <div v-if="feedback.adminReply" class="has-reply-badge">
+                    <Icon name="solar:reply-bold" />
+                    已回复
+                  </div>
+                </div>
+              </td>
+              <td class="col-category">
+                <span class="category-badge" :class="`category-${feedback.category}`">
+                  {{ getCategoryLabel(feedback.category) }}
+                </span>
+              </td>
+              <td class="col-status">
+                <span class="status-badge" :class="`status-${feedback.status}`">
+                  {{ getStatusLabel(feedback.status) }}
+                </span>
+              </td>
+              <td class="col-rating">
+                <div v-if="feedback.rating" class="rating-cell">
+                  <Icon
+                    v-for="i in 5"
+                    :key="i"
+                    :name="i <= (feedback.rating || 0) ? 'solar:star-bold' : 'solar:star-linear'"
+                    :class="{ active: i <= (feedback.rating || 0) }"
+                  />
+                </div>
+                <span v-else class="no-rating">-</span>
+              </td>
+              <td class="col-time">
+                <span class="time-cell">{{ formatDate(feedback.createdAt) }}</span>
+              </td>
+              <td class="col-actions">
+                <div class="actions-cell">
+                  <button class="icon-btn" @click="viewFeedback(feedback.id)" title="查看详情">
+                    <Icon name="solar:eye-linear" />
+                  </button>
+                  <button class="icon-btn primary" @click="handleFeedback(feedback)" :title="feedback.adminReply ? '编辑回复' : '回复'">
+                    <Icon name="solar:chat-square-linear" />
+                  </button>
+                  <button class="icon-btn danger" @click="deleteFeedback(feedback)" title="删除">
+                    <Icon name="solar:trash-bin-minimalistic-linear" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- 加载状态 -->
@@ -465,279 +473,303 @@ onMounted(() => {
               0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
-.feedbacks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.feedback-item {
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+.feedbacks-table-container {
+  overflow-x: auto;
+  background: var(--liquid-bg);
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border: 0.5px solid rgba(255, 255, 255, 0.4);
-  border-radius: 24px;
-  transition: all 0.2s ease;
+  border-radius: var(--liquid-radius);
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.03),
               inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-.feedback-item:hover {
-  background: rgba(255, 255, 255, 0.8);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08),
-              inset 0 1px 0 rgba(255, 255, 255, 0.8);
+.feedbacks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
 }
 
-.feedback-item.status-pending {
-  border-left: 3px solid rgb(255, 149, 0);
+.feedbacks-table thead {
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
 }
 
-.feedback-item.status-in_progress {
-  border-left: 3px solid rgb(0, 122, 255);
+.feedbacks-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
 }
 
-.feedback-item.status-resolved {
-  border-left: 3px solid rgb(52, 199, 89);
+.feedbacks-table th.col-user {
+  width: 180px;
 }
 
-.feedback-item.status-closed {
-  border-left: 3px solid rgba(60, 60, 67, 0.3);
+.feedbacks-table th.col-content {
+  min-width: 300px;
 }
 
-.feedback-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  gap: 16px;
+.feedbacks-table th.col-category {
+  width: 100px;
 }
 
-.feedback-user {
+.feedbacks-table th.col-status {
+  width: 100px;
+}
+
+.feedbacks-table th.col-rating {
+  width: 120px;
+}
+
+.feedbacks-table th.col-time {
+  width: 120px;
+}
+
+.feedbacks-table th.col-actions {
+  width: 140px;
+  text-align: center;
+}
+
+.feedbacks-table tbody {
+  background: transparent;
+}
+
+.feedback-row {
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
+  transition: background 0.2s ease;
+}
+
+.feedback-row:last-child {
+  border-bottom: none;
+}
+
+.feedback-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.feedback-row.status-pending {
+  border-left: 2px solid rgb(255, 149, 0);
+}
+
+.feedback-row.status-in_progress {
+  border-left: 2px solid rgb(0, 122, 255);
+}
+
+.feedback-row.status-resolved {
+  border-left: 2px solid rgb(52, 199, 89);
+}
+
+.feedback-row.status-closed {
+  border-left: 2px solid rgba(60, 60, 67, 0.3);
+}
+
+.feedback-row td {
+  padding: 14px 16px;
+  vertical-align: middle;
+}
+
+.user-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .user-avatar {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, rgb(0, 122, 255), rgb(88, 86, 214));
   color: white;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 10px;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  box-shadow: 0 3px 8px rgba(0, 122, 255, 0.25);
 }
 
 .user-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .user-name {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-email {
-  font-size: 13px;
+  font-size: 12px;
   color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.feedback-meta {
+.content-cell {
   display: flex;
-  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.content-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.75);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  flex: 1;
+}
+
+.has-reply-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 6px;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
-.feedback-category,
-.feedback-status {
-  padding: 6px 12px;
+.has-reply-badge .icon {
+  font-size: 12px;
+}
+
+.category-badge,
+.status-badge {
+  display: inline-block;
+  padding: 5px 10px;
   font-size: 12px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 7px;
   white-space: nowrap;
 }
 
-.feedback-category {
+.category-badge {
   background: rgba(0, 122, 255, 0.1);
   color: rgb(0, 122, 255);
 }
 
-.feedback-status {
+.status-badge {
   background: rgba(60, 60, 67, 0.1);
   color: rgba(60, 60, 67, 0.7);
 }
 
-.status-pending {
+.status-badge.status-pending {
   background: rgba(255, 149, 0, 0.1);
   color: rgb(255, 149, 0);
 }
 
-.status-in_progress {
+.status-badge.status-in_progress {
   background: rgba(0, 122, 255, 0.1);
   color: rgb(0, 122, 255);
 }
 
-.status-resolved {
+.status-badge.status-resolved {
   background: rgba(52, 199, 89, 0.1);
   color: rgb(52, 199, 89);
 }
 
-.status-closed {
+.status-badge.status-closed {
   background: rgba(60, 60, 67, 0.1);
   color: rgba(60, 60, 67, 0.5);
 }
 
-.feedback-content {
-  margin-bottom: 16px;
-}
-
-.feedback-content p {
-  margin: 0 0 12px 0;
-  font-size: 15px;
-  line-height: 1.6;
-  color: rgba(0, 0, 0, 0.75);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.feedback-rating {
+.rating-cell {
   display: flex;
-  gap: 4px;
+  gap: 2px;
 }
 
-.feedback-rating .icon {
-  font-size: 16px;
+.rating-cell .icon {
+  font-size: 14px;
   color: rgba(0, 0, 0, 0.15);
 }
 
-.feedback-rating .icon.active {
+.rating-cell .icon.active {
   color: rgb(255, 204, 0);
 }
 
-.feedback-reply {
-  padding: 14px;
-  background: rgba(0, 122, 255, 0.06);
-  backdrop-filter: blur(10px) saturate(180%);
-  -webkit-backdrop-filter: blur(10px) saturate(180%);
-  border: 0.5px solid rgba(0, 122, 255, 0.2);
-  border-radius: 14px;
-  margin-bottom: 16px;
-  box-shadow: inset 0 1px 3px rgba(0, 122, 255, 0.08);
+.no-rating {
+  color: rgba(0, 0, 0, 0.3);
+  font-size: 13px;
 }
 
-.reply-header {
+.time-cell {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.icon-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.reply-icon {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
   font-size: 16px;
-  color: rgb(0, 122, 255);
-}
-
-.reply-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgb(0, 122, 255);
-}
-
-.replier-name {
-  font-size: 13px;
   color: rgba(0, 0, 0, 0.6);
-}
-
-.reply-content {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: rgba(0, 0, 0, 0.7);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.reply-time {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.4);
-}
-
-.feedback-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 16px;
-  border-top: 0.5px solid rgba(60, 60, 67, 0.1);
-}
-
-.feedback-time {
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.4);
-}
-
-.feedback-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px) saturate(180%);
-  -webkit-backdrop-filter: blur(10px) saturate(180%);
-  border: 0.5px solid rgba(255, 255, 255, 0.35);
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.65);
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.action-btn:hover {
+.icon-btn:hover {
   background: rgba(255, 255, 255, 0.8);
   transform: translateY(-1px);
   color: rgba(0, 0, 0, 0.85);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.action-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: rgba(0, 0, 0, 0.85);
-}
-
-.action-btn.primary {
-  background: rgba(0, 122, 255, 0.15);
+.icon-btn.primary {
+  background: rgba(0, 122, 255, 0.12);
   color: rgb(0, 122, 255);
-  border-color: rgba(0, 122, 255, 0.25);
+  border-color: rgba(0, 122, 255, 0.2);
 }
 
-.action-btn.primary:hover {
-  background: rgba(0, 122, 255, 0.2);
+.icon-btn.primary:hover {
+  background: rgba(0, 122, 255, 0.18);
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
 }
 
-.action-btn.danger {
+.icon-btn.danger {
   background: rgba(255, 59, 48, 0.08);
   color: rgb(255, 59, 48);
   border-color: rgba(255, 59, 48, 0.2);
 }
 
-.action-btn.danger:hover {
-  background: rgba(255, 59, 48, 0.15);
+.icon-btn.danger:hover {
+  background: rgba(255, 59, 48, 0.12);
   box-shadow: 0 2px 8px rgba(255, 59, 48, 0.2);
 }
 
@@ -824,35 +856,106 @@ onMounted(() => {
   color: rgba(0, 0, 0, 0.6);
 }
 
+@media (max-width: 1024px) {
+  .feedbacks-table-container {
+    border-radius: var(--liquid-radius);
+  }
+
+  .feedbacks-table th.col-content {
+    min-width: 250px;
+  }
+}
+
 @media (max-width: 768px) {
   .filters-bar {
     flex-direction: column;
   }
 
-  .feedback-header {
-    flex-direction: column;
-    gap: 12px;
+  .feedbacks-table {
+    font-size: 13px;
   }
 
-  .feedback-meta {
-    width: 100%;
-    justify-content: flex-start;
+  .feedbacks-table th,
+  .feedback-row td {
+    padding: 12px 10px;
   }
 
-  .feedback-footer {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+  .feedbacks-table th.col-user,
+  .feedbacks-table th.col-content {
+    width: auto;
+    min-width: 150px;
   }
 
-  .feedback-actions {
-    width: 100%;
-    flex-wrap: wrap;
+  .feedbacks-table th.col-category,
+  .feedbacks-table th.col-status,
+  .feedbacks-table th.col-rating,
+  .feedbacks-table th.col-time,
+  .feedbacks-table th.col-actions {
+    width: 80px;
   }
 
-  .action-btn {
-    flex: 1;
-    min-width: 100px;
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .user-name {
+    font-size: 13px;
+  }
+
+  .user-email {
+    font-size: 11px;
+  }
+
+  .content-text {
+    font-size: 13px;
+    -webkit-line-clamp: 2;
+  }
+
+  .has-reply-badge {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .category-badge,
+  .status-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .rating-cell .icon {
+    font-size: 12px;
+  }
+
+  .time-cell {
+    font-size: 12px;
+  }
+
+  .icon-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 24px;
+  }
+
+  .feedbacks-table th,
+  .feedback-row td {
+    padding: 10px 8px;
+  }
+
+  .feedbacks-table th.col-content,
+  .feedbacks-table th.col-user {
+    min-width: 120px;
+  }
+
+  .content-text {
+    -webkit-line-clamp: 1;
   }
 }
 </style>

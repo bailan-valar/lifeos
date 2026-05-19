@@ -91,7 +91,7 @@
 
       <select
         v-if="showDebtSubtype"
-        class="form-select"
+        class="liquid-glass-select"
         :value="row.debtSubtype"
         @change="updateField('debtSubtype', ($event.target as HTMLSelectElement).value as DebtSubtype)"
       >
@@ -393,18 +393,6 @@ function formatAmount(n: number): string {
   flex-wrap: wrap;
   gap: 6px;
 }
-.form-select {
-  flex: 1;
-  min-width: 110px;
-  max-width: 180px;
-  padding: 6px 8px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 6px;
-  font-size: 12px;
-  background: rgba(255, 255, 255, 0.8);
-  color: rgba(0, 0, 0, 0.92);
-  outline: none;
-}
 .type-picker {
   flex: 0 0 90px;
   min-width: 90px;
@@ -416,9 +404,6 @@ function formatAmount(n: number): string {
 }
 :deep(.type-picker .picker-panel) {
   width: 120px !important;
-}
-.form-select:focus {
-  border-color: rgb(0, 122, 255);
 }
 .compact-picker {
   flex: 1;

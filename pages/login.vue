@@ -13,8 +13,12 @@ async function handleLogin() {
   errorMessage.value = ''
 
   try {
+    // login 方法内部已经等待了 startMetaSync() 完成
     await authStore.login(email.value, password.value)
+
+    // 现在可以安全地 reload，此时元数据已经同步完成
     await workspaceStore.reload()
+
     if (workspaceStore.list.length > 0 && !workspaceStore.currentId) {
       await workspaceStore.switchTo(workspaceStore.list[0].id)
     } else if (workspaceStore.currentId) {

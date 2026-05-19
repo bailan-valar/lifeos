@@ -148,7 +148,7 @@
                       class="form-input"
                       placeholder="字段名称"
                     />
-                    <select v-model="newField.type" class="form-input form-select">
+                    <select v-model="newField.type" class="liquid-glass-select">
                       <option v-for="(label, type) in typeLabels" :key="type" :value="type">
                         {{ label }}
                       </option>
@@ -713,15 +713,6 @@ const cancelAddField = () => {
 .form-input:focus {
   border-color: rgba(0, 122, 255, 0.5);
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
-}
-
-.form-select {
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23606067' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 36px;
 }
 
 .color-picker {

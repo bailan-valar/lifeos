@@ -70,7 +70,7 @@
 
         <div class="form-group">
           <label class="form-label">角色</label>
-          <select v-model="formData.role" class="form-select">
+          <select v-model="formData.role" class="liquid-glass-select">
             <option value="user">普通用户</option>
             <option value="admin">管理员</option>
           </select>
@@ -251,8 +251,7 @@ form {
   color: rgba(0, 0, 0, 0.7);
 }
 
-.form-input,
-.form-select {
+.form-input {
   width: 100%;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.6);
@@ -264,8 +263,7 @@ form {
   transition: all 0.15s ease;
 }
 
-.form-input:focus,
-.form-select:focus {
+.form-input:focus {
   background: rgba(255, 255, 255, 0.8);
   border-color: rgba(0, 122, 255, 0.4);
 }

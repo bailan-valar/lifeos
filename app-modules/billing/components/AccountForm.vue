@@ -117,7 +117,7 @@
 
     <div class="form-group">
       <label class="form-label">币种</label>
-      <select v-model="form.currency" class="form-select">
+      <select v-model="form.currency" class="liquid-glass-select">
         <option value="CNY">CNY</option>
         <option value="USD">USD</option>
         <option value="EUR">EUR</option>
@@ -320,7 +320,6 @@ function onCategoryChange(id: string) {
   color: rgba(0, 0, 0, 0.92);
 }
 .form-input,
-.form-select,
 .form-textarea {
   padding: 10px 12px;
   border: 0.5px solid rgba(60, 60, 67, 0.2);
@@ -333,7 +332,6 @@ function onCategoryChange(id: string) {
   resize: vertical;
 }
 .form-input:focus,
-.form-select:focus,
 .form-textarea:focus {
   border-color: rgb(0, 122, 255);
 }

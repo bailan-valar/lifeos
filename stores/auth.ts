@@ -112,6 +112,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function refreshUserInfo() {
+    const storedToken = localStorage.getItem('token')
+    if (!storedToken) {
+      return null
+    }
+
+    try {
+      const response = await $fetch('/api/auth/refresh', {
+        headers: {
+          Authorization: `Bearer ${storedToken}`,
+        },
+      })
+
+      user.value = response as { id: string; email: string; name: string | null; role: string }
+      return response
+    } catch (error) {
+      console.error('刷新用户信息失败:', error)
+      return null
+    }
+  }
+
   return {
     user: readonly(user),
     token: readonly(token),
@@ -121,5 +142,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     initialize,
     fetchUser,
+    refreshUserInfo,
   }
 })

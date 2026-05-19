@@ -150,7 +150,7 @@
         <div class="status-section">
           <div class="form-group">
             <label class="form-label">状态</label>
-            <select v-model="formData.status" class="form-select">
+            <select v-model="formData.status" class="liquid-glass-select">
               <option value="pending">待处理</option>
               <option value="in_progress">处理中</option>
               <option value="resolved">已解决</option>
@@ -857,7 +857,6 @@ form {
   color: rgba(0, 0, 0, 0.7);
 }
 
-.form-select,
 .form-textarea {
   width: 100%;
   padding: 12px 14px;
@@ -871,7 +870,6 @@ form {
   font-family: inherit;
 }
 
-.form-select:focus,
 .form-textarea:focus {
   background: rgba(255, 255, 255, 0.8);
   border-color: rgba(0, 122, 255, 0.4);

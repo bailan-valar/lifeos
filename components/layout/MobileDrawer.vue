@@ -43,6 +43,16 @@
         </div>
 
         <div class="drawer-footer">
+          <!-- 管理员入口 -->
+          <NuxtLink
+            v-if="authStore.user?.role === 'admin'"
+            to="/__admin"
+            class="drawer-footer-btn admin-btn"
+            @click="close"
+          >
+            <Icon name="solar:shield-keyhole-linear" size="18" />
+            <span>管理</span>
+          </NuxtLink>
           <NuxtLink to="/settings/general" class="drawer-footer-btn" @click="close">
             <Icon name="solar:settings-linear" size="18" />
             <span>设置</span>
@@ -69,6 +79,12 @@ const route = useRoute()
 const { menuNavigate } = useRouteCache()
 const ws = useWorkspaces()
 const { status } = useSyncStatus()
+const authStore = useAuthStore()
+
+// 调试信息：输出当前用户角色
+console.log('🔍 调试信息 - 当前用户:', authStore.user)
+console.log('🔍 调试信息 - 用户角色:', authStore.user?.role)
+console.log('🔍 调试信息 - 是否为管理员:', authStore.user?.role === 'admin')
 
 const modules = [
   { id: 'notes', label: '笔记', icon: 'solar:document-text-linear', path: '/notes' },
@@ -268,6 +284,11 @@ function openWorkspaces() {
 
 .drawer-footer-btn:active {
   background: rgba(0, 0, 0, 0.04);
+}
+
+.drawer-footer-btn.admin-btn {
+  color: rgb(0, 122, 255);
+  font-weight: 600;
 }
 
 /* Transitions */

@@ -10,10 +10,10 @@
         </div>
       </div>
       <div class="generate-controls">
-        <select v-model.number="genYear" class="form-select">
+        <select v-model.number="genYear" class="liquid-glass-select">
           <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}年</option>
         </select>
-        <select v-model.number="genMonth" class="form-select">
+        <select v-model.number="genMonth" class="liquid-glass-select">
           <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
         </select>
         <button type="button" class="generate-btn" @click="$emit('generate', genYear, genMonth)">
@@ -140,14 +140,6 @@ function statusLabel(s: StatementStatus): string {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-.form-select {
-  padding: 6px 10px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 8px;
-  font-size: 13px;
-  background: rgba(255, 255, 255, 0.8);
-  outline: none;
 }
 .generate-btn {
   display: inline-flex;

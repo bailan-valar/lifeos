@@ -137,8 +137,7 @@ watch(() => form.value.type, (newType, oldType) => {
   font-weight: 500;
   color: rgba(0, 0, 0, 0.92);
 }
-.form-input,
-.form-select {
+.form-input {
   padding: 10px 12px;
   border: 0.5px solid rgba(60, 60, 67, 0.2);
   border-radius: 8px;
@@ -147,8 +146,7 @@ watch(() => form.value.type, (newType, oldType) => {
   color: rgba(0, 0, 0, 0.92);
   outline: none;
 }
-.form-input:focus,
-.form-select:focus {
+.form-input:focus {
   border-color: rgb(0, 122, 255);
 }
 .type-selector {

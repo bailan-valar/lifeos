@@ -292,6 +292,9 @@ onBeforeUnmount(() => {
 }
 
 .fab-menu {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;

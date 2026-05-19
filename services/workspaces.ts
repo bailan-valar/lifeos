@@ -15,6 +15,8 @@ let metaSyncHandle: PouchDB.Replication.Sync<{}> | null = null
 let metaSyncStarting = false
 let lastSyncedUserId: string | null = null
 const metaChangeListeners = new Set<() => void>()
+let firstSyncResolve: (() => void) | null = null
+let firstSyncPromise: Promise<void> | null = null
 
 export function setCachedUserId(userId: string): void {
   if (typeof window === 'undefined') return
@@ -113,6 +115,7 @@ function notifyMetaChange() {
 /**
  * 启动空间列表的 CouchDB 实时同步。
  * 每个用户在 CouchDB 上拥有独立的数据库：{prefix}meta-{userId}
+ * @returns Promise，在首次同步完成时 resolve（最多等待 5 秒）
  */
 export async function startMetaSync(): Promise<void> {
   const userId = getCachedUserId()
@@ -169,6 +172,11 @@ export async function startMetaSync(): Promise<void> {
       console.warn('[workspaces] meta remoteDB.info() failed:', infoErr?.status, infoErr?.message || infoErr)
     }
 
+    // 创建首次同步完成的 Promise
+    firstSyncPromise = new Promise<void>((resolve) => {
+      firstSyncResolve = resolve
+    })
+
     metaSyncHandle = localDB.sync(remoteDB, {
       live: true,
       retry: true,
@@ -180,6 +188,12 @@ export async function startMetaSync(): Promise<void> {
 
     metaSyncHandle.on('change', () => {
       notifyMetaChange()
+      // 首次变更时 resolve
+      if (firstSyncResolve) {
+        console.log('[workspaces] first sync change detected')
+        firstSyncResolve()
+        firstSyncResolve = null
+      }
     })
 
     metaSyncHandle.on('error', (err) => {
@@ -191,8 +205,25 @@ export async function startMetaSync(): Promise<void> {
         console.warn('[workspaces] meta sync paused with error:', err)
       } else {
         console.log('[workspaces] meta sync paused (idle)')
+        // 如果首次同步还没有完成，在 paused 时也 resolve（可能是空数据库）
+        if (firstSyncResolve) {
+          console.log('[workspaces] first sync completed (paused)')
+          firstSyncResolve()
+          firstSyncResolve = null
+        }
       }
     })
+
+    // 等待首次同步完成（最多 5 秒超时）
+    console.log('[workspaces] waiting for first sync...')
+    await Promise.race([
+      firstSyncPromise,
+      new Promise<void>((resolve) => setTimeout(() => {
+        console.log('[workspaces] first sync timeout after 5s')
+        resolve()
+      }, 5000))
+    ])
+    console.log('[workspaces] first sync wait completed')
   } catch (e) {
     console.error('[workspaces] failed to start meta sync:', e)
   } finally {
@@ -210,6 +241,8 @@ export function stopMetaSync(): void {
     metaSyncHandle = null
   }
   lastSyncedUserId = null
+  firstSyncResolve = null
+  firstSyncPromise = null
 }
 
 export function onMetaChange(fn: () => void): () => void {

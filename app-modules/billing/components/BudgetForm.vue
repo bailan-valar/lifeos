@@ -42,7 +42,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">生效月份</label>
-        <select v-model.number="form.effectiveFromMonth" class="form-select">
+        <select v-model.number="form.effectiveFromMonth" class="liquid-glass-select">
           <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
         </select>
       </div>
@@ -110,8 +110,7 @@ const form = computed({
   font-weight: 500;
   color: rgba(0, 0, 0, 0.92);
 }
-.form-input,
-.form-select {
+.form-input {
   padding: 10px 12px;
   border: 0.5px solid rgba(60, 60, 67, 0.2);
   border-radius: 8px;
@@ -120,8 +119,7 @@ const form = computed({
   color: rgba(0, 0, 0, 0.92);
   outline: none;
 }
-.form-input:focus,
-.form-select:focus {
+.form-input:focus {
   border-color: rgb(0, 122, 255);
 }
 .type-grid {
