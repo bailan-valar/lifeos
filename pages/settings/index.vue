@@ -84,7 +84,7 @@ const quickItems = [
   {
     id: 'account',
     label: '账户',
-    desc: '信息、安全、退出',
+    desc: '信息、安全、API Token',
     icon: 'solar:user-linear',
     bg: 'linear-gradient(135deg, rgba(52,199,89,0.12), rgba(52,199,89,0.04))',
   },
