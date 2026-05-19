@@ -1,0 +1,54 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(npx nuxt *)",
+      "Bash(grep -rl '\\\\$rxdb' /Users/wangchenjia/lifeos '--include=*.vue' '--include=*.ts')",
+      "Bash(git commit -m ' *)",
+      "Bash(npx vue-tsc *)",
+      "Bash(git reset *)",
+      "Bash(git commit *)"
+    ]
+  },
+  "defaultMode": "acceptEdits",
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "playwright",
+    "context7",
+    "sequential-thinking"
+  ],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/post-tool-use.js"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/one-task-guard.js"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/play-sound.js notification"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -46,7 +46,7 @@
                 <span class="type-badge" :class="`type-${item.type}`">{{ getTypeLabel(item.type) }}</span>
               </td>
               <td class="title-cell">{{ item.title }}</td>
-              <td class="date-cell">{{ item.releaseDate }}</td>
+              <td class="date-cell">{{ formatReleaseDate(item.releaseDate) }}</td>
               <td class="actions-cell">
                 <button class="action-btn" title="编辑" @click="openEditDialog(item)">
                   <Icon name="solar:pen-linear" />
@@ -116,11 +116,10 @@
 
                 <div class="form-group">
                   <label class="form-label">发布日期</label>
-                  <input
+                  <FieldEditor
+                    :field="releaseDateField"
                     v-model="formData.releaseDate"
-                    type="date"
-                    class="liquid-glass-input"
-                    required
+                    label=""
                   />
                 </div>
               </form>
@@ -141,7 +140,9 @@
 
 <script setup lang="ts">
 import type { Changelog, ChangelogCreateInput } from '~/types/changelog'
+import type { ClassField } from '~/types/block'
 import RichTextEditor from '~/components/editor/RichTextEditor.vue'
+import FieldEditor from '~/components/class/FieldEditor.vue'
 
 definePageMeta({
   middleware: 'admin',
@@ -149,6 +150,7 @@ definePageMeta({
 
 const { changelogs, isLoading, error, fetchChangelogs } = useChangelog()
 const { createChangelog, updateChangelog, deleteChangelog } = useAdminChangelog()
+const { confirm } = useConfirm()
 
 const showDialog = ref(false)
 const editingItem = ref<Changelog | null>(null)
@@ -212,13 +214,16 @@ async function handleSubmit() {
 }
 
 async function confirmDelete(item: Changelog) {
-  if (confirm(`确定要删除 "${item.title}" 吗？`)) {
-    try {
-      await deleteChangelog(item.id)
-      await fetchData()
-    } catch (err) {
-      console.error('删除失败:', err)
-    }
+  const ok = await confirm({
+    message: `确定要删除 "${item.title}" 吗？`,
+    danger: true
+  })
+  if (!ok) return
+  try {
+    await deleteChangelog(item.id)
+    await fetchData()
+  } catch (err) {
+    console.error('删除失败:', err)
   }
 }
 
@@ -233,6 +238,28 @@ function getTypeLabel(type: string) {
   const option = typeOptions.find(opt => opt.value === type)
   return option?.label || type
 }
+
+function formatReleaseDate(dateStr: string) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+const releaseDateField = {
+  id: 'releaseDate',
+  classId: '',
+  name: '发布日期',
+  type: 'date' as const,
+  options: [],
+  required: true,
+  order: 0,
+  createdAt: '',
+  updatedAt: ''
+} satisfies ClassField
 </script>
 
 <style scoped>

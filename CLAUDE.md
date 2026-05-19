@@ -364,3 +364,56 @@ import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 3. IDE 自动在所有文件中可用
 
 详细图标列表见 [composables/useIcons.ts](composables/useIcons.ts)
+
+## 确认框使用规范
+
+**禁止使用原生 `confirm()`**：原生 `confirm()` 会阻塞主线程，触发 Chrome `[Violation] 'click' handler took ...ms` 性能警告，且无法在样式上保持与项目设计系统一致。
+
+**必须使用 `useConfirm()` composable**：项目已在 `app.vue` 中全局挂载 `<ConfirmDialog />`，任何地方都可以直接调用。
+
+### 使用方式
+
+```vue
+<script setup lang="ts">
+const { confirm } = useConfirm()
+
+async function handleDelete(item: SomeItem) {
+  const ok = await confirm({
+    message: `确定要删除 "${item.name}" 吗？`,
+    danger: true
+  })
+  if (!ok) return
+  // 执行删除
+}
+</script>
+```
+
+### API
+
+```ts
+interface ConfirmOptions {
+  title?: string        // 标题（可选）
+  message: string       // 正文（必填）
+  confirmText?: string  // 确认按钮文字，默认"确定"
+  cancelText?: string   // 取消按钮文字，默认"取消"
+  danger?: boolean      // 是否为危险操作，红色按钮
+}
+
+const { confirm } = useConfirm()
+confirm(options: ConfirmOptions | string): Promise<boolean>
+```
+
+### 约束
+
+```ts
+// ❌ 错误：使用原生 confirm
+if (confirm('确定删除吗？')) { ... }
+
+// ✅ 正确：使用 useConfirm
+const ok = await confirm({ message: '确定删除吗？', danger: true })
+if (!ok) return
+```
+
+- 危险操作（删除、重置等）必须设置 `danger: true`
+- 取消时提前 `return`，减少嵌套层级
+- 支持传入字符串简写：`confirm('确定删除吗？')`
