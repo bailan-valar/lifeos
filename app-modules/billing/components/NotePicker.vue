@@ -125,11 +125,11 @@ function toggleOpen() {
     open.value = false
   } else {
     open.value = true
-    nextTick(() => requestAnimationFrame(() => {
+    nextTick(() => {
       updatePanelPosition()
       searchRef.value?.focus()
       resetActiveIndex()
-    }))
+    })
   }
 }
 
@@ -234,33 +234,42 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
-watch(() => open.value, (v) => {
-  if (v) resetActiveIndex()
-})
+// 性能优化：合并 watchers，仅在打开时重置
+watch([() => open.value, searchQuery, displayItems], ([isOpen]) => {
+  if (isOpen) resetActiveIndex()
+}, { flush: 'post' })
 
-watch(searchQuery, () => {
-  if (open.value) resetActiveIndex()
-})
-
-watch(displayItems, (items) => {
-  if (!open.value) return
-  if (activeIndex.value >= items.length || activeIndex.value < 0) {
-    resetActiveIndex()
+// 性能优化：仅在面板打开时添加滚动监听
+watch(open, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('scroll', updatePanelPosition, true)
+  } else {
+    window.removeEventListener('scroll', updatePanelPosition, true)
   }
 })
 
+// 性能优化：节流 updatePanelPosition
+let rafId: number | null = null
+function throttledUpdatePanelPosition() {
+  if (rafId !== null) return
+  rafId = requestAnimationFrame(() => {
+    updatePanelPosition()
+    rafId = null
+  })
+}
+
 onMounted(() => {
   document.addEventListener('click', onDocumentClick, true)
-  window.addEventListener('scroll', updatePanelPosition, true)
-  window.addEventListener('resize', updatePanelPosition)
+  window.addEventListener('resize', throttledUpdatePanelPosition)
   window.addEventListener('keydown', onKeyDown, { capture: true })
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick, true)
   window.removeEventListener('scroll', updatePanelPosition, true)
-  window.removeEventListener('resize', updatePanelPosition)
+  window.removeEventListener('resize', throttledUpdatePanelPosition)
   window.removeEventListener('keydown', onKeyDown, { capture: true } as any)
+  if (rafId !== null) cancelAnimationFrame(rafId)
 })
 </script>
 

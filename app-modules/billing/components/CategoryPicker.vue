@@ -168,6 +168,24 @@ const selectedName = computed(() => {
 })
 
 /* ---------- 树形构建 ---------- */
+// 性能优化：构建 parentId → category 的 Map，O(1) 查找替代 O(n) find
+const categoryById = computed(() => {
+  const map = new Map<string, BillCategory>()
+  for (const c of props.categories) {
+    map.set(c.id, c)
+  }
+  return map
+})
+
+// 性能优化：构建 parentId → children 的映射，缓存祖先关系
+const parentMap = computed(() => {
+  const map = new Map<string, string | null>()
+  for (const c of props.categories) {
+    map.set(c.id, c.parentId || null)
+  }
+  return map
+})
+
 const treeItems = computed(() => {
   const list = props.type
     ? props.categories.filter(c => c.type === props.type)
@@ -221,11 +239,13 @@ const treeItems = computed(() => {
 })
 
 /* ---------- 搜索过滤 ---------- */
+// 性能优化：使用 parentMap 替代嵌套 find，从 O(n²) 降到 O(n)
 const displayItems = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return treeItems.value
 
   const allItems = treeItems.value
+  const parentIdMap = parentMap.value
   const matchedIds = new Set(
     allItems.filter(i => i.name.toLowerCase().includes(q)).map(i => i.id)
   )
@@ -233,23 +253,33 @@ const displayItems = computed(() => {
   const visibleIds = new Set<string>()
   for (const id of matchedIds) {
     visibleIds.add(id)
-    // 祖先
-    let parentId = props.categories.find(c => c.id === id)?.parentId
+    // 祖先：使用 Map O(1) 查找
+    let parentId = parentIdMap.get(id)
     while (parentId) {
       visibleIds.add(parentId)
-      parentId = props.categories.find(c => c.id === parentId)?.parentId
+      parentId = parentIdMap.get(parentId) || undefined
     }
-    // 后代
-    for (const desc of allItems) {
-      let dp = props.categories.find(c => c.id === desc.id)?.parentId
-      while (dp) {
-        if (dp === id) {
-          visibleIds.add(desc.id)
-          break
-        }
-        dp = props.categories.find(c => c.id === dp)?.parentId
+  }
+  // 后代：预先构建 children map
+  const childrenOfId = new Map<string, string[]>()
+  for (const item of allItems) {
+    const pid = parentIdMap.get(item.id)
+    if (pid) {
+      const siblings = childrenOfId.get(pid) || []
+      siblings.push(item.id)
+      childrenOfId.set(pid, siblings)
+    }
+  }
+  for (const id of matchedIds) {
+    const collectDescendants = (pid: string) => {
+      const children = childrenOfId.get(pid)
+      if (!children) return
+      for (const childId of children) {
+        visibleIds.add(childId)
+        collectDescendants(childId)
       }
     }
+    collectDescendants(id)
   }
 
   return allItems.filter(i => visibleIds.has(i.id))
@@ -267,60 +297,67 @@ function toggleExpanded(id: string) {
   expandedIds.value = next
 }
 
+// 性能优化：使用 parentMap 替代嵌套 find
 const renderItems = computed(() => {
   if (searchQuery.value.trim()) return displayItems.value
   const visible: TreeItem[] = []
+  const parentIdMap = parentMap.value
   for (const item of treeItems.value) {
-    let parentId = props.categories.find(c => c.id === item.id)?.parentId
+    let parentId = parentIdMap.get(item.id)
     let hidden = false
     while (parentId) {
       if (!expandedIds.value.has(parentId)) {
         hidden = true
         break
       }
-      parentId = props.categories.find(c => c.id === parentId)?.parentId
+      parentId = parentIdMap.get(parentId) || undefined
     }
     if (!hidden) visible.push(item)
   }
   return visible
 })
 
-watch(() => open.value, (v) => {
-  if (v) {
-    if (expandedIds.value.size === 0) {
-      const all = new Set<string>()
-      for (const item of treeItems.value) {
-        if (item.children.length > 0) all.add(item.id)
-      }
-      expandedIds.value = all
+// 性能优化：合并相关 watcher，减少 nextTick 调用
+watch([() => open.value, searchQuery, renderItems], ([isOpen, , items]) => {
+  if (!isOpen) return
+  if (expandedIds.value.size === 0) {
+    const all = new Set<string>()
+    for (const item of treeItems.value) {
+      if (item.children.length > 0) all.add(item.id)
     }
-    resetActiveIndex()
+    expandedIds.value = all
   }
-})
-
-watch(searchQuery, () => {
-  if (open.value) resetActiveIndex()
-})
-
-watch(renderItems, (items) => {
-  if (!open.value) return
-  if (activeIndex.value >= items.length || activeIndex.value < 0) {
-    resetActiveIndex()
-  }
-})
+  resetActiveIndex()
+}, { flush: 'post' })
 
 /* ---------- 状态判断 ---------- */
+// 性能优化：memoize isDisabled 结果
+const disabledCache = new Map<string, boolean>()
 function isDisabled(item: TreeItem): boolean {
-  if (item.id === props.excludeId) return true
+  if (disabledCache.has(item.id)) return disabledCache.get(item.id)!
+  if (item.id === props.excludeId) {
+    disabledCache.set(item.id, true)
+    return true
+  }
   if (props.excludeId) {
-    let parentId = props.categories.find(c => c.id === item.id)?.parentId
+    const parentIdMap = parentMap.value
+    let parentId = parentIdMap.get(item.id)
     while (parentId) {
-      if (parentId === props.excludeId) return true
-      parentId = props.categories.find(c => c.id === parentId)?.parentId
+      if (parentId === props.excludeId) {
+        disabledCache.set(item.id, true)
+        return true
+      }
+      parentId = parentIdMap.get(parentId) || undefined
     }
   }
+  disabledCache.set(item.id, false)
   return false
 }
+
+// 清除缓存当 categories 或 excludeId 变化
+watch([() => props.categories, () => props.excludeId], () => {
+  disabledCache.clear()
+})
 
 /* ---------- 交互 ---------- */
 function select(item: TreeItem) {
@@ -339,10 +376,10 @@ function toggleOpen() {
     open.value = false
   } else {
     open.value = true
-    nextTick(() => requestAnimationFrame(() => {
+    nextTick(() => {
       updatePanelPosition()
       searchRef.value?.focus()
-    }))
+    })
   }
 }
 
@@ -487,18 +524,37 @@ async function handleCreateCategory(data: CategoryFormData) {
   }
 }
 
+// 性能优化：仅在面板打开时添加滚动监听
+watch(open, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('scroll', updatePanelPosition, true)
+  } else {
+    window.removeEventListener('scroll', updatePanelPosition, true)
+  }
+})
+
+// 性能优化：节流 updatePanelPosition
+let rafId: number | null = null
+function throttledUpdatePanelPosition() {
+  if (rafId !== null) return
+  rafId = requestAnimationFrame(() => {
+    updatePanelPosition()
+    rafId = null
+  })
+}
+
 onMounted(() => {
   document.addEventListener('click', onDocumentClick, true)
-  window.addEventListener('scroll', updatePanelPosition, true)
-  window.addEventListener('resize', updatePanelPosition)
+  window.addEventListener('resize', throttledUpdatePanelPosition)
   window.addEventListener('keydown', onKeyDown, { capture: true })
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick, true)
   window.removeEventListener('scroll', updatePanelPosition, true)
-  window.removeEventListener('resize', updatePanelPosition)
+  window.removeEventListener('resize', throttledUpdatePanelPosition)
   window.removeEventListener('keydown', onKeyDown, { capture: true } as any)
+  if (rafId !== null) cancelAnimationFrame(rafId)
 })
 
 </script>

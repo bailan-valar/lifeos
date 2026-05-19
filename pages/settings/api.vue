@@ -50,9 +50,6 @@
               </div>
             </div>
             <div class="token-actions">
-              <button class="action-btn" @click="copyToken(token)">
-                <Icon name="solar:copy-linear" />
-              </button>
               <button class="action-btn danger" @click="confirmDelete(token)">
                 <Icon name="solar:trash-bin-minimalistic-linear" />
               </button>
@@ -154,9 +151,9 @@
             </p>
             <div class="token-display">
               <code class="token-code">{{ createdToken }}</code>
-              <button class="copy-large-btn" @click="copyCreatedToken">
-                <Icon name="solar:copy-linear" />
-                复制
+              <button class="copy-large-btn" :class="{ copied: copiedCreatedToken }" @click="copyCreatedToken">
+                <Icon :name="copiedCreatedToken ? 'solar:check-circle-linear' : 'solar:copy-linear'" />
+                {{ copiedCreatedToken ? '已复制' : '复制' }}
               </button>
             </div>
           </div>
@@ -257,6 +254,8 @@ const toast = ref({
   icon: 'solar:check-circle-linear',
 })
 
+const copiedCreatedToken = ref(false)
+
 // 加载 Token 列表
 async function loadTokens() {
   loading.value = true
@@ -344,35 +343,49 @@ function confirmDelete(token: ApiToken) {
 function closeNewTokenDialog() {
   showNewTokenDialog.value = false
   createdToken.value = ''
-}
-
-// 复制 Token
-async function copyToken(token: ApiToken) {
-  try {
-    const response = await $fetch('/api/user/api-tokens', {
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    })
-
-    if (response && (response as any).success) {
-      const fullToken = (response as any).data.find((t: ApiToken) => t.id === token.id)
-      if (fullToken) {
-        await navigator.clipboard.writeText(fullToken.token)
-        showToast('已复制到剪贴板')
-      }
-    }
-  } catch (error: any) {
-    showToast('复制失败', 'error')
-  }
+  copiedCreatedToken.value = false
 }
 
 async function copyCreatedToken() {
-  try {
-    await navigator.clipboard.writeText(createdToken.value)
+  const token = createdToken.value
+  let success = false
+
+  // 优先使用 Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(token)
+      success = true
+    } catch {
+      // 降级到传统方法
+    }
+  }
+
+  // 降级方案：使用 textarea + execCommand
+  if (!success) {
+    try {
+      const textarea = document.createElement('textarea')
+      textarea.value = token
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textarea)
+      success = successful
+    } catch {
+      success = false
+    }
+  }
+
+  if (success) {
+    copiedCreatedToken.value = true
     showToast('已复制到剪贴板')
-  } catch {
-    showToast('复制失败', 'error')
+    setTimeout(() => {
+      copiedCreatedToken.value = false
+    }, 2000)
+  } else {
+    showToast('复制失败，请手动复制', 'error')
   }
 }
 
@@ -877,10 +890,16 @@ onMounted(() => {
   border-radius: var(--liquid-radius-button);
   cursor: pointer;
   flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .copy-large-btn:hover {
   background: var(--liquid-bg-thick);
+}
+
+.copy-large-btn.copied {
+  color: #34c759;
+  background: rgba(52, 199, 89, 0.15);
 }
 
 .delete-hint {

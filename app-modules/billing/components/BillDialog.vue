@@ -1,74 +1,68 @@
 <template>
-  <Teleport to="body">
-    <div v-if="visible" class="dialog-overlay" :class="{ mobile: isMobile }" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onCancel">
-      <div class="dialog" :class="{ mobile: isMobile }" tabindex="-1" @click.stop @keydown="onKeyDown">
-        <div class="dialog-header">
-          <h3>{{ isEditing ? '编辑账单' : '记一笔' }}</h3>
-          <button type="button" class="close-btn" @click="onCancel">
-            <Icon name="solar:close-circle-linear" size="20" />
-          </button>
+  <BaseDialog
+    :visible="visible"
+    :title="isEditing ? '编辑账单' : '记一笔'"
+    size="medium"
+    @update:visible="onCancel"
+  >
+    <!-- 导入原数据卡片 -->
+    <div v-if="importSourceItem" class="import-source-card">
+      <div class="import-source-header">
+        <Icon name="solar:file-import-linear" size="14" />
+        <span class="import-source-title">导入原数据</span>
+        <span class="import-source-tag">{{ importSourceLabel }}</span>
+      </div>
+      <div class="import-source-body">
+        <div class="import-source-row">
+          <span class="import-source-label">交易对方</span>
+          <span class="import-source-value">{{ importSourceItem.counterparty || '-' }}</span>
         </div>
-        <div class="dialog-body">
-          <!-- 导入原数据卡片 -->
-          <div v-if="importSourceItem" class="import-source-card">
-            <div class="import-source-header">
-              <Icon name="solar:file-import-linear" size="14" />
-              <span class="import-source-title">导入原数据</span>
-              <span class="import-source-tag">{{ importSourceLabel }}</span>
-            </div>
-            <div class="import-source-body">
-              <div class="import-source-row">
-                <span class="import-source-label">交易对方</span>
-                <span class="import-source-value">{{ importSourceItem.counterparty || '-' }}</span>
-              </div>
-              <div class="import-source-row">
-                <span class="import-source-label">商品说明</span>
-                <span class="import-source-value">{{ importSourceItem.description || '-' }}</span>
-              </div>
-              <div class="import-source-row">
-                <span class="import-source-label">金额</span>
-                <span class="import-source-value" :class="importSourceItem.direction">
-                  {{ importSourceItem.direction === 'in' ? '+' : '-' }}{{ importSourceItem.amount.toFixed(2) }}
-                </span>
-              </div>
-              <div class="import-source-row">
-                <span class="import-source-label">时间</span>
-                <span class="import-source-value">{{ importSourceItem.date }}</span>
-              </div>
-              <div v-if="importSourceItem.rawType" class="import-source-row">
-                <span class="import-source-label">类型</span>
-                <span class="import-source-value">{{ importSourceItem.rawType }}</span>
-              </div>
-              <div v-if="importSourceItem.paymentMethod" class="import-source-row">
-                <span class="import-source-label">支付方式</span>
-                <span class="import-source-value">{{ importSourceItem.paymentMethod }}</span>
-              </div>
-            </div>
-          </div>
-          <BillForm
-            v-model="form"
-            :accounts="accounts"
-            :categories="categories"
-            :note-options="noteOptions"
-          />
+        <div class="import-source-row">
+          <span class="import-source-label">商品说明</span>
+          <span class="import-source-value">{{ importSourceItem.description || '-' }}</span>
         </div>
-        <div class="dialog-footer">
-          <button type="button" class="cancel-btn" @click="onCancel">取消</button>
-          <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
+        <div class="import-source-row">
+          <span class="import-source-label">金额</span>
+          <span class="import-source-value" :class="importSourceItem.direction">
+            {{ importSourceItem.direction === 'in' ? '+' : '-' }}{{ importSourceItem.amount.toFixed(2) }}
+          </span>
+        </div>
+        <div class="import-source-row">
+          <span class="import-source-label">时间</span>
+          <span class="import-source-value">{{ importSourceItem.date }}</span>
+        </div>
+        <div v-if="importSourceItem.rawType" class="import-source-row">
+          <span class="import-source-label">类型</span>
+          <span class="import-source-value">{{ importSourceItem.rawType }}</span>
+        </div>
+        <div v-if="importSourceItem.paymentMethod" class="import-source-row">
+          <span class="import-source-label">支付方式</span>
+          <span class="import-source-value">{{ importSourceItem.paymentMethod }}</span>
         </div>
       </div>
     </div>
-  </Teleport>
+
+    <BillForm
+      v-model="form"
+      :accounts="accounts"
+      :categories="categories"
+      :note-options="noteOptions"
+      @keydown="onKeyDown"
+    />
+
+    <template #footer>
+      <button type="button" class="cancel-btn" @click="onCancel">取消</button>
+      <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
+    </template>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
 import type { Bill, BillFormData, Account, BillCategory, ImportRecordItem } from '~/types/bill'
-import { useZIndexOnOpen } from '~/composables/useZIndex'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useToast } from '~/composables/useToast'
 import BillForm from './BillForm.vue'
-
-const { isMobile } = useDevice()
+import BaseDialog from '~/components/ui/BaseDialog.vue'
 
 interface NoteOption {
   id: string
@@ -86,9 +80,8 @@ const props = defineProps<{
   defaultFormValues?: Partial<BillFormData>
 }>()
 
-const overlayZIndex = useZIndexOnOpen(() => props.visible)
-
 const emit = defineEmits<{
+  'update:visible': [value: boolean]
   confirm: [data: BillFormData, isEditing: boolean, id?: string]
   cancel: []
 }>()
@@ -198,6 +191,7 @@ function onConfirm() {
 }
 
 function onCancel() {
+  emit('update:visible', false)
   emit('cancel')
 }
 
@@ -223,115 +217,6 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
 </script>
 
 <style scoped>
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(8px);
-  padding: 20px;
-}
-.dialog-overlay.mobile {
-  align-items: flex-end;
-  padding: 0;
-  background: rgba(0, 0, 0, 0.35);
-}
-.dialog {
-  width: 520px;
-  max-width: 100%;
-  max-height: 85vh;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(40px) saturate(180%);
-  border: 0.5px solid rgba(255, 255, 255, 0.6);
-  border-radius: 20px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 24px 60px rgba(0, 0, 0, 0.18);
-  display: flex;
-  flex-direction: column;
-}
-.dialog.mobile {
-  width: 100%;
-  max-height: 90vh;
-  border-radius: 20px 20px 0 0;
-  border-bottom: none;
-  overflow: hidden;
-}
-
-.dialog.mobile .dialog-body {
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
-}
-.dialog-header {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  flex-shrink: 0;
-}
-.dialog-header h3 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.92);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.close-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.45);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-.close-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: rgba(60, 60, 67, 0.85);
-}
-.dialog-body {
-  padding: 20px;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
-}
-.dialog-footer {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  padding: 16px 20px;
-  border-top: 0.5px solid rgba(60, 60, 67, 0.12);
-  flex-shrink: 0;
-}
-.cancel-btn, .confirm-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.cancel-btn {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(60, 60, 67, 0.78);
-}
-.confirm-btn {
-  background: rgb(0, 122, 255);
-  color: white;
-}
-
-/* ---------- 导入原数据卡片 ---------- */
 .import-source-card {
   margin-bottom: 16px;
   border: 0.5px solid rgba(0, 122, 255, 0.2);
@@ -339,6 +224,7 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
   background: linear-gradient(135deg, rgba(0, 122, 255, 0.04) 0%, rgba(0, 122, 255, 0.02) 100%);
   overflow: hidden;
 }
+
 .import-source-header {
   display: flex;
   align-items: center;
@@ -347,11 +233,13 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
   background: rgba(0, 122, 255, 0.06);
   border-bottom: 0.5px solid rgba(0, 122, 255, 0.12);
 }
+
 .import-source-title {
   font-size: 12px;
   font-weight: 600;
   color: rgba(0, 122, 255, 0.9);
 }
+
 .import-source-tag {
   margin-left: auto;
   padding: 1px 8px;
@@ -361,48 +249,59 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
   background: rgba(0, 122, 255, 0.1);
   color: rgb(0, 122, 255);
 }
+
 .import-source-body {
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
 .import-source-row {
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: 13px;
 }
+
 .import-source-label {
   flex-shrink: 0;
   width: 60px;
   font-size: 12px;
   color: rgba(60, 60, 67, 0.55);
 }
+
 .import-source-value {
   color: rgba(0, 0, 0, 0.86);
   word-break: break-all;
 }
+
 .import-source-value.in {
   color: rgb(52, 199, 89);
   font-weight: 600;
 }
+
 .import-source-value.out {
   color: rgb(255, 59, 48);
   font-weight: 600;
 }
 
-.dialog-body::-webkit-scrollbar {
-  width: 5px;
+.cancel-btn, .confirm-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--liquid-radius-button);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
 }
-.dialog-body::-webkit-scrollbar-track {
-  background: transparent;
+
+.cancel-btn {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.78);
 }
-.dialog-body::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 10px;
-}
-.dialog-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.22);
+
+.confirm-btn {
+  background: rgb(0, 122, 255);
+  color: white;
 }
 </style>
