@@ -114,7 +114,7 @@ const editor = useEditor({
       codeBlock: false,
       blockquote: false,
       horizontalRule: false,
-      link: false  // 排除内置的 link，使用自定义配置
+      link: false
     }),
     Underline,
     Link.configure({

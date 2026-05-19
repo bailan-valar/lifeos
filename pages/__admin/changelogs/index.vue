@@ -108,6 +108,7 @@
                 <div class="form-group">
                   <label class="form-label">描述</label>
                   <RichTextEditor
+                    :key="`editor-${showDialog}-${editingItem?.id || 'create'}`"
                     v-model="formData.description"
                     placeholder="详细描述（可选）"
                   />

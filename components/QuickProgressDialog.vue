@@ -43,11 +43,7 @@
 
             <div class="input-field">
               <label class="caption1 liquid-text-secondary">日期</label>
-              <input
-                v-model="form.date"
-                type="date"
-                class="liquid-glass-input"
-              />
+              <DateTimePicker v-model="form.date" placeholder="选择日期" clearable />
             </div>
 
             <div class="input-field">
@@ -96,6 +92,7 @@
 
 <script setup lang="ts">
 import type { Goal, ProgressStatistics } from '~/types/goal'
+import DateTimePicker from '~/app-modules/billing/components/DateTimePicker.vue'
 
 const props = defineProps<{
   visible: boolean
@@ -112,7 +109,7 @@ const amountInput = ref<HTMLInputElement>()
 
 const form = reactive({
   amount: '',
-  date: new Date().toISOString().split('T')[0],
+  date: new Date().toISOString().slice(0, 16),
   notes: ''
 })
 
@@ -156,7 +153,7 @@ watch(() => props.visible, (visible) => {
   if (visible) {
     // 重置表单
     form.amount = ''
-    form.date = new Date().toISOString().split('T')[0]
+    form.date = new Date().toISOString().slice(0, 16)
     form.notes = ''
 
     // 自动聚焦输入框
