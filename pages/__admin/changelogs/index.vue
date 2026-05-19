@@ -290,6 +290,9 @@ const releaseDateField = {
 .changelog-table-section {
   padding: 20px;
   min-height: 400px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .loading-state,
@@ -332,7 +335,9 @@ const releaseDateField = {
 .changelog-table thead {
   position: sticky;
   top: 0;
-  background: rgba(255, 255, 255, 0.9);
+  z-index: 10;
+  background: var(--liquid-bg-thick);
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
 }
 
 .changelog-table th {
@@ -356,6 +361,10 @@ const releaseDateField = {
   padding: 14px 16px;
   border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
   font-size: 14px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-row:last-child td {
@@ -397,6 +406,7 @@ const releaseDateField = {
 
 .title-cell {
   color: var(--liquid-text-primary);
+  max-width: 400px;
 }
 
 .date-cell {
@@ -543,6 +553,10 @@ const releaseDateField = {
     gap: 12px;
   }
 
+  .changelog-table-section {
+    max-height: calc(100vh - 220px);
+  }
+
   .changelog-table {
     font-size: 12px;
   }
@@ -550,6 +564,23 @@ const releaseDateField = {
   .changelog-table th,
   .table-row td {
     padding: 10px 12px;
+  }
+
+  .table-row td {
+    max-width: 200px;
+  }
+
+  .title-cell {
+    max-width: 250px;
+  }
+
+  .dialog-content {
+    max-height: 90vh;
+    max-width: 100%;
+  }
+
+  .dialog-body {
+    padding: 16px 20px;
   }
 }
 </style>

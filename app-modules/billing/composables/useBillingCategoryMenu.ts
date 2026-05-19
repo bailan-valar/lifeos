@@ -52,6 +52,14 @@ export function useBillingCategoryMenu(options: UseBillingCategoryMenuOptions) {
     closeCategoryMenu()
   }
 
+  function onMenuDetail() {
+    const node = options.categoryMenu.value.node
+    closeCategoryMenu()
+    if (node) {
+      navigateTo(`/billing/categories/${node.id}`)
+    }
+  }
+
   async function onMenuDelete() {
     const node = options.categoryMenu.value.node
     closeCategoryMenu()
@@ -66,6 +74,7 @@ export function useBillingCategoryMenu(options: UseBillingCategoryMenuOptions) {
     openAddChildCategoryDialog,
     onMenuAddChild,
     onMenuEdit,
+    onMenuDetail,
     onMenuDelete
   }
 }

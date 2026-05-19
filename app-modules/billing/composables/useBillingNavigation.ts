@@ -22,14 +22,14 @@ export function useBillingNavigation() {
     { id: 'bills' as TabId, name: '账单', icon: 'solar:wallet-money-linear' },
     { id: 'accounts' as TabId, name: '账户', icon: 'solar:wallet-linear' },
     { id: 'categories' as TabId, name: '分类', icon: 'solar:folder-linear' },
-    { id: 'budgets' as TabId, name: '预算', icon: 'solar:chart-2-linear' },
+    { id: 'budgets' as TabId, name: '预算', icon: 'solar:chart-linear' },
     { id: 'rules' as TabId, name: '规则', icon: 'solar:filter-linear' }
   ]
 
   const mobileTabs = [
     { id: 'bills' as TabId, name: '账单', icon: 'solar:wallet-money-linear' },
     { id: 'accounts' as TabId, name: '账户', icon: 'solar:wallet-linear' },
-    { id: 'budgets' as TabId, name: '预算', icon: 'solar:chart-2-linear' },
+    { id: 'budgets' as TabId, name: '预算', icon: 'solar:chart-linear' },
     { id: 'categories' as TabId, name: '分类', icon: 'solar:folder-linear' }
   ]
 

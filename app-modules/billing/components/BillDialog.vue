@@ -8,7 +8,7 @@
     <!-- 导入原数据卡片 -->
     <div v-if="importSourceItem" class="import-source-card">
       <div class="import-source-header">
-        <Icon name="solar:file-import-linear" size="14" />
+        <Icon :name="ICONS.fileImport" size="14" />
         <span class="import-source-title">导入原数据</span>
         <span class="import-source-tag">{{ importSourceLabel }}</span>
       </div>
@@ -95,15 +95,48 @@
       </div>
     </template>
   </BaseDialog>
+
+  <!-- 拆分对话框 -->
+  <BillSplitDialog
+    v-if="splitDialogVisible && props.bill"
+    :visible="splitDialogVisible"
+    :bill="props.bill"
+    :categories="categories"
+    @update:visible="splitDialogVisible = $event"
+    @confirm="handleSplitConfirm"
+  />
+
+  <!-- 分摊对话框 -->
+  <BillAllocateDialog
+    v-if="allocateDialogVisible && props.bill"
+    :visible="allocateDialogVisible"
+    :bill="props.bill"
+    @update:visible="allocateDialogVisible = $event"
+    @confirm="handleAllocateConfirm"
+  />
+
+  <!-- 退款对话框 -->
+  <BillRefundDialog
+    v-if="refundDialogVisible && props.bill"
+    :visible="refundDialogVisible"
+    :bill="props.bill"
+    :accounts="accounts"
+    @update:visible="refundDialogVisible = $event"
+    @confirm="handleRefundConfirm"
+  />
 </template>
 
 <script setup lang="ts">
-import type { Bill, BillFormData, Account, BillCategory, ImportRecordItem } from '~/types/bill'
+import type { Bill, BillFormData, Account, BillCategory, ImportRecordItem, BillSplitItem, BillAllocateItem } from '~/types/bill'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useToast } from '~/composables/useToast'
+import { useBills } from '~/composables/useBills'
 import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 import BillForm from './BillForm.vue'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
+import BillSplitDialog from './BillSplitDialog.vue'
+import BillAllocateDialog from './BillAllocateDialog.vue'
+import BillRefundDialog from './BillRefundDialog.vue'
 
 interface NoteOption {
   id: string
@@ -125,12 +158,16 @@ const emit = defineEmits<{
   'update:visible': [value: boolean]
   confirm: [data: BillFormData, isEditing: boolean, id?: string]
   cancel: []
-  split: []
-  allocate: []
-  refund: []
+  'action-completed': []
 }>()
 
-const { warning: showWarning } = useToast()
+const { warning: showWarning, success: showSuccess, error: showError } = useToast()
+const { splitBill, allocatePeriod, createRefund } = useBills()
+
+// 功能对话框状态
+const splitDialogVisible = ref(false)
+const allocateDialogVisible = ref(false)
+const refundDialogVisible = ref(false)
 
 const form = ref<BillFormData>({
   noteId: '', type: 'expense', amount: 0, currency: 'CNY',
@@ -175,15 +212,52 @@ const refundTitle = computed(() => {
 
 /* ---------- 拆分/分摊/退款 ---------- */
 function onSplit() {
-  emit('split')
+  splitDialogVisible.value = true
 }
 
 function onAllocate() {
-  emit('allocate')
+  allocateDialogVisible.value = true
 }
 
 function onRefund() {
-  emit('refund')
+  refundDialogVisible.value = true
+}
+
+/* ---------- 功能对话框确认处理 ---------- */
+async function handleSplitConfirm(items: BillSplitItem[]) {
+  if (!props.bill) return
+  try {
+    await splitBill(props.bill.id, items)
+    showSuccess('账单已拆分')
+    splitDialogVisible.value = false
+    emit('action-completed')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleAllocateConfirm(items: BillAllocateItem[]) {
+  if (!props.bill) return
+  try {
+    await allocatePeriod(props.bill.id, items)
+    showSuccess('账单已分摊')
+    allocateDialogVisible.value = false
+    emit('action-completed')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleRefundConfirm(amount: number, reason: string, date: string, accountId: string) {
+  if (!props.bill) return
+  try {
+    await createRefund(props.bill.id, amount, reason, date, accountId)
+    showSuccess('退款已创建')
+    refundDialogVisible.value = false
+    emit('action-completed')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
 }
 
 /* ---------- 导入原数据 ---------- */

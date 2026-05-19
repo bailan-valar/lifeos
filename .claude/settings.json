@@ -49,6 +49,14 @@
           }
         ]
       }
-    ]
+    ],
+    "GitPush": {
+      "after": [
+        {
+          "skill": "changelog-from-git",
+          "prompt": "分析自上次 changelog 更新以来的所有提交，生成面向用户的更新日志。"
+        }
+      ]
+    }
   }
 }

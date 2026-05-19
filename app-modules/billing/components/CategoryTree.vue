@@ -17,7 +17,7 @@
           @click="toggleExpand(node.id)"
         >
           <Icon
-            :name="expanded.has(node.id) ? 'solar:alt-arrow-down-linear' : 'solar:alt-arrow-right-linear'"
+            :name="expanded.has(node.id) ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.forward"
             size="14"
           />
         </button>
@@ -25,13 +25,13 @@
         <span class="node-name" @click="$emit('view-detail', node)">{{ node.name }}</span>
         <div class="node-actions">
           <button type="button" class="node-action" title="新增子分类" @click="$emit('add-child', node)">
-            <Icon name="solar:add-circle-linear" size="14" />
+            <Icon :name="SOLAR_ICONS.action.add" size="14" />
           </button>
           <button type="button" class="node-action" title="编辑" @click="$emit('edit', node)">
-            <Icon name="solar:pen-linear" size="14" />
+            <Icon :name="SOLAR_ICONS.action.edit" size="14" />
           </button>
           <button type="button" class="node-action danger" title="删除" @click="$emit('delete', node.id)">
-            <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
+            <Icon :name="SOLAR_ICONS.action.delete" size="14" />
           </button>
         </div>
       </div>
@@ -50,6 +50,7 @@
 
 <script setup lang="ts">
 import type { CategoryTreeNode } from '~/types/bill'
+import { SOLAR_ICONS } from '~/composables/useIcons'
 
 defineProps<{
   nodes: CategoryTreeNode[]

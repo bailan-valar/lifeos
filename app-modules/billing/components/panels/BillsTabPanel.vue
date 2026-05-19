@@ -82,9 +82,6 @@
       :default-form-values="(editingBill ? undefined : lastBillDefaults ?? undefined) as Partial<BillFormData> | undefined"
       @confirm="handleBillConfirm"
       @cancel="billDialogs.closeBillDialog"
-      @split="handleSplitFromDialog"
-      @allocate="handleAllocateFromDialog"
-      @refund="handleRefundFromDialog"
     />
     <BillBatchEditDialog
       v-if="batchEditVisible"
@@ -216,7 +213,7 @@ const { createImportRule, updateImportRule } = useImportRules()
 
 // 对话框状态（使用单例与 BillingView 同步）
 const billDialogs = useBillDialogs()
-const { billDialogVisible, editingBill, lastBillDefaults, batchEditVisible, importDialogVisible, recordDetailVisible, recordDetailRecord } = toRefs(billDialogs)
+const { billDialogVisible, editingBill, lastBillDefaults, batchEditVisible, importDialogVisible, recordDetailVisible, recordDetailRecord } = billDialogs
 
 // 规则对话框状态
 const ruleDialogVisible = ref(false)
@@ -412,29 +409,6 @@ function handleAllocateBill(bill: Bill) {
 function handleRefundBill(bill: Bill) {
   refundingBill.value = bill
   refundDialogVisible.value = true
-}
-
-// 从编辑弹框触发（不关闭编辑弹框，二级弹框叠加显示）
-function handleSplitFromDialog() {
-  if (editingBill.value) {
-    // 创建副本避免引用被清空
-    splittingBill.value = { ...editingBill.value }
-    splitDialogVisible.value = true
-  }
-}
-
-function handleAllocateFromDialog() {
-  if (editingBill.value) {
-    allocatingBill.value = { ...editingBill.value }
-    allocateDialogVisible.value = true
-  }
-}
-
-function handleRefundFromDialog() {
-  if (editingBill.value) {
-    refundingBill.value = { ...editingBill.value }
-    refundDialogVisible.value = true
-  }
 }
 
 async function handleSplitConfirm(splitItems: BillSplitItem[]) {

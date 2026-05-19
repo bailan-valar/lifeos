@@ -417,3 +417,47 @@ if (!ok) return
 - 危险操作（删除、重置等）必须设置 `danger: true`
 - 取消时提前 `return`，减少嵌套层级
 - 支持传入字符串简写：`confirm('确定删除吗？')`
+
+## Git Hooks 配置
+
+### 自动生成 Changelog
+
+项目配置了 Git push 前自动生成 changelog，通过 Claude Code 的 hooks 系统实现。
+
+**配置文件**：`.claude/settings.json`
+
+```json
+{
+  "hooks": {
+    "GitPush": {
+      "after": [
+        {
+          "skill": "changelog-from-git",
+          "prompt": "分析自上次 changelog 更新以来的所有提交，生成面向用户的更新日志。"
+        }
+      ]
+    }
+  }
+}
+```
+
+**工作流程**：
+1. 执行 `git push` 时，自动触发 `changelog-from-git` skill
+2. 读取 `.changelog-baseline` 获取基准提交（首次运行自动检测）
+3. 分析基准提交到 HEAD 之间的所有提交
+4. 按类型分组：`feature`（新功能）、`fix`（修复）、`improvement`（改进）、`breaking`（破坏性变更）
+5. 转换为面向用户的描述语言，避免技术细节
+6. 询问版本号和发布日期，确认后插入数据库
+7. 成功后更新 `.changelog-baseline` 为当前 HEAD
+
+**注意事项**：
+- 如果没有新提交，skill 会自动终止
+- 纯内部提交（如注释修正、CI 配置）会被跳过
+- 需要用户确认版本号和 changelog 内容后才插入数据库
+- 仅在数据库插入成功后才更新基准文件，确保幂等性
+
+**手动触发**：
+```bash
+# 直接调用 skill
+/changelog-from-git
+```

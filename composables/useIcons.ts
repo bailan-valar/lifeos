@@ -29,8 +29,9 @@ export const ICONS = {
   trashBin: 'solar:trash-bin-trash-linear',
   trashBinMinimalistic: 'solar:trash-bin-minimalistic-linear',
   refresh: 'solar:refresh-linear',
-  refreshCircle: 'solar:refresh-circle-linear',
-  callSplit: 'solar:call-split-linear',
+  refreshCircle: 'solar:refresh-linear',
+  callSplit: 'solar:transfer-horizontal-linear',
+  fileImport: 'solar:file-import-linear',
 
   // === 导航/箭头 ===
   altArrowLeft: 'solar:alt-arrow-left-linear',
@@ -64,6 +65,7 @@ export const ICONS = {
 
   // === 账单 ===
   walletMoney: 'solar:wallet-money-linear',
+  money: 'solar:money-bag-linear',
 
   // === 目标 ===
   target: 'solar:target-linear',
@@ -101,6 +103,8 @@ export const SOLAR_ICONS = {
   nav: {
     back: ICONS.altArrowLeft,
     forward: ICONS.altArrowRight,
+    right: ICONS.altArrowRight,
+    left: ICONS.altArrowLeft,
     down: ICONS.altArrowDown,
     up: ICONS.arrowUp,
   },
@@ -112,7 +116,7 @@ export const SOLAR_ICONS = {
     delete: ICONS.trashBin,
     close: ICONS.closeCircle,
     save: ICONS.checkCircle,
-    refresh: ICONS.refresh,
+    refresh: ICONS.refreshCircle,
     split: ICONS.callSplit,
   },
 
@@ -152,6 +156,11 @@ export const SOLAR_ICONS = {
   billing: {
     wallet: ICONS.walletMoney,
     calendar: ICONS.calendar,
+  },
+
+  // 金融
+  finance: {
+    money: ICONS.money,
   },
 
   // 目标
