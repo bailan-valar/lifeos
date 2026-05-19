@@ -29,6 +29,8 @@ export const ICONS = {
   trashBin: 'solar:trash-bin-trash-linear',
   trashBinMinimalistic: 'solar:trash-bin-minimalistic-linear',
   refresh: 'solar:refresh-linear',
+  refreshCircle: 'solar:refresh-circle-linear',
+  callSplit: 'solar:call-split-linear',
 
   // === 导航/箭头 ===
   altArrowLeft: 'solar:alt-arrow-left-linear',
@@ -111,6 +113,7 @@ export const SOLAR_ICONS = {
     close: ICONS.closeCircle,
     save: ICONS.checkCircle,
     refresh: ICONS.refresh,
+    split: ICONS.callSplit,
   },
 
   // 文档
@@ -148,6 +151,7 @@ export const SOLAR_ICONS = {
   // 账单
   billing: {
     wallet: ICONS.walletMoney,
+    calendar: ICONS.calendar,
   },
 
   // 目标

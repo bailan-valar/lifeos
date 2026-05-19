@@ -4,12 +4,16 @@ import type {
   ImportRecord,
   ImportRecordItem,
   ImportRecordItemStatus,
-  ImportRecordStatus
+  ImportRecordStatus,
+  BillSplitItem,
+  BillAllocateItem,
+  RefundFormData
 } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
 import { dedupeKey } from '~/services/csvImport'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { maybeRecalculateBalance, recalculateBalance } from '~/composables/useBalanceAdjustments'
+import Decimal from 'decimal.js'
 import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 async function updateAccountBalance(id: string, delta: number) {
@@ -263,7 +267,14 @@ export function useBills() {
 
   async function loadBillStats(noteId?: string, startDate?: string, endDate?: string) {
     const db = await getDB()
-    const selector: Record<string, any> = { status: 'completed' }
+    // 过滤条件：只统计"叶子节点"账单（排除有子账单的父账单）
+    const selector: Record<string, any> = {
+      status: 'completed',
+      $or: [
+        { hasChildren: { $ne: true } },
+        { hasChildren: { $exists: false } }
+      ]
+    }
     if (noteId) selector.noteId = noteId
     if (startDate || endDate) {
       selector.date = {}
@@ -552,6 +563,272 @@ export function useBills() {
     }
   }
 
+  /**
+   * 获取账单树（包含所有子账单）
+   */
+  async function getBillTree(billId: string): Promise<Bill[]> {
+    const db = await getDB()
+    const rootDoc = await db.bills.findOne(billId).exec()
+    if (!rootDoc) return []
+    const root = rootDoc.toJSON() as Bill
+    const result: Bill[] = [root]
+
+    if (root.hasChildren) {
+      const childrenResult = await db.bills.find({
+        selector: { parentId: billId },
+        sort: [{ date: 'desc' }]
+      }).exec()
+      result.push(...childrenResult.map((doc: any) => doc.toJSON() as Bill))
+    }
+
+    return result
+  }
+
+  /**
+   * 获取指定父账单的所有子账单
+   */
+  async function getChildBills(parentId: string): Promise<Bill[]> {
+    const db = await getDB()
+    const result = await db.bills.find({
+      selector: { parentId: parentId },
+      sort: [{ date: 'desc' }]
+    }).exec()
+    return result.map((doc: any) => doc.toJSON() as Bill)
+  }
+
+  /**
+   * 创建子账单
+   */
+  async function createChildBill(parentId: string, data: BillFormData): Promise<Bill> {
+    const db = await getDB()
+    const parentDoc = await db.bills.findOne(parentId).exec()
+    if (!parentDoc) throw new Error('父账单不存在')
+    const parent = parentDoc.toJSON() as Bill
+
+    const child: Bill = {
+      id: generateId(),
+      noteId: parent.noteId,
+      type: data.type || parent.type,
+      amount: data.amount,
+      currency: parent.currency,
+      fromAccountId: data.fromAccountId || parent.fromAccountId,
+      toAccountId: data.toAccountId || parent.toAccountId,
+      categoryId: data.categoryId,
+      description: data.description || parent.description,
+      date: data.date || parent.date,
+      status: 'completed',
+      debtSubtype: data.debtSubtype || parent.debtSubtype,
+      relatedPersonId: data.relatedPersonId || parent.relatedPersonId,
+      settledAmount: 0,
+      parentId: parent.id,
+      allocatedMonth: data.allocatedMonth,
+      isRefund: data.isRefund,
+      originalBillId: data.originalBillId,
+      refundReason: data.refundReason,
+      createdAt: now(),
+      updatedAt: now(),
+    }
+
+    await db.bills.insert({ ...child })
+
+    if (!parent.hasChildren) {
+      await parentDoc.patch({ hasChildren: true, updatedAt: now() })
+      const parentIdx = bills.value.findIndex(b => b.id === parentId)
+      if (parentIdx !== -1) {
+        bills.value[parentIdx].hasChildren = true
+        bills.value[parentIdx].updatedAt = now()
+      }
+    }
+
+    bills.value.push(child)
+    return child
+  }
+
+  /**
+   * 拆分账单（多分类拆分）
+   * @param billId 原账单ID
+   * @param splitItems 拆分项列表
+   */
+  async function splitBill(billId: string, splitItems: BillSplitItem[]): Promise<Bill[]> {
+    const db = await getDB()
+    const parentDoc = await db.bills.findOne(billId).exec()
+    if (!parentDoc) throw new Error('账单不存在')
+    const parent = parentDoc.toJSON() as Bill
+
+    const totalSplitAmount = splitItems.reduce((sum, item) => sum + item.amount, 0)
+    if (Math.abs(totalSplitAmount - parent.amount) > 0.01) {
+      throw new Error(`拆分金额总和(${totalSplitAmount})必须等于原账单金额(${parent.amount})`)
+    }
+
+    const children: Bill[] = []
+    for (const item of splitItems) {
+      const child: Bill = {
+        id: generateId(),
+        noteId: parent.noteId,
+        type: parent.type,
+        amount: item.amount,
+        currency: parent.currency,
+        fromAccountId: parent.fromAccountId,
+        toAccountId: parent.toAccountId,
+        categoryId: item.categoryId,
+        description: item.description || parent.description,
+        date: parent.date,
+        status: 'completed',
+        debtSubtype: parent.debtSubtype,
+        relatedPersonId: parent.relatedPersonId,
+        settledAmount: 0,
+        parentId: parent.id,
+        createdAt: now(),
+        updatedAt: now(),
+      }
+      await db.bills.insert({ ...child })
+      children.push(child)
+      bills.value.push(child)
+    }
+
+    await parentDoc.patch({ hasChildren: true, updatedAt: now() })
+    const parentIdx = bills.value.findIndex(b => b.id === billId)
+    if (parentIdx !== -1) {
+      bills.value[parentIdx].hasChildren = true
+      bills.value[parentIdx].updatedAt = now()
+    }
+
+    return children
+  }
+
+  /**
+   * 跨期分摊账单
+   * @param billId 原账单ID
+   * @param allocateItems 分摊项列表（月份+金额）
+   */
+  async function allocatePeriod(billId: string, allocateItems: BillAllocateItem[]): Promise<Bill[]> {
+    const db = await getDB()
+    const parentDoc = await db.bills.findOne(billId).exec()
+    if (!parentDoc) throw new Error('账单不存在')
+    const parent = parentDoc.toJSON() as Bill
+
+    const totalAllocateAmount = allocateItems.reduce((sum, item) => sum.plus(item.amount), new Decimal(0)).toNumber()
+    if (Math.abs(totalAllocateAmount - parent.amount) > 0.01) {
+      throw new Error(`分摊金额总和(${totalAllocateAmount})必须等于原账单金额(${parent.amount})`)
+    }
+
+    const children: Bill[] = []
+    for (const item of allocateItems) {
+      const child: Bill = {
+        id: generateId(),
+        noteId: parent.noteId,
+        type: parent.type,
+        amount: item.amount,
+        currency: parent.currency,
+        fromAccountId: parent.fromAccountId,
+        toAccountId: parent.toAccountId,
+        categoryId: parent.categoryId,
+        description: item.description || parent.description,
+        date: item.date || parent.date,
+        status: 'completed',
+        debtSubtype: parent.debtSubtype,
+        relatedPersonId: parent.relatedPersonId,
+        settledAmount: 0,
+        parentId: parent.id,
+        allocatedMonth: item.month,
+        createdAt: now(),
+        updatedAt: now(),
+      }
+      await db.bills.insert({ ...child })
+      children.push(child)
+      bills.value.push(child)
+    }
+
+    await parentDoc.patch({ hasChildren: true, updatedAt: now() })
+    const parentIdx = bills.value.findIndex(b => b.id === billId)
+    if (parentIdx !== -1) {
+      bills.value[parentIdx].hasChildren = true
+      bills.value[parentIdx].updatedAt = now()
+    }
+
+    return children
+  }
+
+  /**
+   * 创建退款账单
+   * @param data 退款表单数据
+   */
+  async function createRefundBill(data: RefundFormData): Promise<Bill> {
+    const db = await getDB()
+    const originalDoc = await db.bills.findOne(data.billId).exec()
+    if (!originalDoc) throw new Error('原账单不存在')
+    const original = originalDoc.toJSON() as Bill
+
+    if (data.amount > original.amount) {
+      throw new Error('退款金额不能超过原账单金额')
+    }
+
+    const refundType = original.type === 'income' ? 'expense' : original.type === 'expense' ? 'income' : original.type
+    let refundFromAccountId = original.toAccountId
+    let refundToAccountId = original.fromAccountId
+
+    // 使用用户指定的退款账户
+    if (data.accountId) {
+      if (refundType === 'income') {
+        refundToAccountId = data.accountId
+      } else {
+        refundFromAccountId = data.accountId
+      }
+    }
+
+    const refund: Bill = {
+      id: generateId(),
+      noteId: original.noteId,
+      type: refundType,
+      amount: data.amount,
+      currency: original.currency,
+      fromAccountId: refundFromAccountId,
+      toAccountId: refundToAccountId,
+      categoryId: original.categoryId,
+      description: `退款: ${data.reason}` || `退款: ${original.description}`,
+      date: data.date,
+      status: 'completed',
+      debtSubtype: original.debtSubtype,
+      relatedPersonId: original.relatedPersonId,
+      settledAmount: 0,
+      isRefund: true,
+      originalBillId: original.id,
+      refundReason: data.reason,
+      createdAt: now(),
+      updatedAt: now(),
+    }
+
+    await db.bills.insert({ ...refund })
+    await applyBalanceChange(refund, false)
+    bills.value.push(refund)
+    return refund
+  }
+
+  /**
+   * 获取某账单的所有退款记录
+   */
+  async function getRefundsForBill(billId: string): Promise<Bill[]> {
+    const db = await getDB()
+    const result = await db.bills.find({
+      selector: { originalBillId: billId },
+      sort: [{ date: 'desc' }]
+    }).exec()
+    return result.map((doc: any) => doc.toJSON() as Bill)
+  }
+
+  /**
+   * 计算账单实际金额（扣除退款后）
+   */
+  async function getEffectiveAmount(billId: string): Promise<number> {
+    const refunds = await getRefundsForBill(billId)
+    const totalRefund = refunds.reduce((sum, r) => sum + r.amount, 0)
+    const db = await getDB()
+    const billDoc = await db.bills.findOne(billId).exec()
+    if (!billDoc) return 0
+    const bill = billDoc.toJSON() as Bill
+    return bill.amount - totalRefund
+  }
+
   function startWatching() {
     if (unsubscribe) return
     unsubscribe = onCollectionChange('bills', () => {
@@ -571,20 +848,25 @@ export function useBills() {
     onUnmounted(stopWatching)
   }
 
+  // 过滤掉有子账单的父账单，只统计"叶子节点"
+  const leafBills = computed(() =>
+    bills.value.filter(b => !b.hasChildren)
+  )
+
   const totalIncome = computed(() =>
-    bills.value
+    leafBills.value
       .filter(b => b.type === 'income' && b.status === 'completed')
       .reduce((sum, b) => sum + b.amount, 0)
   )
 
   const totalExpense = computed(() =>
-    bills.value
+    leafBills.value
       .filter(b => b.type === 'expense' && b.status === 'completed')
       .reduce((sum, b) => sum + b.amount, 0)
   )
 
   const totalTransfer = computed(() =>
-    bills.value
+    leafBills.value
       .filter(b => b.type === 'transfer' && b.status === 'completed')
       .reduce((sum, b) => sum + b.amount, 0)
   )
@@ -617,6 +899,14 @@ export function useBills() {
     deleteBill,
     deleteBills,
     settleDebt,
+    getBillTree,
+    getChildBills,
+    createChildBill,
+    splitBill,
+    allocatePeriod,
+    createRefundBill,
+    getRefundsForBill,
+    getEffectiveAmount,
     startWatching,
     stopWatching,
     reloadFromRemote

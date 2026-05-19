@@ -55,6 +55,7 @@
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.5.1",
     "crypto-js": "^4.2.0",
+    "decimal.js": "^10.6.0",
     "jsonwebtoken": "^9.0.2",
     "nuxt": "^3.14.159",
     "papaparse": "^5.4.1",

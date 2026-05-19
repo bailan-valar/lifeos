@@ -46,6 +46,9 @@
         @select="emit('select-bill', $event)"
         @select-all="emit('select-all-bills')"
         @unselect-all="emit('unselect-all-bills')"
+        @split="handleSplitBill"
+        @allocate="handleAllocateBill"
+        @refund="handleRefundBill"
       />
       <BillTable
         v-else
@@ -79,6 +82,9 @@
       :default-form-values="(editingBill ? undefined : lastBillDefaults ?? undefined) as Partial<BillFormData> | undefined"
       @confirm="handleBillConfirm"
       @cancel="billDialogs.closeBillDialog"
+      @split="handleSplitFromDialog"
+      @allocate="handleAllocateFromDialog"
+      @refund="handleRefundFromDialog"
     />
     <BillBatchEditDialog
       v-if="batchEditVisible"
@@ -122,12 +128,32 @@
       @confirm="handleRuleConfirm"
       @cancel="closeRuleDialog"
     />
+    <BillSplitDialog
+      v-if="splittingBill"
+      v-model:visible="splitDialogVisible"
+      :bill="splittingBill"
+      :categories="categories"
+      @confirm="handleSplitConfirm"
+    />
+    <BillAllocateDialog
+      v-if="allocatingBill"
+      v-model:visible="allocateDialogVisible"
+      :bill="allocatingBill"
+      @confirm="handleAllocateConfirm"
+    />
+    <BillRefundDialog
+      v-if="refundingBill"
+      v-model:visible="refundDialogVisible"
+      :bill="refundingBill"
+      :accounts="accounts"
+      @confirm="handleRefundConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { Bill, BillFormData, ImportRecord, ImportRule, ImportRuleFormData } from '~/types/bill'
+import { computed, ref, toRefs } from 'vue'
+import type { Bill, BillFormData, ImportRecord, ImportRule, ImportRuleFormData, BillSplitItem, BillAllocateItem, RefundFormData } from '~/types/bill'
 import { useBillingStore } from '~/stores/billing'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
@@ -155,6 +181,9 @@ import BudgetProgressBar from '../common/BudgetProgressBar.vue'
 import BillSkeleton from '../common/BillSkeleton.vue'
 import LoadMoreButton from '../common/LoadMoreButton.vue'
 import { useBillDialogs } from '../../composables/useBillDialogs'
+import BillSplitDialog from '../BillSplitDialog.vue'
+import BillAllocateDialog from '../BillAllocateDialog.vue'
+import BillRefundDialog from '../BillRefundDialog.vue'
 
 const props = defineProps<{
   bills: Bill[]
@@ -180,19 +209,27 @@ const { success: showSuccess, error: showError } = useToast()
 const { accounts } = useAccounts()
 const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
-const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore } = useBills()
+const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore, splitBill, allocatePeriod, createRefundBill } = useBills()
 const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords } = useImportRecords()
 const { createImportRule, updateImportRule } = useImportRules()
 
 // 对话框状态（使用单例与 BillingView 同步）
 const billDialogs = useBillDialogs()
-const { billDialogVisible, editingBill, lastBillDefaults, batchEditVisible, importDialogVisible, recordDetailVisible, recordDetailRecord } = billDialogs
+const { billDialogVisible, editingBill, lastBillDefaults, batchEditVisible, importDialogVisible, recordDetailVisible, recordDetailRecord } = toRefs(billDialogs)
 
 // 规则对话框状态
 const ruleDialogVisible = ref(false)
 const editingRule = ref<ImportRule | undefined>(undefined)
 const initialRuleForm = ref<ImportRuleFormData | undefined>(undefined)
 const pendingRuleCallback = ref<(() => void) | undefined>(undefined)
+
+// 拆分/分摊/退款对话框状态
+const splitDialogVisible = ref(false)
+const splittingBill = ref<Bill | undefined>(undefined)
+const allocateDialogVisible = ref(false)
+const allocatingBill = ref<Bill | undefined>(undefined)
+const refundDialogVisible = ref(false)
+const refundingBill = ref<Bill | undefined>(undefined)
 
 // 计算属性
 const totalIncome = computed(() =>
@@ -358,6 +395,81 @@ function closeRuleDialog() {
   editingRule.value = undefined
   initialRuleForm.value = undefined
   pendingRuleCallback.value = undefined
+}
+
+// 拆分/分摊/退款事件处理
+function handleSplitBill(bill: Bill) {
+  splittingBill.value = bill
+  splitDialogVisible.value = true
+}
+
+function handleAllocateBill(bill: Bill) {
+  allocatingBill.value = bill
+  allocateDialogVisible.value = true
+}
+
+function handleRefundBill(bill: Bill) {
+  refundingBill.value = bill
+  refundDialogVisible.value = true
+}
+
+// 从编辑弹框触发（不关闭编辑弹框，二级弹框叠加显示）
+function handleSplitFromDialog() {
+  if (editingBill.value) {
+    // 创建副本避免引用被清空
+    splittingBill.value = { ...editingBill.value }
+    splitDialogVisible.value = true
+  }
+}
+
+function handleAllocateFromDialog() {
+  if (editingBill.value) {
+    allocatingBill.value = { ...editingBill.value }
+    allocateDialogVisible.value = true
+  }
+}
+
+function handleRefundFromDialog() {
+  if (editingBill.value) {
+    refundingBill.value = { ...editingBill.value }
+    refundDialogVisible.value = true
+  }
+}
+
+async function handleSplitConfirm(splitItems: BillSplitItem[]) {
+  if (!splittingBill.value) return
+  try {
+    await splitBill(splittingBill.value.id, splitItems)
+    showSuccess('账单已拆分')
+    splitDialogVisible.value = false
+    splittingBill.value = undefined
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleAllocateConfirm(allocateItems: BillAllocateItem[]) {
+  if (!allocatingBill.value) return
+  try {
+    await allocatePeriod(allocatingBill.value.id, allocateItems)
+    showSuccess('账单已分摊')
+    allocateDialogVisible.value = false
+    allocatingBill.value = undefined
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleRefundConfirm(amount: number, reason: string, date: string, accountId: string) {
+  if (!refundingBill.value) return
+  try {
+    await createRefundBill({ billId: refundingBill.value.id, amount, reason, date, accountId })
+    showSuccess('退款账单已创建')
+    refundDialogVisible.value = false
+    refundingBill.value = undefined
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
 }
 </script>
 

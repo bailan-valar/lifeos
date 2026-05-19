@@ -51,8 +51,48 @@
     />
 
     <template #footer>
-      <button type="button" class="cancel-btn" @click="onCancel">取消</button>
-      <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
+      <div class="footer-left">
+        <button
+          v-if="isEditing && showSplitBtn"
+          type="button"
+          class="action-btn split-btn"
+          :class="{ disabled: !canSplit }"
+          :disabled="!canSplit"
+          :title="splitTitle"
+          @click="onSplit"
+        >
+          <Icon :name="SOLAR_ICONS.action.split" size="16" />
+          {{ splitLabel }}
+        </button>
+        <button
+          v-if="isEditing && showAllocateBtn"
+          type="button"
+          class="action-btn allocate-btn"
+          :class="{ disabled: !canAllocate }"
+          :disabled="!canAllocate"
+          :title="allocateTitle"
+          @click="onAllocate"
+        >
+          <Icon :name="SOLAR_ICONS.billing.calendar" size="16" />
+          {{ allocateLabel }}
+        </button>
+        <button
+          v-if="isEditing && showRefundBtn"
+          type="button"
+          class="action-btn refund-btn"
+          :class="{ disabled: !canRefund }"
+          :disabled="!canRefund"
+          :title="refundTitle"
+          @click="onRefund"
+        >
+          <Icon :name="SOLAR_ICONS.action.refresh" size="16" />
+          {{ refundLabel }}
+        </button>
+      </div>
+      <div class="footer-right">
+        <button type="button" class="cancel-btn" @click="onCancel">取消</button>
+        <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
+      </div>
     </template>
   </BaseDialog>
 </template>
@@ -61,6 +101,7 @@
 import type { Bill, BillFormData, Account, BillCategory, ImportRecordItem } from '~/types/bill'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useToast } from '~/composables/useToast'
+import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 import BillForm from './BillForm.vue'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 
@@ -84,6 +125,9 @@ const emit = defineEmits<{
   'update:visible': [value: boolean]
   confirm: [data: BillFormData, isEditing: boolean, id?: string]
   cancel: []
+  split: []
+  allocate: []
+  refund: []
 }>()
 
 const { warning: showWarning } = useToast()
@@ -96,6 +140,51 @@ const form = ref<BillFormData>({
 })
 
 const isEditing = computed(() => !!props.bill)
+
+/* ---------- 账单状态 ---------- */
+const isChildBill = computed(() => !!props.bill?.parentId)
+const isRefundBill = computed(() => !!props.bill?.isRefund)
+const hasChildren = computed(() => !!props.bill?.hasChildren)
+
+/* ---------- 拆分 ---------- */
+const showSplitBtn = computed(() => !isChildBill.value)
+const canSplit = computed(() => !hasChildren.value)
+const splitLabel = computed(() => hasChildren.value ? '已拆分' : '拆分')
+const splitTitle = computed(() => {
+  if (hasChildren.value) return '该账单已拆分'
+  return '拆分账单'
+})
+
+/* ---------- 分摊 ---------- */
+const showAllocateBtn = computed(() => !isChildBill.value)
+const canAllocate = computed(() => !hasChildren.value)
+const allocateLabel = computed(() => hasChildren.value ? '已分摊' : '分摊')
+const allocateTitle = computed(() => {
+  if (hasChildren.value) return '该账单已分摊'
+  return '分摊到月份'
+})
+
+/* ---------- 退款 ---------- */
+const showRefundBtn = computed(() => true)
+const canRefund = computed(() => !isRefundBill.value)
+const refundLabel = computed(() => '退款')
+const refundTitle = computed(() => {
+  if (isRefundBill.value) return '退款账单不可退款'
+  return '退款'
+})
+
+/* ---------- 拆分/分摊/退款 ---------- */
+function onSplit() {
+  emit('split')
+}
+
+function onAllocate() {
+  emit('allocate')
+}
+
+function onRefund() {
+  emit('refund')
+}
 
 /* ---------- 导入原数据 ---------- */
 const { getById } = useImportRecords()
@@ -303,5 +392,57 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
 .confirm-btn {
   background: rgb(0, 122, 255);
   color: white;
+}
+
+/* 底部按钮布局 */
+.footer-left {
+  display: flex;
+  gap: 8px;
+}
+
+.footer-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--liquid-radius-button);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(60, 60, 67, 0.7);
+  transition: all 0.15s ease;
+}
+
+.action-btn:hover {
+  background: rgba(60, 60, 67, 0.15);
+  color: rgba(60, 60, 67, 0.9);
+}
+
+.action-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.split-btn:hover:not(:disabled) {
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
+}
+
+.allocate-btn:hover:not(:disabled) {
+  background: rgba(175, 82, 222, 0.1);
+  color: rgb(175, 82, 222);
+}
+
+.refund-btn:hover:not(:disabled) {
+  background: rgba(255, 149, 0, 0.1);
+  color: rgb(255, 149, 0);
 }
 </style>

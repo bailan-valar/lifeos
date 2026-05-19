@@ -100,6 +100,14 @@ export interface Bill {
   importSource?: ImportSource
   importFingerprint?: string
   counterpartyRaw?: string
+  // 父子账单关系
+  parentId?: string              // 父账单ID（子账单有值）
+  hasChildren?: boolean          // 是否有子账单（父账单标记）
+  // 分摊与退款
+  allocatedMonth?: string        // 分摊月份 YYYY-MM（统计时按此分组）
+  isRefund?: boolean             // 是否为退款账单
+  originalBillId?: string        // 退款源账单ID
+  refundReason?: string          // 退款原因
   createdAt: string
   updatedAt: string
 }
@@ -119,6 +127,14 @@ export interface BillFormData {
   date: string
   debtSubtype: DebtSubtype
   relatedPersonId: string
+  // 父子账单关系
+  parentId?: string
+  hasChildren?: boolean
+  // 分摊与退款
+  allocatedMonth?: string
+  isRefund?: boolean
+  originalBillId?: string
+  refundReason?: string
 }
 
 /**
@@ -458,4 +474,34 @@ export interface BillingCreators {
   openAccountCreator: (payload: AccountCreatePayload) => void
   openCategoryForm: (data: { type: CategoryType; defaultParentId?: string; defaultName?: string; onCreated?: (category: BillCategory) => void }) => void
   openRuleDialog: (form: ImportRuleFormData, options?: { onSaved?: () => void }) => void
+}
+
+/**
+ * 账单拆分项（用于多分类拆分）
+ */
+export interface BillSplitItem {
+  categoryId: string
+  amount: number
+  description?: string
+}
+
+/**
+ * 账单分摊项（用于跨期分摊）
+ */
+export interface BillAllocateItem {
+  month: string      // YYYY-MM 格式
+  amount: number
+  description?: string
+  date?: string      // YYYY-MM-DD 格式，自定义日期
+}
+
+/**
+ * 退款表单数据
+ */
+export interface RefundFormData {
+  billId: string
+  amount: number
+  reason: string
+  date: string
+  accountId: string
 }

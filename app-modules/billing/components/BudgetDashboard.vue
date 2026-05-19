@@ -235,7 +235,20 @@ function toggleExpand(id: string) {
 function getDirectActual(categoryId: string, year: number, month: number): number {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
   return scopedBills.value
-    .filter(b => b.type === 'expense' && b.categoryId === categoryId && b.date.startsWith(prefix))
+    .filter(b => {
+      // 只统计叶子节点账单（排除有子账单的父账单）
+      if (b.hasChildren) return false
+      // 只统计支出类型
+      if (b.type !== 'expense') return false
+      // 分类匹配
+      if (b.categoryId !== categoryId) return false
+
+      // 如果有分摊月份，按分摊月份统计；否则按账单日期统计
+      if (b.allocatedMonth) {
+        return b.allocatedMonth === prefix
+      }
+      return b.date.startsWith(prefix)
+    })
     .reduce((sum, b) => sum + b.amount, 0)
 }
 
