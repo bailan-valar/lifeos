@@ -44,6 +44,7 @@
         @delete="handleDeleteAccount"
         @view-statements="openStatementList"
         @adjust-balance="openBalanceAdjustDialog"
+        @installment="openInstallmentDialog"
         @view-detail="navigateTo('/billing/accounts/' + $event.id)"
       />
     </div>
@@ -84,6 +85,14 @@
       @generate="handleGenerateStatement"
       @close="closeStatementList"
     />
+    <InstallmentDialog
+      v-if="installmentDialogVisible"
+      :visible="installmentDialogVisible"
+      :account="installmentAccount"
+      :accounts="accounts"
+      @update:visible="installmentDialogVisible = $event"
+      @confirm="handleInstallmentConfirm"
+    />
   </div>
 </template>
 
@@ -96,13 +105,15 @@ import { useStatements } from '~/composables/useStatements'
 import { createBalanceAdjustment, loadBalanceAdjustments, deleteBalanceAdjustment } from '~/composables/useBalanceAdjustments'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
-import type { AccountFormData, Account, AccountType, StatementFormData, Statement, BalanceAdjustment } from '~/types/bill'
+import type { AccountFormData, Account, AccountType, StatementFormData, Statement, BalanceAdjustment, InstallmentFormData, InstallmentItem } from '~/types/bill'
+import { useBills } from '~/composables/useBills'
 import SelectPicker from '../SelectPicker.vue'
 import AccountList from '../AccountList.vue'
 import AccountDialog from '../AccountDialog.vue'
 import BalanceAdjustDialog from '../BalanceAdjustDialog.vue'
 import StatementDialog from '../StatementDialog.vue'
 import StatementListDialog from '../StatementListDialog.vue'
+import InstallmentDialog from '../InstallmentDialog.vue'
 
 const store = useBillingStore()
 const { isMobile } = useDevice()
@@ -127,6 +138,9 @@ const editingStatement = ref<Statement | undefined>(undefined)
 
 const statementListDialogVisible = ref(false)
 const viewingAccount = ref<Account | undefined>(undefined)
+
+const installmentDialogVisible = ref(false)
+const installmentAccount = ref<Account | null>(null)
 
 // 计算属性
 const filteredAccounts = computed(() => {
@@ -201,6 +215,11 @@ function openStatementList(account: Account) {
 function closeStatementList() {
   statementListDialogVisible.value = false
   viewingAccount.value = undefined
+}
+
+function openInstallmentDialog(account: Account) {
+  installmentAccount.value = account
+  installmentDialogVisible.value = true
 }
 
 function openStatementEdit(statement: any) {
@@ -298,6 +317,18 @@ async function handleGenerateStatement(year: number, month: number) {
   try {
     await generateForPeriod(viewingAccount.value, [], year, month)
     showSuccess('账单周期已生成')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleInstallmentConfirm(data: InstallmentFormData, items: InstallmentItem[]) {
+  try {
+    const { createInstallmentBills } = useBills()
+    await createInstallmentBills(data, items)
+    showSuccess(`分期还款计划已创建，共 ${items.length} 期`)
+    installmentDialogVisible.value = false
+    installmentAccount.value = null
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
