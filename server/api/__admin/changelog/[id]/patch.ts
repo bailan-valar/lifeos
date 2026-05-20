@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
     data: {
       ...(body.version !== undefined && { version: body.version }),
       ...(body.type !== undefined && { type: body.type }),
+      ...(body.status !== undefined && { status: body.status }),
       ...(body.title !== undefined && { title: body.title }),
       ...(body.description !== undefined && { description: body.description }),
       ...(body.releaseDate !== undefined && { releaseDate: new Date(body.releaseDate) })
@@ -42,6 +43,7 @@ export default defineEventHandler(async (event) => {
       id: changelog.id,
       version: changelog.version,
       type: changelog.type,
+      status: changelog.status,
       title: changelog.title,
       description: changelog.description,
       releaseDate: changelog.releaseDate.toISOString(),

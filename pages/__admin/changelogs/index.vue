@@ -34,6 +34,7 @@
             <tr>
               <th>版本</th>
               <th>类型</th>
+              <th>状态</th>
               <th>标题</th>
               <th>发布日期</th>
               <th>操作</th>
@@ -44,6 +45,9 @@
               <td class="version-cell">{{ item.version }}</td>
               <td class="type-cell">
                 <span class="type-badge" :class="`type-${item.type}`">{{ getTypeLabel(item.type) }}</span>
+              </td>
+              <td class="status-cell">
+                <span class="status-badge" :class="`status-${item.status}`">{{ getStatusLabel(item.status) }}</span>
               </td>
               <td class="title-cell">{{ item.title }}</td>
               <td class="date-cell">{{ item.releaseDate }}</td>
@@ -95,6 +99,15 @@
                 </div>
 
                 <div class="form-group">
+                  <label class="form-label">状态</label>
+                  <SelectPicker
+                    v-model="formData.status"
+                    :options="statusOptions"
+                    placeholder="选择状态"
+                  />
+                </div>
+
+                <div class="form-group">
                   <label class="form-label">标题</label>
                   <input
                     v-model="formData.title"
@@ -142,19 +155,25 @@
 <script setup lang="ts">
 import type { Changelog, ChangelogCreateInput } from '~/types/changelog'
 import RichTextEditor from '~/components/editor/RichTextEditor.vue'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
   middleware: 'admin',
 })
 
-const { changelogs, isLoading, error, fetchChangelogs } = useChangelog()
+const authStore = useAuthStore()
 const { createChangelog, updateChangelog, deleteChangelog } = useAdminChangelog()
+
+const changelogs = ref<Changelog[]>([])
+const isLoading = ref(false)
+const error = ref<string | null>(null)
 
 const showDialog = ref(false)
 const editingItem = ref<Changelog | null>(null)
 const formData = ref<Omit<ChangelogCreateInput, 'releaseDate'> & { releaseDate: string }>({
   version: '',
   type: 'feature',
+  status: 'published',
   title: '',
   description: '',
   releaseDate: new Date().toISOString().split('T')[0]
@@ -165,7 +184,22 @@ onMounted(() => {
 })
 
 async function fetchData() {
-  await fetchChangelogs()
+  isLoading.value = true
+  error.value = null
+
+  try {
+    const response = await $fetch<{ data: Changelog[] }>('/api/__admin/changelog', {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      }
+    })
+    changelogs.value = response.data || []
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '获取更新日志失败'
+    error.value = message
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function openCreateDialog() {
@@ -173,6 +207,7 @@ function openCreateDialog() {
   formData.value = {
     version: '',
     type: 'feature',
+    status: 'published',
     title: '',
     description: '',
     releaseDate: new Date().toISOString().split('T')[0]
@@ -185,6 +220,7 @@ function openEditDialog(item: Changelog) {
   formData.value = {
     version: item.version,
     type: item.type,
+    status: item.status,
     title: item.title,
     description: item.description,
     releaseDate: item.releaseDate.split('T')[0]
@@ -229,9 +265,21 @@ const typeOptions = [
   { value: 'breaking', label: '重大变更' }
 ]
 
+const statusOptions = [
+  { value: 'idea', label: '想法' },
+  { value: 'planned', label: '待开发' },
+  { value: 'in_progress', label: '开发中' },
+  { value: 'published', label: '已发布' }
+]
+
 function getTypeLabel(type: string) {
   const option = typeOptions.find(opt => opt.value === type)
   return option?.label || type
+}
+
+function getStatusLabel(status: string) {
+  const option = statusOptions.find(opt => opt.value === status)
+  return option?.label || status
 }
 </script>
 
@@ -366,6 +414,34 @@ function getTypeLabel(type: string) {
 .type-badge.type-breaking {
   background: rgba(255, 59, 48, 0.12);
   color: rgb(255, 59, 48);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.status-badge.status-idea {
+  background: rgba(175, 82, 222, 0.12);
+  color: rgb(175, 82, 222);
+}
+
+.status-badge.status-planned {
+  background: rgba(0, 122, 255, 0.12);
+  color: rgb(0, 122, 255);
+}
+
+.status-badge.status-in_progress {
+  background: rgba(255, 149, 0, 0.12);
+  color: rgb(255, 149, 0);
+}
+
+.status-badge.status-published {
+  background: rgba(52, 199, 89, 0.12);
+  color: rgb(52, 199, 89);
 }
 
 .title-cell {

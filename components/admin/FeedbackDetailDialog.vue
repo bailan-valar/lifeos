@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isOpen" class="dialog-overlay" @click="close">
+  <div v-if="isOpen" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="close">
     <div class="dialog-container" @click.stop>
       <div class="dialog-header">
         <h2 class="dialog-title">反馈详情</h2>
@@ -209,6 +209,7 @@
 </template>
 
 <script setup lang="ts">
+import { useZIndexOnOpen } from '~/composables/useZIndex'
 interface FeedbackReply {
   id: string
   content: string
@@ -245,6 +246,7 @@ const props = defineProps<Props>()
 const emit = defineEmits(['close', 'saved'])
 
 const isOpen = ref(true)
+const overlayZIndex = useZIndexOnOpen(isOpen)
 const isLoading = ref(false)
 const isLoadingReplies = ref(false)
 const replies = ref<FeedbackReply[]>([...(props.feedback.replies || [])])

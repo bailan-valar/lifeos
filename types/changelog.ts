@@ -1,9 +1,11 @@
 export type ChangelogType = 'feature' | 'fix' | 'improvement' | 'breaking'
+export type ChangelogStatus = 'idea' | 'planned' | 'in_progress' | 'published'
 
 export interface Changelog {
   id: string
   version: string
   type: ChangelogType
+  status: ChangelogStatus
   title: string
   description: string
   releaseDate: string
@@ -14,6 +16,7 @@ export interface Changelog {
 export interface ChangelogCreateInput {
   version: string
   type: ChangelogType
+  status: ChangelogStatus
   title: string
   description: string
   releaseDate: string

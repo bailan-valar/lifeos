@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
     data: {
       version: body.version,
       type: body.type,
+      status: body.status || 'published',
       title: body.title,
       description: body.description || '',
       releaseDate: new Date(body.releaseDate)
@@ -33,6 +34,7 @@ export default defineEventHandler(async (event) => {
       id: changelog.id,
       version: changelog.version,
       type: changelog.type,
+      status: changelog.status,
       title: changelog.title,
       description: changelog.description,
       releaseDate: changelog.releaseDate.toISOString(),

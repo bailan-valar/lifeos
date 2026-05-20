@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isOpen" class="dialog-overlay" @click="close">
+  <div v-if="isOpen" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="close">
     <div class="dialog-container" @click.stop>
       <div class="dialog-header">
         <h2 class="dialog-title">创建新用户</h2>
@@ -95,12 +95,15 @@
 </template>
 
 <script setup lang="ts">
+import { useZIndexOnOpen } from '~/composables/useZIndex'
+
 const emit = defineEmits(['close', 'created'])
 
 const isOpen = ref(true)
 const isLoading = ref(false)
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+const overlayZIndex = useZIndexOnOpen(isOpen)
 
 // 角色选项
 const roleOptions = [

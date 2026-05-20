@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isOpen" class="dialog-overlay" @click="close">
+  <div v-if="isOpen" class="dialog-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="close">
     <div class="dialog-container" @click.stop>
       <div class="dialog-header">
         <h2 class="dialog-title">编辑用户</h2>
@@ -56,6 +56,8 @@
 </template>
 
 <script setup lang="ts">
+import { useZIndexOnOpen } from '~/composables/useZIndex'
+
 interface Props {
   user: {
     id: string
@@ -71,6 +73,7 @@ const emit = defineEmits(['close', 'saved'])
 const isOpen = ref(true)
 const isLoading = ref(false)
 const authStore = useAuthStore()
+const overlayZIndex = useZIndexOnOpen(isOpen)
 
 // 角色选项
 const roleOptions = [
