@@ -212,7 +212,7 @@ const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
 const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore, splitBill, allocatePeriod, createRefundBill } = useBills()
 const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords } = useImportRecords()
-const { createImportRule, updateImportRule } = useImportRules()
+const { rules: importRules, createImportRule, updateImportRule } = useImportRules()
 
 // 对话框状态（使用单例与 BillingView 同步）
 const billDialogs = useBillDialogs()
@@ -222,7 +222,7 @@ const { billDialogVisible, editingBill, lastBillDefaults, batchEditVisible, impo
 const ruleDialogVisible = ref(false)
 const editingRule = ref<ImportRule | undefined>(undefined)
 const initialRuleForm = ref<ImportRuleFormData | undefined>(undefined)
-const pendingRuleCallback = ref<(() => void) | undefined>(undefined)
+const pendingRuleCallback = ref<((rule?: ImportRule) => void) | undefined>(undefined)
 
 // 拆分/分摊/退款对话框状态
 const splitDialogVisible = ref(false)
@@ -364,7 +364,7 @@ async function handleDeleteRecord(recordId: string) {
 }
 
 // 规则对话框事件处理
-function handleOpenRuleDialog(form: ImportRuleFormData, options?: { onSaved?: () => void }) {
+function handleOpenRuleDialog(form: ImportRuleFormData, options?: { onSaved?: (rule?: ImportRule) => void }) {
   editingRule.value = undefined
   initialRuleForm.value = { ...form }
   pendingRuleCallback.value = options?.onSaved
@@ -377,15 +377,17 @@ async function handleRuleConfirm(data: ImportRuleFormData, isEditing: boolean, i
       showError('请输入匹配关键字')
       return
     }
+    let rule: ImportRule | undefined
     if (isEditing && id) {
       await updateImportRule(id, data)
       showSuccess('规则已更新')
+      rule = importRules.value.find(r => r.id === id)
     } else {
-      await createImportRule(data)
+      rule = await createImportRule(data)
       showSuccess('规则已添加')
     }
     closeRuleDialog()
-    pendingRuleCallback.value?.()
+    pendingRuleCallback.value?.(rule)
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }

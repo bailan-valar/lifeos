@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryTreeNode, ImportRuleFormData, CategoryType, ImportRecord, BillingCreators, AccountCreatePayload, AccountType } from '~/types/bill'
+import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryTreeNode, ImportRuleFormData, ImportRule, CategoryType, ImportRecord, BillingCreators, AccountCreatePayload, AccountType } from '~/types/bill'
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
@@ -170,10 +170,10 @@ async function handleOpenCategoryForm(data: { type: CategoryType; defaultParentI
   data.onCreated?.(category)
 }
 
-function handleOpenImportRuleDialog(form: ImportRuleFormData, options?: { onSaved?: () => void }) {
+function handleOpenImportRuleDialog(form: ImportRuleFormData, options?: { onSaved?: (rule?: ImportRule) => void }) {
   // TODO: 需要通过事件总线或 store 来触发 RulesTabPanel 的对话框
-  createImportRule(form).then(() => {
-    options?.onSaved?.()
+  createImportRule(form).then((rule) => {
+    options?.onSaved?.(rule)
   })
 }
 

@@ -64,7 +64,7 @@
               <VirtualList
                 v-else
                 :items="filteredItems"
-                :item-height="100"
+                :item-height="isMobile ? 130 : 100"
                 :container-height="400"
                 :buffer="5"
                 :gap="4"
@@ -83,6 +83,7 @@
                     @save-payment-method-rule="openPaymentMethodRule"
                     @save-description-rule="openDescriptionRule"
                     @edit-remark="openRemarkEditor"
+                    @open-mobile-editor="openMobileEditor"
                   />
                 </template>
               </VirtualList>
@@ -146,6 +147,26 @@
             </button>
           </div>
 
+          <!-- 移动端二级编辑弹框 -->
+          <MobileImportItemEditor
+            v-model:visible="mobileEditor.visible"
+            :item="mobileEditor.item"
+            :accounts="accounts"
+            :categories="categories"
+            :current-index="mobileEditor.currentIndex"
+            :total="filteredItems.length"
+            :has-prev="mobileEditor.currentIndex > 0"
+            :has-next="mobileEditor.currentIndex < filteredItems.length - 1"
+            :has-next-incomplete="hasNextIncompleteInFiltered(mobileEditor.currentIndex)"
+            @update:item="onMobileItemUpdate"
+            @navigate="onMobileNavigate"
+            @save-as-rule="openRuleOverlay"
+            @save-counterparty-rule="openCounterpartyRule"
+            @save-payment-method-rule="openPaymentMethodRule"
+            @save-description-rule="openDescriptionRule"
+            @edit-remark="openRemarkEditorFromMobile"
+          />
+
           <!-- 备注编辑弹框 -->
           <div v-if="remarkEditor.visible" class="remark-overlay" @click="closeRemarkEditor">
             <div class="remark-card" @click.stop>
@@ -165,6 +186,24 @@
               <div class="remark-footer">
                 <button type="button" class="cancel-btn" @click="closeRemarkEditor">取消</button>
                 <button type="button" class="confirm-btn" @click="saveRemark">保存</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 应用规则确认弹框 -->
+          <div v-if="applyRuleConfirm.visible" class="remark-overlay" @click="onApplyRuleCancel">
+            <div class="remark-card" @click.stop>
+              <div class="remark-header">
+                <span>应用规则</span>
+                <button type="button" class="close-btn" @click="onApplyRuleCancel">
+                  <Icon name="solar:close-circle-linear" size="16" />
+                </button>
+              </div>
+              <p class="confirm-message-text">规则已保存，是否立即应用？</p>
+              <div class="remark-footer three-actions">
+                <button type="button" class="cancel-btn" @click="onApplyRuleCancel">不应用</button>
+                <button type="button" class="secondary-btn" @click="onApplyRuleCurrent">仅应用当前</button>
+                <button type="button" class="confirm-btn" @click="onApplyRuleAll">应用全部</button>
               </div>
             </div>
           </div>
@@ -192,7 +231,10 @@ import { useZIndexOnOpen } from '~/composables/useZIndex'
 import { useConfirm } from '~/composables/useConfirm'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
 import ImportPreviewRow from './ImportPreviewRow.vue'
+import MobileImportItemEditor from './MobileImportItemEditor.vue'
 import VirtualList from './VirtualList.vue'
+
+const { isMobile } = useDevice()
 
 const props = defineProps<{
   visible: boolean
@@ -207,7 +249,7 @@ const emit = defineEmits<{
   (e: 'import', record: ImportRecord): void
   (e: 'rollback', record: ImportRecord): void
   (e: 'delete', recordId: string): void
-  (e: 'open-rule-dialog', form: ImportRuleFormData, options?: { onSaved?: () => void }): void
+  (e: 'open-rule-dialog', form: ImportRuleFormData, options?: { onSaved?: (rule?: ImportRule) => void }): void
 }>()
 
 // 点击弹框外关闭 + ESC 关闭
@@ -243,6 +285,13 @@ const { confirm } = useConfirm()
 const importing = ref(false)
 const filter = ref<'all' | 'unmatched' | 'matched' | 'duplicate'>('all')
 
+// 应用规则确认弹框
+const applyRuleConfirm = ref<{
+  visible: boolean
+  rule: ImportRule | null
+  targetItem: ImportRecordItem | null
+}>({ visible: false, rule: null, targetItem: null })
+
 // 备注编辑弹框
 const remarkEditor = ref<{
   visible: boolean
@@ -274,6 +323,69 @@ function saveRemark() {
   }
   closeRemarkEditor()
 }
+
+// 移动端二级编辑弹框
+const mobileEditor = ref<{
+  visible: boolean
+  item: ImportRecordItem
+  currentIndex: number
+}>({
+  visible: false,
+  item: {} as ImportRecordItem,
+  currentIndex: 0
+})
+
+function openMobileEditor(item: ImportRecordItem) {
+  const idx = filteredItems.value.findIndex(i => i.rawIndex === item.rawIndex)
+  mobileEditor.value = {
+    visible: true,
+    item: { ...item },
+    currentIndex: idx
+  }
+}
+
+function onMobileItemUpdate(value: ImportRecordItem) {
+  onItemUpdate(value.rawIndex, value)
+  mobileEditor.value.item = { ...value }
+}
+
+function hasNextIncompleteInFiltered(currentIndex: number): boolean {
+  for (let i = currentIndex + 1; i < filteredItems.value.length; i++) {
+    const item = filteredItems.value[i]
+    if (!item.skipped && !item.duplicate && isIncomplete(item)) {
+      return true
+    }
+  }
+  return false
+}
+
+function onMobileNavigate(direction: 'prev' | 'next' | 'next-incomplete') {
+  let targetIndex = mobileEditor.value.currentIndex
+
+  if (direction === 'prev') {
+    targetIndex = Math.max(0, targetIndex - 1)
+  } else if (direction === 'next') {
+    targetIndex = Math.min(filteredItems.value.length - 1, targetIndex + 1)
+  } else if (direction === 'next-incomplete') {
+    for (let i = targetIndex + 1; i < filteredItems.value.length; i++) {
+      const item = filteredItems.value[i]
+      if (!item.skipped && !item.duplicate && isIncomplete(item)) {
+        targetIndex = i
+        break
+      }
+    }
+  }
+
+  if (targetIndex !== mobileEditor.value.currentIndex && targetIndex >= 0 && targetIndex < filteredItems.value.length) {
+    mobileEditor.value.currentIndex = targetIndex
+    mobileEditor.value.item = { ...filteredItems.value[targetIndex] }
+  }
+}
+
+function openRemarkEditorFromMobile(item: ImportRecordItem) {
+  openRemarkEditor(item)
+}
+
 const filterOptions = [
   { value: 'all' as const, label: '全部' },
   { value: 'unmatched' as const, label: '未完善' },
@@ -365,19 +477,147 @@ function toggleAll() {
   scheduleSave()
 }
 
-async function promptApplyRuleAfterSave() {
-  const yes = await confirm({
-    title: '应用规则',
-    message: '规则已保存，是否立即应用规则到当前导入记录？',
-    confirmText: '应用',
-    cancelText: '暂不'
-  })
-  if (yes) {
-    applyAllRules()
+function promptApplyRuleAfterSave(rule?: ImportRule, targetItem?: ImportRecordItem) {
+  if (!rule) return
+  applyRuleConfirm.value = {
+    visible: true,
+    rule,
+    targetItem: targetItem || null
   }
 }
 
+function onApplyRuleCurrent() {
+  const { rule, targetItem } = applyRuleConfirm.value
+  if (rule && targetItem) {
+    applySingleRuleToItem(targetItem, rule)
+  }
+  applyRuleConfirm.value.visible = false
+}
+
+function onApplyRuleAll() {
+  const { rule } = applyRuleConfirm.value
+  if (rule) {
+    applySingleRuleToAllItems(rule)
+  }
+  applyRuleConfirm.value.visible = false
+}
+
+function onApplyRuleCancel() {
+  applyRuleConfirm.value.visible = false
+}
+
+function matchOne(rule: ImportRule, target: string): boolean {
+  if (!target) return false
+  switch (rule.matchMode) {
+    case 'exact':
+      return target === rule.pattern
+    case 'fuzzy':
+      return target.toLowerCase().includes(rule.pattern.toLowerCase())
+    case 'regex':
+      try {
+        return new RegExp(rule.pattern, 'i').test(target)
+      } catch {
+        return false
+      }
+    default:
+      return false
+  }
+}
+
+function buildRuleUpdates(item: ImportRecordItem, rule: ImportRule): Partial<ImportRecordItem> | null {
+  if (!rule.enabled) return null
+  if (rule.source !== 'all' && rule.source !== props.record.source) return null
+
+  const field = rule.matchField ?? 'account'
+  let matched = false
+
+  if (field === 'account') {
+    if (matchOne(rule, item.counterparty || '')) matched = true
+    else if (matchOne(rule, item.paymentMethod || '')) matched = true
+  } else if (field === 'description') {
+    if (matchOne(rule, item.description || '')) matched = true
+  }
+
+  if (!matched) return null
+
+  const updates: Partial<ImportRecordItem> = {}
+
+  if (field === 'account') {
+    if (matchOne(rule, item.counterparty || '')) {
+      updates.matchedRuleId = rule.id
+      if (rule.categoryId) updates.categoryId = rule.categoryId
+      if (rule.accountId) updates.matchedAccountId = rule.accountId
+      if (rule.billType) updates.type = rule.billType
+    }
+    if (matchOne(rule, item.paymentMethod || '')) {
+      updates.paymentMethodRuleId = rule.id
+      if (rule.accountId) updates.myAccountId = rule.accountId
+      if (!updates.type && rule.billType) updates.type = rule.billType
+    }
+  } else if (field === 'description') {
+    updates.descriptionRuleId = rule.id
+    if (rule.categoryId) updates.categoryId = rule.categoryId
+    if (rule.accountId) updates.matchedAccountId = rule.accountId
+    if (!updates.type && rule.billType) updates.type = rule.billType
+  }
+
+  return updates
+}
+
+function applySingleRuleToItem(item: ImportRecordItem, rule: ImportRule) {
+  const idx = localItems.value.findIndex(i => i.rawIndex === item.rawIndex)
+  if (idx === -1) return
+
+  const updates = buildRuleUpdates(localItems.value[idx], rule)
+  if (!updates || Object.keys(updates).length === 0) return
+
+  const next = { ...localItems.value[idx], ...updates }
+
+  const counterpartyAccount = props.accounts.find(a => a.id === next.matchedAccountId) || null
+  const myAccount = props.accounts.find(a => a.id === next.myAccountId) || null
+  const suggestion = suggestAccountIds(
+    counterpartyAccount,
+    myAccount,
+    next.direction,
+    next.type || item.type || 'expense'
+  )
+  if (suggestion.fromAccountId) next.fromAccountId = suggestion.fromAccountId
+  if (suggestion.toAccountId) next.toAccountId = suggestion.toAccountId
+
+  localItems.value[idx] = next
+  scheduleSave()
+}
+
+function applySingleRuleToAllItems(rule: ImportRule) {
+  let changed = false
+  localItems.value = localItems.value.map(item => {
+    if (item.skipped || item.duplicate) return item
+
+    const updates = buildRuleUpdates(item, rule)
+    if (!updates || Object.keys(updates).length === 0) return item
+
+    changed = true
+    const next = { ...item, ...updates }
+
+    const counterpartyAccount = props.accounts.find(a => a.id === next.matchedAccountId) || null
+    const myAccount = props.accounts.find(a => a.id === next.myAccountId) || null
+    const suggestion = suggestAccountIds(
+      counterpartyAccount,
+      myAccount,
+      next.direction,
+      next.type || item.type || 'expense'
+    )
+    if (suggestion.fromAccountId) next.fromAccountId = suggestion.fromAccountId
+    if (suggestion.toAccountId) next.toAccountId = suggestion.toAccountId
+
+    return next
+  })
+
+  if (changed) scheduleSave()
+}
+
 function openRuleOverlay(item: ImportRecordItem) {
+  mobileEditor.value.visible = false
   const counterparty = (item.counterparty || '').trim()
   emit('open-rule-dialog', {
     source: props.record.source,
@@ -389,10 +629,11 @@ function openRuleOverlay(item: ImportRecordItem) {
     billType: item.type,
     priority: 100,
     enabled: true
-  }, { onSaved: promptApplyRuleAfterSave })
+  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
 function openCounterpartyRule(item: ImportRecordItem) {
+  mobileEditor.value.visible = false
   const counterparty = (item.counterparty || '').trim()
   emit('open-rule-dialog', {
     source: props.record.source,
@@ -404,10 +645,11 @@ function openCounterpartyRule(item: ImportRecordItem) {
     billType: item.type,
     priority: 100,
     enabled: true
-  }, { onSaved: promptApplyRuleAfterSave })
+  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
 function openPaymentMethodRule(item: ImportRecordItem) {
+  mobileEditor.value.visible = false
   const paymentMethod = (item.paymentMethod || '').trim()
   emit('open-rule-dialog', {
     source: props.record.source,
@@ -419,10 +661,11 @@ function openPaymentMethodRule(item: ImportRecordItem) {
     billType: undefined,
     priority: 100,
     enabled: true
-  }, { onSaved: promptApplyRuleAfterSave })
+  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
 function openDescriptionRule(item: ImportRecordItem) {
+  mobileEditor.value.visible = false
   const description = (item.description || '').trim()
   emit('open-rule-dialog', {
     source: props.record.source,
@@ -434,7 +677,7 @@ function openDescriptionRule(item: ImportRecordItem) {
     billType: item.type,
     priority: 100,
     enabled: true
-  }, { onSaved: promptApplyRuleAfterSave })
+  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
 function onImport() {
@@ -908,5 +1151,20 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
   gap: 8px;
   justify-content: flex-end;
   padding: 0 16px 12px;
+}
+.remark-footer.three-actions {
+  gap: 6px;
+}
+.remark-footer.three-actions .cancel-btn,
+.remark-footer.three-actions .secondary-btn,
+.remark-footer.three-actions .confirm-btn {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.confirm-message-text {
+  margin: 0 16px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.6);
 }
 </style>

@@ -1,9 +1,10 @@
 <template>
   <div
     class="preview-row"
-    :class="{ duplicate: row.duplicate, selected: row.selected, skipped: row.skipped }"
+    :class="{ duplicate: row.duplicate, selected: row.selected, skipped: row.skipped, 'mobile-row': isMobile }"
+    @click="onRowClick"
   >
-    <label class="select-cell">
+    <label class="select-cell" @click.stop>
       <input
         type="checkbox"
         :checked="row.selected"
@@ -12,112 +13,150 @@
       />
     </label>
 
-    <div class="primary-cell">
-      <div class="primary-line">
-        <span
-          class="counterparty"
-          :class="{ matched: row.matchedAccountId, clickable: !row.skipped }"
-          @click.stop="!row.skipped && emit('save-counterparty-rule', row)"
-        >{{ row.counterparty || '(无对方)' }}</span>
-        <span
-          v-if="row.description"
-          class="description"
-          :class="{ matched: row.descriptionRuleId, clickable: !row.skipped }"
-          @click.stop="!row.skipped && emit('save-description-rule', row)"
-        >{{ row.description }}</span>
+    <!-- 桌面端布局 -->
+    <template v-if="!isMobile">
+      <div class="primary-cell">
+        <div class="primary-line">
+          <span
+            class="counterparty"
+            :class="{ matched: row.matchedAccountId, clickable: !row.skipped }"
+            @click.stop="!row.skipped && emit('save-counterparty-rule', row)"
+          >{{ row.counterparty || '(无对方)' }}</span>
+          <span
+            v-if="row.description"
+            class="description"
+            :class="{ matched: row.descriptionRuleId, clickable: !row.skipped }"
+            @click.stop="!row.skipped && emit('save-description-rule', row)"
+          >{{ row.description }}</span>
+        </div>
+        <div class="meta-line">
+          <span class="date">{{ formatDate(row.date) }}</span>
+          <span v-if="row.rawType" class="raw-type">{{ row.rawType }}</span>
+          <span
+            v-if="row.paymentMethod"
+            class="payment-method"
+            :class="{ matched: row.myAccountId, clickable: !row.skipped }"
+            @click.stop="!row.skipped && emit('save-payment-method-rule', row)"
+          >{{ row.paymentMethod }}</span>
+        </div>
       </div>
-      <div class="meta-line">
-        <span class="date">{{ formatDate(row.date) }}</span>
-        <span v-if="row.rawType" class="raw-type">{{ row.rawType }}</span>
-        <span
-          v-if="row.paymentMethod"
-          class="payment-method"
-          :class="{ matched: row.myAccountId, clickable: !row.skipped }"
-          @click.stop="!row.skipped && emit('save-payment-method-rule', row)"
-        >{{ row.paymentMethod }}</span>
+
+      <div class="amount-cell" :class="amountClass">
+        <template v-if="row.skipped">
+          <span class="skip-label">跳过</span>
+        </template>
+        <template v-else>
+          {{ amountSign }}¥{{ formatAmount(row.amount) }}
+        </template>
       </div>
-    </div>
 
-    <div class="amount-cell" :class="amountClass">
-      <template v-if="row.skipped">
-        <span class="skip-label">跳过</span>
-      </template>
-      <template v-else>
-        {{ amountSign }}¥{{ formatAmount(row.amount) }}
-      </template>
-    </div>
+      <div class="actions-cell" @click.stop>
+        <span class="badge" :class="badgeClass" :title="badgeTooltip">{{ badgeLabel }}</span>
+        <button
+          v-if="!row.duplicate && !row.skipped"
+          type="button"
+          class="action-btn"
+          :class="{ active: row.remark }"
+          title="编辑备注"
+          @click="$emit('edit-remark', row)"
+        >
+          <Icon name="solar:pen-new-square-linear" size="14" />
+        </button>
+        <button
+          v-if="!row.duplicate && !row.skipped"
+          type="button"
+          class="action-btn save-rule-btn"
+          title="保存为规则"
+          @click="$emit('save-as-rule', row)"
+        >
+          <Icon name="solar:bookmark-linear" size="14" />
+          <span class="save-rule-text">存规则</span>
+        </button>
+      </div>
 
-    <div class="actions-cell">
-      <span class="badge" :class="badgeClass" :title="badgeTooltip">{{ badgeLabel }}</span>
-      <button
-        v-if="!row.duplicate && !row.skipped"
-        type="button"
-        class="action-btn"
-        :class="{ active: row.remark }"
-        title="编辑备注"
-        @click="$emit('edit-remark', row)"
-      >
-        <Icon name="solar:pen-new-square-linear" size="14" />
-      </button>
-      <button
-        v-if="!row.duplicate && !row.skipped"
-        type="button"
-        class="action-btn save-rule-btn"
-        title="保存为规则"
-        @click="$emit('save-as-rule', row)"
-      >
-        <Icon name="solar:bookmark-linear" size="14" />
-        <span class="save-rule-text">存规则</span>
-      </button>
-    </div>
+      <div class="controls-row">
+        <BillTypePicker
+          :model-value="row.type"
+          class="type-picker"
+          @update:model-value="onTypeChange($event as BillType)"
+        />
 
-    <div class="controls-row">
-      <BillTypePicker
-        :model-value="row.type"
-        class="type-picker"
-        @update:model-value="onTypeChange($event as BillType)"
-      />
+        <CategoryPicker
+          v-if="showCategory"
+          :model-value="row.categoryId || ''"
+          :categories="categories"
+          :type="row.type === 'income' ? 'income' : 'expense'"
+          placeholder="未分类"
+          clearable
+          class="compact-picker"
+          @update:model-value="updateField('categoryId', $event)"
+        />
 
-      <CategoryPicker
-        v-if="showCategory"
-        :model-value="row.categoryId || ''"
-        :categories="categories"
-        :type="row.type === 'income' ? 'income' : 'expense'"
-        placeholder="未分类"
-        clearable
-        class="compact-picker"
-        @update:model-value="updateField('categoryId', $event)"
-      />
+        <SelectPicker
+          v-if="showDebtSubtype"
+          :model-value="row.debtSubtype ?? null"
+          :options="debtSubtypeOptions"
+          placeholder="借贷类型"
+          class="compact-picker"
+          @update:model-value="updateField('debtSubtype', $event as DebtSubtype)"
+        />
 
-      <SelectPicker
-        v-if="showDebtSubtype"
-        :model-value="row.debtSubtype ?? null"
-        :options="debtSubtypeOptions"
-        placeholder="借贷类型"
-        class="compact-picker"
-        @update:model-value="updateField('debtSubtype', $event as DebtSubtype)"
-      />
+        <AccountPicker
+          v-if="showFrom"
+          :model-value="row.fromAccountId || ''"
+          :accounts="accounts"
+          placeholder="出账账户"
+          clearable
+          class="compact-picker"
+          @update:model-value="updateField('fromAccountId', $event)"
+        />
 
-      <AccountPicker
-        v-if="showFrom"
-        :model-value="row.fromAccountId || ''"
-        :accounts="accounts"
-        placeholder="出账账户"
-        clearable
-        class="compact-picker"
-        @update:model-value="updateField('fromAccountId', $event)"
-      />
+        <AccountPicker
+          v-if="showTo"
+          :model-value="row.toAccountId || ''"
+          :accounts="accounts"
+          placeholder="入账账户"
+          clearable
+          class="compact-picker"
+          @update:model-value="updateField('toAccountId', $event)"
+        />
+      </div>
+    </template>
 
-      <AccountPicker
-        v-if="showTo"
-        :model-value="row.toAccountId || ''"
-        :accounts="accounts"
-        placeholder="入账账户"
-        clearable
-        class="compact-picker"
-        @update:model-value="updateField('toAccountId', $event)"
-      />
-    </div>
+    <!-- 移动端布局 -->
+    <template v-else>
+      <div class="mobile-content">
+        <div class="mobile-line mobile-line-main">
+          <span class="mobile-counterparty">{{ row.counterparty || '(无对方)' }}</span>
+          <span class="mobile-amount" :class="amountClass">
+            <template v-if="row.skipped">跳过</template>
+            <template v-else>{{ amountSign }}¥{{ formatAmount(row.amount) }}</template>
+          </span>
+        </div>
+
+        <div class="mobile-line">
+          <span v-if="row.description" class="mobile-description">{{ row.description }}</span>
+          <span class="badge" :class="badgeClass">{{ badgeLabel }}</span>
+        </div>
+
+        <div class="mobile-line mobile-line-meta">
+          <span class="mobile-date">{{ formatDate(row.date) }}</span>
+          <span v-if="row.paymentMethod" class="mobile-payment">{{ row.paymentMethod }}</span>
+        </div>
+
+        <div class="mobile-line mobile-line-tags">
+          <span class="mobile-type-tag" :class="row.type">{{ typeLabel }}</span>
+          <span v-if="categoryName" class="mobile-category-tag">{{ categoryName }}</span>
+          <span v-if="debtSubtypeLabel" class="mobile-subtype-tag">{{ debtSubtypeLabel }}</span>
+        </div>
+
+        <div v-if="fromAccountName || toAccountName" class="mobile-line mobile-line-accounts">
+          <span v-if="fromAccountName" class="mobile-account from">{{ fromAccountName }}</span>
+          <span class="mobile-arrow">→</span>
+          <span v-if="toAccountName" class="mobile-account to">{{ toAccountName }}</span>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -149,7 +188,16 @@ const emit = defineEmits<{
   (e: 'save-payment-method-rule', row: ImportRecordItem): void
   (e: 'save-description-rule', row: ImportRecordItem): void
   (e: 'edit-remark', row: ImportRecordItem): void
+  (e: 'open-mobile-editor', row: ImportRecordItem): void
 }>()
+
+const { isMobile } = useDevice()
+
+function onRowClick() {
+  if (isMobile.value) {
+    emit('open-mobile-editor', props.row)
+  }
+}
 
 const typeOptions: { value: BillType; label: string }[] = [
   { value: 'income', label: '收入' },
@@ -175,6 +223,36 @@ const showCategory = computed(() => props.row.type === 'income' || props.row.typ
 const showDebtSubtype = computed(() => props.row.type === 'debt')
 const showFrom = computed(() => true)
 const showTo = computed(() => true)
+
+// 移动端只读展示
+const categoryName = computed(() => {
+  if (!props.row.categoryId) return ''
+  const cat = props.categories.find(c => c.id === props.row.categoryId)
+  return cat?.name || ''
+})
+
+const fromAccountName = computed(() => {
+  if (!props.row.fromAccountId) return ''
+  const acc = props.accounts.find(a => a.id === props.row.fromAccountId)
+  return acc?.name || ''
+})
+
+const toAccountName = computed(() => {
+  if (!props.row.toAccountId) return ''
+  const acc = props.accounts.find(a => a.id === props.row.toAccountId)
+  return acc?.name || ''
+})
+
+const typeLabel = computed(() => {
+  const map: Record<string, string> = { income: '收入', expense: '支出', transfer: '转账', debt: '借贷' }
+  return map[props.row.type] || props.row.type
+})
+
+const debtSubtypeLabel = computed(() => {
+  if (props.row.debtSubtype === 'lend') return '借出'
+  if (props.row.debtSubtype === 'borrow') return '借入'
+  return ''
+})
 
 const badgeLabel = computed(() => {
   if (props.row.skipped) return props.row.skipReason || '跳过'
@@ -484,5 +562,146 @@ function formatAmount(n: number): string {
 .save-rule-text {
   font-size: 11px;
   font-weight: 500;
+}
+
+/* ========== 移动端布局 ========== */
+.preview-row.mobile-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: auto;
+}
+
+.preview-row.mobile-row .select-cell {
+  grid-column: auto;
+  grid-row: auto;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.mobile-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mobile-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mobile-line-main {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobile-counterparty {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.mobile-amount {
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mobile-amount.income {
+  color: rgb(52, 199, 89);
+}
+
+.mobile-amount.expense {
+  color: rgb(255, 59, 48);
+}
+
+.mobile-description {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-line-meta {
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.5);
+  gap: 10px;
+}
+
+.mobile-line-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mobile-type-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(60, 60, 67, 0.78);
+}
+
+.mobile-type-tag.income {
+  background: rgba(52, 199, 89, 0.12);
+  color: rgb(52, 199, 89);
+}
+
+.mobile-type-tag.expense {
+  background: rgba(255, 59, 48, 0.1);
+  color: rgb(255, 59, 48);
+}
+
+.mobile-type-tag.transfer {
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
+}
+
+.mobile-type-tag.debt {
+  background: rgba(175, 82, 222, 0.1);
+  color: rgb(175, 82, 222);
+}
+
+.mobile-category-tag,
+.mobile-subtype-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 122, 255, 0.08);
+  color: rgb(0, 122, 255);
+}
+
+.mobile-line-accounts {
+  gap: 6px;
+  font-size: 11px;
+}
+
+.mobile-account {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(60, 60, 67, 0.06);
+  color: rgba(60, 60, 67, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+
+.mobile-arrow {
+  color: rgba(60, 60, 67, 0.3);
+  font-size: 11px;
 }
 </style>
