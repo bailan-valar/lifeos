@@ -426,6 +426,8 @@ export function useBills() {
     const oldBill = doc.toJSON() as Bill
 
     await applyBalanceChange(oldBill, true)
+    await maybeRecalculateBalance(oldBill.fromAccountId, oldBill.date)
+    await maybeRecalculateBalance(oldBill.toAccountId, oldBill.date)
 
     const patch: Partial<Bill> = {
       ...data,
@@ -448,6 +450,7 @@ export function useBills() {
     const db = await getDB()
     let updatedCount = 0
     const failedIds: string[] = []
+    const affectedAccountIds = new Set<string>()
 
     for (const id of ids) {
       try {
@@ -459,6 +462,8 @@ export function useBills() {
         const oldBill = doc.toJSON() as Bill
 
         await applyBalanceChange(oldBill, true)
+        if (oldBill.fromAccountId) affectedAccountIds.add(oldBill.fromAccountId)
+        if (oldBill.toAccountId) affectedAccountIds.add(oldBill.toAccountId)
 
         const patch: Partial<Bill> = {
           ...data,
@@ -473,6 +478,8 @@ export function useBills() {
         if (idx !== -1) {
           bills.value[idx] = newBill
         }
+        if (newBill.fromAccountId) affectedAccountIds.add(newBill.fromAccountId)
+        if (newBill.toAccountId) affectedAccountIds.add(newBill.toAccountId)
         updatedCount++
       } catch (e) {
         console.error(`Failed to update bill ${id}:`, e)
@@ -480,14 +487,6 @@ export function useBills() {
       }
     }
 
-    const affectedAccountIds = new Set<string>()
-    for (const id of ids) {
-      const bill = bills.value.find(b => b.id === id)
-      if (bill) {
-        if (bill.fromAccountId) affectedAccountIds.add(bill.fromAccountId)
-        if (bill.toAccountId) affectedAccountIds.add(bill.toAccountId)
-      }
-    }
     for (const accountId of affectedAccountIds) {
       await recalculateBalance(accountId)
     }

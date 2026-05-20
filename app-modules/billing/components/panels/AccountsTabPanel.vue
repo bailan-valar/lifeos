@@ -15,6 +15,28 @@
         添加账户
       </button>
     </div>
+    <div class="stats-section">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">{{ store.activeAccountSubTab === 'personal' ? '净资产' : '总余额' }}</span>
+          <span class="stat-value" :class="{ negative: totalNet < 0 }">{{ formatBalance(totalNet) }}</span>
+        </div>
+        <template v-if="store.activeAccountSubTab === 'personal'">
+          <div class="stat-card">
+            <span class="stat-label">总资产</span>
+            <span class="stat-value positive">{{ formatBalance(totalAssets) }}</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">总负债</span>
+            <span class="stat-value negative">{{ formatBalance(totalLiabilities) }}</span>
+          </div>
+        </template>
+        <div class="stat-card">
+          <span class="stat-label">账户数量</span>
+          <span class="stat-value">{{ filteredAccounts.length }} 个</span>
+        </div>
+      </div>
+    </div>
     <div class="list-container">
       <AccountList
         :accounts="filteredAccounts"
@@ -110,6 +132,35 @@ const viewingAccount = ref<Account | undefined>(undefined)
 const filteredAccounts = computed(() => {
   return accounts.value.filter((a: Account) => a.type === store.activeAccountSubTab)
 })
+
+const totalNet = computed(() => {
+  return filteredAccounts.value.reduce((sum: number, a: Account) => sum + a.balance, 0)
+})
+
+const totalAssets = computed(() => {
+  // 仅 personal 类型：现金、储蓄卡、网络账户视为资产
+  if (store.activeAccountSubTab !== 'personal') return totalNet.value
+  return filteredAccounts.value.reduce((sum: number, a: Account) => {
+    if (a.subtype === 'credit_card') return sum
+    return sum + a.balance
+  }, 0)
+})
+
+const totalLiabilities = computed(() => {
+  // 仅 personal 类型：信用卡已用额度视为负债
+  if (store.activeAccountSubTab !== 'personal') return 0
+  return filteredAccounts.value.reduce((sum: number, a: Account) => {
+    if (a.subtype === 'credit_card') {
+      return sum + Math.max(0, -a.balance)
+    }
+    return sum
+  }, 0)
+})
+
+function formatBalance(n: number) {
+  const sign = n < 0 ? '-' : ''
+  return sign + '¥' + Math.abs(n).toFixed(2)
+}
 
 const viewingAccountStatements = computed(() =>
   viewingAccount.value
@@ -316,5 +367,45 @@ async function handleGenerateStatement(year: number, month: number) {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+/* 资产统计 */
+.stats-section {
+  flex-shrink: 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 0.5px solid rgba(60, 60, 67, 0.12);
+  border-radius: 10px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.55);
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.92);
+}
+
+.stat-value.positive {
+  color: rgb(52, 199, 89);
+}
+
+.stat-value.negative {
+  color: rgb(255, 59, 48);
 }
 </style>

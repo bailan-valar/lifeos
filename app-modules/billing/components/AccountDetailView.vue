@@ -156,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Account, Bill, BillCategory } from '~/types/bill'
+import type { Account, Bill, BillCategory, BillFormData } from '~/types/bill'
 import { sum, sub, div } from '~/utils/decimal'
 import BillList from './BillList.vue'
 import BillDialog from './BillDialog.vue'
@@ -177,7 +177,7 @@ const router = useRouter()
 
 // 数据 store
 const { accounts, loadAccounts, updateAccount } = useAccounts()
-const { bills, loadBillsByAccount, deleteBill } = useBills()
+const { bills, loadBillsByAccount, createBill, updateBill, deleteBill } = useBills()
 const { categories, loadCategories } = useBillCategories()
 const { loadNotes, noteOptions } = useNotes()
 
@@ -285,11 +285,20 @@ function openBillDialog(bill?: Bill) {
   billDialogVisible.value = true
 }
 
-async function onBillDialogConfirm() {
-  billDialogVisible.value = false
-  editingBill.value = null
-  await refreshBills()
-  await loadAccounts()
+async function onBillDialogConfirm(data: BillFormData, isEditing: boolean, id?: string) {
+  try {
+    if (isEditing && id) {
+      await updateBill(id, data)
+    } else {
+      await createBill(data)
+    }
+    billDialogVisible.value = false
+    editingBill.value = null
+    await refreshBills()
+    await loadAccounts()
+  } catch (e) {
+    console.error('Failed to save bill:', e)
+  }
 }
 
 async function handleDeleteBill(id: string) {

@@ -6,44 +6,80 @@
         v-for="account in group.items"
         :key="account.id"
         class="account-item"
+        :class="{ 'credit-item': isCreditCard(account) }"
       >
-        <div class="account-row">
-          <div class="account-info">
-            <span class="account-name" @click="$emit('view-detail', account)">{{ account.name }}</span>
-            <span class="account-badge" :class="badgeClass(account)">{{ badgeLabel(account) }}</span>
+        <!-- 信用卡专用布局 -->
+        <template v-if="isCreditCard(account)">
+          <div class="credit-row-top">
+            <div class="account-info">
+              <span class="account-name" @click="$emit('view-detail', account)">{{ account.name }}</span>
+              <span class="account-badge" :class="badgeClass(account)">{{ badgeLabel(account) }}</span>
+            </div>
+            <div class="credit-balance-group">
+              <div class="account-balance" :class="{ negative: account.balance < 0 }">
+                {{ formatBalance(account.balance) }} {{ account.currency }}
+              </div>
+              <div
+                class="remaining-limit"
+                :class="{ warning: (account.creditLimit ?? 0) + account.balance < (account.creditLimit ?? 0) * 0.2 }"
+              >
+                剩余 {{ formatBalance(Math.max(0, (account.creditLimit ?? 0) + account.balance)) }}
+              </div>
+            </div>
           </div>
-          <div class="account-balance" :class="{ negative: account.balance < 0 }">
-            {{ formatBalance(account.balance) }} {{ account.currency }}
+          <div class="credit-row-bottom">
+            <div class="credit-meta">
+              <span class="credit-chip">额度 {{ formatBalance(account.creditLimit ?? 0) }}</span>
+              <span class="credit-chip">还剩 {{ repaymentDays(account) }} 天</span>
+              <span class="credit-chip" :class="{ negative: account.balance < 0 }">
+                待还 {{ formatBalance(Math.max(0, -account.balance)) }}
+              </span>
+            </div>
+            <div class="account-actions">
+              <button
+                type="button"
+                class="action-btn"
+                title="查看账单周期"
+                @click="$emit('view-statements', account)"
+              >
+                <Icon name="solar:calendar-linear" size="14" />
+              </button>
+              <button type="button" class="action-btn" title="调整余额" @click="$emit('adjust-balance', account)">
+                <Icon name="solar:wallet-money-linear" size="14" />
+              </button>
+              <button type="button" class="action-btn" @click="$emit('edit', account)">
+                <Icon name="solar:pen-linear" size="14" />
+              </button>
+              <button type="button" class="action-btn danger" @click="$emit('delete', account.id)">
+                <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
+              </button>
+            </div>
           </div>
-          <div class="account-actions">
-            <button
-              v-if="isCreditCard(account)"
-              type="button"
-              class="action-btn"
-              title="查看账单周期"
-              @click="$emit('view-statements', account)"
-            >
-              <Icon name="solar:calendar-linear" size="14" />
-            </button>
-            <button type="button" class="action-btn" title="调整余额" @click="$emit('adjust-balance', account)">
-              <Icon name="solar:wallet-money-linear" size="14" />
-            </button>
-            <button type="button" class="action-btn" @click="$emit('edit', account)">
-              <Icon name="solar:pen-linear" size="14" />
-            </button>
-            <button type="button" class="action-btn danger" @click="$emit('delete', account.id)">
-              <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
-            </button>
+        </template>
+
+        <!-- 非信用卡保持原布局 -->
+        <template v-else>
+          <div class="account-row">
+            <div class="account-info">
+              <span class="account-name" @click="$emit('view-detail', account)">{{ account.name }}</span>
+              <span class="account-badge" :class="badgeClass(account)">{{ badgeLabel(account) }}</span>
+            </div>
+            <div class="account-balance" :class="{ negative: account.balance < 0 }">
+              {{ formatBalance(account.balance) }} {{ account.currency }}
+            </div>
+            <div class="account-actions">
+              <button type="button" class="action-btn" title="调整余额" @click="$emit('adjust-balance', account)">
+                <Icon name="solar:wallet-money-linear" size="14" />
+              </button>
+              <button type="button" class="action-btn" @click="$emit('edit', account)">
+                <Icon name="solar:pen-linear" size="14" />
+              </button>
+              <button type="button" class="action-btn danger" @click="$emit('delete', account.id)">
+                <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
+              </button>
+            </div>
           </div>
-        </div>
-        <div v-if="isCreditCard(account)" class="credit-detail">
-          <span class="credit-chip">额度 {{ formatBalance(account.creditLimit ?? 0) }}</span>
-          <span class="credit-chip">账单日 {{ account.billingDay ?? 1 }}</span>
-          <span class="credit-chip">还款日 {{ account.repaymentDay ?? 1 }}</span>
-          <span class="credit-chip" :class="{ negative: account.balance < 0 }">
-            已用 {{ formatBalance(Math.max(0, -account.balance)) }}
-          </span>
-        </div>
+        </template>
       </div>
     </div>
 
@@ -146,6 +182,28 @@ function badgeClass(a: Account): string {
   return 'personal'
 }
 
+function repaymentDays(a: Account): number {
+  if (!a.repaymentDay) return 0
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const currentDay = today.getDate()
+  let targetMonth = today.getMonth()
+  let targetYear = today.getFullYear()
+
+  if (currentDay >= a.repaymentDay) {
+    targetMonth++
+    if (targetMonth > 11) {
+      targetMonth = 0
+      targetYear++
+    }
+  }
+
+  const targetDate = new Date(targetYear, targetMonth, a.repaymentDay)
+  targetDate.setHours(0, 0, 0, 0)
+  const diffMs = targetDate.getTime() - today.getTime()
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+}
+
 function formatBalance(n: number) {
   return n.toFixed(2)
 }
@@ -241,11 +299,38 @@ function formatBalance(n: number) {
 .account-balance.negative {
   color: rgb(255, 59, 48);
 }
-.credit-detail {
+.credit-item {
+  gap: 10px;
+}
+.credit-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.credit-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.credit-balance-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.remaining-limit {
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.6);
+}
+.remaining-limit.warning {
+  color: rgb(255, 149, 0);
+}
+.credit-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-left: 0;
 }
 .credit-chip {
   font-size: 11px;

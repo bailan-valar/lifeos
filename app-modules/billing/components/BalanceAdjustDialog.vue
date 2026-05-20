@@ -19,13 +19,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">调整后余额</label>
-            <input
-              v-model.number="form.balance"
-              class="form-input"
-              type="number"
-              step="0.01"
-              placeholder="输入调整后余额"
-            />
+            <AmountInput v-model="form.balance" placeholder="输入调整后余额" :allow-negative="true" />
           </div>
           <div class="form-group">
             <label class="form-label">备注（可选）</label>
@@ -53,6 +47,7 @@ import type { Account, BalanceAdjustment } from '~/types/bill'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import DateTimePicker from './DateTimePicker.vue'
 import BalanceAdjustHistory from './BalanceAdjustHistory.vue'
+import AmountInput from './AmountInput.vue'
 
 const { isMobile } = useDevice()
 
