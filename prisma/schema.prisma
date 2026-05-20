@@ -78,6 +78,7 @@ model Changelog {
   id          String   @id @default(cuid())
   version     String
   type        String
+  status      String   @default("published")
   title       String
   description String   @db.Text
   releaseDate DateTime
@@ -86,6 +87,7 @@ model Changelog {
 
   @@index([version])
   @@index([releaseDate])
+  @@index([status])
 }
 
 model ApiToken {
