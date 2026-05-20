@@ -119,7 +119,8 @@ const emit = defineEmits<{
 const sourceOptions: { value: SourceValue; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'alipay', label: '支付宝' },
-  { value: 'wechat', label: '微信' }
+  { value: 'wechat', label: '微信' },
+  { value: 'cmb', label: '招商银行' }
 ]
 
 type MatchFieldValue = ImportRuleMatchField

@@ -47,8 +47,8 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">CSV 文件</label>
-        <input ref="fileInput" type="file" accept=".csv" class="file-input" @change="onFileChange" />
+        <label class="form-label">账单文件</label>
+        <input ref="fileInput" type="file" :accept="fileAccept" class="file-input" @change="onFileChange" />
         <div v-if="parsing" class="form-hint">解析中...</div>
         <div v-if="parseError" class="form-hint warn">{{ parseError }}</div>
       </div>
@@ -96,7 +96,7 @@ import type {
   ImportRecordItem,
   ImportRecordStatus
 } from '~/types/bill'
-import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, dedupeKey } from '~/services/csvImport'
+import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, dedupeKey } from '~/services/csvImport'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { generateId, now } from '~/services/db'
@@ -128,7 +128,9 @@ const { records, loading: recordsLoading, insertRecord } = useImportRecords()
 
 const sourceOptions: { value: ImportSource; label: string }[] = [
   { value: 'alipay', label: '支付宝' },
-  { value: 'wechat', label: '微信' }
+  { value: 'wechat', label: '微信' },
+  { value: 'cmb', label: '招商银行储蓄卡' },
+  { value: 'cmb_credit', label: '招商信用卡' }
 ]
 
 const activeTab = ref<'import' | 'history'>('import')
@@ -136,6 +138,11 @@ const source = ref<ImportSource>('alipay')
 const parseError = ref('')
 const parsing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+
+const fileAccept = computed(() => {
+  if (source.value === 'cmb' || source.value === 'cmb_credit') return '.pdf'
+  return '.csv,.xlsx'
+})
 
 function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   const result = applyRules(parsed, source.value)
@@ -230,8 +237,33 @@ async function onFileChange(event: Event) {
   parsing.value = true
 
   try {
-    const text = await decodeCsvFile(file, source.value)
-    const parsedRows = source.value === 'alipay' ? parseAlipayCsv(text) : parseWechatCsv(text)
+    const isXlsx = file.name.toLowerCase().endsWith('.xlsx')
+    const isPdf = file.name.toLowerCase().endsWith('.pdf')
+    let parsedRows: CsvParsedRow[]
+
+    if (source.value === 'cmb') {
+      if (!isPdf) {
+        throw new Error('招商银行储蓄卡仅支持 pdf 格式导入')
+      }
+      const buffer = await file.arrayBuffer()
+      parsedRows = await parseCmbPdf(buffer)
+    } else if (source.value === 'cmb_credit') {
+      if (!isPdf) {
+        throw new Error('招商信用卡仅支持 pdf 格式导入')
+      }
+      const buffer = await file.arrayBuffer()
+      parsedRows = await parseCmbCreditPdf(buffer)
+    } else if (isXlsx) {
+      if (source.value !== 'wechat') {
+        throw new Error('仅微信支持 xlsx 格式导入')
+      }
+      const buffer = await file.arrayBuffer()
+      parsedRows = parseWechatXlsx(buffer)
+    } else {
+      const text = await decodeCsvFile(file, source.value)
+      parsedRows = source.value === 'alipay' ? parseAlipayCsv(text) : parseWechatCsv(text)
+    }
+
     const items = parsedRows.map(buildImportRecordItem)
 
     const record: ImportRecord = {
@@ -280,7 +312,7 @@ function formatDateTime(iso: string): string {
 }
 
 function sourceLabel(s: ImportSource): string {
-  return s === 'alipay' ? '支付宝' : s === 'wechat' ? '微信' : s
+  return s === 'alipay' ? '支付宝' : s === 'wechat' ? '微信' : s === 'cmb' ? '招商银行储蓄卡' : s === 'cmb_credit' ? '招商信用卡' : s
 }
 
 function statusLabel(s: ImportRecordStatus): string {

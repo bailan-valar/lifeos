@@ -788,7 +788,7 @@ function formatDateTime(iso: string): string {
 }
 
 function sourceLabel(s: ImportSource): string {
-  return s === 'alipay' ? '支付宝' : s === 'wechat' ? '微信' : s
+  return s === 'alipay' ? '支付宝' : s === 'wechat' ? '微信' : s === 'cmb' ? '招商银行' : s
 }
 
 function statusLabel(s: ImportRecordStatus): string {

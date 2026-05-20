@@ -274,7 +274,7 @@ const importSourceItem = computed<ImportRecordItem | null>(() => {
 const importSourceLabel = computed(() => {
   const bill = props.bill
   if (!bill?.importSource) return '导入'
-  return bill.importSource === 'alipay' ? '支付宝' : bill.importSource === 'wechat' ? '微信' : '导入'
+  return bill.importSource === 'alipay' ? '支付宝' : bill.importSource === 'wechat' ? '微信' : bill.importSource === 'cmb' ? '招商银行' : '导入'
 })
 
 watch(() => props.visible, (v) => {

@@ -383,8 +383,8 @@ async function handleRuleConfirm(data: ImportRuleFormData, isEditing: boolean, i
       rule = await createImportRule(data)
       showSuccess('规则已添加')
     }
-    closeRuleDialog()
     pendingRuleCallback.value?.(rule)
+    closeRuleDialog()
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }

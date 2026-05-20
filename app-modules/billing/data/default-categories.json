@@ -129,6 +129,34 @@
     ]
   },
   {
+    "name": "旅游",
+    "type": "expense",
+    "icon": "solar:earth-linear",
+    "color": "#00C7BE",
+    "children": [
+      {
+        "name": "酒店",
+        "icon": "solar:bed-linear",
+        "color": "#00C7BE"
+      },
+      {
+        "name": "景点门票",
+        "icon": "solar:ticket-linear",
+        "color": "#00C7BE"
+      },
+      {
+        "name": "旅游团费",
+        "icon": "solar:users-group-rounded-linear",
+        "color": "#00C7BE"
+      },
+      {
+        "name": "签证",
+        "icon": "solar:passport-linear",
+        "color": "#00C7BE"
+      }
+    ]
+  },
+  {
     "name": "住房",
     "type": "expense",
     "icon": "solar:home-linear",

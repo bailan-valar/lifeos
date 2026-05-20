@@ -269,7 +269,7 @@ export interface StatementFormData {
 /**
  * 导入来源
  */
-export type ImportSource = 'alipay' | 'wechat'
+export type ImportSource = 'alipay' | 'wechat' | 'cmb' | 'cmb_credit'
 
 /**
  * 规则匹配模式

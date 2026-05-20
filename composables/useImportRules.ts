@@ -56,7 +56,7 @@ interface ImportRulesStore {
   deleteImportRule: (id: string) => Promise<void>
   deleteImportRules: (ids: string[]) => Promise<{ deleted: number; failed: number }>
   updateImportRules: (ids: string[], data: Partial<ImportRuleFormData>) => Promise<{ updated: number; failed: number }>
-  applyRules: (row: CsvParsedRow, source: 'alipay' | 'wechat') => ApplyRulesResult | null
+  applyRules: (row: CsvParsedRow, source: ImportSource) => ApplyRulesResult | null
   exportRules: () => Promise<ExportedImportRule[]>
   importRules: (items: any[]) => Promise<{ created: number; skipped: number }>
 }
@@ -215,7 +215,7 @@ function createStore(): ImportRulesStore {
    * 对单行 CSV 应用规则集,分别独立匹配 counterparty / paymentMethod / description。
    * 三者可命中不同规则,各自填充对应账户/分类,实现"分别匹配为出账账户与入账账户及分类"。
    */
-  function applyRules(row: CsvParsedRow, source: 'alipay' | 'wechat'): ApplyRulesResult | null {
+  function applyRules(row: CsvParsedRow, source: ImportSource): ApplyRulesResult | null {
     const candidates = rules.value.filter(r => r.enabled && (r.source === 'all' || r.source === source))
     let counterpartyRule: ImportRule | undefined
     let paymentMethodRule: ImportRule | undefined
