@@ -32,6 +32,6 @@ lerna-debug.log*
 prisma/migrations/*_*/migration.sql
 
 # Claude local settings
-.claude/
 .playwright-mcp
 test-results
+.claude/settings.local.json

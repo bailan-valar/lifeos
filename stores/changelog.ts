@@ -10,12 +10,9 @@ export const useChangelogStore = defineStore('changelog', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  const lastReadVersion = ref<string>(() => {
-    if (process.client) {
-      return localStorage.getItem(STORAGE_KEY) || ''
-    }
-    return ''
-  })
+  const lastReadVersion = ref<string>(
+    process.client ? localStorage.getItem(STORAGE_KEY) || '' : ''
+  )
 
   const groupedChangelogs = computed<ChangelogGroup[]>(() => {
     const groups = new Map<string, Changelog[]>()

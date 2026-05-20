@@ -77,6 +77,7 @@
     :node="categoryMenu.node"
     @add-child="onMenuAddChild"
     @edit="onMenuEdit"
+    @detail="onMenuDetail"
     @delete="onMenuDelete"
   />
 </template>
@@ -121,7 +122,7 @@ const categoryMenu = ref<CategoryMenuState>({
   visible: false, x: 0, y: 0, node: null
 })
 
-const { openCategoryContextMenu, closeCategoryMenu, onMenuAddChild, onMenuEdit, onMenuDelete } = useBillingCategoryMenu({
+const { openCategoryContextMenu, closeCategoryMenu, onMenuAddChild, onMenuEdit, onMenuDetail, onMenuDelete } = useBillingCategoryMenu({
   categoryMenu,
   openCategoryDialog: (category?: BillCategory, defaults?: { type?: CategoryType; defaultParentId?: string; defaultName?: string }) => {
     openCategoryDialog(category, defaults)
@@ -149,7 +150,14 @@ function openAddChildCategoryDialog(parent: CategoryTreeNode) {
 
 // 事件处理
 async function handleDeleteCategory(id: string) {
-  if (!await confirm('确定删除此分类？')) return
+  const ok = await confirm({
+    title: '删除分类',
+    message: '确定要删除此分类吗？此操作不可恢复。',
+    confirmText: '删除',
+    danger: true
+  })
+  if (!ok) return
+
   try {
     await deleteCategory(id)
     showSuccess('分类已删除')

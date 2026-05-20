@@ -364,3 +364,100 @@ import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 3. IDE 自动在所有文件中可用
 
 详细图标列表见 [composables/useIcons.ts](composables/useIcons.ts)
+
+## 确认框使用规范
+
+**禁止使用原生 `confirm()`**：原生 `confirm()` 会阻塞主线程，触发 Chrome `[Violation] 'click' handler took ...ms` 性能警告，且无法在样式上保持与项目设计系统一致。
+
+**必须使用 `useConfirm()` composable**：项目已在 `app.vue` 中全局挂载 `<ConfirmDialog />`，任何地方都可以直接调用。
+
+### 使用方式
+
+```vue
+<script setup lang="ts">
+const { confirm } = useConfirm()
+
+async function handleDelete(item: SomeItem) {
+  const ok = await confirm({
+    message: `确定要删除 "${item.name}" 吗？`,
+    danger: true
+  })
+  if (!ok) return
+  // 执行删除
+}
+</script>
+```
+
+### API
+
+```ts
+interface ConfirmOptions {
+  title?: string        // 标题（可选）
+  message: string       // 正文（必填）
+  confirmText?: string  // 确认按钮文字，默认"确定"
+  cancelText?: string   // 取消按钮文字，默认"取消"
+  danger?: boolean      // 是否为危险操作，红色按钮
+}
+
+const { confirm } = useConfirm()
+confirm(options: ConfirmOptions | string): Promise<boolean>
+```
+
+### 约束
+
+```ts
+// ❌ 错误：使用原生 confirm
+if (confirm('确定删除吗？')) { ... }
+
+// ✅ 正确：使用 useConfirm
+const ok = await confirm({ message: '确定删除吗？', danger: true })
+if (!ok) return
+```
+
+- 危险操作（删除、重置等）必须设置 `danger: true`
+- 取消时提前 `return`，减少嵌套层级
+- 支持传入字符串简写：`confirm('确定删除吗？')`
+
+## Git Hooks 配置
+
+### 自动生成 Changelog
+
+项目配置了 Git push 前自动生成 changelog，通过 Claude Code 的 hooks 系统实现。
+
+**配置文件**：`.claude/settings.json`
+
+```json
+{
+  "hooks": {
+    "GitPush": {
+      "after": [
+        {
+          "skill": "changelog-from-git",
+          "prompt": "分析自上次 changelog 更新以来的所有提交，生成面向用户的更新日志。"
+        }
+      ]
+    }
+  }
+}
+```
+
+**工作流程**：
+1. 执行 `git push` 时，自动触发 `changelog-from-git` skill
+2. 读取 `.changelog-baseline` 获取基准提交（首次运行自动检测）
+3. 分析基准提交到 HEAD 之间的所有提交
+4. 按类型分组：`feature`（新功能）、`fix`（修复）、`improvement`（改进）、`breaking`（破坏性变更）
+5. 转换为面向用户的描述语言，避免技术细节
+6. 询问版本号和发布日期，确认后插入数据库
+7. 成功后更新 `.changelog-baseline` 为当前 HEAD
+
+**注意事项**：
+- 如果没有新提交，skill 会自动终止
+- 纯内部提交（如注释修正、CI 配置）会被跳过
+- 需要用户确认版本号和 changelog 内容后才插入数据库
+- 仅在数据库插入成功后才更新基准文件，确保幂等性
+
+**手动触发**：
+```bash
+# 直接调用 skill
+/changelog-from-git
+```

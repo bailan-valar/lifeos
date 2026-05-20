@@ -1,27 +1,34 @@
 <template>
-  <div
-    v-if="visible && node"
-    class="context-menu"
-    :style="{ top: `${y}px`, left: `${x}px` }"
-    @click.stop
-  >
-    <button type="button" class="context-menu-item" @click="$emit('add-child')">
-      <Icon name="solar:add-circle-linear" size="14" />
-      <span>新增子分类</span>
-    </button>
-    <button type="button" class="context-menu-item" @click="$emit('edit')">
-      <Icon name="solar:pen-linear" size="14" />
-      <span>编辑</span>
-    </button>
-    <button type="button" class="context-menu-item danger" @click="$emit('delete')">
-      <Icon name="solar:trash-bin-minimalistic-linear" size="14" />
-      <span>删除</span>
-    </button>
-  </div>
+  <Teleport to="body">
+    <div
+      v-if="visible && node"
+      class="context-menu"
+      :style="{ top: `${y}px`, left: `${x}px` }"
+      @click.stop
+    >
+      <button type="button" class="context-menu-item" @click="$emit('add-child')">
+        <Icon :name="SOLAR_ICONS.action.add" size="14" />
+        <span>新增子分类</span>
+      </button>
+      <button type="button" class="context-menu-item" @click="$emit('edit')">
+        <Icon :name="SOLAR_ICONS.action.edit" size="14" />
+        <span>编辑</span>
+      </button>
+      <button type="button" class="context-menu-item" @click="$emit('detail')">
+        <Icon :name="SOLAR_ICONS.doc.text" size="14" />
+        <span>分类详情</span>
+      </button>
+      <button type="button" class="context-menu-item danger" @click="$emit('delete')">
+        <Icon :name="SOLAR_ICONS.action.delete" size="14" />
+        <span>删除</span>
+      </button>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
 import type { CategoryTreeNode } from '~/types/bill'
+import { SOLAR_ICONS } from '~/composables/useIcons'
 
 const props = defineProps<{
   visible: boolean
@@ -34,12 +41,13 @@ defineEmits<{
   (e: 'add-child'): void
   (e: 'edit'): void
   (e: 'delete'): void
+  (e: 'detail'): void
 }>()
 </script>
 
-<style scoped>
+<style>
 .context-menu {
-  position: fixed;
+  position: fixed !important;
   min-width: 160px;
   padding: 4px;
   background: rgba(255, 255, 255, 0.98);
@@ -50,6 +58,7 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   gap: 2px;
+  z-index: 99999 !important;
 }
 
 .context-menu-item {

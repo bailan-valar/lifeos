@@ -50,7 +50,7 @@
                 <span class="status-badge" :class="`status-${item.status}`">{{ getStatusLabel(item.status) }}</span>
               </td>
               <td class="title-cell">{{ item.title }}</td>
-              <td class="date-cell">{{ item.releaseDate }}</td>
+              <td class="date-cell">{{ formatReleaseDate(item.releaseDate) }}</td>
               <td class="actions-cell">
                 <button class="action-btn" title="编辑" @click="openEditDialog(item)">
                   <Icon name="solar:pen-linear" />
@@ -129,11 +129,10 @@
 
                 <div class="form-group">
                   <label class="form-label">发布日期</label>
-                  <input
+                  <FieldEditor
+                    :field="releaseDateField"
                     v-model="formData.releaseDate"
-                    type="date"
-                    class="liquid-glass-input"
-                    required
+                    label=""
                   />
                 </div>
               </form>
@@ -154,7 +153,9 @@
 
 <script setup lang="ts">
 import type { Changelog, ChangelogCreateInput } from '~/types/changelog'
+import type { ClassField } from '~/types/block'
 import RichTextEditor from '~/components/editor/RichTextEditor.vue'
+import FieldEditor from '~/components/class/FieldEditor.vue'
 import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
@@ -163,6 +164,7 @@ definePageMeta({
 
 const authStore = useAuthStore()
 const { createChangelog, updateChangelog, deleteChangelog } = useAdminChangelog()
+const { confirm } = useConfirm()
 
 const changelogs = ref<Changelog[]>([])
 const isLoading = ref(false)
@@ -248,13 +250,16 @@ async function handleSubmit() {
 }
 
 async function confirmDelete(item: Changelog) {
-  if (confirm(`确定要删除 "${item.title}" 吗？`)) {
-    try {
-      await deleteChangelog(item.id)
-      await fetchData()
-    } catch (err) {
-      console.error('删除失败:', err)
-    }
+  const ok = await confirm({
+    message: `确定要删除 "${item.title}" 吗？`,
+    danger: true
+  })
+  if (!ok) return
+  try {
+    await deleteChangelog(item.id)
+    await fetchData()
+  } catch (err) {
+    console.error('删除失败:', err)
   }
 }
 
@@ -277,10 +282,32 @@ function getTypeLabel(type: string) {
   return option?.label || type
 }
 
+function formatReleaseDate(dateStr: string) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
 function getStatusLabel(status: string) {
   const option = statusOptions.find(opt => opt.value === status)
   return option?.label || status
 }
+
+const releaseDateField = {
+  id: 'releaseDate',
+  classId: '',
+  name: '发布日期',
+  type: 'date' as const,
+  options: [],
+  required: true,
+  order: 0,
+  createdAt: '',
+  updatedAt: ''
+} satisfies ClassField
 </script>
 
 <style scoped>
@@ -311,6 +338,9 @@ function getStatusLabel(status: string) {
 .changelog-table-section {
   padding: 20px;
   min-height: 400px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .loading-state,
@@ -353,7 +383,9 @@ function getStatusLabel(status: string) {
 .changelog-table thead {
   position: sticky;
   top: 0;
-  background: rgba(255, 255, 255, 0.9);
+  z-index: 10;
+  background: var(--liquid-bg-thick);
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
 }
 
 .changelog-table th {
@@ -377,6 +409,10 @@ function getStatusLabel(status: string) {
   padding: 14px 16px;
   border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
   font-size: 14px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-row:last-child td {
@@ -446,6 +482,7 @@ function getStatusLabel(status: string) {
 
 .title-cell {
   color: var(--liquid-text-primary);
+  max-width: 400px;
 }
 
 .date-cell {
@@ -592,6 +629,10 @@ function getStatusLabel(status: string) {
     gap: 12px;
   }
 
+  .changelog-table-section {
+    max-height: calc(100vh - 220px);
+  }
+
   .changelog-table {
     font-size: 12px;
   }
@@ -599,6 +640,23 @@ function getStatusLabel(status: string) {
   .changelog-table th,
   .table-row td {
     padding: 10px 12px;
+  }
+
+  .table-row td {
+    max-width: 200px;
+  }
+
+  .title-cell {
+    max-width: 250px;
+  }
+
+  .dialog-content {
+    max-height: 90vh;
+    max-width: 100%;
+  }
+
+  .dialog-body {
+    padding: 16px 20px;
   }
 }
 </style>

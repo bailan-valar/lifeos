@@ -1,78 +1,70 @@
 <template>
-  <div class="bill-list">
-    <template v-for="bill in flatBills" :key="bill.id">
-      <div
-        class="bill-row"
-        :class="[
-          `type-${bill.type}`,
-          { selected: selectable && selectedIds?.includes(bill.id) },
-          { 'is-child': bill.parentId },
-          { 'has-children': bill.hasChildren && !bill.parentId },
-          { 'is-refund': bill.isRefund }
-        ]"
-        :style="{ paddingLeft: bill.parentId ? '32px' : '16px' }"
+  <div class="bill-wrapper">
+    <div
+      class="bill-item"
+      :class="[
+        `type-${bill.type}`,
+        { 'is-child': bill.parentId },
+        { 'is-refund': bill.isRefund },
+        { 'has-children': bill.hasChildren && !bill.parentId }
+      ]"
+      @click="$emit('click', bill)"
+    >
+      <!-- 展开/收起按钮 -->
+      <button
+        v-if="bill.hasChildren && !bill.parentId && !bill.isRefund"
+        type="button"
+        class="expand-btn"
+        :class="{ expanded: isExpanded }"
+        @click.stop="toggleExpand"
       >
-        <div v-if="selectable" class="bill-checkbox">
-          <input
-            type="checkbox"
-            :checked="selectedIds?.includes(bill.id)"
-            @change="toggleSelect(bill.id)"
-          />
-        </div>
+        <Icon :name="isExpanded ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right" size="14" />
+      </button>
+      <div v-else-if="bill.parentId" class="child-placeholder"></div>
+      <div v-else class="expand-placeholder"></div>
 
-        <!-- 展开/收起按钮 -->
-        <button
-          v-if="bill.hasChildren && !bill.parentId && !bill.isRefund"
-          type="button"
-          class="expand-btn"
-          @click="toggleExpand(bill.id)"
-        >
-          <Icon
-            :name="expandedIds.has(bill.id) ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right"
-            size="14"
-          />
-        </button>
-        <div v-else-if="bill.parentId" class="child-placeholder"></div>
-        <div v-else class="expand-placeholder"></div>
-
-        <div class="bill-left">
-          <div class="bill-primary-row">
-            <span class="bill-type-badge" :class="bill.type">{{ typeLabel(bill.type) }}</span>
-            <span v-if="!bill.isRefund && refundBillsMap.has(bill.id)" class="refund-badge">已退款</span>
-            <span v-if="bill.isRefund" class="refund-badge">退款</span>
-            <span v-if="bill.allocatedMonth && bill.parentId" class="allocate-badge">
-              {{ bill.allocatedMonth }}
-            </span>
-            <span v-if="bill.categoryId && getCategoryName(bill.categoryId)" class="bill-category-primary">
-              {{ getCategoryName(bill.categoryId) }}
-            </span>
-            <span v-else-if="!bill.parentId" class="bill-category-empty">未分类</span>
-          </div>
-          <div class="bill-secondary-row">
-            <span class="bill-datetime">{{ formatDateTime(bill.date) }}</span>
-            <span class="bill-sep">·</span>
-            <span class="bill-account">{{ getAccountName(bill) }}</span>
-            <span class="bill-sep">·</span>
-            <span class="bill-description">{{ bill.description || '-' }}</span>
-          </div>
+      <div class="bill-left">
+        <div class="bill-primary-row">
+          <span class="bill-type-badge" :class="bill.type">{{ typeLabel(bill.type) }}</span>
+          <!-- 已拆分标记 -->
+          <span v-if="bill.hasChildren && !bill.parentId" class="split-badge">已拆分</span>
+          <!-- 子账单标记 -->
+          <span v-if="bill.parentId" class="child-badge">子账单</span>
+          <!-- 退款标记 -->
+          <span v-if="bill.isRefund" class="refund-badge">退款</span>
+          <!-- 分摊月份标记 -->
+          <span v-if="bill.allocatedMonth" class="allocate-badge">
+            {{ bill.allocatedMonth }}
+          </span>
+          <span v-if="categoryName" class="bill-category-primary">
+            {{ categoryName }}
+          </span>
+          <span v-else class="bill-category-empty">未分类</span>
         </div>
-        <div class="bill-right">
-          <div class="bill-amount-row">
-            <span class="bill-amount" :class="amountClass(bill)">
-              {{ amountPrefix(bill) }}{{ displayAmount(bill).toFixed(2) }}
-            </span>
-            <span class="bill-currency">{{ bill.currency }}</span>
-          </div>
-          <div v-if="!bill.isRefund && refundTotalMap.has(bill.id)" class="bill-amount-sub">
-            ({{ amountPrefix(bill) }}{{ bill.amount.toFixed(2) }}-{{ refundTotalMap.get(bill.id)!.toFixed(2) }})
-          </div>
-          <div v-if="!selectable && !bill.parentId" class="bill-actions">
+        <div class="bill-secondary-row">
+          <span class="bill-datetime">{{ formatDateTime(bill.date) }}</span>
+          <span class="bill-sep">·</span>
+          <span class="bill-account">{{ accountName }}</span>
+          <span class="bill-sep">·</span>
+          <span class="bill-description">{{ bill.description || '-' }}</span>
+        </div>
+      </div>
+      <div class="bill-right">
+        <div class="bill-amount-row">
+          <span class="bill-amount" :class="amountClass(bill)">
+            {{ amountPrefix(bill) }}{{ displayAmount.toFixed(2) }}
+          </span>
+          <span class="bill-currency">{{ bill.currency }}</span>
+        </div>
+        <div v-if="showActions" class="bill-actions">
+          <!-- 父账单操作 -->
+          <template v-if="!bill.parentId && !bill.isRefund">
             <button
               type="button"
               class="action-btn"
               title="拆分账单"
               :disabled="bill.hasChildren"
-              @click="$emit('split', bill)"
+              @click.stop="$emit('split', bill)"
             >
               <Icon :name="SOLAR_ICONS.action.split" size="14" />
             </button>
@@ -81,7 +73,7 @@
               class="action-btn"
               title="分摊到月份"
               :disabled="bill.hasChildren"
-              @click="$emit('allocate', bill)"
+              @click.stop="$emit('allocate', bill)"
             >
               <Icon :name="SOLAR_ICONS.billing.calendar" size="14" />
             </button>
@@ -89,7 +81,7 @@
               type="button"
               class="action-btn refund"
               title="退款"
-              @click="$emit('refund', bill)"
+              @click.stop="$emit('refund', bill)"
             >
               <Icon :name="SOLAR_ICONS.action.refresh" size="14" />
             </button>
@@ -97,7 +89,7 @@
               type="button"
               class="action-btn"
               title="编辑"
-              @click="$emit('edit', bill)"
+              @click.stop="$emit('edit', bill)"
             >
               <Icon :name="SOLAR_ICONS.action.edit" size="14" />
             </button>
@@ -105,17 +97,18 @@
               type="button"
               class="action-btn danger"
               title="删除"
-              @click="$emit('delete', bill.id)"
+              @click.stop="$emit('delete', bill.id)"
             >
-              <Icon :name="ICONS.trashBinMinimalistic" size="14" />
+              <Icon :name="SOLAR_ICONS.action.delete" size="14" />
             </button>
-          </div>
-          <div v-else-if="!selectable && bill.parentId" class="bill-actions">
+          </template>
+          <!-- 子账单操作 -->
+          <template v-else>
             <button
               type="button"
               class="action-btn"
               title="编辑"
-              @click="$emit('edit', bill)"
+              @click.stop="$emit('edit', bill)"
             >
               <Icon :name="SOLAR_ICONS.action.edit" size="14" />
             </button>
@@ -123,41 +116,52 @@
               type="button"
               class="action-btn danger"
               title="删除"
-              @click="$emit('delete', bill.id)"
+              @click.stop="$emit('delete', bill.id)"
             >
-              <Icon :name="ICONS.trashBinMinimalistic" size="14" />
+              <Icon :name="SOLAR_ICONS.action.delete" size="14" />
             </button>
-          </div>
+          </template>
         </div>
       </div>
-    </template>
+    </div>
 
-    <div v-if="flatBills.length === 0" class="empty">
-      <Icon :name="SOLAR_ICONS.billing.wallet" size="32" />
-      <span>暂无账单记录</span>
+    <!-- 子账单列表 -->
+    <div v-if="bill.hasChildren && isExpanded && childBills.length > 0" class="child-bills">
+      <BillListItem
+        v-for="child in childBills"
+        :key="child.id"
+        :bill="child"
+        :category-name="getCategoryName(child.categoryId)"
+        :account-name="getAccountName(child)"
+        :show-actions="showActions"
+        @click="$emit('click', $event)"
+        @edit="$emit('edit', $event)"
+        @delete="$emit('delete', $event)"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Bill, BillType } from '~/types/bill'
+import { SOLAR_ICONS } from '~/composables/useIcons'
+import { div } from '~/utils/decimal'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useAccounts } from '~/composables/useAccounts'
-import { sum, sub, max } from '~/utils/decimal'
-import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 
 const props = defineProps<{
-  bills: Bill[]
-  selectable?: boolean
-  selectedIds?: string[]
+  bill: Bill
+  categoryName?: string
+  accountName?: string
+  refundDeduction?: number
+  showActions?: boolean
+  allBills?: Bill[] // 所有账单（用于查找子账单）
 }>()
 
 const emit = defineEmits<{
+  (e: 'click', bill: Bill): void
   (e: 'edit', bill: Bill): void
   (e: 'delete', id: string): void
-  (e: 'select', id: string): void
-  (e: 'select-all'): void
-  (e: 'unselect-all'): void
   (e: 'split', bill: Bill): void
   (e: 'allocate', bill: Bill): void
   (e: 'refund', bill: Bill): void
@@ -166,10 +170,25 @@ const emit = defineEmits<{
 const { categories } = useBillCategories()
 const { accounts } = useAccounts()
 
+// 展开状态
+const isExpanded = ref(false)
+
+function toggleExpand() {
+  isExpanded.value = !isExpanded.value
+}
+
+// 获取子账单
+const childBills = computed(() => {
+  if (!props.allBills || !props.bill.hasChildren) return []
+  return props.allBills.filter(b => b.parentId === props.bill.id && !b.isRefund)
+})
+
+// 分类映射
 const categoryMap = computed(() =>
   Object.fromEntries(categories.value.map(c => [c.id, c]))
 )
 
+// 账户映射
 const accountMap = computed(() =>
   Object.fromEntries(accounts.value.map(a => [a.id, a]))
 )
@@ -183,83 +202,6 @@ function getAccountName(bill: Bill) {
     ? bill.toAccountId
     : bill.fromAccountId
   return accountMap.value[accountId]?.name || ''
-}
-
-// 展开的父账单 ID 集合
-const expandedIds = ref<Set<string>>(new Set())
-
-// 退款账单映射：源账单ID -> 退款账单列表
-const refundBillsMap = computed(() => {
-  const map = new Map<string, Bill[]>()
-  for (const bill of props.bills) {
-    if (bill.isRefund && bill.originalBillId) {
-      if (!map.has(bill.originalBillId)) {
-        map.set(bill.originalBillId, [])
-      }
-      map.get(bill.originalBillId)!.push(bill)
-    }
-  }
-  return map
-})
-
-// 退款总额映射：源账单ID -> 退款总额
-const refundTotalMap = computed(() => {
-  const map = new Map<string, number>()
-  for (const [billId, refunds] of refundBillsMap.value.entries()) {
-    const total = sum(refunds.map(r => r.amount))
-    map.set(billId, total)
-  }
-  return map
-})
-
-// 构建扁平化账单列表（退款账单作为独立项显示，不折叠在源账单下）
-const flatBills = computed(() => {
-  const result: Bill[] = []
-  const childrenMap = new Map<string, Bill[]>()
-
-  // 先分组普通子账单
-  for (const bill of props.bills) {
-    if (bill.parentId && !bill.isRefund) {
-      if (!childrenMap.has(bill.parentId)) {
-        childrenMap.set(bill.parentId, [])
-      }
-      childrenMap.get(bill.parentId)!.push(bill)
-    }
-  }
-
-  // 辅助函数：推入账单及其子账单
-  function pushWithChildren(bill: Bill) {
-    result.push(bill)
-    if (!expandedIds.value.has(bill.id)) return
-
-    // 推入普通子账单
-    const children = childrenMap.get(bill.id) || []
-    for (const child of children) {
-      result.push(child)
-    }
-  }
-
-  // 构建扁平列表（只跳过子账单，退款账单作为独立项显示）
-  for (const bill of props.bills) {
-    if (bill.parentId) continue
-    pushWithChildren(bill)
-  }
-
-  return result
-})
-
-function toggleSelect(id: string) {
-  emit('select', id)
-}
-
-function toggleExpand(id: string) {
-  const next = new Set(expandedIds.value)
-  if (next.has(id)) {
-    next.delete(id)
-  } else {
-    next.add(id)
-  }
-  expandedIds.value = next
 }
 
 const typeLabels: Record<BillType, string> = {
@@ -282,10 +224,10 @@ function amountClass(bill: Bill) {
 }
 
 function amountPrefix(bill: Bill) {
-  if (bill.type === 'income') return '+';
-  if (bill.type === 'expense') return '-';
-  if (bill.type === 'transfer') return '';
-  if (bill.type === 'debt') return bill.debtSubtype === 'lend' ? '-' : '+';
+  if (bill.type === 'income') return '+'
+  if (bill.type === 'expense') return '-'
+  if (bill.type === 'transfer') return ''
+  if (bill.type === 'debt') return bill.debtSubtype === 'lend' ? '-' : '+'
   return ''
 }
 
@@ -298,62 +240,61 @@ function formatDateTime(dateStr: string) {
   return `${month}/${day} ${hours}:${minutes}`
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
-}
-
-function displayAmount(bill: Bill): number {
-  if (bill.isRefund) return bill.amount
-  const refundTotal = refundTotalMap.value.get(bill.id)
-  if (!refundTotal) return bill.amount
-  return max(0, sub(bill.amount, refundTotal))
-}
+// 计算显示金额（减去退款）
+const displayAmount = computed(() => {
+  if (props.bill.isRefund) return props.bill.amount
+  if (!props.refundDeduction) return props.bill.amount
+  return Math.max(0, props.bill.amount - props.refundDeduction)
+})
 </script>
 
 <style scoped>
-.bill-list {
+.bill-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
-.bill-row {
+.bill-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 0.5px solid rgba(60, 60, 67, 0.1);
+  background: var(--liquid-bg);
+  border: var(--liquid-border);
   border-radius: 12px;
   transition: all 0.15s ease;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 64px;
   gap: 8px;
+  cursor: pointer;
 }
 
-.bill-row:hover {
-  background: rgba(255, 255, 255, 0.85);
+.bill-item:hover {
+  background: var(--liquid-bg-thick);
   border-color: rgba(60, 60, 67, 0.15);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.bill-row.is-child {
-  background: rgba(60, 60, 67, 0.03);
-  border-radius: 8px;
+.bill-item.has-children {
+  border-radius: 12px;
 }
 
-.bill-row.is-child:hover {
+.bill-item.is-child {
+  background: rgba(60, 60, 67, 0.03);
+  border-radius: 8px;
+  margin-left: 16px;
+}
+
+.bill-item.is-child:hover {
   background: rgba(60, 60, 67, 0.06);
 }
 
-.bill-row.is-refund {
+.bill-item.is-refund {
   background: rgba(255, 149, 0, 0.04);
   border-left: 3px solid rgba(255, 149, 0, 0.4);
   border-radius: 8px;
 }
 
-.bill-row.is-refund:hover {
+.bill-item.is-refund:hover {
   background: rgba(255, 149, 0, 0.08);
 }
 
@@ -383,6 +324,10 @@ function displayAmount(bill: Bill): number {
   color: rgba(0, 0, 0, 0.78);
 }
 
+.expand-btn.expanded {
+  transform: rotate(0deg);
+}
+
 .bill-left {
   display: flex;
   flex-direction: column;
@@ -395,6 +340,7 @@ function displayAmount(bill: Bill): number {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .bill-type-badge {
@@ -423,6 +369,26 @@ function displayAmount(bill: Bill): number {
 .bill-type-badge.debt {
   background: rgba(168, 85, 247, 0.12);
   color: rgb(168, 85, 247);
+}
+
+.split-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(147, 51, 234, 0.12);
+  color: rgb(147, 51, 234);
+  flex-shrink: 0;
+}
+
+.child-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(107, 114, 128, 0.12);
+  color: rgb(107, 114, 128);
+  flex-shrink: 0;
 }
 
 .refund-badge {
@@ -531,12 +497,6 @@ function displayAmount(bill: Bill): number {
   color: rgb(59, 130, 246);
 }
 
-.bill-amount-sub {
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.45);
-  font-weight: 500;
-}
-
 .bill-currency {
   font-size: 11px;
   color: rgba(60, 60, 67, 0.4);
@@ -550,7 +510,7 @@ function displayAmount(bill: Bill): number {
   transition: opacity 0.2s ease;
 }
 
-.bill-row:hover .bill-actions {
+.bill-item:hover .bill-actions {
   opacity: 1;
 }
 
@@ -588,31 +548,12 @@ function displayAmount(bill: Bill): number {
   color: rgb(239, 68, 68);
 }
 
-.empty {
+.child-bills {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 32px;
-  color: rgba(60, 60, 67, 0.5);
-  font-size: 14px;
-}
-
-.bill-checkbox {
-  display: flex;
-  align-items: center;
-  padding-right: 4px;
-}
-
-.bill-checkbox input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: rgb(0, 122, 255);
-  cursor: pointer;
-}
-
-.bill-row.selected {
-  background: rgba(0, 122, 255, 0.08);
-  border-color: rgba(0, 122, 255, 0.25);
+  gap: 4px;
+  padding-left: 16px;
+  border-left: 2px solid rgba(60, 60, 67, 0.1);
+  margin-left: 24px;
 }
 </style>

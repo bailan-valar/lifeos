@@ -4,9 +4,19 @@
       <div class="dialog" :class="{ mobile: isMobile }" tabindex="-1" @click.stop @keydown="onKeyDown">
         <div class="dialog-header">
           <h3>{{ isEditing ? '编辑预算' : '设置预算' }}</h3>
-          <button type="button" class="close-btn" @click="onCancel">
-            <Icon name="solar:close-circle-linear" size="20" />
-          </button>
+          <div class="header-actions">
+            <button
+              type="button"
+              class="history-btn"
+              @click="onShowHistory"
+              title="查看预算历史"
+            >
+              <Icon :name="SOLAR_ICONS.doc.text" size="18" />
+            </button>
+            <button type="button" class="close-btn" @click="onCancel">
+              <Icon :name="SOLAR_ICONS.action.close" size="20" />
+            </button>
+          </div>
         </div>
         <div class="dialog-body">
           <BudgetForm
@@ -26,6 +36,7 @@
 
 <script setup lang="ts">
 import type { BudgetEntry, BudgetFormData, BillCategory } from '~/types/bill'
+import { SOLAR_ICONS } from '~/composables/useIcons'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import BudgetForm from './BudgetForm.vue'
 
@@ -52,6 +63,7 @@ const overlayZIndex = useZIndexOnOpen(() => props.visible)
 const emit = defineEmits<{
   confirm: [data: BudgetFormData, isEditing: boolean, id?: string]
   cancel: []
+  showHistory: [categoryId: string, noteId: string]
 }>()
 
 const form = ref<BudgetFormData>({
@@ -92,6 +104,10 @@ function onConfirm() {
 
 function onCancel() {
   emit('cancel')
+}
+
+function onShowHistory() {
+  emit('showHistory', form.value.categoryId, form.value.noteId)
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -167,6 +183,33 @@ defineExpose({ setCategoryId })
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.45);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.history-btn:hover {
+  background: rgba(0, 122, 255, 0.08);
+  color: rgb(0, 122, 255);
+}
+
 .close-btn {
   display: flex;
   align-items: center;
