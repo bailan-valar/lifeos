@@ -7,7 +7,9 @@ import type {
   ImportRecordStatus,
   BillSplitItem,
   BillAllocateItem,
-  RefundFormData
+  RefundFormData,
+  InstallmentItem,
+  InstallmentFormData
 } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
 import { dedupeKey } from '~/services/csvImport'
@@ -829,6 +831,50 @@ export function useBills() {
     return sub(bill.amount, totalRefund)
   }
 
+  /**
+   * 创建信用卡分期还款账单
+   * @param data 分期表单数据
+   * @param items 分期项列表
+   */
+  async function createInstallmentBills(
+    data: InstallmentFormData,
+    items: InstallmentItem[]
+  ): Promise<Bill[]> {
+    const db = await getDB()
+    const installmentId = generateId()
+    const createdBills: Bill[] = []
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const bill: Bill = {
+        id: generateId(),
+        noteId: data.noteId,
+        type: 'transfer',
+        amount: item.amount,
+        currency: 'CNY',
+        fromAccountId: data.fromAccountId,
+        toAccountId: data.accountId,
+        categoryId: data.categoryId || '',
+        description: item.description || `${data.accountId} 分期还款 第${i + 1}/${items.length}期`,
+        date: item.date,
+        status: 'completed',
+        debtSubtype: 'lend',
+        relatedPersonId: '',
+        settledAmount: 0,
+        createdAt: now(),
+        updatedAt: now(),
+      }
+      await db.bills.insert({ ...bill })
+      await applyBalanceChange(bill, false)
+      await maybeRecalculateBalance(bill.fromAccountId, bill.date)
+      await maybeRecalculateBalance(bill.toAccountId, bill.date)
+      bills.value.push(bill)
+      createdBills.push(bill)
+    }
+
+    return createdBills
+  }
+
   function startWatching() {
     if (unsubscribe) return
     unsubscribe = onCollectionChange('bills', () => {
@@ -907,6 +953,7 @@ export function useBills() {
     createRefundBill,
     getRefundsForBill,
     getEffectiveAmount,
+    createInstallmentBills,
     startWatching,
     stopWatching,
     reloadFromRemote

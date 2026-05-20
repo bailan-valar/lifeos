@@ -505,3 +505,29 @@ export interface RefundFormData {
   date: string
   accountId: string
 }
+
+/**
+ * 分期还款项
+ */
+export interface InstallmentItem {
+  month: string      // YYYY-MM 格式
+  amount: number     // 本期还款金额（含手续费）
+  principal: number  // 本期本金
+  fee: number        // 本期手续费
+  date: string       // YYYY-MM-DD 格式，还款日期
+  description?: string
+}
+
+/**
+ * 分期还款表单数据
+ */
+export interface InstallmentFormData {
+  accountId: string       // 信用卡账户ID
+  fromAccountId: string   // 还款账户ID（储蓄卡/现金等）
+  totalAmount: number     // 分期总金额
+  periods: number         // 分期期数
+  totalFee: number        // 总手续费
+  firstDate: string       // 首期还款日 YYYY-MM-DD
+  noteId: string
+  categoryId?: string     // 手续费分类（可选）
+}

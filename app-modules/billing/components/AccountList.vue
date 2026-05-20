@@ -47,6 +47,9 @@
               <button type="button" class="action-btn" title="调整余额" @click="$emit('adjust-balance', account)">
                 <Icon name="solar:wallet-money-linear" size="14" />
               </button>
+              <button type="button" class="action-btn" title="分期还款" @click="$emit('installment', account)">
+                <Icon name="solar:clock-circle-linear" size="14" />
+              </button>
               <button type="button" class="action-btn" @click="$emit('edit', account)">
                 <Icon name="solar:pen-linear" size="14" />
               </button>
@@ -103,6 +106,7 @@ defineEmits<{
   (e: 'view-statements', account: Account): void
   (e: 'adjust-balance', account: Account): void
   (e: 'view-detail', account: Account): void
+  (e: 'installment', account: Account): void
 }>()
 
 interface AccountGroup {
