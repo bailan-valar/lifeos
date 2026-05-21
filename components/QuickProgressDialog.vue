@@ -80,7 +80,7 @@
           <button
             @click="onConfirm"
             class="liquid-glass-button liquid-glass-button-primary"
-            :disabled="!form.amount || form.amount <= 0"
+            :disabled="!form.amount || Number(form.amount) <= 0"
           >
             确认记录
           </button>
@@ -91,7 +91,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Goal, ProgressStatistics } from '~/types/goal'
+import type { Goal } from '~/types/goal'
+import { useGoalProgress } from '~/composables/useGoalProgress'
 import DateTimePicker from '~/app-modules/billing/components/DateTimePicker.vue'
 
 const props = defineProps<{
@@ -105,6 +106,7 @@ const emit = defineEmits<{
 }>()
 
 const { isMobile } = useDevice()
+const { calculateProgressStatistics } = useGoalProgress()
 const amountInput = ref<HTMLInputElement>()
 
 const form = reactive({
@@ -113,29 +115,9 @@ const form = reactive({
   notes: ''
 })
 
-const statistics = computed<ProgressStatistics | undefined>(() => {
+const statistics = computed(() => {
   if (!props.goal) return undefined
-
-  // 简单计算统计信息（完整版本需要在父组件调用calculateProgressStatistics）
-  const today = new Date()
-  const startDate = new Date(props.goal.startDate)
-  const endDate = new Date(props.goal.endDate)
-  const totalDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  const elapsedDays = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  const percentage = (props.goal.currentProgress / props.goal.target) * 100
-
-  return {
-    current: props.goal.currentProgress,
-    target: props.goal.target,
-    percentage,
-    totalDays,
-    elapsedDays: Math.max(0, elapsedDays),
-    remainingDays: Math.max(0, totalDays - elapsedDays),
-    expectedProgress: props.goal.target * (elapsedDays / totalDays),
-    progressStatus: percentage >= 100 ? 'completed' : 'on_track',
-    dailyAverageRequired: 0,
-    dailyAverageActual: 0
-  }
+  return calculateProgressStatistics(props.goal)
 })
 
 const newProgress = computed(() => {

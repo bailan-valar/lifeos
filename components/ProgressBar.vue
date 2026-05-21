@@ -20,22 +20,27 @@ import type { ProgressStatistics } from '~/types/goal'
 
 const props = withDefaults(
   defineProps<{
-    current: number
-    target: number
+    current?: number
+    target?: number
     unit?: string
     size?: 'compact' | 'standard' | 'large'
     statistics?: ProgressStatistics
   }>(),
   {
+    current: 0,
+    target: 0,
     unit: '',
     size: 'standard',
     statistics: undefined
   }
 )
 
+const safeCurrent = computed(() => typeof props.current === 'number' && !isNaN(props.current) ? props.current : 0)
+const safeTarget = computed(() => typeof props.target === 'number' && !isNaN(props.target) ? props.target : 0)
+
 const percentage = computed(() => {
-  if (props.target === 0) return 0
-  return (props.current / props.target) * 100
+  if (safeTarget.value === 0) return 0
+  return (safeCurrent.value / safeTarget.value) * 100
 })
 
 const status = computed(() => {

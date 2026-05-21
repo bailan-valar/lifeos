@@ -181,33 +181,43 @@ export function useGoalProgress() {
   function calculateProgressStatistics(goal: Goal): ProgressStatistics {
     const today = new Date()
 
+    // 处理无效日期
+    const startValid = isValidDate(goal.startDate)
+    const endValid = isValidDate(goal.endDate)
+
     // 时间相关计算
-    const totalDays = getDayDiff(goal.startDate, goal.endDate)
-    const elapsedDays = getDayDiff(goal.startDate, today)
-    const remainingDays = getDayDiff(today, goal.endDate)
+    const totalDays = startValid && endValid ? getDayDiff(goal.startDate, goal.endDate) : 0
+    const elapsedDays = startValid ? getDayDiff(goal.startDate, today) : 0
+    const remainingDays = endValid ? getDayDiff(today, goal.endDate) : 0
+
+    // 处理无效数值
+    const target = typeof goal.target === 'number' && !isNaN(goal.target) ? goal.target : 0
+    const currentProgress = typeof goal.currentProgress === 'number' && !isNaN(goal.currentProgress) ? goal.currentProgress : 0
 
     // 进度百分比
-    const percentage = goal.target > 0 ? round(mul(div(goal.currentProgress, goal.target), 100), 10) : 0
+    const percentage = target > 0 ? round(mul(div(currentProgress, target), 100), 10) : 0
 
     // 期望进度（基于时间比例）
-    const timeProgressRatio = Math.max(0, Math.min(1, div(elapsedDays, totalDays)))
-    const expectedProgress = mul(goal.target, timeProgressRatio)
+    const timeProgressRatio = totalDays > 0 ? Math.max(0, Math.min(1, div(elapsedDays, totalDays))) : 0
+    const expectedProgress = mul(target, timeProgressRatio)
 
     // 进度状态
     let progressStatus: 'behind' | 'on_track' | 'ahead' | 'completed'
     if (percentage >= 100) {
       progressStatus = 'completed'
-    } else if (goal.currentProgress < mul(expectedProgress, 0.9)) {
+    } else if (!startValid || !endValid || totalDays <= 0) {
+      progressStatus = 'on_track'
+    } else if (currentProgress < mul(expectedProgress, 0.9)) {
       progressStatus = 'behind'
-    } else if (goal.currentProgress > mul(expectedProgress, 1.1)) {
+    } else if (currentProgress > mul(expectedProgress, 1.1)) {
       progressStatus = 'ahead'
     } else {
       progressStatus = 'on_track'
     }
 
     // 每日平均值
-    const dailyAverageRequired = remainingDays > 0 ? round(div(sub(goal.target, goal.currentProgress), remainingDays), 10) : 0
-    const dailyAverageActual = elapsedDays > 0 ? round(div(goal.currentProgress, elapsedDays), 10) : 0
+    const dailyAverageRequired = remainingDays > 0 ? round(div(sub(target, currentProgress), remainingDays), 10) : 0
+    const dailyAverageActual = elapsedDays > 0 ? round(div(currentProgress, elapsedDays), 10) : 0
 
     return {
       current: goal.currentProgress,
@@ -271,6 +281,15 @@ export function useGoalProgress() {
 }
 
 /**
+ * 验证日期是否有效
+ */
+function isValidDate(date: string | Date | undefined): boolean {
+  if (!date) return false
+  const d = typeof date === 'string' ? new Date(date) : date
+  return !isNaN(d.getTime())
+}
+
+/**
  * 计算两个日期之间的天数差异
  */
 function getDayDiff(date1: string | Date, date2: string | Date): number {
@@ -300,8 +319,10 @@ export function validateDateRange(startDate: string, endDate: string): { valid: 
 /**
  * 格式化日期显示
  */
-export function formatDate(date: string | Date, format: 'short' | 'long' = 'short'): string {
+export function formatDate(date: string | Date | undefined, format: 'short' | 'long' = 'short'): string {
+  if (!date) return '-'
   const d = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(d.getTime())) return '-'
 
   if (format === 'short') {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`

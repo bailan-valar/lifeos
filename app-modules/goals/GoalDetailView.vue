@@ -141,14 +141,24 @@
       @confirm="handleProgressRecord"
       @cancel="progressDialogVisible = false"
     />
+
+    <!-- 编辑目标对话框 -->
+    <GoalDialog
+      v-if="goal"
+      v-model:visible="editDialogVisible"
+      :goal="goal"
+      @confirm="handleGoalSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Goal } from '~/types/goal'
+import type { Goal, GoalFormData } from '~/types/goal'
 import { useGoalProgress, formatDate } from '~/composables/useGoalProgress'
+import { useToast } from '~/composables/useToast'
 import ProgressTrendChart from '~/components/ProgressTrendChart.vue'
 import MonthlyProgressHeatmap from '~/components/MonthlyProgressHeatmap.vue'
+import GoalDialog from './components/GoalDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -157,8 +167,11 @@ const router = useRouter()
 const {
   getProgressHistory,
   recordProgress,
-  calculateProgressStatistics
+  calculateProgressStatistics,
+  upsertGoal
 } = useGoalProgress()
+
+const { success: showSuccess, error: showError } = useToast()
 
 // 目标数据
 const goal = ref<Goal>()
@@ -188,7 +201,8 @@ const statistics = computed(() => {
 // 加载目标详情
 async function loadGoalDetail() {
   const goalId = route.params.id as string
-  const db = await (await import('~/services/db')).then(m => m.getDB())
+  const { getDB } = await import('~/services/db')
+  const db = await getDB()
 
   try {
     const doc = await db.goals.findOne(goalId).exec()
@@ -197,7 +211,7 @@ async function loadGoalDetail() {
       navigateTo('/goals')
       return
     }
-    goal.value = doc.toJSON()
+    goal.value = doc.toJSON() as Goal
 
     // 加载进度历史
     loadingLogs.value = true
@@ -215,10 +229,22 @@ function goBack() {
   router.back()
 }
 
-// 打开编辑
+// 编辑对话框
 const editDialogVisible = ref(false)
 function openEdit() {
   editDialogVisible.value = true
+}
+
+async function handleGoalSave(data: GoalFormData, isEditing: boolean) {
+  if (!goal.value) return
+  try {
+    await upsertGoal({ ...data, id: goal.value.id })
+    editDialogVisible.value = false
+    showSuccess('目标已更新')
+    await loadGoalDetail()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : '保存失败')
+  }
 }
 
 // 打开进度记录对话框
@@ -244,8 +270,9 @@ async function handleProgressRecord(amount: number, date: string, notes?: string
 
     // 刷新目标数据
     await loadGoalDetail()
+    showSuccess('进度已记录')
   } catch (e) {
-    console.error('记录进度失败:', e)
+    showError(e instanceof Error ? e.message : '记录进度失败')
   }
 }
 

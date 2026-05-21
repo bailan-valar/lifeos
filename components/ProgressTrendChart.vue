@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import type { Goal, ProgressLog } from '~/types/goal'
-import { calculateProgressStatistics, formatDate } from '~/composables/useGoalProgress'
+import { useGoalProgress, formatDate } from '~/composables/useGoalProgress'
 
 const props = defineProps<{
   goal: Goal

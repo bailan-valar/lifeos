@@ -148,7 +148,7 @@
       @close="goalShortcutDialogVisible = false"
     />
 
-    <!-- 对话框组件 -->
+    <!-- 进度记录对话框 -->
     <QuickProgressDialog
       v-if="selectedGoal"
       :visible="progressDialogVisible"
@@ -156,15 +156,24 @@
       @confirm="handleProgressRecord"
       @cancel="progressDialogVisible = false"
     />
+
+    <!-- 创建/编辑目标对话框 -->
+    <GoalDialog
+      v-model:visible="goalDialogVisible"
+      :goal="editingGoal"
+      @confirm="handleGoalSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Goal } from '~/types/goal'
+import type { Goal, GoalFormData } from '~/types/goal'
 import { useGoalProgress, formatDate } from '~/composables/useGoalProgress'
 import { useGoalShortcut } from '~/composables/useGoalShortcut'
+import { useToast } from '~/composables/useToast'
 import GoalSelectorDialog from '~/components/GoalSelectorDialog.vue'
 import GoalShortcutHint from '~/components/GoalShortcutHint.vue'
+import GoalDialog from './components/GoalDialog.vue'
 
 const { isMobile } = useDevice()
 
@@ -176,8 +185,11 @@ const {
   recordProgress,
   calculateProgressStatistics,
   onGoalsChange,
-  onProgressLogsChange
+  onProgressLogsChange,
+  upsertGoal
 } = useGoalProgress()
+
+const { success: showSuccess, error: showError } = useToast()
 
 // 全局快捷键
 const { goalShortcutDialogVisible, openQuickProgressDialog, registerShortcut, unregisterShortcut } = useGoalShortcut()
@@ -262,16 +274,33 @@ function getTimeInfo(goal: Goal): string {
   return `${stats.elapsedDays}/${stats.totalDays}天`
 }
 
+// 创建/编辑对话框
+const goalDialogVisible = ref(false)
+const editingGoal = ref<Goal>()
+
 // 打开创建对话框
 function openCreateDialog() {
-  // TODO: 打开目标创建/编辑对话框
-  console.log('打开创建对话框')
+  editingGoal.value = undefined
+  goalDialogVisible.value = true
 }
 
 // 打开编辑对话框
 function openEditDialog(goal: Goal) {
-  // TODO: 打开目标编辑对话框
-  console.log('编辑目标:', goal.id)
+  editingGoal.value = goal
+  goalDialogVisible.value = true
+}
+
+// 保存目标
+async function handleGoalSave(data: GoalFormData, isEditing: boolean, id?: string) {
+  try {
+    await upsertGoal({ ...data, id })
+    goalDialogVisible.value = false
+    editingGoal.value = undefined
+    showSuccess(isEditing ? '目标已更新' : '目标已创建')
+    await loadGoals()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : '保存失败')
+  }
 }
 
 // 打开目标详情
@@ -303,10 +332,11 @@ async function handleProgressRecord(amount: number, date: string, notes?: string
       notes
     })
     progressDialogVisible.value = false
+    showSuccess('进度已记录')
     // 刷新列表数据
     await loadGoals()
   } catch (e) {
-    console.error('记录进度失败:', e)
+    showError(e instanceof Error ? e.message : '记录进度失败')
   }
 }
 
