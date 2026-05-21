@@ -31,7 +31,12 @@
         </div>
         <div class="meta-line">
           <span class="date">{{ formatDate(row.date) }}</span>
-          <span v-if="row.rawType" class="raw-type">{{ row.rawType }}</span>
+          <span
+            v-if="row.rawType"
+            class="raw-type"
+            :class="{ matched: row.rawTypeRuleId, clickable: !row.skipped }"
+            @click.stop="!row.skipped && emit('save-raw-type-rule', row)"
+          >{{ row.rawType }}</span>
           <span
             v-if="row.paymentMethod"
             class="payment-method"
@@ -55,22 +60,12 @@
         <button
           v-if="!row.duplicate && !row.skipped"
           type="button"
-          class="action-btn"
-          :class="{ active: row.remark }"
-          title="编辑备注"
-          @click="$emit('edit-remark', row)"
+          class="action-btn save-rule-btn"
+          title="逐一编辑"
+          @click="$emit('open-mobile-editor', row)"
         >
           <Icon name="solar:pen-new-square-linear" size="14" />
-        </button>
-        <button
-          v-if="!row.duplicate && !row.skipped"
-          type="button"
-          class="action-btn save-rule-btn"
-          title="保存为规则"
-          @click="$emit('save-as-rule', row)"
-        >
-          <Icon name="solar:bookmark-linear" size="14" />
-          <span class="save-rule-text">存规则</span>
+          <span class="save-rule-text">编辑</span>
         </button>
       </div>
 
@@ -187,6 +182,7 @@ const emit = defineEmits<{
   (e: 'save-counterparty-rule', row: ImportRecordItem): void
   (e: 'save-payment-method-rule', row: ImportRecordItem): void
   (e: 'save-description-rule', row: ImportRecordItem): void
+  (e: 'save-raw-type-rule', row: ImportRecordItem): void
   (e: 'edit-remark', row: ImportRecordItem): void
   (e: 'open-mobile-editor', row: ImportRecordItem): void
 }>()
@@ -448,6 +444,17 @@ function formatAmount(n: number): string {
 .payment-method.matched {
   color: rgb(0, 122, 255);
 }
+.raw-type.clickable {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.raw-type.clickable:hover {
+  color: rgb(0, 122, 255);
+  text-decoration: underline;
+}
+.raw-type.matched {
+  color: rgb(0, 122, 255);
+}
 .amount-cell {
   grid-column: 3;
   grid-row: 1;
@@ -563,6 +570,7 @@ function formatAmount(n: number): string {
   font-size: 11px;
   font-weight: 500;
 }
+
 
 /* ========== 移动端布局 ========== */
 .preview-row.mobile-row {

@@ -279,7 +279,12 @@ export type ImportRuleMatchMode = 'exact' | 'regex' | 'fuzzy'
 /**
  * 规则匹配字段
  */
-export type ImportRuleMatchField = 'account' | 'description'
+export type ImportRuleMatchField = 'account' | 'description' | 'rawType'
+
+/**
+ * 规则匹配方向
+ */
+export type ImportRuleMatchDirection = 'in' | 'out'
 
 /**
  * 导入规则
@@ -292,6 +297,7 @@ export interface ImportRule {
   id: string
   source: ImportSource | 'all'
   matchField?: ImportRuleMatchField
+  matchDirection?: ImportRuleMatchDirection
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
@@ -309,6 +315,7 @@ export interface ImportRule {
 export interface ImportRuleFormData {
   source: ImportSource | 'all'
   matchField?: ImportRuleMatchField
+  matchDirection?: ImportRuleMatchDirection
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
@@ -434,6 +441,7 @@ export interface ImportRecordItem {
   matchedRuleId?: string | null
   paymentMethodRuleId?: string | null
   descriptionRuleId?: string | null
+  rawTypeRuleId?: string | null
   matchedAccountId?: string | null
   myAccountId?: string | null
   paymentMethod?: string
@@ -465,6 +473,7 @@ export interface ImportRecord {
   billEndDate: string
   startedAt: string
   finishedAt: string
+  editingDurationMs?: number
   createdAt: string
   updatedAt: string
 }

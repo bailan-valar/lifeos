@@ -5,11 +5,13 @@ export interface ApplyRulesResult {
   counterpartyRule?: ImportRule
   paymentMethodRule?: ImportRule
   descriptionRule?: ImportRule
+  rawTypeRule?: ImportRule
 }
 
 export interface ExportedImportRule {
   source: ImportSource | 'all'
   matchField?: ImportRuleMatchField
+  matchDirection?: 'in' | 'out'
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
@@ -101,6 +103,7 @@ function createStore(): ImportRulesStore {
       id: generateId(),
       source: data.source,
       matchField: data.matchField,
+      matchDirection: data.matchDirection,
       matchMode: data.matchMode,
       pattern: data.pattern,
       categoryId: data.categoryId,
@@ -216,15 +219,21 @@ function createStore(): ImportRulesStore {
    * 三者可命中不同规则,各自填充对应账户/分类,实现"分别匹配为出账账户与入账账户及分类"。
    */
   function applyRules(row: CsvParsedRow, source: ImportSource): ApplyRulesResult | null {
-    const candidates = rules.value.filter(r => r.enabled && (r.source === 'all' || r.source === source))
+    const candidates = rules.value.filter(r =>
+      r.enabled &&
+      (r.source === 'all' || r.source === source) &&
+      (!r.matchDirection || r.matchDirection === row.direction)
+    )
     let counterpartyRule: ImportRule | undefined
     let paymentMethodRule: ImportRule | undefined
     let descriptionRule: ImportRule | undefined
+    let rawTypeRule: ImportRule | undefined
 
     for (const rule of candidates) {
       const field = rule.matchField ?? 'account'
       const matchAccount = field === 'account'
       const matchDescription = field === 'description'
+      const matchRawType = field === 'rawType'
 
       if (matchAccount) {
         if (!counterpartyRule && matchOne(rule, row.counterparty || '')) {
@@ -237,11 +246,14 @@ function createStore(): ImportRulesStore {
       if (!descriptionRule && matchDescription && matchOne(rule, row.description || '')) {
         descriptionRule = rule
       }
-      if (counterpartyRule && paymentMethodRule && descriptionRule) break
+      if (!rawTypeRule && matchRawType && matchOne(rule, row.rawType || '')) {
+        rawTypeRule = rule
+      }
+      if (counterpartyRule && paymentMethodRule && descriptionRule && rawTypeRule) break
     }
 
-    if (!counterpartyRule && !paymentMethodRule && !descriptionRule) return null
-    return { counterpartyRule, paymentMethodRule, descriptionRule }
+    if (!counterpartyRule && !paymentMethodRule && !descriptionRule && !rawTypeRule) return null
+    return { counterpartyRule, paymentMethodRule, descriptionRule, rawTypeRule }
   }
 
   async function exportRules(): Promise<ExportedImportRule[]> {
@@ -256,6 +268,7 @@ function createStore(): ImportRulesStore {
     return rules.value.map(r => ({
       source: r.source,
       matchField: r.matchField,
+      matchDirection: r.matchDirection,
       matchMode: r.matchMode,
       pattern: r.pattern,
       categoryId: r.categoryId,
@@ -299,7 +312,7 @@ function createStore(): ImportRulesStore {
       rules.value.map(r => `${r.pattern}|${r.matchMode}|${r.source}|${r.matchField || 'account'}`)
     )
     for (const item of items) {
-      const key = `${item.pattern}|${item.matchMode}|${item.source}|${item.matchField || 'account'}`
+      const key = `${item.pattern}|${item.matchMode}|${item.source}|${item.matchField || 'account'}|${item.matchDirection || ''}`
       if (existingKeys.has(key)) {
         skipped++
         continue
@@ -332,6 +345,7 @@ function createStore(): ImportRulesStore {
         id: generateId(),
         source: item.source,
         matchField: item.matchField,
+        matchDirection: item.matchDirection,
         matchMode: item.matchMode,
         pattern: item.pattern,
         categoryId,

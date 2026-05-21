@@ -12,7 +12,7 @@ export interface UseBillingImportsOptions {
 export function useBillingImports(options: UseBillingImportsOptions) {
   const importRuleDialogVisible = ref(false)
   const importRuleDialogForm = ref<ImportRuleFormData>({
-    source: 'all', matchField: 'account', matchMode: 'fuzzy', pattern: '', categoryId: '',
+    source: 'all', matchField: 'account', matchDirection: undefined, matchMode: 'fuzzy', pattern: '', categoryId: '',
     accountId: '', priority: 100, enabled: true
   })
   const pendingRuleSavedCallback = ref<(() => void) | null>(null)

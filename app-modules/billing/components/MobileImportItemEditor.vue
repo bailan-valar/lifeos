@@ -1,21 +1,22 @@
 <template>
-  <Teleport to="body">
-    <Transition name="mobile-editor">
-      <div v-if="visible" class="mobile-editor-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click="onClose">
-        <div class="mobile-editor-sheet" @click.stop>
-          <!-- Header -->
-          <div class="mobile-editor-header">
-            <div class="header-drag-bar" />
-            <div class="header-content">
-              <h4>编辑账单</h4>
-              <button type="button" class="close-btn" @click="onClose">
-                <Icon name="solar:close-circle-linear" size="20" />
-              </button>
-            </div>
-          </div>
+  <BaseDialog
+    :visible="visible"
+    size="medium"
+    :show-close="true"
+    :close-on-overlay="true"
+    :close-on-esc="true"
+    @update:visible="emit('update:visible', $event)"
+  >
+    <template #header>
+      <div class="editor-header">
+        <div class="header-drag-bar" />
+        <div class="header-content">
+          <h4>编辑账单</h4>
+        </div>
+      </div>
+    </template>
 
-          <!-- Body -->
-          <div class="mobile-editor-body">
+    <div class="editor-body">
             <!-- 基本信息卡片 -->
             <div class="info-card">
               <div class="info-row amount-row">
@@ -69,67 +70,80 @@
               </div>
               <div v-if="editableItem.rawType" class="info-row">
                 <span class="info-label">原始类型</span>
-                <span class="info-value">{{ editableItem.rawType }}</span>
+                <button
+                  type="button"
+                  class="info-value clickable"
+                  :class="{ matched: editableItem.rawTypeRuleId }"
+                  :disabled="editableItem.skipped"
+                  @click="emit('save-raw-type-rule', editableItem)"
+                >
+                  {{ editableItem.rawType }}
+                  <Icon name="solar:bookmark-linear" size="12" />
+                </button>
               </div>
             </div>
 
             <!-- 编辑区 -->
             <div class="edit-section">
-              <div class="edit-row">
-                <span class="edit-label">类型</span>
-                <BillTypePicker
-                  :model-value="editableItem.type"
-                  class="edit-picker"
-                  @update:model-value="onTypeChange"
-                />
+              <div class="edit-row-group">
+                <div class="edit-row">
+                  <span class="edit-label">类型</span>
+                  <BillTypePicker
+                    :model-value="editableItem.type"
+                    class="edit-picker"
+                    @update:model-value="onTypeChange"
+                  />
+                </div>
+
+                <div v-if="showCategory" class="edit-row">
+                  <span class="edit-label">分类</span>
+                  <CategoryPicker
+                    :model-value="editableItem.categoryId || ''"
+                    :categories="categories"
+                    :type="editableItem.type === 'income' ? 'income' : 'expense'"
+                    placeholder="未分类"
+                    clearable
+                    class="edit-picker"
+                    @update:model-value="updateField('categoryId', $event)"
+                  />
+                </div>
+
+                <div v-if="showDebtSubtype" class="edit-row">
+                  <span class="edit-label">借贷类型</span>
+                  <SelectPicker
+                    :model-value="editableItem.debtSubtype ?? null"
+                    :options="debtSubtypeOptions"
+                    placeholder="借贷类型"
+                    class="edit-picker"
+                    @update:model-value="updateField('debtSubtype', $event as DebtSubtype)"
+                  />
+                </div>
               </div>
 
-              <div v-if="showCategory" class="edit-row">
-                <span class="edit-label">分类</span>
-                <CategoryPicker
-                  :model-value="editableItem.categoryId || ''"
-                  :categories="categories"
-                  :type="editableItem.type === 'income' ? 'income' : 'expense'"
-                  placeholder="未分类"
-                  clearable
-                  class="edit-picker"
-                  @update:model-value="updateField('categoryId', $event)"
-                />
-              </div>
+              <div class="edit-row-group">
+                <div class="edit-row">
+                  <span class="edit-label">出账账户</span>
+                  <AccountPicker
+                    :model-value="editableItem.fromAccountId || ''"
+                    :accounts="accounts"
+                    placeholder="请选择"
+                    clearable
+                    class="edit-picker"
+                    @update:model-value="updateField('fromAccountId', $event)"
+                  />
+                </div>
 
-              <div v-if="showDebtSubtype" class="edit-row">
-                <span class="edit-label">借贷类型</span>
-                <SelectPicker
-                  :model-value="editableItem.debtSubtype ?? null"
-                  :options="debtSubtypeOptions"
-                  placeholder="借贷类型"
-                  class="edit-picker"
-                  @update:model-value="updateField('debtSubtype', $event as DebtSubtype)"
-                />
-              </div>
-
-              <div class="edit-row">
-                <span class="edit-label">出账账户</span>
-                <AccountPicker
-                  :model-value="editableItem.fromAccountId || ''"
-                  :accounts="accounts"
-                  placeholder="请选择"
-                  clearable
-                  class="edit-picker"
-                  @update:model-value="updateField('fromAccountId', $event)"
-                />
-              </div>
-
-              <div class="edit-row">
-                <span class="edit-label">入账账户</span>
-                <AccountPicker
-                  :model-value="editableItem.toAccountId || ''"
-                  :accounts="accounts"
-                  placeholder="请选择"
-                  clearable
-                  class="edit-picker"
-                  @update:model-value="updateField('toAccountId', $event)"
-                />
+                <div class="edit-row">
+                  <span class="edit-label">入账账户</span>
+                  <AccountPicker
+                    :model-value="editableItem.toAccountId || ''"
+                    :accounts="accounts"
+                    placeholder="请选择"
+                    clearable
+                    class="edit-picker"
+                    @update:model-value="updateField('toAccountId', $event)"
+                  />
+                </div>
               </div>
 
               <div class="edit-row">
@@ -165,41 +179,39 @@
                 保存为规则
               </button>
             </div>
-          </div>
+    </div>
 
-          <!-- Footer -->
-          <div class="mobile-editor-footer">
-            <button
-              type="button"
-              class="nav-btn"
-              :disabled="!canPrev"
-              @click="emit('navigate', 'prev')"
-            >
-              <Icon name="solar:alt-arrow-left-linear" size="16" />
-              上一个
-            </button>
-            <button
-              type="button"
-              class="nav-btn primary"
-              :disabled="!canNextIncomplete"
-              @click="emit('navigate', 'next-incomplete')"
-            >
-              下一个未完善
-            </button>
-            <button
-              type="button"
-              class="nav-btn"
-              :disabled="!canNext"
-              @click="emit('navigate', 'next')"
-            >
-              下一个
-              <Icon name="solar:alt-arrow-right-linear" size="16" />
-            </button>
-          </div>
-        </div>
+    <template #footer>
+      <div class="editor-footer">
+        <button
+          type="button"
+          class="nav-btn"
+          :disabled="!canPrev"
+          @click="emit('navigate', 'prev')"
+        >
+          <Icon name="solar:alt-arrow-left-linear" size="16" />
+          上一个
+        </button>
+        <button
+          type="button"
+          class="nav-btn primary"
+          :disabled="!canNextIncomplete"
+          @click="emit('navigate', 'next-incomplete')"
+        >
+          下一个未完善
+        </button>
+        <button
+          type="button"
+          class="nav-btn"
+          :disabled="!canNext"
+          @click="emit('navigate', 'next')"
+        >
+          下一个
+          <Icon name="solar:alt-arrow-right-linear" size="16" />
+        </button>
       </div>
-    </Transition>
-  </Teleport>
+    </template>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
@@ -212,7 +224,7 @@ import type {
 } from '~/types/bill'
 import { computed, ref, watch } from 'vue'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
-import { useZIndexOnOpen } from '~/composables/useZIndex'
+import BaseDialog from '~/components/ui/BaseDialog.vue'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
 import BillTypePicker from './BillTypePicker.vue'
@@ -238,10 +250,9 @@ const emit = defineEmits<{
   (e: 'save-counterparty-rule', item: ImportRecordItem): void
   (e: 'save-payment-method-rule', item: ImportRecordItem): void
   (e: 'save-description-rule', item: ImportRecordItem): void
+  (e: 'save-raw-type-rule', item: ImportRecordItem): void
   (e: 'edit-remark', item: ImportRecordItem): void
 }>()
-
-const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
 const editableItem = ref<ImportRecordItem>({ ...props.item })
 const remarkText = ref('')
@@ -336,40 +347,25 @@ const canNextIncomplete = computed(() => props.hasNextIncomplete)
 </script>
 
 <style scoped>
-.mobile-editor-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal-nested);
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  overflow: hidden;
+:deep(.dialog-header) {
+  padding: 8px 20px 0;
 }
 
-.mobile-editor-sheet {
+:deep(.dialog-body) {
+  padding: 16px;
+}
+
+:deep(.dialog-footer) {
+  padding: 0;
+  border: none;
+}
+
+.editor-header {
   width: 100%;
-  max-height: 92vh;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.92) 100%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.mobile-editor-header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 16px 0;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
-  flex-shrink: 0;
+  flex: 1;
 }
 
 .header-drag-bar {
@@ -395,21 +391,7 @@ const canNextIncomplete = computed(() => props.hasNextIncomplete)
   color: rgba(0, 0, 0, 0.88);
 }
 
-.close-btn {
-  border: none;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.78);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-}
-
-.mobile-editor-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
+.editor-body {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -525,6 +507,16 @@ const canNextIncomplete = computed(() => props.hasNextIncomplete)
   gap: 12px;
 }
 
+.edit-row-group {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-row-group > .edit-row {
+  flex: 1;
+  min-width: 0;
+}
+
 .edit-row {
   display: flex;
   flex-direction: column;
@@ -602,7 +594,7 @@ const canNextIncomplete = computed(() => props.hasNextIncomplete)
   background: rgba(0, 122, 255, 0.04);
 }
 
-.mobile-editor-footer {
+.editor-footer {
   display: flex;
   gap: 8px;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
@@ -647,24 +639,5 @@ const canNextIncomplete = computed(() => props.hasNextIncomplete)
   background: rgb(0, 100, 220);
 }
 
-/* Transition */
-.mobile-editor-enter-active,
-.mobile-editor-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.mobile-editor-enter-active .mobile-editor-sheet,
-.mobile-editor-leave-active .mobile-editor-sheet {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.mobile-editor-enter-from,
-.mobile-editor-leave-to {
-  opacity: 0;
-}
-
-.mobile-editor-enter-from .mobile-editor-sheet,
-.mobile-editor-leave-to .mobile-editor-sheet {
-  transform: translateY(100%);
-}
+/* Transition handled by BaseDialog */
 </style>

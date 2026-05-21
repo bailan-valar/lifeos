@@ -75,6 +75,7 @@
             <span class="history-file" :title="record.fileName">{{ record.fileName || '-' }}</span>
             <span class="history-stats">
               成功 {{ record.successCount }} · 跳过 {{ record.skippedCount }} · 失败 {{ record.failedCount }}
+              <template v-if="record.editingDurationMs">· ⏱️ {{ formatDuration(record.editingDurationMs) }}</template>
             </span>
           </div>
           <div v-if="record.billStartDate || record.billEndDate" class="history-row history-date-range">
@@ -153,6 +154,7 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   const counterpartyRule = result?.counterpartyRule ?? null
   const paymentMethodRule = result?.paymentMethodRule ?? null
   const descriptionRule = result?.descriptionRule ?? null
+  const rawTypeRule = result?.rawTypeRule ?? null
 
   let counterpartyAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
   let myAccount = matchAccountByPaymentMethod(parsed.paymentMethod || '', props.accounts)
@@ -180,7 +182,7 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   let skipped = false
   let skipReason: string | undefined
 
-  const overrideBillType = counterpartyRule?.billType ?? paymentMethodRule?.billType ?? descriptionRule?.billType
+  const overrideBillType = counterpartyRule?.billType ?? paymentMethodRule?.billType ?? descriptionRule?.billType ?? rawTypeRule?.billType
 
   if (source.value === 'alipay' && parsed.rawPaymentDirection) {
     const inferred = inferAlipayBillType(parsed, counterpartyAccount)
@@ -201,6 +203,7 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   const categoryId = counterpartyRule?.categoryId
     || paymentMethodRule?.categoryId
     || descriptionRule?.categoryId
+    || rawTypeRule?.categoryId
     || (counterpartyAccount?.type === 'merchant' ? counterpartyAccount.categoryId : undefined)
     || ''
 
@@ -217,9 +220,10 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
     duplicate: isDuplicate,
     skipped,
     skipReason,
-    matchedRuleId: counterpartyRule?.id ?? paymentMethodRule?.id ?? descriptionRule?.id ?? null,
+    matchedRuleId: counterpartyRule?.id ?? paymentMethodRule?.id ?? descriptionRule?.id ?? rawTypeRule?.id ?? null,
     paymentMethodRuleId: paymentMethodRule?.id ?? null,
     descriptionRuleId: descriptionRule?.id ?? null,
+    rawTypeRuleId: rawTypeRule?.id ?? null,
     matchedAccountId: counterpartyAccount?.id ?? null,
     myAccountId: myAccount?.id ?? null,
     type: billType,
@@ -329,6 +333,17 @@ function formatDateRange(start: string, end: string): string {
 
 function sourceLabel(s: ImportSource): string {
   return s === 'alipay' ? '支付宝' : s === 'wechat' ? '微信' : s === 'cmb' ? '招商银行储蓄卡' : s === 'cmb_credit' ? '招商信用卡' : s
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000)
+  const seconds = totalSeconds % 60
+  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(minutes / 60)
+  if (hours > 0) {
+    return `${hours}:${String(minutes % 60).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
 function statusLabel(s: ImportRecordStatus): string {

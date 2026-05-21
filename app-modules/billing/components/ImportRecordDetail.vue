@@ -4,7 +4,10 @@
       <div v-if="visible" ref="overlayRef" class="record-modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined">
         <div class="record-modal-card" @click.stop>
           <div class="record-modal-header">
-            <h4>{{ isPending ? '导入详情 - 待导入' : '导入详情' }}</h4>
+            <div class="header-left">
+              <h4>{{ isPending ? '导入详情 - 待导入' : '导入详情' }}</h4>
+              <span v-if="isPending" class="edit-timer">⏱️ {{ formatElapsed(totalElapsedMs) }}</span>
+            </div>
             <button type="button" class="close-btn" @click="emit('close')">
               <Icon name="solar:close-circle-linear" size="18" />
             </button>
@@ -82,6 +85,7 @@
                     @save-counterparty-rule="openCounterpartyRule"
                     @save-payment-method-rule="openPaymentMethodRule"
                     @save-description-rule="openDescriptionRule"
+                    @save-raw-type-rule="openRawTypeRule"
                     @edit-remark="openRemarkEditor"
                     @open-mobile-editor="openMobileEditor"
                   />
@@ -164,6 +168,7 @@
             @save-counterparty-rule="openCounterpartyRule"
             @save-payment-method-rule="openPaymentMethodRule"
             @save-description-rule="openDescriptionRule"
+            @save-raw-type-rule="openRawTypeRule"
             @edit-remark="openRemarkEditorFromMobile"
           />
 
@@ -222,6 +227,7 @@ import type {
   ImportRecordStatus,
   ImportRule,
   ImportRuleFormData,
+  ImportRuleMatchField,
   ImportSource
 } from '~/types/bill'
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
@@ -249,7 +255,7 @@ const emit = defineEmits<{
   (e: 'import', record: ImportRecord): void
   (e: 'rollback', record: ImportRecord): void
   (e: 'delete', recordId: string): void
-  (e: 'open-rule-dialog', form: ImportRuleFormData, options?: { onSaved?: (rule?: ImportRule) => void }): void
+  (e: 'open-rule-dialog', form: ImportRuleFormData, options?: { rule?: ImportRule; onSaved?: (rule?: ImportRule) => void }): void
 }>()
 
 // 点击弹框外关闭 + ESC 关闭
@@ -271,15 +277,19 @@ function handleDocumentClick(e: MouseEvent) {
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
   document.addEventListener('click', handleDocumentClick)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   document.removeEventListener('click', handleDocumentClick)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  stopTimer()
+  saveDuration()
 })
 
 const { rules: importRules, applyRules } = useImportRules()
-const { updateRecordItems } = useImportRecords()
+const { updateRecord, updateRecordItems } = useImportRecords()
 const { confirm } = useConfirm()
 
 const importing = ref(false)
@@ -403,6 +413,67 @@ function isIncomplete(row: ImportRecordItem): boolean {
 
 const isPending = computed(() => props.record.status === 'pending')
 
+const baseDurationMs = ref(0)
+const sessionElapsedMs = ref(0)
+let timerInterval: ReturnType<typeof setInterval> | null = null
+let sessionStartAt = 0
+let hiddenAt = 0
+
+function tickTimer() {
+  sessionElapsedMs.value = Date.now() - sessionStartAt
+}
+
+function beginInterval() {
+  timerInterval = setInterval(tickTimer, 1000)
+}
+
+function startTimer() {
+  if (!isPending.value) return
+  baseDurationMs.value = props.record.editingDurationMs || 0
+  sessionElapsedMs.value = 0
+  sessionStartAt = Date.now()
+  beginInterval()
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    hiddenAt = Date.now()
+    stopTimer()
+  } else {
+    if (hiddenAt) {
+      const gone = Date.now() - hiddenAt
+      if (gone > 10000) {
+        sessionStartAt += gone
+      }
+      hiddenAt = 0
+    }
+    if (isPending.value && props.visible && !timerInterval) {
+      tickTimer()
+      beginInterval()
+    }
+  }
+}
+
+function currentTotalDuration(): number {
+  return baseDurationMs.value + sessionElapsedMs.value
+}
+
+function saveDuration() {
+  const total = currentTotalDuration()
+  if (total > 0 && isPending.value && props.record.id) {
+    updateRecord(props.record.id, { editingDurationMs: total }).catch(() => {})
+  }
+}
+
+const totalElapsedMs = computed(() => baseDurationMs.value + sessionElapsedMs.value)
+
 // 本地编辑态（pending 时使用）
 const localItems = ref<ImportRecordItem[]>([])
 
@@ -410,6 +481,16 @@ watch(() => props.record.id, (id) => {
   if (id) {
     localItems.value = props.record.items.map(item => ({ ...item }))
     filter.value = 'all'
+  }
+}, { immediate: true })
+
+watch(() => props.visible, (visible) => {
+  if (visible && isPending.value) {
+    stopTimer()
+    startTimer()
+  } else {
+    stopTimer()
+    saveDuration()
   }
 }, { immediate: true })
 
@@ -456,6 +537,34 @@ const canImport = computed(() => selectedCount.value > 0)
 function ruleById(id: string | null | undefined): ImportRule | null {
   if (!id) return null
   return importRules.value.find(r => r.id === id) ?? null
+}
+
+function findMatchingRule(field: ImportRuleMatchField, target: string, direction?: 'in' | 'out'): ImportRule | null {
+  if (!target) return null
+  const candidates = importRules.value.filter(r =>
+    r.enabled &&
+    (r.source === 'all' || r.source === props.record.source) &&
+    (r.matchField ?? 'account') === field &&
+    (!r.matchDirection || r.matchDirection === direction)
+  )
+  for (const rule of candidates) {
+    const pattern = rule.pattern.toLowerCase()
+    const t = target.toLowerCase()
+    switch (rule.matchMode) {
+      case 'exact':
+        if (target === rule.pattern) return rule
+        break
+      case 'fuzzy':
+        if (t.includes(pattern)) return rule
+        break
+      case 'regex':
+        try {
+          if (new RegExp(rule.pattern, 'i').test(target)) return rule
+        } catch { /* ignore invalid regex */ }
+        break
+    }
+  }
+  return null
 }
 
 function onItemUpdate(rawIndex: number, value: ImportRecordItem) {
@@ -536,6 +645,8 @@ function buildRuleUpdates(item: ImportRecordItem, rule: ImportRule): Partial<Imp
     else if (matchOne(rule, item.paymentMethod || '')) matched = true
   } else if (field === 'description') {
     if (matchOne(rule, item.description || '')) matched = true
+  } else if (field === 'rawType') {
+    if (matchOne(rule, item.rawType || '')) matched = true
   }
 
   if (!matched) return null
@@ -556,6 +667,11 @@ function buildRuleUpdates(item: ImportRecordItem, rule: ImportRule): Partial<Imp
     }
   } else if (field === 'description') {
     updates.descriptionRuleId = rule.id
+    if (rule.categoryId) updates.categoryId = rule.categoryId
+    if (rule.accountId) updates.matchedAccountId = rule.accountId
+    if (!updates.type && rule.billType) updates.type = rule.billType
+  } else if (field === 'rawType') {
+    updates.rawTypeRuleId = rule.id
     if (rule.categoryId) updates.categoryId = rule.categoryId
     if (rule.accountId) updates.matchedAccountId = rule.accountId
     if (!updates.type && rule.billType) updates.type = rule.billType
@@ -617,11 +733,14 @@ function applySingleRuleToAllItems(rule: ImportRule) {
 }
 
 function openRuleOverlay(item: ImportRecordItem) {
-  mobileEditor.value.visible = false
   const counterparty = (item.counterparty || '').trim()
+  const existingRule = item.matchedRuleId
+    ? ruleById(item.matchedRuleId)
+    : findMatchingRule('account', counterparty, item.direction)
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: counterparty,
     categoryId: item.categoryId || '',
@@ -629,15 +748,18 @@ function openRuleOverlay(item: ImportRecordItem) {
     billType: item.type,
     priority: 100,
     enabled: true
-  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
+  }, { rule: existingRule ?? undefined, onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
 function openCounterpartyRule(item: ImportRecordItem) {
-  mobileEditor.value.visible = false
   const counterparty = (item.counterparty || '').trim()
+  const existingRule = item.matchedRuleId
+    ? ruleById(item.matchedRuleId)
+    : findMatchingRule('account', counterparty, item.direction)
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: counterparty,
     categoryId: item.categoryId || '',
@@ -645,15 +767,18 @@ function openCounterpartyRule(item: ImportRecordItem) {
     billType: item.type,
     priority: 100,
     enabled: true
-  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
+  }, { rule: existingRule ?? undefined, onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
 function openPaymentMethodRule(item: ImportRecordItem) {
-  mobileEditor.value.visible = false
   const paymentMethod = (item.paymentMethod || '').trim()
+  const existingRule = item.paymentMethodRuleId
+    ? ruleById(item.paymentMethodRuleId)
+    : findMatchingRule('account', paymentMethod, item.direction)
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: paymentMethod,
     categoryId: '',
@@ -661,15 +786,18 @@ function openPaymentMethodRule(item: ImportRecordItem) {
     billType: undefined,
     priority: 100,
     enabled: true
-  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
+  }, { rule: existingRule ?? undefined, onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
 function openDescriptionRule(item: ImportRecordItem) {
-  mobileEditor.value.visible = false
   const description = (item.description || '').trim()
+  const existingRule = item.descriptionRuleId
+    ? ruleById(item.descriptionRuleId)
+    : findMatchingRule('description', description, item.direction)
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'description',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: description,
     categoryId: item.categoryId || '',
@@ -677,10 +805,31 @@ function openDescriptionRule(item: ImportRecordItem) {
     billType: item.type,
     priority: 100,
     enabled: true
-  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
+  }, { rule: existingRule ?? undefined, onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
+}
+
+function openRawTypeRule(item: ImportRecordItem) {
+  const rawType = (item.rawType || '').trim()
+  const existingRule = item.rawTypeRuleId
+    ? ruleById(item.rawTypeRuleId)
+    : findMatchingRule('rawType', rawType, item.direction)
+  emit('open-rule-dialog', {
+    source: props.record.source,
+    matchField: 'rawType',
+    matchDirection: item.direction,
+    matchMode: 'fuzzy',
+    pattern: rawType,
+    categoryId: item.categoryId || '',
+    accountId: item.matchedAccountId || '',
+    billType: item.type,
+    priority: 100,
+    enabled: true
+  }, { rule: existingRule ?? undefined, onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
 function onImport() {
+  stopTimer()
+  saveDuration()
   importing.value = true
   // 把本地编辑态写回 record
   const updatedRecord: ImportRecord = {
@@ -753,6 +902,19 @@ function applyAllRules() {
       }
     }
 
+    if (result.rawTypeRule) {
+      updates.rawTypeRuleId = result.rawTypeRule.id
+      if (result.rawTypeRule.categoryId) {
+        updates.categoryId = result.rawTypeRule.categoryId
+      }
+      if (result.rawTypeRule.accountId) {
+        updates.matchedAccountId = result.rawTypeRule.accountId
+      }
+      if (!updates.type && result.rawTypeRule.billType) {
+        updates.type = result.rawTypeRule.billType
+      }
+    }
+
     if (Object.keys(updates).length > 0) {
       changed = true
       const next = { ...item, ...updates }
@@ -777,6 +939,17 @@ function applyAllRules() {
   if (changed) {
     scheduleSave()
   }
+}
+
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000)
+  const seconds = totalSeconds % 60
+  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(minutes / 60)
+  if (hours > 0) {
+    return `${hours}:${String(minutes % 60).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
 function formatDateTime(iso: string): string {
@@ -855,6 +1028,20 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
   font-size: 16px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.88);
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.edit-timer {
+  font-size: 12px;
+  color: rgba(0, 122, 255, 0.9);
+  background: rgba(0, 122, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .close-btn {
   border: none;

@@ -3,6 +3,18 @@
     <div class="list-header">
       <div class="list-title">导入规则</div>
       <div class="header-actions">
+        <div class="search-box">
+          <Icon name="solar:magnifer-linear" size="14" class="search-icon" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索规则..."
+            class="search-input"
+          />
+          <button v-if="searchQuery" type="button" class="search-clear" @click="searchQuery = ''">
+            <Icon name="solar:close-circle-linear" size="14" />
+          </button>
+        </div>
         <template v-if="!batchMode">
           <button type="button" class="btn-secondary" @click="$emit('export')">
             <Icon name="solar:export-linear" size="14" />
@@ -35,14 +47,14 @@
       @exit="exitBatchMode"
     />
 
-    <div v-if="rules.length === 0" class="empty">
+    <div v-if="filteredRules.length === 0" class="empty">
       <Icon name="solar:filter-linear" size="32" />
-      <span>暂无规则,点击新建</span>
+      <span>{{ rules.length === 0 ? '暂无规则,点击新建' : '无匹配规则' }}</span>
     </div>
 
     <div v-else class="rule-items">
       <div
-        v-for="rule in rules"
+        v-for="rule in filteredRules"
         :key="rule.id"
         class="rule-item"
         :class="{ disabled: !rule.enabled, selected: isSelected(rule.id) }"
@@ -68,6 +80,7 @@
             <span class="rule-badge" :class="matchModeClass(rule.matchMode)">{{ matchModeLabel(rule.matchMode) }}</span>
             <span class="rule-badge source">{{ sourceLabel(rule.source) }}</span>
             <span class="rule-badge field">{{ matchFieldLabel(rule.matchField) }}</span>
+            <span v-if="rule.matchDirection" class="rule-badge direction">{{ matchDirectionLabel(rule.matchDirection) }}</span>
             <span class="rule-priority">优先级 {{ rule.priority }}</span>
           </div>
           <div class="rule-meta">
@@ -112,6 +125,21 @@ const emit = defineEmits<{
 
 const batchMode = ref(false)
 const selectedIds = ref<string[]>([])
+const searchQuery = ref('')
+
+const filteredRules = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return props.rules
+  return props.rules.filter(rule => {
+    if (rule.pattern?.toLowerCase().includes(q)) return true
+    if (matchModeLabel(rule.matchMode).includes(q)) return true
+    if (sourceLabel(rule.source).includes(q)) return true
+    if (matchFieldLabel(rule.matchField).includes(q)) return true
+    if (accountName(rule.accountId).toLowerCase().includes(q)) return true
+    if (categoryName(rule.categoryId).toLowerCase().includes(q)) return true
+    return false
+  })
+})
 
 function enterBatchMode() {
   batchMode.value = true
@@ -175,7 +203,12 @@ function sourceLabel(s: ImportSource | 'all'): string {
 function matchFieldLabel(f: ImportRuleMatchField | undefined): string {
   if (f === 'account') return '账户'
   if (f === 'description') return '商品说明'
+  if (f === 'rawType') return '原始分类'
   return '账户'
+}
+
+function matchDirectionLabel(d: 'in' | 'out'): string {
+  return d === 'in' ? '仅收入' : '仅支出'
 }
 
 function accountName(id: string): string {
@@ -224,6 +257,54 @@ function categoryName(id: string): string {
 .header-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  left: 8px;
+  color: rgba(60, 60, 67, 0.4);
+  pointer-events: none;
+}
+.search-input {
+  padding: 6px 24px 6px 28px;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.78);
+  outline: none;
+  width: 160px;
+  transition: width 0.2s ease, border-color 0.2s ease;
+}
+.search-input:focus {
+  width: 200px;
+  border-color: rgba(0, 122, 255, 0.4);
+  background: rgba(255, 255, 255, 0.9);
+}
+.search-input::placeholder {
+  color: rgba(60, 60, 67, 0.35);
+}
+.search-clear {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.4);
+  cursor: pointer;
+  padding: 0;
+}
+.search-clear:hover {
+  color: rgba(60, 60, 67, 0.7);
 }
 .btn-secondary {
   display: inline-flex;
@@ -339,6 +420,10 @@ function categoryName(id: string): string {
 .rule-badge.field {
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
+}
+.rule-badge.direction {
+  background: rgba(52, 199, 89, 0.1);
+  color: rgb(52, 199, 89);
 }
 .rule-priority {
   font-size: 11px;
