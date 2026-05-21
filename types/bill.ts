@@ -461,6 +461,8 @@ export interface ImportRecord {
   status: ImportRecordStatus
   billIds: string[]
   items: ImportRecordItem[]
+  billStartDate: string
+  billEndDate: string
   startedAt: string
   finishedAt: string
   createdAt: string

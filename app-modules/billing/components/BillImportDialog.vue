@@ -77,6 +77,10 @@
               成功 {{ record.successCount }} · 跳过 {{ record.skippedCount }} · 失败 {{ record.failedCount }}
             </span>
           </div>
+          <div v-if="record.billStartDate || record.billEndDate" class="history-row history-date-range">
+            <span class="date-range-label">账单时间</span>
+            <span class="date-range-value">{{ formatDateRange(record.billStartDate, record.billEndDate) }}</span>
+          </div>
         </button>
       </div>
     </div>
@@ -266,6 +270,10 @@ async function onFileChange(event: Event) {
 
     const items = parsedRows.map(buildImportRecordItem)
 
+    const dates = items.map(i => i.date).filter(Boolean).sort()
+    const billStartDate = dates[0] || ''
+    const billEndDate = dates[dates.length - 1] || ''
+
     const record: ImportRecord = {
       id: generateId(),
       noteId: props.noteId,
@@ -280,6 +288,8 @@ async function onFileChange(event: Event) {
       status: 'pending',
       billIds: [],
       items,
+      billStartDate,
+      billEndDate,
       startedAt: now(),
       finishedAt: '',
       createdAt: now(),
@@ -309,6 +319,12 @@ function formatDateTime(iso: string): string {
   if (Number.isNaN(d.getTime())) return iso
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function formatDateRange(start: string, end: string): string {
+  if (!start && !end) return ''
+  if (start === end) return start.slice(0, 10)
+  return `${start.slice(0, 10)} ~ ${end.slice(0, 10)}`
 }
 
 function sourceLabel(s: ImportSource): string {
@@ -534,5 +550,16 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 60%;
+}
+.history-date-range {
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.5);
+  gap: 6px;
+}
+.date-range-label {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(60, 60, 67, 0.06);
+  font-size: 10px;
 }
 </style>
