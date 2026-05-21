@@ -69,7 +69,16 @@
               </div>
               <div v-if="editableItem.rawType" class="info-row">
                 <span class="info-label">原始类型</span>
-                <span class="info-value">{{ editableItem.rawType }}</span>
+                <button
+                  type="button"
+                  class="info-value clickable"
+                  :class="{ matched: editableItem.rawTypeRuleId }"
+                  :disabled="editableItem.skipped"
+                  @click="emit('save-raw-type-rule', editableItem)"
+                >
+                  {{ editableItem.rawType }}
+                  <Icon name="solar:bookmark-linear" size="12" />
+                </button>
               </div>
             </div>
 
@@ -238,6 +247,7 @@ const emit = defineEmits<{
   (e: 'save-counterparty-rule', item: ImportRecordItem): void
   (e: 'save-payment-method-rule', item: ImportRecordItem): void
   (e: 'save-description-rule', item: ImportRecordItem): void
+  (e: 'save-raw-type-rule', item: ImportRecordItem): void
   (e: 'edit-remark', item: ImportRecordItem): void
 }>()
 

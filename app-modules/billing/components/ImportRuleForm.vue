@@ -127,7 +127,8 @@ type MatchFieldValue = ImportRuleMatchField
 
 const matchFieldOptions: { value: MatchFieldValue; label: string }[] = [
   { value: 'account', label: '账户' },
-  { value: 'description', label: '商品说明' }
+  { value: 'description', label: '商品说明' },
+  { value: 'rawType', label: '原始分类' }
 ]
 
 const matchModeOptions: { value: ImportRuleMatchMode; label: string }[] = [
@@ -145,14 +146,16 @@ const form = computed({
 
 const patternPlaceholder = computed(() => {
   const field = form.value.matchField ?? 'account'
-  const fieldHint = field === 'description' ? '商品说明' : '对方名或付款方式'
+  const fieldHint = field === 'description' ? '商品说明' : field === 'rawType' ? '原始分类' : '对方名或付款方式'
+  const fieldExample = field === 'description' ? '美式咖啡' : field === 'rawType' ? '餐饮美食' : '星巴克咖啡(国贸店)'
+  const fieldExampleShort = field === 'description' ? '咖啡' : field === 'rawType' ? '餐饮' : '星巴克'
   switch (form.value.matchMode) {
     case 'exact':
-      return `完整${fieldHint},如:${field === 'description' ? '美式咖啡' : '星巴克咖啡(国贸店)'}`
+      return `完整${fieldHint},如:${fieldExample}`
     case 'fuzzy':
-      return `包含关键字,如:${field === 'description' ? '咖啡' : '星巴克'}`
+      return `包含关键字,如:${fieldExampleShort}`
     case 'regex':
-      return `^${field === 'description' ? '咖啡' : '星巴克'}.*$`
+      return `^${fieldExampleShort}.*$`
     default:
       return ''
   }

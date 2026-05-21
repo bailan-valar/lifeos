@@ -5,6 +5,7 @@ export interface ApplyRulesResult {
   counterpartyRule?: ImportRule
   paymentMethodRule?: ImportRule
   descriptionRule?: ImportRule
+  rawTypeRule?: ImportRule
 }
 
 export interface ExportedImportRule {
@@ -220,11 +221,13 @@ function createStore(): ImportRulesStore {
     let counterpartyRule: ImportRule | undefined
     let paymentMethodRule: ImportRule | undefined
     let descriptionRule: ImportRule | undefined
+    let rawTypeRule: ImportRule | undefined
 
     for (const rule of candidates) {
       const field = rule.matchField ?? 'account'
       const matchAccount = field === 'account'
       const matchDescription = field === 'description'
+      const matchRawType = field === 'rawType'
 
       if (matchAccount) {
         if (!counterpartyRule && matchOne(rule, row.counterparty || '')) {
@@ -237,11 +240,14 @@ function createStore(): ImportRulesStore {
       if (!descriptionRule && matchDescription && matchOne(rule, row.description || '')) {
         descriptionRule = rule
       }
-      if (counterpartyRule && paymentMethodRule && descriptionRule) break
+      if (!rawTypeRule && matchRawType && matchOne(rule, row.rawType || '')) {
+        rawTypeRule = rule
+      }
+      if (counterpartyRule && paymentMethodRule && descriptionRule && rawTypeRule) break
     }
 
-    if (!counterpartyRule && !paymentMethodRule && !descriptionRule) return null
-    return { counterpartyRule, paymentMethodRule, descriptionRule }
+    if (!counterpartyRule && !paymentMethodRule && !descriptionRule && !rawTypeRule) return null
+    return { counterpartyRule, paymentMethodRule, descriptionRule, rawTypeRule }
   }
 
   async function exportRules(): Promise<ExportedImportRule[]> {

@@ -149,6 +149,7 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   const counterpartyRule = result?.counterpartyRule ?? null
   const paymentMethodRule = result?.paymentMethodRule ?? null
   const descriptionRule = result?.descriptionRule ?? null
+  const rawTypeRule = result?.rawTypeRule ?? null
 
   let counterpartyAccount = matchAccountByCounterparty(parsed.counterparty, props.accounts)
   let myAccount = matchAccountByPaymentMethod(parsed.paymentMethod || '', props.accounts)
@@ -176,7 +177,7 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   let skipped = false
   let skipReason: string | undefined
 
-  const overrideBillType = counterpartyRule?.billType ?? paymentMethodRule?.billType ?? descriptionRule?.billType
+  const overrideBillType = counterpartyRule?.billType ?? paymentMethodRule?.billType ?? descriptionRule?.billType ?? rawTypeRule?.billType
 
   if (source.value === 'alipay' && parsed.rawPaymentDirection) {
     const inferred = inferAlipayBillType(parsed, counterpartyAccount)
@@ -197,6 +198,7 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   const categoryId = counterpartyRule?.categoryId
     || paymentMethodRule?.categoryId
     || descriptionRule?.categoryId
+    || rawTypeRule?.categoryId
     || (counterpartyAccount?.type === 'merchant' ? counterpartyAccount.categoryId : undefined)
     || ''
 
@@ -213,9 +215,10 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
     duplicate: isDuplicate,
     skipped,
     skipReason,
-    matchedRuleId: counterpartyRule?.id ?? paymentMethodRule?.id ?? descriptionRule?.id ?? null,
+    matchedRuleId: counterpartyRule?.id ?? paymentMethodRule?.id ?? descriptionRule?.id ?? rawTypeRule?.id ?? null,
     paymentMethodRuleId: paymentMethodRule?.id ?? null,
     descriptionRuleId: descriptionRule?.id ?? null,
+    rawTypeRuleId: rawTypeRule?.id ?? null,
     matchedAccountId: counterpartyAccount?.id ?? null,
     myAccountId: myAccount?.id ?? null,
     type: billType,

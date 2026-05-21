@@ -82,6 +82,7 @@
                     @save-counterparty-rule="openCounterpartyRule"
                     @save-payment-method-rule="openPaymentMethodRule"
                     @save-description-rule="openDescriptionRule"
+                    @save-raw-type-rule="openRawTypeRule"
                     @edit-remark="openRemarkEditor"
                     @open-mobile-editor="openMobileEditor"
                   />
@@ -164,6 +165,7 @@
             @save-counterparty-rule="openCounterpartyRule"
             @save-payment-method-rule="openPaymentMethodRule"
             @save-description-rule="openDescriptionRule"
+            @save-raw-type-rule="openRawTypeRule"
             @edit-remark="openRemarkEditorFromMobile"
           />
 
@@ -536,6 +538,8 @@ function buildRuleUpdates(item: ImportRecordItem, rule: ImportRule): Partial<Imp
     else if (matchOne(rule, item.paymentMethod || '')) matched = true
   } else if (field === 'description') {
     if (matchOne(rule, item.description || '')) matched = true
+  } else if (field === 'rawType') {
+    if (matchOne(rule, item.rawType || '')) matched = true
   }
 
   if (!matched) return null
@@ -556,6 +560,11 @@ function buildRuleUpdates(item: ImportRecordItem, rule: ImportRule): Partial<Imp
     }
   } else if (field === 'description') {
     updates.descriptionRuleId = rule.id
+    if (rule.categoryId) updates.categoryId = rule.categoryId
+    if (rule.accountId) updates.matchedAccountId = rule.accountId
+    if (!updates.type && rule.billType) updates.type = rule.billType
+  } else if (field === 'rawType') {
+    updates.rawTypeRuleId = rule.id
     if (rule.categoryId) updates.categoryId = rule.categoryId
     if (rule.accountId) updates.matchedAccountId = rule.accountId
     if (!updates.type && rule.billType) updates.type = rule.billType
@@ -680,6 +689,22 @@ function openDescriptionRule(item: ImportRecordItem) {
   }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
 }
 
+function openRawTypeRule(item: ImportRecordItem) {
+  mobileEditor.value.visible = false
+  const rawType = (item.rawType || '').trim()
+  emit('open-rule-dialog', {
+    source: props.record.source,
+    matchField: 'rawType',
+    matchMode: 'fuzzy',
+    pattern: rawType,
+    categoryId: item.categoryId || '',
+    accountId: item.matchedAccountId || '',
+    billType: item.type,
+    priority: 100,
+    enabled: true
+  }, { onSaved: (rule) => promptApplyRuleAfterSave(rule, item) })
+}
+
 function onImport() {
   importing.value = true
   // 把本地编辑态写回 record
@@ -750,6 +775,19 @@ function applyAllRules() {
       }
       if (!updates.type && result.descriptionRule.billType) {
         updates.type = result.descriptionRule.billType
+      }
+    }
+
+    if (result.rawTypeRule) {
+      updates.rawTypeRuleId = result.rawTypeRule.id
+      if (result.rawTypeRule.categoryId) {
+        updates.categoryId = result.rawTypeRule.categoryId
+      }
+      if (result.rawTypeRule.accountId) {
+        updates.matchedAccountId = result.rawTypeRule.accountId
+      }
+      if (!updates.type && result.rawTypeRule.billType) {
+        updates.type = result.rawTypeRule.billType
       }
     }
 

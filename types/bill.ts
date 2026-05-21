@@ -279,7 +279,7 @@ export type ImportRuleMatchMode = 'exact' | 'regex' | 'fuzzy'
 /**
  * 规则匹配字段
  */
-export type ImportRuleMatchField = 'account' | 'description'
+export type ImportRuleMatchField = 'account' | 'description' | 'rawType'
 
 /**
  * 导入规则
@@ -434,6 +434,7 @@ export interface ImportRecordItem {
   matchedRuleId?: string | null
   paymentMethodRuleId?: string | null
   descriptionRuleId?: string | null
+  rawTypeRuleId?: string | null
   matchedAccountId?: string | null
   myAccountId?: string | null
   paymentMethod?: string
