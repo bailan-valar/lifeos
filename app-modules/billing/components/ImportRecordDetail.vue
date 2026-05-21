@@ -4,7 +4,10 @@
       <div v-if="visible" ref="overlayRef" class="record-modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined">
         <div class="record-modal-card" @click.stop>
           <div class="record-modal-header">
-            <h4>{{ isPending ? '导入详情 - 待导入' : '导入详情' }}</h4>
+            <div class="header-left">
+              <h4>{{ isPending ? '导入详情 - 待导入' : '导入详情' }}</h4>
+              <span v-if="isPending" class="edit-timer">⏱️ {{ formatElapsed(totalElapsedMs) }}</span>
+            </div>
             <button type="button" class="close-btn" @click="emit('close')">
               <Icon name="solar:close-circle-linear" size="18" />
             </button>
@@ -278,10 +281,12 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   document.removeEventListener('click', handleDocumentClick)
+  stopTimer()
+  saveDuration()
 })
 
 const { rules: importRules, applyRules } = useImportRules()
-const { updateRecordItems } = useImportRecords()
+const { updateRecord, updateRecordItems } = useImportRecords()
 const { confirm } = useConfirm()
 
 const importing = ref(false)
@@ -405,6 +410,41 @@ function isIncomplete(row: ImportRecordItem): boolean {
 
 const isPending = computed(() => props.record.status === 'pending')
 
+const baseDurationMs = ref(0)
+const sessionElapsedMs = ref(0)
+let timerInterval: ReturnType<typeof setInterval> | null = null
+let sessionStartAt = 0
+
+function startTimer() {
+  if (!isPending.value) return
+  baseDurationMs.value = props.record.editingDurationMs || 0
+  sessionElapsedMs.value = 0
+  sessionStartAt = Date.now()
+  timerInterval = setInterval(() => {
+    sessionElapsedMs.value = Date.now() - sessionStartAt
+  }, 1000)
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+}
+
+function currentTotalDuration(): number {
+  return baseDurationMs.value + sessionElapsedMs.value
+}
+
+function saveDuration() {
+  const total = currentTotalDuration()
+  if (total > 0 && isPending.value && props.record.id) {
+    updateRecord(props.record.id, { editingDurationMs: total }).catch(() => {})
+  }
+}
+
+const totalElapsedMs = computed(() => baseDurationMs.value + sessionElapsedMs.value)
+
 // 本地编辑态（pending 时使用）
 const localItems = ref<ImportRecordItem[]>([])
 
@@ -412,6 +452,16 @@ watch(() => props.record.id, (id) => {
   if (id) {
     localItems.value = props.record.items.map(item => ({ ...item }))
     filter.value = 'all'
+  }
+}, { immediate: true })
+
+watch(() => props.visible, (visible) => {
+  if (visible && isPending.value) {
+    stopTimer()
+    startTimer()
+  } else {
+    stopTimer()
+    saveDuration()
   }
 }, { immediate: true })
 
@@ -631,6 +681,7 @@ function openRuleOverlay(item: ImportRecordItem) {
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: counterparty,
     categoryId: item.categoryId || '',
@@ -647,6 +698,7 @@ function openCounterpartyRule(item: ImportRecordItem) {
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: counterparty,
     categoryId: item.categoryId || '',
@@ -663,6 +715,7 @@ function openPaymentMethodRule(item: ImportRecordItem) {
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: paymentMethod,
     categoryId: '',
@@ -679,6 +732,7 @@ function openDescriptionRule(item: ImportRecordItem) {
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'description',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: description,
     categoryId: item.categoryId || '',
@@ -695,6 +749,7 @@ function openRawTypeRule(item: ImportRecordItem) {
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'rawType',
+    matchDirection: item.direction,
     matchMode: 'fuzzy',
     pattern: rawType,
     categoryId: item.categoryId || '',
@@ -706,6 +761,8 @@ function openRawTypeRule(item: ImportRecordItem) {
 }
 
 function onImport() {
+  stopTimer()
+  saveDuration()
   importing.value = true
   // 把本地编辑态写回 record
   const updatedRecord: ImportRecord = {
@@ -817,6 +874,17 @@ function applyAllRules() {
   }
 }
 
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000)
+  const seconds = totalSeconds % 60
+  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(minutes / 60)
+  if (hours > 0) {
+    return `${hours}:${String(minutes % 60).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
 function formatDateTime(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -893,6 +961,20 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
   font-size: 16px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.88);
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.edit-timer {
+  font-size: 12px;
+  color: rgba(0, 122, 255, 0.9);
+  background: rgba(0, 122, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .close-btn {
   border: none;

@@ -282,6 +282,11 @@ export type ImportRuleMatchMode = 'exact' | 'regex' | 'fuzzy'
 export type ImportRuleMatchField = 'account' | 'description' | 'rawType'
 
 /**
+ * 规则匹配方向
+ */
+export type ImportRuleMatchDirection = 'in' | 'out'
+
+/**
  * 导入规则
  * 按 CSV 中"交易对方""收/付款方式"或"商品说明"字段匹配,命中后填充 categoryId / accountId
  * accountId 为匹配到的账户,由 suggestAccountIds 自动推导 from/to
@@ -292,6 +297,7 @@ export interface ImportRule {
   id: string
   source: ImportSource | 'all'
   matchField?: ImportRuleMatchField
+  matchDirection?: ImportRuleMatchDirection
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
@@ -309,6 +315,7 @@ export interface ImportRule {
 export interface ImportRuleFormData {
   source: ImportSource | 'all'
   matchField?: ImportRuleMatchField
+  matchDirection?: ImportRuleMatchDirection
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
@@ -464,6 +471,7 @@ export interface ImportRecord {
   items: ImportRecordItem[]
   startedAt: string
   finishedAt: string
+  editingDurationMs?: number
   createdAt: string
   updatedAt: string
 }

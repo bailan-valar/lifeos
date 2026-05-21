@@ -11,6 +11,7 @@ export interface ApplyRulesResult {
 export interface ExportedImportRule {
   source: ImportSource | 'all'
   matchField?: ImportRuleMatchField
+  matchDirection?: 'in' | 'out'
   matchMode: ImportRuleMatchMode
   pattern: string
   categoryId: string
@@ -102,6 +103,7 @@ function createStore(): ImportRulesStore {
       id: generateId(),
       source: data.source,
       matchField: data.matchField,
+      matchDirection: data.matchDirection,
       matchMode: data.matchMode,
       pattern: data.pattern,
       categoryId: data.categoryId,
@@ -217,7 +219,11 @@ function createStore(): ImportRulesStore {
    * 三者可命中不同规则,各自填充对应账户/分类,实现"分别匹配为出账账户与入账账户及分类"。
    */
   function applyRules(row: CsvParsedRow, source: ImportSource): ApplyRulesResult | null {
-    const candidates = rules.value.filter(r => r.enabled && (r.source === 'all' || r.source === source))
+    const candidates = rules.value.filter(r =>
+      r.enabled &&
+      (r.source === 'all' || r.source === source) &&
+      (!r.matchDirection || r.matchDirection === row.direction)
+    )
     let counterpartyRule: ImportRule | undefined
     let paymentMethodRule: ImportRule | undefined
     let descriptionRule: ImportRule | undefined
@@ -262,6 +268,7 @@ function createStore(): ImportRulesStore {
     return rules.value.map(r => ({
       source: r.source,
       matchField: r.matchField,
+      matchDirection: r.matchDirection,
       matchMode: r.matchMode,
       pattern: r.pattern,
       categoryId: r.categoryId,
@@ -305,7 +312,7 @@ function createStore(): ImportRulesStore {
       rules.value.map(r => `${r.pattern}|${r.matchMode}|${r.source}|${r.matchField || 'account'}`)
     )
     for (const item of items) {
-      const key = `${item.pattern}|${item.matchMode}|${item.source}|${item.matchField || 'account'}`
+      const key = `${item.pattern}|${item.matchMode}|${item.source}|${item.matchField || 'account'}|${item.matchDirection || ''}`
       if (existingKeys.has(key)) {
         skipped++
         continue
@@ -338,6 +345,7 @@ function createStore(): ImportRulesStore {
         id: generateId(),
         source: item.source,
         matchField: item.matchField,
+        matchDirection: item.matchDirection,
         matchMode: item.matchMode,
         pattern: item.pattern,
         categoryId,

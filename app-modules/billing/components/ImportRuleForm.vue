@@ -27,6 +27,19 @@
       </div>
     </div>
 
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">匹配方向</label>
+        <SelectPicker
+          v-model="form.matchDirection"
+          :options="matchDirectionOptions.map(d => ({ value: d.value, label: d.label }))"
+          placeholder="全部方向"
+          clearable
+        />
+      </div>
+      <div class="form-group" />
+    </div>
+
     <div class="form-group">
       <label class="form-label">匹配关键字</label>
       <input
@@ -95,6 +108,7 @@ import type {
   ImportRuleFormData,
   ImportRuleMatchMode,
   ImportRuleMatchField,
+  ImportRuleMatchDirection,
   ImportSource,
   Account,
   BillCategory
@@ -135,6 +149,13 @@ const matchModeOptions: { value: ImportRuleMatchMode; label: string }[] = [
   { value: 'exact', label: '精确' },
   { value: 'fuzzy', label: '模糊' },
   { value: 'regex', label: '正则' }
+]
+
+type MatchDirectionValue = ImportRuleMatchDirection
+
+const matchDirectionOptions: { value: MatchDirectionValue; label: string }[] = [
+  { value: 'in', label: '收入' },
+  { value: 'out', label: '支出' }
 ]
 
 const form = computed({

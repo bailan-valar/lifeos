@@ -2,12 +2,21 @@
   <div class="select-picker">
     <div ref="triggerRef" class="picker-trigger" :class="{ plain: props.plain }" @click.stop="toggleOpen">
       <span :class="{ placeholder: !selectedLabel }">{{ selectedLabel || placeholder }}</span>
-      <Icon
-        name="solar:alt-arrow-down-linear"
-        size="14"
-        class="arrow"
-        :class="{ open }"
-      />
+      <div class="trigger-suffix">
+        <Icon
+          v-if="clearable && props.modelValue"
+          name="solar:close-circle-linear"
+          size="14"
+          class="clear-btn"
+          @click.stop="clear"
+        />
+        <Icon
+          name="solar:alt-arrow-down-linear"
+          size="14"
+          class="arrow"
+          :class="{ open }"
+        />
+      </div>
     </div>
 
     <Teleport to="body">
@@ -49,10 +58,11 @@ const props = defineProps<{
   placeholder?: string
   plain?: boolean
   minWidth?: string | number
+  clearable?: boolean
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: string | undefined]
 }>()
 
 const placeholder = computed(() => props.placeholder || '请选择')
@@ -69,6 +79,10 @@ const selectedLabel = computed(() => {
 function select(value: string) {
   emit('update:modelValue', value)
   open.value = false
+}
+
+function clear() {
+  emit('update:modelValue', undefined)
 }
 
 function toggleOpen() {
@@ -194,6 +208,19 @@ onBeforeUnmount(() => {
 }
 .picker-trigger .placeholder {
   color: rgba(60, 60, 67, 0.4);
+}
+.trigger-suffix {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.clear-btn {
+  color: rgba(60, 60, 67, 0.35);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.clear-btn:hover {
+  color: rgba(60, 60, 67, 0.7);
 }
 .arrow {
   color: rgba(60, 60, 67, 0.4);

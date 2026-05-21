@@ -46,14 +46,14 @@ const emit = defineEmits<{
 }>()
 
 const form = ref<ImportRuleFormData>({
-  source: 'all', matchField: 'account', matchMode: 'fuzzy', pattern: '', categoryId: '',
+  source: 'all', matchField: 'account', matchDirection: undefined, matchMode: 'fuzzy', pattern: '', categoryId: '',
   accountId: '', billType: undefined, priority: 100, enabled: true
 })
 
 const isEditing = computed(() => !!props.rule)
 
 const defaultForm: ImportRuleFormData = {
-  source: 'all', matchField: 'account', matchMode: 'fuzzy', pattern: '', categoryId: '',
+  source: 'all', matchField: 'account', matchDirection: undefined, matchMode: 'fuzzy', pattern: '', categoryId: '',
   accountId: '', billType: undefined, priority: 100, enabled: true
 }
 
@@ -63,6 +63,7 @@ watch(() => props.visible, (v) => {
     form.value = {
       source: props.rule.source,
       matchField: props.rule.matchField,
+      matchDirection: props.rule.matchDirection,
       matchMode: props.rule.matchMode,
       pattern: props.rule.pattern,
       categoryId: props.rule.categoryId,

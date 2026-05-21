@@ -80,6 +80,7 @@
             <span class="rule-badge" :class="matchModeClass(rule.matchMode)">{{ matchModeLabel(rule.matchMode) }}</span>
             <span class="rule-badge source">{{ sourceLabel(rule.source) }}</span>
             <span class="rule-badge field">{{ matchFieldLabel(rule.matchField) }}</span>
+            <span v-if="rule.matchDirection" class="rule-badge direction">{{ matchDirectionLabel(rule.matchDirection) }}</span>
             <span class="rule-priority">优先级 {{ rule.priority }}</span>
           </div>
           <div class="rule-meta">
@@ -202,7 +203,12 @@ function sourceLabel(s: ImportSource | 'all'): string {
 function matchFieldLabel(f: ImportRuleMatchField | undefined): string {
   if (f === 'account') return '账户'
   if (f === 'description') return '商品说明'
+  if (f === 'rawType') return '原始分类'
   return '账户'
+}
+
+function matchDirectionLabel(d: 'in' | 'out'): string {
+  return d === 'in' ? '仅收入' : '仅支出'
 }
 
 function accountName(id: string): string {
@@ -414,6 +420,10 @@ function categoryName(id: string): string {
 .rule-badge.field {
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
+}
+.rule-badge.direction {
+  background: rgba(52, 199, 89, 0.1);
+  color: rgb(52, 199, 89);
 }
 .rule-priority {
   font-size: 11px;
