@@ -3,13 +3,33 @@
     <div class="changelog-admin-page">
       <div class="page-header">
         <h1 class="page-title">更新日志管理</h1>
-        <button class="liquid-glass-button liquid-glass-button-primary" @click="openCreateDialog">
-          <Icon name="solar:add-circle-linear" class="btn-icon" />
-          添加记录
-        </button>
+        <div class="header-actions">
+          <div class="view-toggle">
+            <button
+              class="toggle-btn"
+              :class="{ active: viewMode === 'table' }"
+              title="表格视图"
+              @click="viewMode = 'table'"
+            >
+              <Icon name="solar:list-linear" class="toggle-icon" />
+            </button>
+            <button
+              class="toggle-btn"
+              :class="{ active: viewMode === 'board' }"
+              title="看板视图"
+              @click="viewMode = 'board'"
+            >
+              <Icon name="solar:widget-linear" class="toggle-icon" />
+            </button>
+          </div>
+          <button class="liquid-glass-button liquid-glass-button-primary" @click="openCreateDialog">
+            <Icon name="solar:add-circle-linear" class="btn-icon" />
+            添加记录
+          </button>
+        </div>
       </div>
 
-      <div class="changelog-table-section liquid-glass-card">
+      <div class="changelog-content-section liquid-glass-card" :class="{ 'board-mode': viewMode === 'board' }">
         <div v-if="isLoading" class="loading-state">
           <div class="loading-spinner"></div>
           <p>加载中...</p>
@@ -29,39 +49,50 @@
           </button>
         </div>
 
-        <table v-else class="changelog-table">
-          <thead>
-            <tr>
-              <th>版本</th>
-              <th>类型</th>
-              <th>状态</th>
-              <th>标题</th>
-              <th>发布日期</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in changelogs" :key="item.id" class="table-row">
-              <td class="version-cell">{{ item.version }}</td>
-              <td class="type-cell">
-                <span class="type-badge" :class="`type-${item.type}`">{{ getTypeLabel(item.type) }}</span>
-              </td>
-              <td class="status-cell">
-                <span class="status-badge" :class="`status-${item.status}`">{{ getStatusLabel(item.status) }}</span>
-              </td>
-              <td class="title-cell">{{ item.title }}</td>
-              <td class="date-cell">{{ formatReleaseDate(item.releaseDate) }}</td>
-              <td class="actions-cell">
-                <button class="action-btn" title="编辑" @click="openEditDialog(item)">
-                  <Icon name="solar:pen-linear" />
-                </button>
-                <button class="action-btn action-btn-danger" title="删除" @click="confirmDelete(item)">
-                  <Icon name="solar:trash-bin-trash-linear" />
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <template v-else>
+          <table v-if="viewMode === 'table'" class="changelog-table">
+            <thead>
+              <tr>
+                <th>版本</th>
+                <th>类型</th>
+                <th>状态</th>
+                <th>标题</th>
+                <th>发布日期</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in changelogs" :key="item.id" class="table-row">
+                <td class="version-cell">{{ item.version }}</td>
+                <td class="type-cell">
+                  <span class="type-badge" :class="`type-${item.type}`">{{ getTypeLabel(item.type) }}</span>
+                </td>
+                <td class="status-cell">
+                  <span class="status-badge" :class="`status-${item.status}`">{{ getStatusLabel(item.status) }}</span>
+                </td>
+                <td class="title-cell">{{ item.title }}</td>
+                <td class="date-cell">{{ formatReleaseDate(item.releaseDate) }}</td>
+                <td class="actions-cell">
+                  <button class="action-btn" title="编辑" @click="openEditDialog(item)">
+                    <Icon name="solar:pen-linear" />
+                  </button>
+                  <button class="action-btn action-btn-danger" title="删除" @click="confirmDelete(item)">
+                    <Icon name="solar:trash-bin-trash-linear" />
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <ChangelogAdminBoard
+            v-else
+            :items="changelogs"
+            :is-loading="isLoading"
+            :error="error"
+            @edit="openEditDialog"
+            @delete="confirmDelete"
+          />
+        </template>
       </div>
     </div>
 
@@ -166,9 +197,21 @@ const authStore = useAuthStore()
 const { createChangelog, updateChangelog, deleteChangelog } = useAdminChangelog()
 const { confirm } = useConfirm()
 
+const VIEW_MODE_KEY = 'lifeos:changelogAdminViewMode'
+
 const changelogs = ref<Changelog[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
+
+const viewMode = ref<'table' | 'board'>(
+  (process.client ? localStorage.getItem(VIEW_MODE_KEY) : null) as 'table' | 'board' || 'table'
+)
+
+watch(viewMode, (mode) => {
+  if (process.client) {
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+  }
+})
 
 const showDialog = ref(false)
 const editingItem = ref<Changelog | null>(null)
@@ -331,16 +374,64 @@ const releaseDateField = {
   letter-spacing: -0.02em;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.view-toggle {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--liquid-text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-btn:hover {
+  color: var(--liquid-text-secondary);
+}
+
+.toggle-btn.active {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--liquid-text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.toggle-icon {
+  font-size: 16px;
+}
+
 .btn-icon {
   font-size: 18px;
 }
 
-.changelog-table-section {
+.changelog-content-section {
   padding: 20px;
   min-height: 400px;
   max-height: calc(100vh - 180px);
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.changelog-content-section.board-mode {
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .loading-state,
@@ -629,7 +720,7 @@ const releaseDateField = {
     gap: 12px;
   }
 
-  .changelog-table-section {
+  .changelog-content-section {
     max-height: calc(100vh - 220px);
   }
 

@@ -3,16 +3,41 @@
     <Transition name="fade">
       <div v-if="isOpen" class="dialog-overlay" @click.self="close">
         <Transition name="slide-up">
-          <div v-if="isOpen" class="dialog-content liquid-glass-dialog">
+          <div
+            v-if="isOpen"
+            class="dialog-content liquid-glass-dialog"
+            :class="{ 'board-mode': viewMode === 'board' }"
+          >
             <div class="dialog-header">
-              <h2 class="dialog-title">更新日志</h2>
+              <div class="header-left">
+                <h2 class="dialog-title">更新日志</h2>
+                <div class="view-toggle">
+                  <button
+                    class="toggle-btn"
+                    :class="{ active: viewMode === 'list' }"
+                    title="列表视图"
+                    @click="viewMode = 'list'"
+                  >
+                    <Icon name="solar:list-linear" class="toggle-icon" />
+                  </button>
+                  <button
+                    class="toggle-btn"
+                    :class="{ active: viewMode === 'board' }"
+                    title="看板视图"
+                    @click="viewMode = 'board'"
+                  >
+                    <Icon name="solar:widget-linear" class="toggle-icon" />
+                  </button>
+                </div>
+              </div>
               <button class="close-button" @click="close">
                 <Icon name="solar:close-circle-linear" class="close-icon" />
               </button>
             </div>
 
             <div class="dialog-body custom-scrollbar">
-              <ChangelogList />
+              <ChangelogList v-if="viewMode === 'list'" />
+              <ChangelogBoard v-else />
             </div>
 
             <div class="dialog-footer">
@@ -30,10 +55,22 @@
 <script setup lang="ts">
 const { markAllAsRead } = useChangelog()
 
+const VIEW_MODE_KEY = 'lifeos:changelogViewMode'
+
 const isOpen = computed({
   get: () => useState('changelog-dialog', () => false).value,
   set: (value) => {
     useState('changelog-dialog', () => false).value = value
+  }
+})
+
+const viewMode = ref<'list' | 'board'>(
+  (process.client ? localStorage.getItem(VIEW_MODE_KEY) : null) as 'list' | 'board' || 'list'
+)
+
+watch(viewMode, (mode) => {
+  if (process.client) {
+    localStorage.setItem(VIEW_MODE_KEY, mode)
   }
 })
 
@@ -70,6 +107,11 @@ defineExpose({
   display: flex;
   flex-direction: column;
   padding: 0;
+  transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dialog-content.board-mode {
+  max-width: 900px;
 }
 
 .dialog-header {
@@ -81,12 +123,55 @@ defineExpose({
   flex-shrink: 0;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .dialog-title {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: var(--liquid-text-primary);
   letter-spacing: -0.01em;
+}
+
+.view-toggle {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--liquid-text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-btn:hover {
+  color: var(--liquid-text-secondary);
+}
+
+.toggle-btn.active {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--liquid-text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.toggle-icon {
+  font-size: 16px;
 }
 
 .close-button {
@@ -114,8 +199,9 @@ defineExpose({
 
 .dialog-body {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 16px 24px;
+  min-height: 0;
 }
 
 .dialog-footer {

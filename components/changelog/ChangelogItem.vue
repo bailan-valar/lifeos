@@ -1,9 +1,9 @@
 <template>
-  <div class="changelog-item">
+  <div class="changelog-item" :class="{ compact }">
     <span class="type-badge" :class="`type-${type}`">{{ typeLabel }}</span>
     <div class="item-content">
       <h4 class="item-title">{{ item.title }}</h4>
-      <div v-if="item.description" class="item-description" v-html="item.description" />
+      <div v-if="item.description && !compact" class="item-description" v-html="item.description" />
     </div>
   </div>
 </template>
@@ -13,6 +13,7 @@ import type { Changelog } from '~/types/changelog'
 
 const props = defineProps<{
   item: Changelog
+  compact?: boolean
 }>()
 
 const typeLabel = computed(() => {
@@ -38,6 +39,20 @@ const type = computed(() => props.item.type)
 
 .changelog-item:last-child {
   border-bottom: none;
+}
+
+.changelog-item.compact {
+  padding: 10px;
+  border-bottom: none;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  border: 0.5px solid rgba(0, 0, 0, 0.04);
+  flex-direction: column;
+  gap: 8px;
+}
+
+.changelog-item.compact .type-badge {
+  align-self: flex-start;
 }
 
 .type-badge {
