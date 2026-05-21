@@ -361,8 +361,8 @@ async function handleDeleteRecord(recordId: string) {
 }
 
 // 规则对话框事件处理
-function handleOpenRuleDialog(form: ImportRuleFormData, options?: { onSaved?: (rule?: ImportRule) => void }) {
-  editingRule.value = undefined
+function handleOpenRuleDialog(form: ImportRuleFormData, options?: { rule?: ImportRule; onSaved?: (rule?: ImportRule) => void }) {
+  editingRule.value = options?.rule
   initialRuleForm.value = { ...form }
   pendingRuleCallback.value = options?.onSaved
   ruleDialogVisible.value = true

@@ -60,22 +60,12 @@
         <button
           v-if="!row.duplicate && !row.skipped"
           type="button"
-          class="action-btn"
-          :class="{ active: row.remark }"
-          title="编辑备注"
-          @click="$emit('edit-remark', row)"
+          class="action-btn save-rule-btn"
+          title="逐一编辑"
+          @click="$emit('open-mobile-editor', row)"
         >
           <Icon name="solar:pen-new-square-linear" size="14" />
-        </button>
-        <button
-          v-if="!row.duplicate && !row.skipped"
-          type="button"
-          class="action-btn save-rule-btn"
-          title="保存为规则"
-          @click="$emit('save-as-rule', row)"
-        >
-          <Icon name="solar:bookmark-linear" size="14" />
-          <span class="save-rule-text">存规则</span>
+          <span class="save-rule-text">编辑</span>
         </button>
       </div>
 
