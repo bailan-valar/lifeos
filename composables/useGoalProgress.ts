@@ -131,6 +131,27 @@ export function useGoalProgress() {
   async function recordProgress(data: ProgressRecordFormData): Promise<ProgressLog> {
     const db = await getDB()
 
+    // 更新目标的当前进度
+    const goalDoc = await db.goals.findOne(data.goalId).exec()
+    if (!goalDoc) {
+      throw new Error(`Goal not found: ${data.goalId}`)
+    }
+
+    const goal = goalDoc.toJSON() as Goal
+    const newProgress = add(goal.currentProgress, data.amount)
+
+    // 如果已完成，自动更新状态
+    const isCompleted = newProgress >= goal.target
+    const patchData: Record<string, any> = {
+      currentProgress: newProgress,
+      updatedAt: now()
+    }
+    if (isCompleted && goal.status !== 'completed') {
+      patchData.status = 'completed'
+    }
+
+    await goalDoc.patch(patchData)
+
     // 创建进度日志
     const log: ProgressLog = {
       id: generateId(),
@@ -143,24 +164,10 @@ export function useGoalProgress() {
 
     await db.goal_progress_logs.insert(log)
 
-    // 更新目标的当前进度
-    const goalDoc = await db.goals.findOne(data.goalId).exec()
-    if (!goalDoc) {
-      throw new Error(`Goal not found: ${data.goalId}`)
-    }
-
-    const goal = goalDoc.toJSON() as Goal
-    const newProgress = add(goal.currentProgress, data.amount)
-
-    await goalDoc.patch({
-      currentProgress: newProgress,
-      updatedAt: now()
-    })
-
     // 更新本地缓存
     goals.value = goals.value.map(g => {
       if (g.id === data.goalId) {
-        return { ...g, currentProgress: newProgress, updatedAt: now() }
+        return { ...g, currentProgress: newProgress, status: patchData.status || g.status, updatedAt: now() }
       }
       return g
     })
@@ -222,8 +229,7 @@ export function useGoalProgress() {
   async function getProgressHistory(goalId: string): Promise<ProgressLog[]> {
     const db = await getDB()
     const result = await db.goal_progress_logs.find({
-      selector: { goalId },
-      sort: [{ date: 'desc' }]
+      selector: { goalId }
     }).exec()
 
     return result.map((doc: any) => doc.toJSON()).sort((a, b) =>

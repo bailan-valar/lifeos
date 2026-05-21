@@ -92,7 +92,7 @@
             <span class="unit caption2">{{ goal.unit }}</span>
           </div>
           <div class="col-expected">
-            <span class="expected-value subheadline">{{ calculateProgressStatistics(goal).expectedProgress.toFixed(0) }}</span>
+            <span class="expected-value subheadline">{{ getGoalStats(goal).expectedProgress.toFixed(0) }}</span>
           </div>
           <div class="col-actual">
             <span class="actual-value subheadline">{{ goal.currentProgress }}</span>
@@ -102,13 +102,13 @@
               :current="goal.currentProgress"
               :target="goal.target"
               :unit="goal.unit"
-              :statistics="calculateProgressStatistics(goal)"
+              :statistics="getGoalStats(goal)"
               size="compact"
             />
           </div>
           <div class="col-status">
             <GoalStatusBadge
-              :status="calculateProgressStatistics(goal).progressStatus"
+              :status="getGoalStats(goal).progressStatus"
               size="compact"
             />
           </div>
@@ -174,11 +174,21 @@ const {
   loading,
   loadGoals,
   recordProgress,
-  calculateProgressStatistics
+  calculateProgressStatistics,
+  onGoalsChange,
+  onProgressLogsChange
 } = useGoalProgress()
 
 // 全局快捷键
-const { goalShortcutDialogVisible, openQuickProgressDialog } = useGoalShortcut()
+const { goalShortcutDialogVisible, openQuickProgressDialog, registerShortcut, unregisterShortcut } = useGoalShortcut()
+
+// 注册/注销全局快捷键
+onMounted(() => {
+  registerShortcut()
+})
+onUnmounted(() => {
+  unregisterShortcut()
+})
 
 // 选中的目标（用于进度记录）
 const selectedGoal = ref<Goal>()
@@ -195,35 +205,38 @@ function handleShortcutHintDismiss() {
   }
 }
 
+// 统计信息缓存（避免重复计算）
+const goalStatisticsMap = computed(() => {
+  const map = new Map<string, ReturnType<typeof calculateProgressStatistics>>()
+  for (const g of goals.value) {
+    map.set(g.id, calculateProgressStatistics(g))
+  }
+  return map
+})
+
+function getGoalStats(goal: Goal) {
+  return goalStatisticsMap.value.get(goal.id) || calculateProgressStatistics(goal)
+}
+
 // 统计数据
 const completedCount = computed(() =>
-  goals.value.filter(g => {
-    const stats = calculateProgressStatistics(g)
-    return stats.progressStatus === 'completed'
-  }).length
+  goals.value.filter(g => getGoalStats(g).progressStatus === 'completed').length
 )
 
 const inProgressCount = computed(() =>
-  goals.value.filter(g => {
-    const stats = calculateProgressStatistics(g)
-    return stats.progressStatus !== 'completed'
-  }).length
+  goals.value.filter(g => getGoalStats(g).progressStatus !== 'completed').length
 )
 
 const averageProgress = computed(() => {
   if (goals.value.length === 0) return 0
-  const total = goals.value.reduce((sum, g) => {
-    return sum + calculateProgressStatistics(g).percentage
-  }, 0)
+  const total = goals.value.reduce((sum, g) => sum + getGoalStats(g).percentage, 0)
   return total / goals.value.length
 })
 
 // 排序的目标列表（按进度百分比排序）
 const sortedGoals = computed(() => {
   return [...goals.value].sort((a, b) => {
-    const statsA = calculateProgressStatistics(a)
-    const statsB = calculateProgressStatistics(b)
-    return statsB.percentage - statsA.percentage
+    return getGoalStats(b).percentage - getGoalStats(a).percentage
   })
 })
 
@@ -245,7 +258,7 @@ function getTypeLabel(type: string): string {
 
 // 获取时间信息
 function getTimeInfo(goal: Goal): string {
-  const stats = calculateProgressStatistics(goal)
+  const stats = getGoalStats(goal)
   return `${stats.elapsedDays}/${stats.totalDays}天`
 }
 
@@ -290,16 +303,28 @@ async function handleProgressRecord(amount: number, date: string, notes?: string
       notes
     })
     progressDialogVisible.value = false
-    // TODO: 显示成功提示
+    // 刷新列表数据
+    await loadGoals()
   } catch (e) {
     console.error('记录进度失败:', e)
-    // TODO: 显示错误提示
   }
 }
 
 // 加载数据
 onMounted(async () => {
   await loadGoals()
+})
+
+// 监听数据变化自动刷新
+let unsubGoals: (() => void) | undefined
+let unsubLogs: (() => void) | undefined
+onMounted(() => {
+  unsubGoals = onGoalsChange(() => loadGoals())
+  unsubLogs = onProgressLogsChange(() => loadGoals())
+})
+onUnmounted(() => {
+  unsubGoals?.()
+  unsubLogs?.()
 })
 </script>
 

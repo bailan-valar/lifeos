@@ -20,6 +20,10 @@
         v-for="group in grouped"
         :key="group.version"
         class="board-column"
+        :class="{ 'drag-over': dragOverVersion === group.version }"
+        @dragover.prevent="onDragOver($event, group.version)"
+        @dragleave="onDragLeave($event, group.version)"
+        @drop="onDrop($event, group.version)"
       >
         <div class="column-header">
           <span class="column-version">v{{ group.version }}</span>
@@ -31,6 +35,10 @@
             v-for="item in group.items"
             :key="item.id"
             class="board-item"
+            :class="{ 'is-dragging': draggedItemId === item.id }"
+            draggable="true"
+            @dragstart="onDragStart($event, item)"
+            @dragend="onDragEnd"
           >
             <div class="item-badges">
               <span class="type-badge" :class="`type-${item.type}`">{{ typeLabel(item.type) }}</span>
@@ -64,10 +72,57 @@ const props = defineProps<{
   error?: string | null
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   edit: [item: Changelog]
   delete: [item: Changelog]
+  'update-version': [item: Changelog, newVersion: string]
 }>()
+
+const draggedItemId = ref<string | null>(null)
+const dragOverVersion = ref<string | null>(null)
+
+function onDragStart(event: DragEvent, item: Changelog) {
+  draggedItemId.value = item.id
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', item.id)
+  }
+}
+
+function onDragEnd() {
+  draggedItemId.value = null
+  dragOverVersion.value = null
+}
+
+function onDragOver(event: DragEvent, version: string) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+  dragOverVersion.value = version
+}
+
+function onDragLeave(event: DragEvent, version: string) {
+  const target = event.currentTarget as HTMLElement
+  const related = event.relatedTarget as HTMLElement | null
+  if (related && target.contains(related)) return
+  if (dragOverVersion.value === version) {
+    dragOverVersion.value = null
+  }
+}
+
+function onDrop(event: DragEvent, version: string) {
+  event.preventDefault()
+  const itemId = event.dataTransfer?.getData('text/plain') || draggedItemId.value
+  if (!itemId) return
+
+  const item = props.items.find(i => i.id === itemId)
+  if (item && item.version !== version) {
+    emit('update-version', item, version)
+  }
+  dragOverVersion.value = null
+  draggedItemId.value = null
+}
 
 const grouped = computed(() => {
   const groups = new Map<string, Changelog[]>()
@@ -123,7 +178,9 @@ function formatDate(dateStr: string) {
 .changelog-admin-board {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 .loading-state,
@@ -177,8 +234,9 @@ function formatDate(dateStr: string) {
   gap: 16px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 8px;
-  height: 100%;
+  padding: 0 0 8px;
+  flex: 1;
+  min-height: 0;
   align-items: flex-start;
 }
 
@@ -276,6 +334,17 @@ function formatDate(dateStr: string) {
 .board-item:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transform: translateY(-1px);
+}
+
+.board-item.is-dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  cursor: move;
+}
+
+.board-column.drag-over {
+  background: rgba(0, 122, 255, 0.06);
+  border-color: rgba(0, 122, 255, 0.25);
 }
 
 .item-badges {

@@ -194,6 +194,7 @@ async function loadGoalDetail() {
     const doc = await db.goals.findOne(goalId).exec()
     if (!doc) {
       console.error('Goal not found:', goalId)
+      navigateTo('/goals')
       return
     }
     goal.value = doc.toJSON()
@@ -203,6 +204,7 @@ async function loadGoalDetail() {
     progressLogs.value = await getProgressHistory(goalId)
   } catch (e) {
     console.error('Failed to load goal:', e)
+    navigateTo('/goals')
   } finally {
     loadingLogs.value = false
   }
@@ -214,9 +216,9 @@ function goBack() {
 }
 
 // 打开编辑
+const editDialogVisible = ref(false)
 function openEdit() {
-  // TODO: 打开编辑对话框
-  console.log('编辑目标:', goal.value?.id)
+  editDialogVisible.value = true
 }
 
 // 打开进度记录对话框

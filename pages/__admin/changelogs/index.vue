@@ -91,6 +91,7 @@
             :error="error"
             @edit="openEditDialog"
             @delete="confirmDelete"
+            @update-version="handleUpdateVersion"
           />
         </template>
       </div>
@@ -247,10 +248,18 @@ async function fetchData() {
   }
 }
 
+function getLatestVersion(): string {
+  if (changelogs.value.length === 0) return ''
+  const sorted = [...changelogs.value].sort((a, b) =>
+    b.version.localeCompare(a.version, undefined, { numeric: true })
+  )
+  return sorted[0]?.version || ''
+}
+
 function openCreateDialog() {
   editingItem.value = null
   formData.value = {
-    version: '',
+    version: getLatestVersion(),
     type: 'feature',
     status: 'published',
     title: '',
@@ -303,6 +312,16 @@ async function confirmDelete(item: Changelog) {
     await fetchData()
   } catch (err) {
     console.error('删除失败:', err)
+  }
+}
+
+async function handleUpdateVersion(item: Changelog, newVersion: string) {
+  if (item.version === newVersion) return
+  try {
+    await updateChangelog(item.id, { version: newVersion })
+    await fetchData()
+  } catch (err) {
+    console.error('更新版本失败:', err)
   }
 }
 
@@ -430,8 +449,9 @@ const releaseDateField = {
 }
 
 .changelog-content-section.board-mode {
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .loading-state,

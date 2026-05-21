@@ -98,17 +98,23 @@ const currentMonthLabel = computed(() => {
 const canPrevMonth = computed(() => {
   const earliestDate = props.progressLogs[0]?.date
   if (!earliestDate) return false
-  const firstOfMonth = new Date(currentViewDate.value)
-  firstOfMonth.setMonth(firstOfMonth.getMonth() - 1)
-  return firstOfMonth >= new Date(earliestDate)
+  const earliest = new Date(earliestDate)
+  const viewYear = currentViewDate.value.getFullYear()
+  const viewMonth = currentViewDate.value.getMonth()
+  // 允许查看进度日志所在月份及之后的月份
+  return viewYear > earliest.getFullYear()
+    || (viewYear === earliest.getFullYear() && viewMonth > earliest.getMonth())
 })
 
 const canNextMonth = computed(() => {
   const latestDate = props.progressLogs[props.progressLogs.length - 1]?.date
   if (!latestDate) return false
-  const lastOfMonth = new Date(currentViewDate.value)
-  lastOfMonth.setMonth(lastOfMonth.getMonth() + 1)
-  return lastOfMonth <= new Date(latestDate)
+  const latest = new Date(latestDate)
+  const viewYear = currentViewDate.value.getFullYear()
+  const viewMonth = currentViewDate.value.getMonth()
+  // 允许查看进度日志所在月份及之前的月份
+  return viewYear < latest.getFullYear()
+    || (viewYear === latest.getFullYear() && viewMonth < latest.getMonth())
 })
 
 // 生成日历网格
