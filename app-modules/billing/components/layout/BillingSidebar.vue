@@ -111,27 +111,16 @@ const router = useRouter()
 const route = useRoute()
 const store = useBillingStore()
 
-// 从当前路由路径确定活跃的Tab
+// 从当前路由查询参数确定活跃的Tab
 const activeTab = computed(() => {
-  const path = route.path
-  if (path.includes('/billing/bills')) return 'bills'
-  if (path.includes('/billing/accounts')) return 'accounts'
-  if (path.includes('/billing/categories')) return 'categories'
-  if (path.includes('/billing/budgets')) return 'budgets'
-  if (path.includes('/billing/rules')) return 'rules'
-  return 'bills'
+  const tab = route.query.tab as string
+  const validTabs = ['bills', 'accounts', 'categories', 'budgets', 'rules']
+  return validTabs.includes(tab) ? tab : 'bills'
 })
 
-// 导航到指定路由
+// 导航到指定Tab（通过查询参数）
 function navigateToTab(tabId: string) {
-  const routeMap = {
-    bills: '/billing/bills',
-    accounts: '/billing/accounts',
-    categories: '/billing/categories',
-    budgets: '/billing/budgets',
-    rules: '/billing/rules'
-  }
-  router.push(routeMap[tabId as keyof typeof routeMap] || '/billing/bills')
+  router.push({ path: '/billing', query: { tab: tabId } })
 }
 
 // 处理账户Tab点击

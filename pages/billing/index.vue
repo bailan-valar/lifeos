@@ -6,15 +6,16 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import BillingView from '~/app-modules/billing/BillingView.vue'
 
 const router = useRouter()
+const route = useRoute()
 
 onMounted(() => {
-  // 如果当前路径是 /billing，重定向到 /billing/bills
-  if (router.currentRoute.value.path === '/billing') {
-    router.replace('/billing/bills')
+  // 如果没有tab参数，默认显示bills
+  if (!route.query.tab) {
+    router.replace({ path: '/billing', query: { tab: 'bills' } })
   }
 })
 </script>

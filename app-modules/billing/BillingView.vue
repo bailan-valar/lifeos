@@ -65,7 +65,7 @@ import { useImportRecords } from '~/composables/useImportRecords'
 import { useConfirm } from '~/composables/useConfirm'
 import { usePageHeaderStore } from '~/stores/pageHeader'
 import { storeToRefs } from 'pinia'
-import { useBillingStore } from '~/stores/billing'
+import { useBillingStore, type BillingTabId } from '~/stores/billing'
 
 // Composables
 import { useBillingBatch } from './composables/useBillingBatch'
@@ -102,16 +102,11 @@ const route = useRoute()
 const store = useBillingStore()
 const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, currentBudgetMonth, viewMode, sidebarCollapsed } = storeToRefs(store)
 
-// 根据路由路径计算当前活跃的Tab
+// 根据路由查询参数计算当前活跃的Tab
 const activeTab = computed(() => {
-  const path = route.path
-  if (path.includes('/billing/bills')) return 'bills'
-  if (path.includes('/billing/accounts')) return 'accounts'
-  if (path.includes('/billing/categories')) return 'categories'
-  if (path.includes('/billing/budgets')) return 'budgets'
-  if (path.includes('/billing/rules')) return 'rules'
-  // 默认显示账单Tab
-  return 'bills'
+  const tab = route.query.tab as string
+  const validTabs = ['bills', 'accounts', 'categories', 'budgets', 'rules']
+  return validTabs.includes(tab) ? tab as BillingTabId : 'bills'
 })
 
 // 数据获取
@@ -269,7 +264,7 @@ function getDateRange() {
 
 function onOpenRulesFromImport() {
   billDialogs.closeImportDialog()
-  router.push('/billing/rules')
+  router.push({ path: '/billing', query: { tab: 'rules' } })
 }
 
 // 生命周期
