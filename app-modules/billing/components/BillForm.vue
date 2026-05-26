@@ -63,6 +63,9 @@
           clearable
         />
       </div>
+      <button type="button" class="swap-btn" @click="swapAccounts" title="交换账户">
+        <Icon :name="ICONS.callSplit" size="18" />
+      </button>
       <div class="form-group">
         <label class="form-label">入账账户</label>
         <AccountPicker
@@ -89,6 +92,7 @@
 
 <script setup lang="ts">
 import type { BillFormData, Account, BillCategory, BillType, DebtSubtype } from '~/types/bill'
+import { ICONS } from '~/composables/useIcons'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
 import NotePicker from './NotePicker.vue'
@@ -134,6 +138,16 @@ const sameAccountWarning = computed(() =>
   !!form.value.toAccountId &&
   form.value.fromAccountId === form.value.toAccountId
 )
+
+function swapAccounts() {
+  const from = form.value.fromAccountId
+  const to = form.value.toAccountId
+  form.value = {
+    ...form.value,
+    fromAccountId: to,
+    toAccountId: from
+  }
+}
 </script>
 
 <style scoped>
@@ -184,8 +198,33 @@ const sameAccountWarning = computed(() =>
 }
 .account-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: end;
+}
+.swap-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  color: rgba(60, 60, 67, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+.swap-btn:hover {
+  background: rgba(0, 122, 255, 0.08);
+  border-color: rgba(0, 122, 255, 0.3);
+  color: rgb(0, 122, 255);
+}
+.swap-btn:active {
+  background: rgba(0, 122, 255, 0.12);
+  transform: scale(0.95);
 }
 .form-hint {
   font-size: 12px;

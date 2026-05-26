@@ -349,6 +349,7 @@ function formatDuration(ms: number): string {
 function statusLabel(s: ImportRecordStatus): string {
   switch (s) {
     case 'pending': return '待导入'
+    case 'processing': return '待处理'
     case 'success': return '成功'
     case 'partial': return '部分成功'
     case 'failed': return '失败'
@@ -538,6 +539,10 @@ defineExpose({
 .history-status.pending {
   background: rgba(0, 122, 255, 0.12);
   color: rgb(0, 122, 255);
+}
+.history-status.processing {
+  background: rgba(255, 149, 0, 0.12);
+  color: rgb(255, 149, 0);
 }
 .history-status.success {
   background: rgba(52, 199, 89, 0.12);

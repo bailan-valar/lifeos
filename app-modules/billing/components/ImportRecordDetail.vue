@@ -5,7 +5,7 @@
         <div class="record-modal-card" @click.stop>
           <div class="record-modal-header">
             <div class="header-left">
-              <h4>{{ isPending ? '导入详情 - 待导入' : '导入详情' }}</h4>
+              <h4>{{ isPending ? '导入详情 - 待导入' : isProcessing ? '导入详情 - 待处理' : '导入详情' }}</h4>
               <span v-if="isPending" class="edit-timer">⏱️ {{ formatElapsed(totalElapsedMs) }}</span>
             </div>
             <button type="button" class="close-btn" @click="emit('close')">
@@ -141,6 +141,10 @@
                 <span v-else>导入选中 ({{ selectedCount }})</span>
               </button>
             </template>
+            <template v-else-if="isProcessing">
+              <button type="button" class="secondary-btn" @click="onRollback">回滚</button>
+              <button type="button" class="confirm-btn" @click="onConfirmComplete">确认完成</button>
+            </template>
             <button
               v-else-if="record.status !== 'rolled_back' && (record.billIds?.length || 0) > 0"
               type="button"
@@ -195,7 +199,7 @@
             </div>
           </div>
 
-          <!-- 应用规则确认弹框 -->
+          <!-- 应用规则确认弹框（保存规则后） -->
           <div v-if="applyRuleConfirm.visible" class="remark-overlay" @click="onApplyRuleCancel">
             <div class="remark-card" @click.stop>
               <div class="remark-header">
@@ -209,6 +213,24 @@
                 <button type="button" class="cancel-btn" @click="onApplyRuleCancel">不应用</button>
                 <button type="button" class="secondary-btn" @click="onApplyRuleCurrent">仅应用当前</button>
                 <button type="button" class="confirm-btn" @click="onApplyRuleAll">应用全部</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 应用全部规则确认弹框 -->
+          <div v-if="applyAllRulesConfirm" class="remark-overlay" @click="onApplyAllRulesCancel">
+            <div class="remark-card" @click.stop>
+              <div class="remark-header">
+                <span>应用规则</span>
+                <button type="button" class="close-btn" @click="onApplyAllRulesCancel">
+                  <Icon name="solar:close-circle-linear" size="16" />
+                </button>
+              </div>
+              <p class="confirm-message-text">选择应用范围</p>
+              <div class="remark-footer three-actions">
+                <button type="button" class="cancel-btn" @click="onApplyAllRulesCancel">取消</button>
+                <button type="button" class="secondary-btn" @click="() => onApplyAllRulesConfirm(false)">仅未完善</button>
+                <button type="button" class="confirm-btn" @click="() => onApplyAllRulesConfirm(true)">应用全部</button>
               </div>
             </div>
           </div>
@@ -235,12 +257,15 @@ import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import { useConfirm } from '~/composables/useConfirm'
+import { useToast } from '~/composables/useToast'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
+import { now } from '~/services/db'
 import ImportPreviewRow from './ImportPreviewRow.vue'
 import MobileImportItemEditor from './MobileImportItemEditor.vue'
 import VirtualList from './VirtualList.vue'
 
 const { isMobile } = useDevice()
+const { success: showSuccess, error: showError } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -295,12 +320,15 @@ const { confirm } = useConfirm()
 const importing = ref(false)
 const filter = ref<'all' | 'unmatched' | 'matched' | 'duplicate'>('all')
 
-// 应用规则确认弹框
+// 应用规则确认弹框（保存规则后）
 const applyRuleConfirm = ref<{
   visible: boolean
   rule: ImportRule | null
   targetItem: ImportRecordItem | null
 }>({ visible: false, rule: null, targetItem: null })
+
+// 应用全部规则确认弹框
+const applyAllRulesConfirm = ref(false)
 
 // 备注编辑弹框
 const remarkEditor = ref<{
@@ -412,6 +440,7 @@ function isIncomplete(row: ImportRecordItem): boolean {
 }
 
 const isPending = computed(() => props.record.status === 'pending')
+const isProcessing = computed(() => props.record.status === 'processing')
 
 const baseDurationMs = ref(0)
 const sessionElapsedMs = ref(0)
@@ -854,11 +883,32 @@ function onDelete() {
   emit('delete', props.record.id)
 }
 
+async function onConfirmComplete() {
+  try {
+    await updateRecord(props.record.id, { status: 'success', updatedAt: now() })
+    showSuccess('已确认完成')
+    emit('close')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : '确认失败')
+  }
+}
+
 function applyAllRules() {
+  applyAllRulesConfirm.value = true
+}
+
+function onApplyAllRulesCancel() {
+  applyAllRulesConfirm.value = false
+}
+
+function onApplyAllRulesConfirm(applyAll: boolean) {
+  applyAllRulesConfirm.value = false
   const source = props.record.source
   let changed = false
 
   localItems.value = localItems.value.map(item => {
+    // 仅未完善模式：跳过已完善的
+    if (!applyAll && !isIncomplete(item)) return item
     if (item.skipped || item.duplicate) return item
 
     const result = applyRules(item as any, source)
@@ -967,6 +1017,7 @@ function sourceLabel(s: ImportSource): string {
 function statusLabel(s: ImportRecordStatus): string {
   switch (s) {
     case 'pending': return '待导入'
+    case 'processing': return '待处理'
     case 'success': return '成功'
     case 'partial': return '部分成功'
     case 'failed': return '失败'
@@ -1152,6 +1203,10 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
 .history-status.pending {
   background: rgba(0, 122, 255, 0.12);
   color: rgb(0, 122, 255);
+}
+.history-status.processing {
+  background: rgba(255, 149, 0, 0.12);
+  color: rgb(255, 149, 0);
 }
 .history-status.success {
   background: rgba(52, 199, 89, 0.12);

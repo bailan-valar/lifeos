@@ -120,7 +120,7 @@
                 </div>
               </div>
 
-              <div class="edit-row-group">
+              <div class="edit-row-group account-group">
                 <div class="edit-row">
                   <span class="edit-label">出账账户</span>
                   <AccountPicker
@@ -132,6 +132,10 @@
                     @update:model-value="updateField('fromAccountId', $event)"
                   />
                 </div>
+
+                <button type="button" class="swap-btn" @click="swapAccounts" title="交换账户">
+                  <Icon :name="ICONS.callSplit" size="18" />
+                </button>
 
                 <div class="edit-row">
                   <span class="edit-label">入账账户</span>
@@ -224,6 +228,7 @@ import type {
 } from '~/types/bill'
 import { computed, ref, watch } from 'vue'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
+import { ICONS } from '~/composables/useIcons'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
@@ -293,6 +298,14 @@ function onTypeChange(t: BillType | null) {
     if (!next.toAccountId && suggestion.toAccountId) next.toAccountId = suggestion.toAccountId
   }
 
+  editableItem.value = next
+  emit('update:item', next)
+}
+
+function swapAccounts() {
+  const from = editableItem.value.fromAccountId
+  const to = editableItem.value.toAccountId
+  const next = { ...editableItem.value, fromAccountId: to, toAccountId: from }
   editableItem.value = next
   emit('update:item', next)
 }
@@ -510,6 +523,37 @@ const canNextIncomplete = computed(() => props.hasNextIncomplete)
 .edit-row-group {
   display: flex;
   gap: 12px;
+}
+
+.edit-row-group.account-group {
+  align-items: flex-end;
+}
+
+.edit-row-group.account-group .swap-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  color: rgba(60, 60, 67, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+
+.edit-row-group.account-group .swap-btn:hover {
+  background: rgba(0, 122, 255, 0.08);
+  border-color: rgba(0, 122, 255, 0.3);
+  color: rgb(0, 122, 255);
+}
+
+.edit-row-group.account-group .swap-btn:active {
+  background: rgba(0, 122, 255, 0.12);
+  transform: scale(0.95);
 }
 
 .edit-row-group > .edit-row {

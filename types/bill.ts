@@ -408,12 +408,13 @@ export type ImportRecordItemStatus = 'pending' | 'created' | 'skipped_duplicate'
 /**
  * 导入批次状态
  * - pending: 待导入（已解析但未执行导入）
+ * - processing: 待处理（已导入成功，需要后续调整确认）
  * - success: 全部成功
  * - partial: 部分成功(有失败但有写入)
  * - failed: 全部失败/未写入
  * - rolled_back: 已被一键回滚
  */
-export type ImportRecordStatus = 'pending' | 'success' | 'partial' | 'failed' | 'rolled_back'
+export type ImportRecordStatus = 'pending' | 'processing' | 'success' | 'partial' | 'failed' | 'rolled_back'
 
 /**
  * 导入批次中单行明细

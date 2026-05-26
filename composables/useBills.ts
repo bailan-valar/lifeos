@@ -400,7 +400,7 @@ export function useBills() {
         ? 'failed'
         : failedCount > 0
           ? 'partial'
-          : 'success'
+          : 'processing' // 导入成功后默认为待处理状态，需要用户确认
 
     const patch: Partial<ImportRecord> = {
       status,
