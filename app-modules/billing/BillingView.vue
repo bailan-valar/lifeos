@@ -7,7 +7,7 @@
     <div class="content" :class="{ mobile: isMobile }">
       <!-- 账单Tab -->
       <BillsTabPanel
-        v-show="store.activeTab === 'bills'"
+        v-show="activeTab === 'bills'"
         :bills="bills"
         :batch-mode="batchMode"
         :selected-ids="selectedIds"
@@ -22,10 +22,10 @@
       />
 
       <!-- 账户Tab -->
-      <AccountsTabPanel v-show="store.activeTab === 'accounts'" />
+      <AccountsTabPanel v-show="activeTab === 'accounts'" />
 
       <!-- 分类Tab -->
-      <div v-show="store.activeTab === 'categories'" class="tab-panel-wrapper">
+      <div v-show="activeTab === 'categories'" class="tab-panel-wrapper">
         <CategoriesTabPanel
           :income-tree="incomeTree"
           :expense-tree="expenseTree"
@@ -33,30 +33,27 @@
       </div>
 
       <!-- 预算Tab -->
-      <div v-show="store.activeTab === 'budgets'" class="tab-panel-wrapper">
+      <div v-show="activeTab === 'budgets'" class="tab-panel-wrapper">
         <BudgetsTabPanel
           :budget-year="budgetYear"
         />
       </div>
 
       <!-- 规则Tab -->
-      <div v-show="store.activeTab === 'rules'" class="tab-panel-wrapper">
+      <div v-show="activeTab === 'rules'" class="tab-panel-wrapper">
         <RulesTabPanel :import-rules="importRules" />
       </div>
     </div>
 
     <!-- 移动端Tab栏 -->
     <BillingMobileTabbar v-if="isMobile" />
-
-
-
-
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Bill, Account, BillCategory, BillFormData, AccountFormData, CategoryTreeNode, ImportRuleFormData, ImportRule, CategoryType, ImportRecord, BillingCreators, AccountCreatePayload, AccountType } from '~/types/bill'
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useModuleBase } from '~/composables/useModuleBase'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
@@ -88,8 +85,6 @@ import CategoriesTabPanel from './components/panels/CategoriesTabPanel.vue'
 import BudgetsTabPanel from './components/panels/BudgetsTabPanel.vue'
 import RulesTabPanel from './components/panels/RulesTabPanel.vue'
 
-// 对话框组件
-
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'error', error: Error): void; (e: 'data-change', data: unknown): void }>()
@@ -100,10 +95,24 @@ const { confirm } = useConfirm()
 const { isMobile } = useDevice()
 const pageHeaderStore = usePageHeaderStore()
 const fab = useGlobalFab()
+const router = useRouter()
+const route = useRoute()
 
 // 导航与筛选
 const store = useBillingStore()
-const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, currentBudgetMonth, activeTab, viewMode, sidebarCollapsed } = storeToRefs(store)
+const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, currentBudgetMonth, viewMode, sidebarCollapsed } = storeToRefs(store)
+
+// 根据路由路径计算当前活跃的Tab
+const activeTab = computed(() => {
+  const path = route.path
+  if (path.includes('/billing/bills')) return 'bills'
+  if (path.includes('/billing/accounts')) return 'accounts'
+  if (path.includes('/billing/categories')) return 'categories'
+  if (path.includes('/billing/budgets')) return 'budgets'
+  if (path.includes('/billing/rules')) return 'rules'
+  // 默认显示账单Tab
+  return 'bills'
+})
 
 // 数据获取
 const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, updateBill, updateBills, deleteBill, deleteBills } = useBills()
@@ -260,7 +269,7 @@ function getDateRange() {
 
 function onOpenRulesFromImport() {
   billDialogs.closeImportDialog()
-  store.activeTab = 'rules'
+  router.push('/billing/rules')
 }
 
 // 生命周期
@@ -285,7 +294,7 @@ onMounted(() => {
     }
   })()
 
-  watch(() => store.activeTab, (tab) => {
+  watch(activeTab, (tab) => {
     if (tab === 'bills') {
       registerHeaderActions()
     } else if (tab === 'categories') {

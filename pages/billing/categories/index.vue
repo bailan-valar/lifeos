@@ -1,26 +1,15 @@
 <template>
-  <div class="billing-page">
-    <BillingView note-id="" />
+  <div class="billing-categories-page">
+    <CategoriesPage />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import BillingView from '~/app-modules/billing/BillingView.vue'
-
-const router = useRouter()
-
-onMounted(() => {
-  // 如果当前路径是 /billing，重定向到 /billing/bills
-  if (router.currentRoute.value.path === '/billing') {
-    router.replace('/billing/bills')
-  }
-})
+import CategoriesPage from '~/app-modules/billing/pages/CategoriesPage.vue'
 </script>
 
 <style scoped>
-.billing-page {
+.billing-categories-page {
   height: 100%;
   background:
     radial-gradient(ellipse 100% 80% at 0% 0%, rgba(255, 175, 207, 0.55) 0%, transparent 60%),

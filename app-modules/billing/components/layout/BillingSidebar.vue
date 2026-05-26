@@ -18,9 +18,9 @@
         <button
           type="button"
           class="sidebar-btn"
-          :class="{ active: store.activeTab === 'accounts' }"
+          :class="{ active: activeTab === 'accounts' }"
           :title="store.sidebarCollapsed ? tab.name : ''"
-          @click="store.onAccountsTabClick()"
+          @click="handleAccountsClick"
         >
           <Icon :name="tab.icon" size="18" />
           <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -41,8 +41,8 @@
             :key="sub.type"
             type="button"
             class="sidebar-submenu-btn"
-            :class="{ active: store.activeTab === 'accounts' && store.activeAccountSubTab === sub.type }"
-            @click="store.setActiveTab('accounts'); store.activeAccountSubTab = sub.type"
+            :class="{ active: activeTab === 'accounts' && store.activeAccountSubTab === sub.type }"
+            @click="handleAccountSubTabClick(sub.type)"
           >
             {{ sub.label }}
           </button>
@@ -54,9 +54,9 @@
         <button
           type="button"
           class="sidebar-btn"
-          :class="{ active: store.activeTab === 'categories' }"
+          :class="{ active: activeTab === 'categories' }"
           :title="store.sidebarCollapsed ? tab.name : ''"
-          @click="store.onCategoriesTabClick()"
+          @click="handleCategoriesClick"
         >
           <Icon :name="tab.icon" size="18" />
           <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -77,8 +77,8 @@
             :key="sub.type"
             type="button"
             class="sidebar-submenu-btn"
-            :class="{ active: store.activeTab === 'categories' && store.activeCategorySubTab === sub.type }"
-            @click="store.setActiveTab('categories'); store.activeCategorySubTab = sub.type"
+            :class="{ active: activeTab === 'categories' && store.activeCategorySubTab === sub.type }"
+            @click="handleCategorySubTabClick(sub.type)"
           >
             <span class="sub-dot" :class="sub.type" />
             {{ sub.label }}
@@ -91,9 +91,9 @@
         v-else
         type="button"
         class="sidebar-btn"
-        :class="{ active: store.activeTab === tab.id }"
+        :class="{ active: activeTab === tab.id }"
         :title="store.sidebarCollapsed ? tab.name : ''"
-        @click="store.setActiveTab(tab.id)"
+        @click="navigateToTab(tab.id)"
       >
         <Icon :name="tab.icon" size="18" />
         <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -103,9 +103,68 @@
 </template>
 
 <script setup lang="ts">
-import { useBillingStore } from '~/stores/billing'
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useBillingStore, type BillingAccountType, type BillingCategoryType } from '~/stores/billing'
 
+const router = useRouter()
+const route = useRoute()
 const store = useBillingStore()
+
+// 从当前路由路径确定活跃的Tab
+const activeTab = computed(() => {
+  const path = route.path
+  if (path.includes('/billing/bills')) return 'bills'
+  if (path.includes('/billing/accounts')) return 'accounts'
+  if (path.includes('/billing/categories')) return 'categories'
+  if (path.includes('/billing/budgets')) return 'budgets'
+  if (path.includes('/billing/rules')) return 'rules'
+  return 'bills'
+})
+
+// 导航到指定路由
+function navigateToTab(tabId: string) {
+  const routeMap = {
+    bills: '/billing/bills',
+    accounts: '/billing/accounts',
+    categories: '/billing/categories',
+    budgets: '/billing/budgets',
+    rules: '/billing/rules'
+  }
+  router.push(routeMap[tabId as keyof typeof routeMap] || '/billing/bills')
+}
+
+// 处理账户Tab点击
+function handleAccountsClick() {
+  if (activeTab.value === 'accounts') {
+    store.accountsMenuExpanded = !store.accountsMenuExpanded
+  } else {
+    navigateToTab('accounts')
+    store.accountsMenuExpanded = true
+  }
+}
+
+// 处理分类Tab点击
+function handleCategoriesClick() {
+  if (activeTab.value === 'categories') {
+    store.categoryMenuExpanded = !store.categoryMenuExpanded
+  } else {
+    navigateToTab('categories')
+    store.categoryMenuExpanded = true
+  }
+}
+
+// 处理账户子Tab点击
+function handleAccountSubTabClick(type: BillingAccountType) {
+  navigateToTab('accounts')
+  store.activeAccountSubTab = type
+}
+
+// 处理分类子Tab点击
+function handleCategorySubTabClick(type: BillingCategoryType) {
+  navigateToTab('categories')
+  store.activeCategorySubTab = type
+}
 </script>
 
 <style scoped>

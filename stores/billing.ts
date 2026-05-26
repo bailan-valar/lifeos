@@ -16,17 +16,8 @@ export const useBillingStore = defineStore('billing', () => {
     return false
   }
 
-  const getStoredActiveTab = (): BillingTabId => {
-    if (import.meta.client) {
-      const stored = localStorage.getItem('lifeos:billing-active-tab')
-      if (stored && ['bills', 'accounts', 'categories', 'budgets', 'rules'].includes(stored)) {
-        return stored as BillingTabId
-      }
-    }
-    return 'bills'
-  }
-
-  const activeTab = ref<BillingTabId>(getStoredActiveTab())
+  // activeTab 现在由路由系统管理，这里保留一个兼容的ref
+  const activeTab = ref<BillingTabId>('bills')
   const viewMode = ref<BillingViewMode>('card')
   const sidebarCollapsed = ref(getStoredSidebarCollapsed())
 
@@ -93,28 +84,18 @@ export const useBillingStore = defineStore('billing', () => {
   }
 
   function setActiveTab(tab: BillingTabId) {
+    // 这个方法现在主要用于更新本地状态，实际的路由导航由组件处理
     activeTab.value = tab
-    if (import.meta.client) {
-      localStorage.setItem('lifeos:billing-active-tab', tab)
-    }
   }
 
   function onAccountsTabClick() {
-    if (activeTab.value === 'accounts') {
-      accountsMenuExpanded.value = !accountsMenuExpanded.value
-    } else {
-      setActiveTab('accounts')
-      accountsMenuExpanded.value = true
-    }
+    // 这个方法现在由组件内的路由导航处理
+    accountsMenuExpanded.value = !accountsMenuExpanded.value
   }
 
   function onCategoriesTabClick() {
-    if (activeTab.value === 'categories') {
-      categoryMenuExpanded.value = !categoryMenuExpanded.value
-    } else {
-      setActiveTab('categories')
-      categoryMenuExpanded.value = true
-    }
+    // 这个方法现在由组件内的路由导航处理
+    categoryMenuExpanded.value = !categoryMenuExpanded.value
   }
 
   // ========== 筛选状态 ==========
