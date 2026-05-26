@@ -18,9 +18,9 @@
         <button
           type="button"
           class="sidebar-btn"
-          :class="{ active: currentRoute === '/goals' || currentRoute.startsWith('/goals?') }"
+          :class="{ active: activeTab === 'goals' }"
           :title="store.sidebarCollapsed ? tab.name : ''"
-          @click="navigateToGoals(); store.onGoalsTabClick()"
+          @click="navigateToGoals('all'); store.onGoalsTabClick()"
         >
           <Icon :name="tab.icon" size="18" />
           <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -55,9 +55,9 @@
         v-else
         type="button"
         class="sidebar-btn"
-        :class="{ active: currentRoute === `/goals/${tab.id}` }"
+        :class="{ active: activeTab === tab.id }"
         :title="store.sidebarCollapsed ? tab.name : ''"
-        @click="navigateTo(`/goals/${tab.id}`)"
+        @click="navigateToTab(tab.id)"
       >
         <Icon :name="tab.icon" size="18" />
         <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -67,29 +67,41 @@
 </template>
 
 <script setup lang="ts">
-import { useGoalsStore } from '~/stores/goals'
-import { useRoute } from 'vue-router'
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useGoalsStore, type GoalsTabId } from '~/stores/goals'
 
 const router = useRouter()
 const route = useRoute()
 const store = useGoalsStore()
 
-const currentRoute = computed(() => route.path)
+// 根据路由查询参数计算当前活跃的Tab
+const activeTab = computed(() => {
+  const tab = route.query.tab as string
+  const validTabs = ['goals', 'types', 'statistics']
+  return validTabs.includes(tab) ? tab as GoalsTabId : 'goals'
+})
 
 // 判断是否是目标Tab的某个过滤器
 function isActiveGoalsTab(filterType: string) {
+  if (activeTab.value !== 'goals') return false
   if (filterType === 'all') {
-    return currentRoute.value === '/goals' || currentRoute.value.startsWith('/goals?')
+    return !route.query.type || route.query.type === 'all'
   }
   return route.query.type === filterType
 }
 
-// 导航到目标页面
+// 导航到指定Tab
+function navigateToTab(tabId: string) {
+  router.push({ path: '/goals', query: { tab: tabId } })
+}
+
+// 导航到目标页面（带类型过滤器）
 function navigateToGoals(type?: string) {
   if (type && type !== 'all') {
-    navigateTo({ path: '/goals', query: { type } })
+    router.push({ path: '/goals', query: { tab: 'goals', type } })
   } else {
-    navigateTo('/goals')
+    router.push({ path: '/goals', query: { tab: 'goals', type: 'all' } })
   }
 }
 </script>

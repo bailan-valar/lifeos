@@ -15,30 +15,29 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useGoalsStore } from '~/stores/goals'
-import { useRoute } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
 const store = useGoalsStore()
 
-const currentRoute = computed(() => route.path)
+// 根据路由查询参数计算当前活跃的Tab
+const activeTab = computed(() => {
+  const tab = route.query.tab as string
+  const validTabs = ['goals', 'types', 'statistics']
+  return validTabs.includes(tab) ? tab : 'goals'
+})
 
 // 判断是否是当前Tab
 function isActiveTab(tabId: string) {
-  if (tabId === 'goals') {
-    return currentRoute.value === '/goals' || currentRoute.value.startsWith('/goals?')
-  }
-  return currentRoute.value === `/goals/${tabId}`
+  return activeTab.value === tabId
 }
 
-// 导航到指定Tab
+// 导航到指定Tab（通过查询参数）
 function navigateToTab(tabId: string) {
-  if (tabId === 'goals') {
-    navigateTo('/goals')
-  } else {
-    navigateTo(`/goals/${tabId}`)
-  }
+  router.push({ path: '/goals', query: { tab: tabId } })
 }
 </script>
 

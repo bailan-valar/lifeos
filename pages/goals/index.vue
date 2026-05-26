@@ -1,11 +1,23 @@
 <template>
   <div class="goals-page">
-    <GoalProgressDashboard />
+    <GoalsView />
   </div>
 </template>
 
 <script setup lang="ts">
-import GoalProgressDashboard from '~/app-modules/goals/GoalProgressDashboard.vue'
+import { onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import GoalsView from '~/app-modules/goals/GoalsView.vue'
+
+const router = useRouter()
+const route = useRoute()
+
+onMounted(() => {
+  // 如果没有tab参数，默认显示goals
+  if (!route.query.tab) {
+    router.replace({ path: '/goals', query: { tab: 'goals', type: 'all' } })
+  }
+})
 
 useHead({
   title: '目标进度 - LifeOS'
