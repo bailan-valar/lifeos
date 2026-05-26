@@ -16,7 +16,7 @@
     <!-- 统计卡片 -->
     <div class="stats-row">
       <div class="stat-card liquid-glass-card">
-        <div class="stat-value headline">{{ goals.length }}</div>
+        <div class="stat-value headline">{{ filteredGoals.length }}</div>
         <div class="stat-label caption1 liquid-text-secondary">总目标</div>
       </div>
       <div class="stat-card liquid-glass-card">
@@ -46,7 +46,7 @@
         <span class="subheadline">加载中...</span>
       </div>
 
-      <div v-else-if="goals.length === 0" class="empty-state">
+      <div v-else-if="filteredGoals.length === 0" class="empty-state">
         <Icon name="solar:target-linear" size="48" class="empty-icon" />
         <h3 class="title3">暂无目标</h3>
         <p class="body liquid-text-secondary">创建你的第一个目标开始追踪进度</p>
@@ -175,6 +175,10 @@ import GoalSelectorDialog from '~/components/GoalSelectorDialog.vue'
 import GoalShortcutHint from '~/components/GoalShortcutHint.vue'
 import GoalDialog from './components/GoalDialog.vue'
 
+const props = defineProps<{
+  typeFilter?: string
+}>()
+
 const { isMobile } = useDevice()
 
 // 使用目标进度composable
@@ -200,6 +204,14 @@ onMounted(() => {
 })
 onUnmounted(() => {
   unregisterShortcut()
+})
+
+// 过滤后的目标列表
+const filteredGoals = computed(() => {
+  if (!props.typeFilter || props.typeFilter === 'all') {
+    return goals.value
+  }
+  return goals.value.filter(goal => goal.type === props.typeFilter)
 })
 
 // 选中的目标（用于进度记录）
@@ -232,22 +244,22 @@ function getGoalStats(goal: Goal) {
 
 // 统计数据
 const completedCount = computed(() =>
-  goals.value.filter(g => getGoalStats(g).progressStatus === 'completed').length
+  filteredGoals.value.filter(g => getGoalStats(g).progressStatus === 'completed').length
 )
 
 const inProgressCount = computed(() =>
-  goals.value.filter(g => getGoalStats(g).progressStatus !== 'completed').length
+  filteredGoals.value.filter(g => getGoalStats(g).progressStatus !== 'completed').length
 )
 
 const averageProgress = computed(() => {
-  if (goals.value.length === 0) return 0
-  const total = goals.value.reduce((sum, g) => sum + getGoalStats(g).percentage, 0)
-  return total / goals.value.length
+  if (filteredGoals.value.length === 0) return 0
+  const total = filteredGoals.value.reduce((sum, g) => sum + getGoalStats(g).percentage, 0)
+  return total / filteredGoals.value.length
 })
 
 // 排序的目标列表（按进度百分比排序）
 const sortedGoals = computed(() => {
-  return [...goals.value].sort((a, b) => {
+  return [...filteredGoals.value].sort((a, b) => {
     return getGoalStats(b).percentage - getGoalStats(a).percentage
   })
 })
