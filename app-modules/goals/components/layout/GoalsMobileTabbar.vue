@@ -5,8 +5,8 @@
       :key="tab.id"
       type="button"
       class="tabbar-btn"
-      :class="{ active: store.activeTab === tab.id }"
-      @click="store.setActiveTab(tab.id)"
+      :class="{ active: isActiveTab(tab.id) }"
+      @click="navigateToTab(tab.id)"
     >
       <Icon :name="tab.icon" size="20" />
       <span class="tabbar-label">{{ tab.name }}</span>
@@ -16,8 +16,30 @@
 
 <script setup lang="ts">
 import { useGoalsStore } from '~/stores/goals'
+import { useRoute } from 'vue-router'
 
+const router = useRouter()
+const route = useRoute()
 const store = useGoalsStore()
+
+const currentRoute = computed(() => route.path)
+
+// 判断是否是当前Tab
+function isActiveTab(tabId: string) {
+  if (tabId === 'goals') {
+    return currentRoute.value === '/goals' || currentRoute.value.startsWith('/goals?')
+  }
+  return currentRoute.value === `/goals/${tabId}`
+}
+
+// 导航到指定Tab
+function navigateToTab(tabId: string) {
+  if (tabId === 'goals') {
+    navigateTo('/goals')
+  } else {
+    navigateTo(`/goals/${tabId}`)
+  }
+}
 </script>
 
 <style scoped>

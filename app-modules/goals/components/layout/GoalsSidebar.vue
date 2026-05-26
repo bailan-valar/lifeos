@@ -18,9 +18,9 @@
         <button
           type="button"
           class="sidebar-btn"
-          :class="{ active: store.activeTab === 'goals' }"
+          :class="{ active: currentRoute === '/goals' || currentRoute.startsWith('/goals?') }"
           :title="store.sidebarCollapsed ? tab.name : ''"
-          @click="store.onGoalsTabClick()"
+          @click="navigateToGoals(); store.onGoalsTabClick()"
         >
           <Icon :name="tab.icon" size="18" />
           <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -41,8 +41,8 @@
             :key="filter.type"
             type="button"
             class="sidebar-submenu-btn"
-            :class="{ active: store.activeTab === 'goals' && store.activeTypeFilter === filter.type }"
-            @click="store.setActiveTab('goals'); store.activeTypeFilter = filter.type"
+            :class="{ active: isActiveGoalsTab(filter.type) }"
+            @click="navigateToGoals(filter.type)"
           >
             <span class="sub-dot" :class="filter.type" />
             {{ filter.label }}
@@ -55,9 +55,9 @@
         v-else
         type="button"
         class="sidebar-btn"
-        :class="{ active: store.activeTab === tab.id }"
+        :class="{ active: currentRoute === `/goals/${tab.id}` }"
         :title="store.sidebarCollapsed ? tab.name : ''"
-        @click="store.setActiveTab(tab.id)"
+        @click="navigateTo(`/goals/${tab.id}`)"
       >
         <Icon :name="tab.icon" size="18" />
         <span class="sidebar-btn-text">{{ tab.name }}</span>
@@ -68,8 +68,30 @@
 
 <script setup lang="ts">
 import { useGoalsStore } from '~/stores/goals'
+import { useRoute } from 'vue-router'
 
+const router = useRouter()
+const route = useRoute()
 const store = useGoalsStore()
+
+const currentRoute = computed(() => route.path)
+
+// 判断是否是目标Tab的某个过滤器
+function isActiveGoalsTab(filterType: string) {
+  if (filterType === 'all') {
+    return currentRoute.value === '/goals' || currentRoute.value.startsWith('/goals?')
+  }
+  return route.query.type === filterType
+}
+
+// 导航到目标页面
+function navigateToGoals(type?: string) {
+  if (type && type !== 'all') {
+    navigateTo({ path: '/goals', query: { type } })
+  } else {
+    navigateTo('/goals')
+  }
+}
 </script>
 
 <style scoped>

@@ -326,11 +326,15 @@ function saveTypeConfigs() {
   const configs = goalTypes.value.map(({ id, name, description, icon, color, enabled }) => ({
     id, name, description, icon, color, enabled
   }))
-  localStorage.setItem('lifeos:goal-type-configs', JSON.stringify(configs))
+  if (import.meta.client) {
+    localStorage.setItem('lifeos:goal-type-configs', JSON.stringify(configs))
+  }
 }
 
 // 从本地存储加载类型配置
 function loadTypeConfigs() {
+  if (!import.meta.client) return
+
   const stored = localStorage.getItem('lifeos:goal-type-configs')
   if (stored) {
     try {

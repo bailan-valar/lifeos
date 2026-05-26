@@ -15,17 +15,6 @@ export const useGoalsStore = defineStore('goals', () => {
     return false
   }
 
-  const getStoredActiveTab = (): GoalsTabId => {
-    if (import.meta.client) {
-      const stored = localStorage.getItem('lifeos:goals-active-tab')
-      if (stored && ['goals', 'types', 'statistics'].includes(stored)) {
-        return stored as GoalsTabId
-      }
-    }
-    return 'goals'
-  }
-
-  const activeTab = ref<GoalsTabId>(getStoredActiveTab())
   const viewMode = ref<GoalsViewMode>('card')
   const sidebarCollapsed = ref(getStoredSidebarCollapsed())
 
@@ -73,34 +62,12 @@ export const useGoalsStore = defineStore('goals', () => {
     localStorage.setItem('lifeos:goals-sidebar-collapsed', sidebarCollapsed.value ? '1' : '0')
   }
 
-  function setActiveTab(tab: GoalsTabId) {
-    activeTab.value = tab
-    if (import.meta.client) {
-      localStorage.setItem('lifeos:goals-active-tab', tab)
-    }
-  }
-
-  function onTypesTabClick() {
-    if (activeTab.value === 'goals') {
-      typesMenuExpanded.value = !typesMenuExpanded.value
-    } else {
-      setActiveTab('goals')
-      typesMenuExpanded.value = true
-    }
-  }
-
   function onGoalsTabClick() {
-    if (activeTab.value === 'goals') {
-      typesMenuExpanded.value = !typesMenuExpanded.value
-    } else {
-      setActiveTab('goals')
-      typesMenuExpanded.value = true
-    }
+    typesMenuExpanded.value = !typesMenuExpanded.value
   }
 
   return {
     // 导航
-    activeTab,
     viewMode,
     sidebarCollapsed,
     activeTypeFilter,
@@ -111,8 +78,6 @@ export const useGoalsStore = defineStore('goals', () => {
     typeFilterTitle,
     typeFilterOptions,
     toggleSidebar,
-    setActiveTab,
-    onGoalsTabClick,
-    onTypesTabClick
+    onGoalsTabClick
   }
 })

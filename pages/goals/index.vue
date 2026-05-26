@@ -1,11 +1,15 @@
 <template>
   <div class="goals-page">
-    <GoalsView />
+    <GoalProgressDashboard />
   </div>
 </template>
 
 <script setup lang="ts">
-import GoalsView from '~/app-modules/goals/GoalsView.vue'
+import GoalProgressDashboard from '~/app-modules/goals/GoalProgressDashboard.vue'
+
+useHead({
+  title: '目标进度 - LifeOS'
+})
 </script>
 
 <style scoped>

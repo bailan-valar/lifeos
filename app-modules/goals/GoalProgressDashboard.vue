@@ -198,6 +198,12 @@ const { success: showSuccess, error: showError } = useToast()
 // 全局快捷键
 const { goalShortcutDialogVisible, openQuickProgressDialog, registerShortcut, unregisterShortcut } = useGoalShortcut()
 
+// 路由查询参数
+const route = useRoute()
+const typeFilter = computed(() => {
+  return (props.typeFilter || route.query.type as string) || 'all'
+})
+
 // 注册/注销全局快捷键
 onMounted(() => {
   registerShortcut()
@@ -208,10 +214,10 @@ onUnmounted(() => {
 
 // 过滤后的目标列表
 const filteredGoals = computed(() => {
-  if (!props.typeFilter || props.typeFilter === 'all') {
+  if (!typeFilter.value || typeFilter.value === 'all') {
     return goals.value
   }
-  return goals.value.filter(goal => goal.type === props.typeFilter)
+  return goals.value.filter(goal => goal.type === typeFilter.value)
 })
 
 // 选中的目标（用于进度记录）
