@@ -14,6 +14,10 @@
           <span class="todo-summary">{{ totalCompletedCount }} / {{ totalTodoCount }} 已完成</span>
         </div>
         <div class="header-actions">
+          <button class="type-manager-btn" @click="showTypeManager = true" title="待办类型管理">
+            <Icon name="solar:settings-linear" size="16" />
+            <span>类型管理</span>
+          </button>
           <button class="filter-btn" :class="{ active: filterMode === 'all' }" @click="filterMode = 'all'">
             全部
           </button>
@@ -78,11 +82,14 @@
         </div>
       </div>
     </div>
+
+    <TodoTypeManager v-model:visible="showTypeManager" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { getDB } from '~/services/db'
+import TodoTypeManager from '~/components/todo/TodoTypeManager.vue'
 
 interface TodoItem {
   id: string
@@ -106,6 +113,7 @@ const router = useRouter()
 const loading = ref(true)
 const notesWithTodos = ref<NoteTodoSummary[]>([])
 const filterMode = ref<'all' | 'pending' | 'completed'>('all')
+const showTypeManager = ref(false)
 
 const totalTodoCount = computed(() =>
   notesWithTodos.value.reduce((sum, note) => sum + note.totalCount, 0)
@@ -312,6 +320,25 @@ onMounted(() => {
 .header-actions {
   display: flex;
   gap: 6px;
+}
+
+.type-manager-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 0.5px solid rgba(60, 60, 67, 0.12);
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.65);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.type-manager-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .filter-btn {
