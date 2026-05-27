@@ -152,7 +152,8 @@ const pageTitle = computed(() => {
     '/': '首页',
     '/notes': '笔记',
     '/billing': '账单',
-    '/todo': '目标',
+    '/goals': '目标',
+    '/todo': '待办',
     '/time': '时间',
   }
   if (route.path.startsWith('/billing/categories/')) {

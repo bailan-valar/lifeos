@@ -31,7 +31,7 @@
               :class="{ active: type.enabled }"
               @click="toggleType(type.id)"
             >
-              <Icon :name="type.enabled ? 'solar:check-circle-linear' : 'solar:circle-linear'" size="20" />
+              <Icon :name="type.enabled ? ICONS.checkCircle : ICONS.circle" size="20" />
             </button>
           </div>
         </div>
@@ -53,7 +53,7 @@
             class="liquid-glass-button action-btn"
             @click="editType(type)"
           >
-            <Icon name="solar:pen-linear" size="16" />
+            <Icon :name="ICONS.pen" size="16" />
             编辑
           </button>
           <button
@@ -61,7 +61,7 @@
             class="liquid-glass-button action-btn"
             @click="viewGoals(type.id)"
           >
-            <Icon name="solar:users-group-rounded-linear" size="16" />
+            <Icon :name="ICONS.usersGroupRounded" size="16" />
             查看目标
           </button>
         </div>
@@ -74,7 +74,7 @@
       class="liquid-glass-button add-type-btn liquid-glass-button-primary"
       @click="createNewType"
     >
-      <Icon name="solar:add-circle-linear" size="18" />
+      <Icon :name="ICONS.addCircle" size="18" />
       新建类型
     </button>
 
@@ -82,7 +82,7 @@
     <BaseDialog
       v-model:visible="editDialogVisible"
       :title="editingType ? '编辑类型' : '新建类型'"
-      width="500px"
+      size="medium"
     >
       <div class="dialog-content">
         <div class="form-group">
@@ -155,6 +155,8 @@
 import { ref, computed, onMounted } from 'vue'
 import type { Goal } from '~/types/goal'
 import { useGoalProgress } from '~/composables/useGoalProgress'
+import { ICONS } from '~/composables/useIcons'
+import BaseDialog from '~/components/ui/BaseDialog.vue'
 
 const { goals, loading, loadGoals } = useGoalProgress()
 
@@ -166,7 +168,7 @@ const editingType = ref<GoalTypeConfig | null>(null)
 const formData = ref({
   name: '',
   description: '',
-  icon: 'solar:target-linear',
+  icon: ICONS.target,
   color: '#007AFF'
 })
 
@@ -199,7 +201,7 @@ const goalTypes = ref<GoalTypeConfig[]>([
     id: 'short_term',
     name: '短期目标',
     description: '在较短时间内可以完成的目标',
-    icon: 'solar:clock-circle-linear',
+    icon: ICONS.clockCircle,
     color: '#34C759',
     enabled: true,
     goalCount: 0,
@@ -209,7 +211,7 @@ const goalTypes = ref<GoalTypeConfig[]>([
     id: 'long_term',
     name: '长期目标',
     description: '需要较长时间持续努力的目标',
-    icon: 'solar:mountains-linear',
+    icon: ICONS.history,
     color: '#FF9500',
     enabled: true,
     goalCount: 0,
@@ -219,7 +221,7 @@ const goalTypes = ref<GoalTypeConfig[]>([
     id: 'habit',
     name: '习惯养成',
     description: '日常习惯的培养和坚持',
-    icon: 'solar:heart-linear',
+    icon: ICONS.heart,
     color: '#AF52DE',
     enabled: true,
     goalCount: 0,
@@ -229,7 +231,7 @@ const goalTypes = ref<GoalTypeConfig[]>([
     id: 'project',
     name: '项目任务',
     description: '具体的项目和任务目标',
-    icon: 'solar:folder-linear',
+    icon: ICONS.folder,
     color: '#FF3B30',
     enabled: true,
     goalCount: 0,
@@ -282,7 +284,7 @@ function createNewType() {
   formData.value = {
     name: '',
     description: '',
-    icon: 'solar:target-linear',
+    icon: ICONS.target,
     color: '#007AFF'
   }
   editDialogVisible.value = true

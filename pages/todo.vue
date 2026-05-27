@@ -10,12 +10,12 @@
     <div class="goal-container" :class="{ mobile: isMobile }">
       <div class="goal-header">
         <div class="header-left">
-          <h2>目标管理</h2>
-          <span class="goal-count">{{ filteredGoals.length }} 个目标</span>
+          <h2>待办事项</h2>
+          <span class="goal-count">{{ filteredGoals.length }} 个待办</span>
         </div>
         <button class="add-btn" type="button" @click="openCreate">
           <Icon name="solar:add-circle-linear" size="18" />
-          添加目标
+          添加待办
         </button>
       </div>
 
@@ -111,9 +111,9 @@
 
         <div v-if="filteredGoals.length === 0" class="empty-state">
           <Icon name="solar:flag-linear" size="48" />
-          <p>暂无目标</p>
+          <p>暂无待办</p>
           <button class="empty-add-btn" type="button" @click="openCreate">
-            添加第一个目标
+            添加第一个待办
           </button>
         </div>
       </div>
@@ -123,7 +123,7 @@
       <div v-if="modalVisible" class="modal-overlay" :class="{ mobile: isMobile }" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined" @click.self="closeModal">
         <div class="modal-panel" :class="{ mobile: isMobile }">
           <div class="modal-header">
-            <h3>{{ editingId ? '编辑目标' : '添加目标' }}</h3>
+            <h3>{{ editingId ? '编辑待办' : '添加待办' }}</h3>
             <button class="modal-close" type="button" @click="closeModal">
               <Icon name="solar:close-circle-linear" size="20" />
             </button>
@@ -131,13 +131,13 @@
 
           <div class="modal-body">
             <div class="form-row">
-              <label>目标名称</label>
-              <input v-model="form.title" type="text" placeholder="输入目标名称..." />
+              <label>待办名称</label>
+              <input v-model="form.title" type="text" placeholder="输入待办名称..." />
             </div>
 
             <div class="form-row">
               <label>描述</label>
-              <textarea v-model="form.description" rows="3" placeholder="输入目标描述..." />
+              <textarea v-model="form.description" rows="3" placeholder="输入待办描述..." />
             </div>
 
             <div class="form-row inline" :class="{ mobile: isMobile }">
@@ -452,7 +452,7 @@ const { confirm } = useConfirm()
 
 const deleteGoal = async (id: string) => {
   const db = await getDB()
-  if (!await confirm('确定要删除这个目标吗？')) return
+  if (!await confirm('确定要删除这个待办吗？')) return
   const doc = await db.goals.findOne(id).exec()
   if (doc) await doc.remove()
   await loadGoals()

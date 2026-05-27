@@ -69,12 +69,20 @@ export const ICONS = {
 
   // === 目标 ===
   target: 'solar:target-linear',
+  clockCircle: 'solar:clock-circle-linear',
+  heart: 'solar:heart-linear',
+  folder: 'solar:folder-linear',
+  history: 'solar:history-linear',
 
   // === 状态/警告 ===
   dangerCircle: 'solar:danger-circle-linear',
 
   // === 圆形 ===
   round: 'solar:round-linear',
+  circle: 'solar:circle-linear',
+
+  // === 用户/群组 ===
+  usersGroupRounded: 'solar:users-group-rounded-linear',
 } as const
 
 export type IconName = typeof ICONS[keyof typeof ICONS]

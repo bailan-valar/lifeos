@@ -46,6 +46,7 @@ const allModules = [
   { id: 'notes', label: '笔记', icon: 'solar:document-text-linear', path: '/notes', requiresAdmin: false },
   { id: 'billing', label: '账单', icon: 'solar:wallet-money-linear', path: '/billing', requiresAdmin: false },
   { id: 'goals', label: '目标', icon: 'solar:target-linear', path: '/goals', requiresAdmin: false },
+  { id: 'todo', label: '待办', icon: 'solar:check-read-linear', path: '/todo', requiresAdmin: false },
   { id: 'time', label: '时间', icon: 'solar:calendar-linear', path: '/time', requiresAdmin: false },
   { id: 'admin', label: '管理', icon: 'solar:shield-check-linear', path: '/__admin', requiresAdmin: true },
 ]
