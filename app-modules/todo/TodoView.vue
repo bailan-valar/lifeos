@@ -2,10 +2,15 @@
   <div class="todo-view">
     <div class="todo-header">
       <h3>待办事项 (支持父子任务)</h3>
-      <button class="add-btn" type="button" @click="addTodo">
-        <Icon name="solar:add-circle-linear" size="20" />
-        添加待办
-      </button>
+      <div class="header-actions">
+        <button class="manage-status-btn" type="button" @click="showStatusManage = true" title="管理状态">
+          <Icon name="solar:settings-linear" size="18" />
+        </button>
+        <button class="add-btn" type="button" @click="addTodo">
+          <Icon name="solar:add-circle-linear" size="20" />
+          添加待办
+        </button>
+      </div>
     </div>
 
     <div class="todo-list">
@@ -55,6 +60,13 @@
           @keydown.enter.prevent="updateTodo(todo)"
         />
 
+        <!-- 状态显示 -->
+        <TodoStatusBadge
+          v-if="todo.statusId"
+          :status="getTodoStatus(todo.statusId)"
+          class="todo-status"
+        />
+
         <!-- 进度显示 (仅父任务) -->
         <div v-if="todo.hasChildren" class="todo-progress">
           <span>{{ getTodoProgress(todo.id) }}</span>
@@ -92,11 +104,18 @@
         清除已完成
       </button>
     </div>
+
+    <!-- 状态管理对话框 -->
+    <TodoStatusManageDialog v-model:visible="showStatusManage" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useModuleBase } from '~/composables/useModuleBase'
+import { useTodoStatus } from '~/composables/useTodoStatus'
+import TodoStatusBadge from '~/components/todo/TodoStatusBadge.vue'
+import TodoStatusManageDialog from '~/components/todo/TodoStatusManageDialog.vue'
+import type { TodoStatus } from '~/types/todo'
 
 interface TodoItem {
   id: string
@@ -105,6 +124,7 @@ interface TodoItem {
   createdAt: string
   parentId?: string
   hasChildren?: boolean
+  statusId?: string
 }
 
 interface ModuleBaseProps {
@@ -122,9 +142,16 @@ const emit = defineEmits<{
 }>()
 
 const { internalData, handleDataChange, handleError, markReady } = useModuleBase(props, emit)
+const { statuses, getDefaultStatus, ensureDefaultStatuses } = useTodoStatus()
 
 const todos = ref<TodoItem[]>([])
 const expandedParents = ref<Record<string, boolean>>({})
+const showStatusManage = ref(false)
+
+// 初始化默认状态
+onMounted(async () => {
+  await ensureDefaultStatuses()
+})
 
 // 获取任务深度（用于缩进）
 const getDepth = (id: string, depth = 0): number => {
@@ -141,6 +168,11 @@ const getChildren = (parentId: string): TodoItem[] => {
 // 检查任务是否有子任务
 const hasChildren = (id: string): boolean => {
   return todos.value.some((t) => t.parentId === id)
+}
+
+// 获取待办状态
+const getTodoStatus = (statusId: string): TodoStatus | null => {
+  return statuses.value.find(s => s.id === statusId) || null
 }
 
 // 获取父任务的完成进度
@@ -205,23 +237,27 @@ const loadTodos = () => {
 }
 
 const addTodo = () => {
+  const defaultStatus = getDefaultStatus()
   const newTodo: TodoItem = {
     id: `${Date.now()}-${Math.random().toString(36).substring(2)}`,
     text: '',
     completed: false,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    statusId: defaultStatus?.id
   }
   todos.value.push(newTodo)
   saveTodos()
 }
 
 const addChildTodo = (parentId: string) => {
+  const defaultStatus = getDefaultStatus()
   const newTodo: TodoItem = {
     id: `${Date.now()}-${Math.random().toString(36).substring(2)}`,
     text: '',
     completed: false,
     createdAt: new Date().toISOString(),
-    parentId
+    parentId,
+    statusId: defaultStatus?.id
   }
   todos.value.push(newTodo)
   // 自动展开父任务
@@ -375,6 +411,30 @@ defineExpose({
   color: rgba(0, 0, 0, 0.92);
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.manage-status-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.6);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.manage-status-btn:hover {
+  background: rgba(60, 60, 67, 0.15);
+  color: rgba(60, 60, 67, 0.8);
+}
+
 .add-btn {
   display: inline-flex;
   align-items: center;
@@ -512,6 +572,10 @@ defineExpose({
   font-weight: 500;
   color: rgb(0, 122, 255);
   white-space: nowrap;
+}
+
+.todo-status {
+  margin-left: 4px;
 }
 
 .add-child-btn {
