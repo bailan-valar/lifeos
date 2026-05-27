@@ -1,7 +1,7 @@
 <template>
   <div class="todo-view">
     <div class="todo-header">
-      <h3>待办事项</h3>
+      <h3>待办事项 (支持父子任务)</h3>
       <button class="add-btn" type="button" @click="addTodo">
         <Icon name="solar:add-circle-linear" size="20" />
         添加待办
@@ -13,8 +13,27 @@
         v-for="todo in sortedTodos"
         :key="todo.id"
         class="todo-item"
-        :class="{ completed: todo.completed }"
+        :class="{
+          completed: todo.completed,
+          'has-children': todo.hasChildren,
+          'is-child': todo.parentId
+        }"
+        :style="{ paddingLeft: todo.parentId ? `${32 + (getDepth(todo.id) * 20)}px` : '12px' }"
       >
+        <!-- 展开/折叠按钮 (仅父任务) -->
+        <button
+          v-if="todo.hasChildren"
+          class="expand-btn"
+          type="button"
+          @click="toggleExpand(todo.id)"
+        >
+          <Icon
+            :name="expandedParents[todo.id] ? 'solar:alt-arrow-down-linear' : 'solar:alt-arrow-right-linear'"
+            size="16"
+          />
+        </button>
+        <div v-else class="expand-placeholder"></div>
+
         <button
           class="todo-checkbox"
           type="button"
@@ -35,6 +54,16 @@
           @blur="updateTodo(todo)"
           @keydown.enter.prevent="updateTodo(todo)"
         />
+
+        <!-- 进度显示 (仅父任务) -->
+        <div v-if="todo.hasChildren" class="todo-progress">
+          <span>{{ getTodoProgress(todo.id) }}</span>
+        </div>
+
+        <!-- 添加子任务按钮 -->
+        <button class="add-child-btn" type="button" @click="addChildTodo(todo.id)">
+          <Icon name="solar:add-circle-linear" size="16" />
+        </button>
 
         <button class="delete-btn" type="button" @click="deleteTodo(todo.id)">
           <Icon name="solar:trash-bin-minimalistic-linear" size="16" />
@@ -74,6 +103,8 @@ interface TodoItem {
   text: string
   completed: boolean
   createdAt: string
+  parentId?: string
+  hasChildren?: boolean
 }
 
 interface ModuleBaseProps {
@@ -93,14 +124,61 @@ const emit = defineEmits<{
 const { internalData, handleDataChange, handleError, markReady } = useModuleBase(props, emit)
 
 const todos = ref<TodoItem[]>([])
+const expandedParents = ref<Record<string, boolean>>({})
 
+// 获取任务深度（用于缩进）
+const getDepth = (id: string, depth = 0): number => {
+  const todo = todos.value.find((t) => t.id === id)
+  if (!todo?.parentId) return depth
+  return getDepth(todo.parentId, depth + 1)
+}
+
+// 获取子任务列表
+const getChildren = (parentId: string): TodoItem[] => {
+  return todos.value.filter((t) => t.parentId === parentId)
+}
+
+// 检查任务是否有子任务
+const hasChildren = (id: string): boolean => {
+  return todos.value.some((t) => t.parentId === id)
+}
+
+// 获取父任务的完成进度
+const getTodoProgress = (parentId: string): string => {
+  const children = getChildren(parentId)
+  if (children.length === 0) return ''
+  const completed = children.filter((t) => t.completed).length
+  return `${completed}/${children.length}`
+}
+
+// 构建排序后的任务列表（树形结构）
 const sortedTodos = computed(() => {
-  return [...todos.value].sort((a, b) => {
+  const result: TodoItem[] = []
+  const rootTodos = todos.value.filter((t) => !t.parentId).sort((a, b) => {
     if (a.completed === b.completed) {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     }
     return a.completed ? 1 : -1
   })
+
+  const buildTree = (todo: TodoItem) => {
+    const children = getChildren(todo.id)
+    const todoWithMeta = { ...todo, hasChildren: children.length > 0 }
+    result.push(todoWithMeta)
+
+    // 如果展开或有子任务，递归添加子任务
+    if (children.length > 0 && expandedParents.value[todo.id] !== false) {
+      children.sort((a, b) => {
+        if (a.completed === b.completed) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        }
+        return a.completed ? 1 : -1
+      }).forEach(child => buildTree(child))
+    }
+  }
+
+  rootTodos.forEach(todo => buildTree(todo))
+  return result
 })
 
 const completedCount = computed(() => todos.value.filter((t) => t.completed).length)
@@ -111,6 +189,12 @@ const loadTodos = () => {
     const data = internalData.value as { todos: TodoItem[] } | undefined
     if (data?.todos && Array.isArray(data.todos)) {
       todos.value = data.todos
+      // 初始化展开状态（默认展开所有父任务）
+      todos.value.forEach(todo => {
+        if (hasChildren(todo.id)) {
+          expandedParents.value[todo.id] = true
+        }
+      })
     } else {
       todos.value = []
     }
@@ -131,6 +215,20 @@ const addTodo = () => {
   saveTodos()
 }
 
+const addChildTodo = (parentId: string) => {
+  const newTodo: TodoItem = {
+    id: `${Date.now()}-${Math.random().toString(36).substring(2)}`,
+    text: '',
+    completed: false,
+    createdAt: new Date().toISOString(),
+    parentId
+  }
+  todos.value.push(newTodo)
+  // 自动展开父任务
+  expandedParents.value[parentId] = true
+  saveTodos()
+}
+
 const updateTodo = (todo: TodoItem) => {
   const index = todos.value.findIndex((t) => t.id === todo.id)
   if (index !== -1) {
@@ -142,18 +240,93 @@ const updateTodo = (todo: TodoItem) => {
 const toggleTodo = (id: string) => {
   const todo = todos.value.find((t) => t.id === id)
   if (todo) {
-    todo.completed = !todo.completed
+    const newCompletedState = !todo.completed
+    todo.completed = newCompletedState
+
+    // 如果是父任务，同时更新所有子任务的完成状态
+    if (hasChildren(id)) {
+      updateChildrenCompletion(id, newCompletedState)
+    }
+
+    // 如果是子任务，检查父任务是否应该被标记为完成
+    if (todo.parentId) {
+      updateParentCompletion(todo.parentId)
+    }
+
     saveTodos()
   }
 }
 
+// 递归更新子任务完成状态
+const updateChildrenCompletion = (parentId: string, completed: boolean) => {
+  const children = getChildren(parentId)
+  children.forEach(child => {
+    child.completed = completed
+    if (hasChildren(child.id)) {
+      updateChildrenCompletion(child.id, completed)
+    }
+  })
+}
+
+// 递归检查并更新父任务完成状态
+const updateParentCompletion = (parentId: string) => {
+  const children = getChildren(parentId)
+  const parent = todos.value.find((t) => t.id === parentId)
+
+  if (parent && children.length > 0) {
+    const allCompleted = children.every((t) => t.completed)
+    parent.completed = allCompleted
+
+    // 继续向上检查
+    if (parent.parentId) {
+      updateParentCompletion(parent.parentId)
+    }
+  }
+}
+
+const toggleExpand = (id: string) => {
+  expandedParents.value[id] = !expandedParents.value[id]
+}
+
 const deleteTodo = (id: string) => {
-  todos.value = todos.value.filter((t) => t.id !== id)
+  // 递归删除所有子任务
+  const deleteRecursive = (todoId: string) => {
+    const children = getChildren(todoId)
+    children.forEach(child => deleteRecursive(child.id))
+    const index = todos.value.findIndex((t) => t.id === todoId)
+    if (index !== -1) {
+      todos.value.splice(index, 1)
+    }
+  }
+
+  deleteRecursive(id)
+
+  // 如果删除的是子任务，检查父任务是否还需要显示
+  const deletedTodo = todos.value.find((t) => t.id === id) || { parentId: undefined }
+  if (deletedTodo.parentId) {
+    const parent = todos.value.find((t) => t.id === deletedTodo.parentId)
+    if (parent && !hasChildren(parent.id)) {
+      // 父任务不再有子任务，但保留父任务
+    }
+  }
+
   saveTodos()
 }
 
 const clearCompleted = () => {
-  todos.value = todos.value.filter((t) => !t.completed)
+  // 只删除已完成的根任务及其子任务
+  const deleteRecursive = (todoId: string) => {
+    const children = getChildren(todoId)
+    children.forEach(child => deleteRecursive(child.id))
+    const index = todos.value.findIndex((t) => t.id === todoId)
+    if (index !== -1) {
+      todos.value.splice(index, 1)
+    }
+  }
+
+  const completedRootTodos = todos.value.filter((t) => t.completed && !t.parentId)
+  completedRootTodos.forEach(todo => deleteRecursive(todo.id))
+
   saveTodos()
 }
 
@@ -173,6 +346,7 @@ watch(() => props.moduleData, (newData) => {
 
 defineExpose({
   addTodo,
+  addChildTodo,
   clearCompleted
 })
 </script>
@@ -235,7 +409,7 @@ defineExpose({
 .todo-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.5);
   border: 0.5px solid rgba(60, 60, 67, 0.12);
@@ -255,6 +429,42 @@ defineExpose({
 .todo-item.completed .todo-input {
   text-decoration: line-through;
   color: rgba(60, 60, 67, 0.5);
+}
+
+.todo-item.is-child {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  margin-left: 20px;
+}
+
+.todo-item.has-children {
+  background: rgba(248, 248, 248, 0.7);
+  border-left: 3px solid rgb(0, 122, 255);
+}
+
+.expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.5);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.expand-btn:hover {
+  color: rgb(0, 122, 255);
+  background: rgba(0, 122, 255, 0.1);
+}
+
+.expand-placeholder {
+  width: 20px;
+  flex-shrink: 0;
 }
 
 .todo-checkbox {
@@ -289,6 +499,39 @@ defineExpose({
 
 .todo-input::placeholder {
   color: rgba(60, 60, 67, 0.4);
+}
+
+.todo-progress {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(0, 122, 255, 0.1);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(0, 122, 255);
+  white-space: nowrap;
+}
+
+.add-child-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.5);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.add-child-btn:hover {
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
 }
 
 .delete-btn {
