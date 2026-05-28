@@ -103,7 +103,7 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
       for (let m = 0; m < 60; m += slotDuration) {
         const hour = h
         const minute = m
-        const label = `${hour}:${minute.toString().padStart(2, '0')}`
+        const label = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
         const value = (h - timeStart) * slotsPerHour + (m / slotDuration)
         slots.push({ hour, minute, label, value })
       }

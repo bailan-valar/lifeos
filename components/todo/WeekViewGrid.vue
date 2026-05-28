@@ -942,6 +942,7 @@ onUnmounted(() => {
   opacity: 0;
   transition: opacity 0.15s ease;
   z-index: 1;
+  touch-action: none;
 }
 
 .resize-handle::after {
