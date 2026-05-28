@@ -64,7 +64,7 @@
           </div>
 
           <!-- 任务层 -->
-          <div class="tasks-layer">
+          <div class="tasks-layer" :class="{ 'is-dragging': isDragging }">
             <div
               v-for="column in weekColumns"
               :key="column.dateStr"
@@ -922,6 +922,11 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   display: flex;
+}
+
+/* 拖拽时禁用任务层事件接收，让事件传递到时间单元格 */
+.tasks-layer.is-dragging {
+  pointer-events: none;
 }
 
 .day-tasks {
