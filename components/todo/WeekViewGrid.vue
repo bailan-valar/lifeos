@@ -174,6 +174,8 @@ const pendingNewStartTime = ref<string | null>(null)
 const pendingNewEndTime = ref<string | null>(null)
 // 标志：是否刚刚完成了调整操作（用于避免触发点击）
 const justFinishedResize = ref(false)
+// 用于跟踪正在更新数据的任务ID，防止闪回
+const updatingTaskId = ref<string | null>(null)
 
 // 开始拖拽
 function handleDragStart(task: GridTask, event: DragEvent) {
@@ -294,6 +296,8 @@ function handleResizeEnd() {
   if (resizingTask.value) {
     // 提交调整后的时间
     if (pendingNewStartTime.value || pendingNewEndTime.value) {
+      // 记录正在更新的任务ID
+      updatingTaskId.value = resizingTask.value.id
       emit('resizeTask', {
         task: resizingTask.value,
         newStartTime: pendingNewStartTime.value ?? undefined,
@@ -302,12 +306,12 @@ function handleResizeEnd() {
     }
   }
 
-  // 清理状态
+  // 清理调整状态
   isResizing.value = false
   resizingTask.value = null
   resizeEdge.value = null
-  pendingNewStartTime.value = null
-  pendingNewEndTime.value = null
+  resizeStartTime.value = null
+  resizeEndTime.value = null
 
   // 标记刚刚完成了调整，避免触发点击
   justFinishedResize.value = true
@@ -320,6 +324,25 @@ function handleResizeEnd() {
   document.removeEventListener('touchmove', handleResizeMove)
   document.removeEventListener('touchend', handleResizeEnd)
 }
+
+// 监听 weekColumns 变化，当任务数据更新后清空预览状态
+watch(() => props.weekColumns, (newColumns, oldColumns) => {
+  if (updatingTaskId.value && oldColumns) {
+    // 检查任务数据是否已更新
+    const taskUpdated = newColumns.some(col =>
+      col.timedTasks.some(t => t.id === updatingTaskId.value)
+    )
+
+    if (taskUpdated) {
+      // 数据已更新，延迟清空预览状态（确保新数据已渲染）
+      setTimeout(() => {
+        pendingNewStartTime.value = null
+        pendingNewEndTime.value = null
+        updatingTaskId.value = null
+      }, 50)
+    }
+  }
+}, { deep: true })
 
 // 处理任务点击
 function handleTaskClick(task: GridTask) {
@@ -453,8 +476,11 @@ function getTaskStyle(task: GridTask): {
   let top = task.startRow * rowHeight
   let height = task.rowSpan * rowHeight - 2 // -2 用于留出间隙
 
-  // 如果是正在调整的任务，使用临时时间计算位置和高度
-  if (resizingTask.value && resizingTask.value.id === task.id) {
+  // 如果是正在调整的任务或正在更新数据的任务，使用临时时间计算位置和高度
+  const isAdjusting = (resizingTask.value && resizingTask.value.id === task.id) ||
+                      (updatingTaskId.value && updatingTaskId.value === task.id && (pendingNewStartTime.value || pendingNewEndTime.value))
+
+  if (isAdjusting) {
     // 计算调整后的开始时间
     let newStartMinutes: number | null = null
     let newEndMinutes: number | null = null
@@ -505,8 +531,11 @@ function getTaskStyle(task: GridTask): {
 
 // 格式化任务时间
 function formatTaskTime(task: GridTask): string {
-  // 如果是正在调整的任务，显示临时时间
-  if (resizingTask.value && resizingTask.value.id === task.id) {
+  // 如果是正在调整的任务或正在更新数据的任务，显示临时时间
+  const isAdjusting = (resizingTask.value && resizingTask.value.id === task.id) ||
+                      (updatingTaskId.value && updatingTaskId.value === task.id)
+
+  if (isAdjusting) {
     const startTime = pendingNewStartTime.value ||
       (task.startDate?.split('T')[1]?.slice(0, 5) || '')
     const endTime = pendingNewEndTime.value ||
