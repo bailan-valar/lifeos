@@ -27,6 +27,8 @@
         :time-slots="timeSlots"
         :week-columns="weekColumns"
         :loading="loading"
+        :time-start="config.timeStart"
+        :slot-duration="config.slotDuration"
         @toggle-task="handleToggleTask"
         @click-task="handleClickTask"
         @click-cell="handleClickCell"

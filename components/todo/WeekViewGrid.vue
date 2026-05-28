@@ -133,9 +133,14 @@ interface Props {
   timeSlots: TimeSlot[]
   weekColumns: DayColumn[]
   loading?: boolean
+  timeStart?: number
+  slotDuration?: number
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  timeStart: 8,
+  slotDuration: 30
+})
 
 const emit = defineEmits<{
   toggleTask: [id: string]
@@ -415,6 +420,18 @@ const todayColumnIndex = computed(() => {
   return props.weekColumns.findIndex(c => c.dateStr === todayStr)
 })
 
+// 时间字符串转换为分钟数
+function timeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(':').map(Number)
+  return h * 60 + m
+}
+
+// 分钟数转换为行索引
+function minutesToRow(minutes: number): number {
+  const startMinutes = props.timeStart * 60
+  return Math.floor((minutes - startMinutes) / props.slotDuration)
+}
+
 // 获取任务样式
 function getTaskStyle(task: GridTask): {
   top: string
@@ -423,8 +440,40 @@ function getTaskStyle(task: GridTask): {
   left?: string
   width?: string
 } {
-  const top = task.startRow * rowHeight
-  const height = task.rowSpan * rowHeight - 2 // -2 用于留出间隙
+  let top = task.startRow * rowHeight
+  let height = task.rowSpan * rowHeight - 2 // -2 用于留出间隙
+
+  // 如果是正在调整的任务，使用临时时间计算位置和高度
+  if (resizingTask.value && resizingTask.value.id === task.id) {
+    // 计算调整后的开始时间
+    let newStartMinutes: number | null = null
+    let newEndMinutes: number | null = null
+
+    if (resizeStartTime.value && pendingNewStartTime.value) {
+      newStartMinutes = timeToMinutes(pendingNewStartTime.value)
+    } else if (resizeStartTime.value) {
+      newStartMinutes = resizeStartTime.value.minutes
+    }
+
+    if (resizeEndTime.value && pendingNewEndTime.value) {
+      newEndMinutes = timeToMinutes(pendingNewEndTime.value)
+    } else if (resizeEndTime.value) {
+      newEndMinutes = resizeEndTime.value.minutes
+    }
+
+    // 重新计算位置和高度
+    if (newStartMinutes !== null) {
+      const startRow = minutesToRow(newStartMinutes)
+      top = startRow * rowHeight
+    }
+
+    if (newStartMinutes !== null && newEndMinutes !== null) {
+      const startRow = minutesToRow(newStartMinutes)
+      const endRow = minutesToRow(newEndMinutes)
+      const rowSpan = Math.max(1, endRow - startRow)
+      height = rowSpan * rowHeight - 2
+    }
+  }
 
   const style = {
     top: top + 'px',
@@ -448,7 +497,20 @@ function getTaskStyle(task: GridTask): {
 
 // 格式化任务时间
 function formatTaskTime(task: GridTask): string {
-  // 检查是否有时间信息
+  // 如果是正在调整的任务，显示临时时间
+  if (resizingTask.value && resizingTask.value.id === task.id) {
+    const startTime = pendingNewStartTime.value ||
+      (task.startDate?.split('T')[1]?.slice(0, 5) || '')
+    const endTime = pendingNewEndTime.value ||
+      (task.dueDate?.split('T')[1]?.slice(0, 5) || '')
+
+    if (startTime && endTime) {
+      return `${startTime} - ${endTime}`
+    }
+    return startTime
+  }
+
+  // 正常显示任务时间
   const hasStartTime = task.startDate && task.startDate.includes('T')
   const hasEndTime = task.dueDate && task.dueDate.includes('T')
 
