@@ -258,11 +258,13 @@ function handleResizeMove(event: MouseEvent | TouchEvent) {
   const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
   const deltaY = clientY - resizeStartY.value
 
-  // 将像素变化转换为分钟数
-  const rowHeight = 36 // 每行高度
-  const slotDuration = 30 // 每槽30分钟
-  const deltaRows = Math.round(deltaY / rowHeight)
-  const deltaMinutes = deltaRows * slotDuration
+  // 将像素变化转换为分钟数（支持5分钟粒度）
+  const rowHeight = 36 // 每行高度（对应30分钟）
+  const minutesPerRow = 30
+  const resizeGranularity = 5 // 调整粒度：5分钟
+
+  // 计算移动的分钟数，并以5分钟为单位舍入
+  const deltaMinutes = Math.round((deltaY / rowHeight) * minutesPerRow / resizeGranularity) * resizeGranularity
 
   if (resizeEdge.value === 'top') {
     // 调整开始时间
@@ -270,8 +272,8 @@ function handleResizeMove(event: MouseEvent | TouchEvent) {
     const newStartMinutes = resizeStartTime.value.minutes + deltaMinutes
     const newStartTime = formatMinutesToTime(newStartMinutes)
 
-    // 确保开始时间早于结束时间（至少保留一个时间段）
-    if (resizeEndTime.value && newStartMinutes < resizeEndTime.value.minutes - slotDuration) {
+    // 确保开始时间早于结束时间（至少保留5分钟）
+    if (resizeEndTime.value && newStartMinutes < resizeEndTime.value.minutes - resizeGranularity) {
       pendingNewStartTime.value = newStartTime
     }
   } else if (resizeEdge.value === 'bottom') {
@@ -280,8 +282,8 @@ function handleResizeMove(event: MouseEvent | TouchEvent) {
     const newEndMinutes = resizeEndTime.value.minutes + deltaMinutes
     const newEndTime = formatMinutesToTime(newEndMinutes)
 
-    // 确保结束时间晚于开始时间（至少保留一个时间段）
-    if (resizeStartTime.value && newEndMinutes > resizeStartTime.value.minutes + slotDuration) {
+    // 确保结束时间晚于开始时间（至少保留5分钟）
+    if (resizeStartTime.value && newEndMinutes > resizeStartTime.value.minutes + resizeGranularity) {
       pendingNewEndTime.value = newEndTime
     }
   }
@@ -432,6 +434,14 @@ function minutesToRow(minutes: number): number {
   return Math.floor((minutes - startMinutes) / props.slotDuration)
 }
 
+// 分钟数转换为像素位置（支持5分钟粒度）
+function minutesToPixels(minutes: number): number {
+  const startMinutes = props.timeStart * 60
+  const minutesPerRow = 30 // 网格每行30分钟
+  const relativeMinutes = minutes - startMinutes
+  return (relativeMinutes / minutesPerRow) * rowHeight
+}
+
 // 获取任务样式
 function getTaskStyle(task: GridTask): {
   top: string
@@ -461,17 +471,15 @@ function getTaskStyle(task: GridTask): {
       newEndMinutes = resizeEndTime.value.minutes
     }
 
-    // 重新计算位置和高度
+    // 使用像素计算支持5分钟粒度
     if (newStartMinutes !== null) {
-      const startRow = minutesToRow(newStartMinutes)
-      top = startRow * rowHeight
+      top = minutesToPixels(newStartMinutes)
     }
 
     if (newStartMinutes !== null && newEndMinutes !== null) {
-      const startRow = minutesToRow(newStartMinutes)
-      const endRow = minutesToRow(newEndMinutes)
-      const rowSpan = Math.max(1, endRow - startRow)
-      height = rowSpan * rowHeight - 2
+      const startPixels = minutesToPixels(newStartMinutes)
+      const endPixels = minutesToPixels(newEndMinutes)
+      height = Math.max(rowHeight - 2, endPixels - startPixels - 2)
     }
   }
 
