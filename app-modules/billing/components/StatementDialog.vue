@@ -22,10 +22,12 @@
 
 <script setup lang="ts">
 import type { Statement, StatementFormData } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import StatementForm from './StatementForm.vue'
 
 const { isMobile } = useDevice()
+const { warning: showWarning } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -58,7 +60,14 @@ watch(() => props.visible, (v) => {
 
 function onConfirm() {
   if (!props.statement) return
-  if (form.value.statementAmount < 0 || form.value.paidAmount < 0) return
+  if (form.value.statementAmount < 0) {
+    showWarning('账单金额不能为负数')
+    return
+  }
+  if (form.value.paidAmount < 0) {
+    showWarning('已还金额不能为负数')
+    return
+  }
   emit('confirm', form.value, props.statement.id)
 }
 

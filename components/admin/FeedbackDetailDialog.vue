@@ -210,6 +210,10 @@
 
 <script setup lang="ts">
 import { useZIndexOnOpen } from '~/composables/useZIndex'
+import { useToast } from '~/composables/useToast'
+
+const { error: showError } = useToast()
+
 interface FeedbackReply {
   id: string
   content: string
@@ -326,11 +330,8 @@ const handleStatusUpdate = async () => {
     close()
   }
   catch (error: any) {
-    if (error.data) {
-      alert(`保存失败: ${error.data.message}`)
-    } else {
-      alert(`保存失败: ${error.message}`)
-    }
+    const msg = error.data?.message || error.message || '保存失败'
+    showError(`保存失败: ${msg}`)
   } finally {
     isLoading.value = false
   }
@@ -362,11 +363,8 @@ const sendReply = async () => {
     newReplyContent.value = ''
   }
   catch (error: any) {
-    if (error.data) {
-      alert(`发送失败: ${error.data.message}`)
-    } else {
-      alert(`发送失败: ${error.message}`)
-    }
+    const msg = error.data?.message || error.message || '发送失败'
+    showError(`发送失败: ${msg}`)
   } finally {
     isSendingReply.value = false
   }
@@ -414,11 +412,8 @@ const updateReply = async () => {
     closeEditDialog()
   }
   catch (error: any) {
-    if (error.data) {
-      alert(`更新失败: ${error.data.message}`)
-    } else {
-      alert(`更新失败: ${error.message}`)
-    }
+    const msg = error.data?.message || error.message || '更新失败'
+    showError(`更新失败: ${msg}`)
   } finally {
     isUpdatingReply.value = false
   }
@@ -449,11 +444,8 @@ const deleteReply = async (replyId: string) => {
     replies.value = replies.value.filter(r => r.id !== replyId)
   }
   catch (error: any) {
-    if (error.data) {
-      alert(`删除失败: ${error.data.message}`)
-    } else {
-      alert(`删除失败: ${error.message}`)
-    }
+    const msg = error.data?.message || error.message || '删除失败'
+    showError(`删除失败: ${msg}`)
   }
 }
 

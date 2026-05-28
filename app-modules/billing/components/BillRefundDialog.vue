@@ -100,9 +100,12 @@
 
 <script setup lang="ts">
 import type { Bill, Account } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import DateTimePicker from './DateTimePicker.vue'
 import AccountPicker from './AccountPicker.vue'
+
+const { warning: showWarning } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -155,10 +158,12 @@ function getDefaultAccountId(bill: Bill): string {
 }
 
 function onConfirm() {
-  if (isValid.value) {
-    emit('confirm', finalAmount.value, refundReason.value, refundDate.value, refundAccountId.value)
-    emit('update:visible', false)
+  if (!isValid.value) {
+    showWarning('请填写完整的退款信息')
+    return
   }
+  emit('confirm', finalAmount.value, refundReason.value, refundDate.value, refundAccountId.value)
+  emit('update:visible', false)
 }
 
 watch(() => props.visible, (visible) => {

@@ -26,10 +26,12 @@
 
 <script setup lang="ts">
 import type { ImportRule, ImportRuleFormData, Account, BillCategory } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import ImportRuleForm from './ImportRuleForm.vue'
 
 const { isMobile } = useDevice()
+const { warning: showWarning } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -80,7 +82,10 @@ watch(() => props.visible, (v) => {
 }, { immediate: true })
 
 function onConfirm() {
-  if (!form.value.pattern.trim()) return
+  if (!form.value.pattern.trim()) {
+    showWarning('请输入匹配模式')
+    return
+  }
   emit('confirm', form.value, isEditing.value, props.rule?.id)
 }
 

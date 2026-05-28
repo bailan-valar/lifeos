@@ -159,11 +159,13 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
 import { useConfirm } from '~/composables/useConfirm'
+import { useToast } from '~/composables/useToast'
 import FeedbackSubmitModal from './FeedbackSubmitModal.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const { confirm } = useConfirm()
+const { error: showError } = useToast()
 
 const categories = [
   { value: 'bug', label: 'Bug', icon: 'solar:danger-circle-linear' },
@@ -293,7 +295,7 @@ async function sendReply(feedbackId: string) {
       replyCounts.value[feedbackId] = (replyCounts.value[feedbackId] || 0) + 1
     }
   } catch (e: any) {
-    alert(e?.data?.message || '发送失败，请重试')
+    showError(e?.data?.message || '发送失败，请重试')
   } finally {
     sendingReply.value[feedbackId] = false
   }
@@ -324,7 +326,7 @@ async function handleDelete(id: string) {
     userFeedbacks.value = userFeedbacks.value.filter(f => f.id !== id)
   } catch (e: any) {
     console.warn('Failed to delete feedback:', e)
-    alert(e?.data?.message || '删除失败，请重试')
+    showError(e?.data?.message || '删除失败，请重试')
   }
 }
 

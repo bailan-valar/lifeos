@@ -5,16 +5,17 @@
     :style="{ backgroundColor: `${status.color}20`, color: status.color }"
     :title="status.description || status.name"
   >
-    <Icon :name="status.icon" size="12" />
+    <Icon :name="status.icon || ICONS.round" size="12" />
     <span class="status-name">{{ status.name }}</span>
   </div>
   <div v-else class="todo-status-badge placeholder">
-    <Icon name="solar:round-circle-linear" size="12" />
+    <Icon :name="ICONS.round" size="12" />
     <span class="status-name">无状态</span>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ICONS } from '~/composables/useIcons'
 import type { TodoStatus } from '~/types/todo'
 
 interface Props {

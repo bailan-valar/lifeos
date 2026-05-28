@@ -36,11 +36,13 @@
 
 <script setup lang="ts">
 import type { BudgetEntry, BudgetFormData, BillCategory } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import BudgetForm from './BudgetForm.vue'
 
 const { isMobile } = useDevice()
+const { warning: showWarning } = useToast()
 
 interface NoteOption {
   id: string
@@ -97,8 +99,14 @@ watch(() => props.visible, (v) => {
 }, { immediate: true })
 
 function onConfirm() {
-  if (!form.value.categoryId) return
-  if (form.value.amount <= 0) return
+  if (!form.value.categoryId) {
+    showWarning('请选择分类')
+    return
+  }
+  if (form.value.amount <= 0) {
+    showWarning('预算金额必须大于 0')
+    return
+  }
   emit('confirm', form.value, isEditing.value, props.budget?.id)
 }
 

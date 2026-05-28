@@ -56,7 +56,10 @@
 </template>
 
 <script setup lang="ts">
+import { useToast } from '~/composables/useToast'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
+
+const { error: showError } = useToast()
 
 interface Props {
   user: {
@@ -123,11 +126,8 @@ const handleSubmit = async () => {
     emit('saved')
     close()
   } catch (error: any) {
-    if (error.data) {
-      alert(`保存失败: ${error.data.message}`)
-    } else {
-      alert(`保存失败: ${error.message}`)
-    }
+    const msg = error.data?.message || error.message || '保存失败'
+    showError(`保存失败: ${msg}`)
   } finally {
     isLoading.value = false
   }

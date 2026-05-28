@@ -22,10 +22,12 @@
 
 <script setup lang="ts">
 import type { Account, AccountFormData, BillCategory, AccountType } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import AccountForm from './AccountForm.vue'
 
 const { isMobile } = useDevice()
+const { warning: showWarning } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -82,7 +84,10 @@ watch(() => props.visible, (v) => {
 }, { immediate: true })
 
 function onConfirm() {
-  if (!form.value.name.trim()) return
+  if (!form.value.name.trim()) {
+    showWarning('请输入账户名称')
+    return
+  }
   emit('confirm', form.value, isEditing.value, props.account?.id)
 }
 

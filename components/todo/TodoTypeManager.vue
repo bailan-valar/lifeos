@@ -1,125 +1,130 @@
 <template>
-  <Teleport to="body">
-    <Transition name="modal">
-      <div v-if="visible" class="modal-overlay" :class="{ mobile: isMobile }" @click="$emit('update:visible', false)">
-        <div class="modal-content" :class="{ mobile: isMobile }" @click.stop>
-          <div class="modal-header">
-            <h3>待办类型管理</h3>
-            <button class="close-btn" @click="$emit('update:visible', false)" type="button">
-              <Icon name="solar:close-circle-linear" />
+  <BaseDialog
+    :visible="visible"
+    @update:visible="emit('update:visible', $event)"
+    title="待办类型管理"
+    size="medium"
+  >
+    <!-- 列表视图 -->
+    <div v-if="editingType === null">
+      <div v-if="todoTypes.length === 0" class="empty-state">
+        <Icon :name="ICONS.folderOpen || 'solar:folder-open-linear'" size="48" />
+        <p>还没有创建任何待办类型</p>
+        <button class="liquid-glass-button liquid-glass-button-primary" type="button" @click="startCreate">
+          <Icon :name="SOLAR_ICONS.action.add || 'solar:add-circle-linear'" size="18" />
+          <span>创建第一个待办类型</span>
+        </button>
+      </div>
+
+      <div v-else class="type-list">
+        <div
+          v-for="type in sortedTypes"
+          :key="type.id"
+          class="type-card liquid-glass-card"
+          :style="{ borderLeftColor: type.color }"
+        >
+          <div class="type-info">
+            <div class="type-icon" :style="{ background: type.color + '18', color: type.color }">
+              <Icon :name="type.icon || 'solar:folder-linear'" size="20" />
+            </div>
+            <div class="type-meta">
+              <div class="type-name">{{ type.name }}</div>
+              <div class="type-desc">{{ type.description || '暂无描述' }}</div>
+            </div>
+          </div>
+          <div class="type-actions">
+            <button
+              class="liquid-glass-button icon-btn"
+              @click="editType(type)"
+              type="button"
+              title="编辑"
+            >
+              <Icon :name="SOLAR_ICONS.action.edit || 'solar:pen-linear'" size="16" />
+            </button>
+            <button
+              class="liquid-glass-button icon-btn danger"
+              @click="confirmDeleteType(type)"
+              type="button"
+              title="删除"
+            >
+              <Icon :name="SOLAR_ICONS.action.delete || 'solar:trash-bin-trash-linear'" size="16" />
             </button>
           </div>
+        </div>
 
-          <div class="modal-body">
-            <template v-if="!editingType">
-              <div v-if="todoTypes.length === 0" class="empty-state">
-                <Icon name="solar:folder-open-linear" class="empty-icon" />
-                <p>还没有创建任何待办类型</p>
-                <button class="primary-btn" @click="startCreate" type="button">
-                  <Icon name="solar:add-circle-linear" />
-                  <span>创建第一个待办类型</span>
-                </button>
-              </div>
+        <button class="create-type-btn liquid-glass" type="button" @click="startCreate">
+          <Icon :name="SOLAR_ICONS.action.add || 'solar:add-circle-linear'" size="18" />
+          <span>创建新待办类型</span>
+        </button>
+      </div>
+    </div>
 
-              <div v-else class="type-list">
-                <div
-                  v-for="type in sortedTypes"
-                  :key="type.id"
-                  class="type-card"
-                  :style="{ borderLeftColor: type.color }"
-                >
-                  <div class="type-info">
-                    <div class="type-icon" :style="{ background: type.color + '18', color: type.color }">
-                      <Icon :name="type.icon" />
-                    </div>
-                    <div class="type-meta">
-                      <div class="type-name">{{ type.name }}</div>
-                      <div class="type-desc">{{ type.description || '暂无描述' }}</div>
-                    </div>
-                  </div>
-                  <div class="type-actions">
-                    <button
-                      class="action-btn"
-                      @click="editType(type)"
-                      type="button"
-                      title="编辑"
-                    >
-                      <Icon name="solar:pen-2-linear" />
-                    </button>
-                    <button
-                      class="action-btn danger"
-                      @click="confirmDeleteType(type)"
-                      type="button"
-                      title="删除"
-                    >
-                      <Icon name="solar:trash-bin-trash-linear" />
-                    </button>
-                  </div>
-                </div>
+    <!-- 编辑表单 -->
+    <div v-else class="edit-form">
+      <div class="form-group">
+        <label>名称</label>
+        <input v-model="form.name" type="text" class="liquid-glass-input" placeholder="待办类型名称" />
+      </div>
 
-                <button class="create-type-btn" @click="startCreate" type="button">
-                  <Icon name="solar:add-circle-linear" />
-                  <span>创建新待办类型</span>
-                </button>
-              </div>
-            </template>
-
-            <template v-else>
-              <div class="edit-form">
-                <div class="form-group">
-                  <label>名称</label>
-                  <input v-model="form.name" type="text" class="form-input" placeholder="待办类型名称" />
-                </div>
-
-                <div class="form-group">
-                  <IconPicker v-model="form.icon" :icons="presetIcons" label="图标" />
-                </div>
-
-                <div class="form-group">
-                  <label>颜色</label>
-                  <div class="color-picker">
-                    <button
-                      v-for="color in presetColors"
-                      :key="color"
-                      class="color-option"
-                      :class="{ active: form.color === color }"
-                      :style="{ background: color }"
-                      @click="form.color = color"
-                      type="button"
-                    />
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label>描述</label>
-                  <input
-                    v-model="form.description"
-                    type="text"
-                    class="form-input"
-                    placeholder="可选描述"
-                  />
-                </div>
-
-                <div class="form-actions">
-                  <button class="secondary-btn" @click="cancelEdit" type="button">
-                    取消
-                  </button>
-                  <button class="primary-btn" @click="saveType" type="button">
-                    <Icon name="solar:check-circle-linear" />
-                    <span>保存</span>
-                  </button>
-                </div>
-              </div>
-            </template>
-          </div>
+      <div class="form-group">
+        <label>图标</label>
+        <div class="icon-grid">
+          <button
+            v-for="icon in presetIcons"
+            :key="icon"
+            type="button"
+            class="icon-option"
+            :class="{ active: form.icon === icon }"
+            @click="form.icon = icon"
+          >
+            <Icon :name="icon" size="20" />
+          </button>
         </div>
       </div>
-    </Transition>
-  </Teleport>
+
+      <div class="form-group">
+        <label>颜色</label>
+        <div class="color-picker">
+          <button
+            v-for="color in presetColors"
+            :key="color"
+            type="button"
+            class="color-option"
+            :class="{ active: form.color === color }"
+            :style="{ background: color }"
+            @click="form.color = color"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>描述</label>
+        <input
+          v-model="form.description"
+          type="text"
+          class="liquid-glass-input"
+          placeholder="可选描述"
+        />
+      </div>
+    </div>
+
+    <!-- 编辑模式下的底部按钮 -->
+    <template v-if="editingType" #footer>
+      <button class="liquid-glass-button" @click="cancelEdit" type="button">
+        取消
+      </button>
+      <button class="liquid-glass-button liquid-glass-button-primary" type="button" @click="saveType">
+        <Icon :name="SOLAR_ICONS.action.save || 'solar:check-circle-linear'" size="16" />
+        <span>保存</span>
+      </button>
+    </template>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
 import { getDB, generateId, now } from '~/services/db'
+import { SOLAR_ICONS, ICONS } from '~/composables/useIcons'
+import BaseDialog from '~/components/ui/BaseDialog.vue'
 
 interface TodoType {
   id: string
@@ -141,8 +146,6 @@ const emit = defineEmits<{
   'created': [type: TodoType]
   'updated': [type: TodoType]
 }>()
-
-const { isMobile } = useDevice()
 
 const todoTypes = ref<TodoType[]>([])
 const editingType = ref<TodoType | null>(null)
@@ -168,7 +171,12 @@ const presetIcons = [
   'solar:bolt-circle-linear',
   'solar:calendar-circle-linear',
   'solar:target-linear',
-  'solar:document-text-linear'
+  'solar:document-text-linear',
+  'solar:briefcase-linear',
+  'solar:home-smile-linear',
+  'solar:shop-linear',
+  'solar:health-linear',
+  'solar:graduation-cap-linear'
 ]
 
 const presetColors = [
@@ -199,7 +207,7 @@ const loadTodoTypes = async () => {
 }
 
 const startCreate = () => {
-  editingType.value = null
+  editingType.value = undefined
   form.name = ''
   form.icon = 'solar:check-circle-linear'
   form.color = '#3b82f6'
@@ -225,9 +233,8 @@ const saveType = async () => {
 
   try {
     const db = await getDB()
-    
+
     if (editingType.value) {
-      // 更新现有类型
       const type = editingType.value
       await db.todo_types.upsert({
         id: type.id,
@@ -239,7 +246,7 @@ const saveType = async () => {
         createdAt: type.createdAt,
         updatedAt: now()
       })
-      
+
       const updatedType: TodoType = {
         ...type,
         name: form.name.trim(),
@@ -248,10 +255,9 @@ const saveType = async () => {
         description: form.description.trim(),
         updatedAt: now()
       }
-      
+
       emit('updated', updatedType)
     } else {
-      // 创建新类型
       const maxOrder = Math.max(0, ...todoTypes.value.map(t => t.order))
       const newType: TodoType = {
         id: generateId(),
@@ -263,11 +269,11 @@ const saveType = async () => {
         createdAt: now(),
         updatedAt: now()
       }
-      
+
       await db.todo_types.insert(newType)
       emit('created', newType)
     }
-    
+
     await loadTodoTypes()
     editingType.value = null
   } catch (error) {
@@ -276,13 +282,15 @@ const saveType = async () => {
 }
 
 const confirmDeleteType = async (type: TodoType) => {
-  const confirmed = await useConfirm({
+  const { confirm } = useConfirm()
+  const confirmed = await confirm({
     title: '确认删除',
     message: `确定要删除待办类型"${type.name}"吗？`,
     confirmText: '删除',
-    cancelText: '取消'
+    cancelText: '取消',
+    danger: true
   })
-  
+
   if (confirmed) {
     try {
       const db = await getDB()
@@ -300,88 +308,21 @@ const confirmDeleteType = async (type: TodoType) => {
 watch(() => props.visible, (visible) => {
   if (visible) {
     loadTodoTypes()
+  } else {
+    editingType.value = null
   }
 })
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 500px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
-.modal-content.mobile {
-  max-width: 100%;
-  height: 100%;
-  border-radius: 0;
-  max-height: 100vh;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #111827;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: #6b7280;
-  transition: color 0.2s;
-}
-
-.close-btn:hover {
-  color: #374151;
-}
-
-.modal-body {
-  padding: 20px;
-  overflow-y: auto;
-  flex: 1;
-}
-
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: #6b7280;
-}
-
-.empty-icon {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 16px;
-  color: #d1d5db;
+  color: var(--liquid-text-secondary, rgba(60, 60, 67, 0.55));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .type-list {
@@ -395,16 +336,12 @@ watch(() => props.visible, (visible) => {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  border: 1px solid #e5e7eb;
   border-left: 3px solid;
-  border-radius: 12px;
-  background: white;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .type-card:hover {
-  background: #f9fafb;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: var(--liquid-bg-thick);
 }
 
 .type-info {
@@ -418,11 +355,10 @@ watch(() => props.visible, (visible) => {
 .type-icon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--liquid-radius-button);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
   flex-shrink: 0;
 }
 
@@ -433,13 +369,13 @@ watch(() => props.visible, (visible) => {
 
 .type-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--liquid-text-primary, rgba(0, 0, 0, 0.92));
   margin-bottom: 2px;
 }
 
 .type-desc {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--liquid-text-secondary, rgba(60, 60, 67, 0.55));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -447,48 +383,36 @@ watch(() => props.visible, (visible) => {
 
 .type-actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.action-btn {
+.icon-btn {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: #f3f4f6;
-  color: #6b7280;
-  cursor: pointer;
-  transition: all 0.2s;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.action-btn:hover {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-.action-btn.danger {
+.icon-btn.danger {
   color: #ef4444;
 }
 
-.action-btn.danger:hover {
-  background: #fef2f2;
+.icon-btn.danger:hover {
   color: #dc2626;
 }
 
 .create-type-btn {
   width: 100%;
   padding: 16px;
-  border: 2px dashed #d1d5db;
-  border-radius: 12px;
-  background: none;
-  color: #6b7280;
+  border: 2px dashed var(--liquid-border, rgba(60, 60, 67, 0.15));
+  border-radius: var(--liquid-radius);
+  color: var(--liquid-text-secondary, rgba(60, 60, 67, 0.55));
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -498,40 +422,7 @@ watch(() => props.visible, (visible) => {
 .create-type-btn:hover {
   border-color: #3b82f6;
   color: #3b82f6;
-  background: #f0f9ff;
-}
-
-.primary-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 10px;
-  background: #3b82f6;
-  color: white;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.primary-btn:hover {
-  background: #2563eb;
-}
-
-.secondary-btn {
-  padding: 10px 20px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  background: white;
-  color: #374151;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.secondary-btn:hover {
-  background: #f9fafb;
+  background: rgba(59, 130, 246, 0.08);
 }
 
 .edit-form {
@@ -548,21 +439,39 @@ watch(() => props.visible, (visible) => {
 
 .form-group label {
   font-weight: 500;
-  color: #374151;
+  color: var(--liquid-text-primary, rgba(0, 0, 0, 0.92));
   font-size: 14px;
 }
 
-.form-input {
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: border-color 0.2s;
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
 }
 
-.form-input:focus {
-  outline: none;
+.icon-option {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--liquid-radius-button);
+  border: 2px solid var(--liquid-border, rgba(60, 60, 67, 0.15));
+  background: var(--liquid-bg);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--liquid-text-primary, rgba(0, 0, 0, 0.7));
+}
+
+.icon-option:hover {
+  background: var(--liquid-bg-thick);
   border-color: #3b82f6;
+}
+
+.icon-option.active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
 }
 
 .color-picker {
@@ -574,10 +483,10 @@ watch(() => props.visible, (visible) => {
 .color-option {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--liquid-radius-button);
   border: 2px solid transparent;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .color-option:hover {
@@ -585,38 +494,38 @@ watch(() => props.visible, (visible) => {
 }
 
 .color-option.active {
-  border-color: #1f2937;
+  border-color: rgba(0, 0, 0, 0.2);
   box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
 }
 
-.form-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-}
+@media (prefers-color-scheme: dark) {
+  .color-option.active {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
 
-.form-actions button {
-  flex: 1;
-}
+  .type-name {
+    color: var(--liquid-text-primary, rgba(255, 255, 255, 0.92));
+  }
 
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s;
-}
+  .type-desc {
+    color: var(--liquid-text-secondary, rgba(255, 255, 255, 0.55));
+  }
 
-.modal-enter-active .modal-content,
-.modal-leave-active .modal-content {
-  transition: transform 0.2s, opacity 0.2s;
-}
+  .form-group label {
+    color: var(--liquid-text-primary, rgba(255, 255, 255, 0.92));
+  }
 
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
+  .icon-option {
+    color: var(--liquid-text-primary, rgba(255, 255, 255, 0.7));
+  }
 
-.modal-enter-from .modal-content,
-.modal-leave-to .modal-content {
-  transform: scale(0.95);
-  opacity: 0;
+  .create-type-btn {
+    color: var(--liquid-text-secondary, rgba(255, 255, 255, 0.55));
+    border-color: var(--liquid-border, rgba(255, 255, 255, 0.15));
+  }
+
+  .create-type-btn:hover {
+    background: rgba(59, 130, 246, 0.15);
+  }
 }
 </style>

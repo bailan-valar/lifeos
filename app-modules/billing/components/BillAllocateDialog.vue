@@ -107,9 +107,12 @@
 
 <script setup lang="ts">
 import type { Bill, BillAllocateItem } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import Decimal from 'decimal.js'
 import { sum, eq } from '~/utils/decimal'
+
+const { warning: showWarning } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -193,10 +196,16 @@ function onClose() {
 }
 
 function onConfirm() {
-  if (isTotalValid.value && allocateItems.value.length > 0) {
-    emit('confirm', allocateItems.value)
-    emit('update:visible', false)
+  if (!isTotalValid.value) {
+    showWarning('分摊金额与账单金额不一致')
+    return
   }
+  if (allocateItems.value.length === 0) {
+    showWarning('请至少添加一个月')
+    return
+  }
+  emit('confirm', allocateItems.value)
+  emit('update:visible', false)
 }
 
 watch(() => props.visible, (visible) => {

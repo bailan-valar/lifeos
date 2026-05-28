@@ -26,10 +26,12 @@
 
 <script setup lang="ts">
 import type { BillCategory, CategoryFormData, CategoryType } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import CategoryForm from './CategoryForm.vue'
 
 const { isMobile } = useDevice()
+const { warning: showWarning } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -73,7 +75,10 @@ watch(() => props.visible, (v) => {
 }, { immediate: true })
 
 function onConfirm() {
-  if (!form.value.name.trim()) return
+  if (!form.value.name.trim()) {
+    showWarning('请输入分类名称')
+    return
+  }
   emit('confirm', form.value, isEditing.value, props.category?.id)
 }
 

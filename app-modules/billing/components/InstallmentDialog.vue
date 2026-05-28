@@ -147,10 +147,13 @@
 
 <script setup lang="ts">
 import type { Account, InstallmentItem, InstallmentFormData } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import AccountPicker from './AccountPicker.vue'
 import Decimal from 'decimal.js'
 import { add } from '~/utils/decimal'
+
+const { warning: showWarning } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -254,7 +257,11 @@ function onClose() {
 }
 
 function onConfirm() {
-  if (!isValid.value || !props.account) return
+  if (!props.account) return
+  if (!isValid.value) {
+    showWarning('请填写完整的分期信息')
+    return
+  }
   const data: InstallmentFormData = {
     accountId: props.account.id,
     fromAccountId: form.value.fromAccountId,

@@ -82,10 +82,13 @@
 
 <script setup lang="ts">
 import type { Bill, BillCategory, BillSplitItem } from '~/types/bill'
+import { useToast } from '~/composables/useToast'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import { sum, eq } from '~/utils/decimal'
 import CategoryPicker from './CategoryPicker.vue'
 import AmountInput from './AmountInput.vue'
+
+const { warning: showWarning } = useToast()
 
 const props = defineProps<{
   visible: boolean
@@ -136,10 +139,16 @@ function onClose() {
 }
 
 function onConfirm() {
-  if (isAmountValid.value && splitItems.value.length > 0) {
-    emit('confirm', splitItems.value.filter(item => item.amount > 0 && item.categoryId))
-    emit('update:visible', false)
+  if (!isAmountValid.value) {
+    showWarning('拆分金额与账单金额不一致')
+    return
   }
+  if (splitItems.value.length === 0) {
+    showWarning('请至少添加一项拆分')
+    return
+  }
+  emit('confirm', splitItems.value.filter(item => item.amount > 0 && item.categoryId))
+  emit('update:visible', false)
 }
 
 watch(() => props.visible, (visible) => {

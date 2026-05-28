@@ -23,6 +23,7 @@ export const ICONS = {
   // === 操作 ===
   addCircle: 'solar:add-circle-linear',
   checkCircle: 'solar:check-circle-linear',
+  checkCircleBold: 'solar:check-circle-bold',
   closeCircle: 'solar:close-circle-linear',
   closeCircleBold: 'solar:close-circle-bold',
   pen: 'solar:pen-linear',
@@ -46,6 +47,7 @@ export const ICONS = {
   // === 菜单 ===
   hamburgerMenu: 'solar:hamburger-menu-linear',
   menuDots: 'solar:menu-dots-linear',
+  handle: 'solar:hamburger-menu-linear',
 
   // === 链接/工具 ===
   link: 'solar:link-linear',
@@ -56,6 +58,8 @@ export const ICONS = {
   calendar: 'solar:calendar-linear',
 
   // === 文件夹/工作空间 ===
+  folder: 'solar:folder-linear',
+  folderOpen: 'solar:folder-open-linear',
   folder2: 'solar:folder-2-linear',
 
   // === 设置/认证 ===
@@ -71,15 +75,21 @@ export const ICONS = {
   target: 'solar:target-linear',
   clockCircle: 'solar:clock-circle-linear',
   heart: 'solar:heart-linear',
-  folder: 'solar:folder-linear',
   history: 'solar:history-linear',
+  playCircle: 'solar:play-circle-linear',
+  pauseCircle: 'solar:pause-circle-linear',
+  infoCircle: 'solar:info-circle-linear',
+  starCircle: 'solar:star-circle-linear',
 
   // === 状态/警告 ===
   dangerCircle: 'solar:danger-circle-linear',
 
+  // === 加载 ===
+  loading: 'solar:refresh-linear',
+
   // === 圆形 ===
-  round: 'solar:round-linear',
-  circle: 'solar:circle-linear',
+  round: 'solar:info-circle-linear',
+  circle: 'solar:info-circle-linear',
 
   // === 用户/群组 ===
   usersGroupRounded: 'solar:users-group-rounded-linear',
@@ -126,6 +136,7 @@ export const SOLAR_ICONS = {
     save: ICONS.checkCircle,
     refresh: ICONS.refreshCircle,
     split: ICONS.callSplit,
+    handle: ICONS.handle,
   },
 
   // 文档
@@ -134,6 +145,8 @@ export const SOLAR_ICONS = {
     text: ICONS.documentText,
     notebook: ICONS.notebook,
     clipboard: ICONS.clipboardList,
+    folder: ICONS.folder,
+    folderOpen: ICONS.folderOpen,
   },
 
   // 搜索
@@ -181,6 +194,7 @@ export const SOLAR_ICONS = {
     success: ICONS.checkCircle,
     error: ICONS.dangerCircle,
     warning: ICONS.closeCircle,
-    pending: ICONS.round,
+    pending: 'solar:info-circle-linear',
+    loading: ICONS.loading,
   },
 } as const

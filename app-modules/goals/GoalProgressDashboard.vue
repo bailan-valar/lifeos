@@ -135,8 +135,10 @@
     <!-- FAB按钮（移动端） -->
     <button
       v-if="isMobile"
-      @click="openCreateDialog"
+      type="button"
+      @click.stop="openCreateDialog"
       class="liquid-glass-fab mobile-fab"
+      aria-label="新建目标"
     >
       <Icon name="solar:add-circle-linear" size="24" />
     </button>
@@ -299,7 +301,10 @@ const editingGoal = ref<Goal>()
 // 打开创建对话框
 function openCreateDialog() {
   editingGoal.value = undefined
-  goalDialogVisible.value = true
+  // 使用 nextTick 确保 Vue 响应式更新完成
+  nextTick(() => {
+    goalDialogVisible.value = true
+  })
 }
 
 // 打开编辑对话框

@@ -9,7 +9,7 @@
     </div>
 
     <div v-if="loading" class="loading-state">
-      <Icon name="solar:loading-linear" size="32" class="loading-icon" />
+      <Icon :name="ICONS.loading" size="32" class="loading-icon" />
       <p>加载中...</p>
     </div>
 
@@ -49,6 +49,7 @@
 
 <script setup lang="ts">
 import TodoTypeManager from '~/components/todo/TodoTypeManager.vue'
+import { ICONS } from '~/composables/useIcons'
 import { useTodoTypes } from '~/composables/useTodoTypes'
 
 const showManager = ref(false)

@@ -57,6 +57,13 @@
       @cancel="globalNoteVisible = false"
     />
 
+    <!-- 全局待办快速弹框 -->
+    <TodoEditDialog
+      :visible="globalTodoVisible"
+      @update:visible="globalTodoVisible = $event"
+      @create="onTodoCreate"
+    />
+
     <!-- 全局目标快速弹框 -->
     <QuickGoalDialog
       :visible="globalGoalVisible"
@@ -70,7 +77,9 @@
 import BillDialog from '~/app-modules/billing/components/BillDialog.vue'
 import QuickNoteDialog from '~/components/QuickNoteDialog.vue'
 import QuickGoalDialog from '~/components/QuickGoalDialog.vue'
+import TodoEditDialog from '~/components/todo/TodoEditDialog.vue'
 import type { Account, BillCategory, BillFormData } from '~/types/bill'
+import type { TodoItem } from '~/types/todo'
 
 const route = useRoute()
 const fab = useGlobalFab()
@@ -84,7 +93,8 @@ const isPressing = ref(false)
 const menuItems = [
   { key: 'notes', label: '笔记', icon: 'solar:document-add-linear' },
   { key: 'billing', label: '账单', icon: 'solar:wallet-money-linear' },
-  { key: 'todo', label: '目标', icon: 'solar:flag-linear' },
+  { key: 'todo', label: '待办', icon: 'solar:clipboard-list-linear' },
+  { key: 'goal', label: '目标', icon: 'solar:flag-linear' },
 ]
 
 const currentContext = computed(() => fab.getCurrentContext())
@@ -138,6 +148,7 @@ function handleLongPress() {
 /* ---------- 全局弹框状态 ---------- */
 const globalBillVisible = ref(false)
 const globalNoteVisible = ref(false)
+const globalTodoVisible = ref(false)
 const globalGoalVisible = ref(false)
 
 /* ---------- 全局账单弹框 ---------- */
@@ -174,16 +185,31 @@ async function onGlobalBillConfirm(data: BillFormData, _isEditing: boolean, _id?
   globalBillVisible.value = false
 }
 
+async function onTodoCreate(todo: TodoItem) {
+  // 使用 useTodos 创建待办
+  const { createTodo } = useTodos()
+  // createTodo 会自动生成 id 和 createdAt，所以这里只传递必要字段
+  const { id, createdAt, ...todoData } = todo
+  await createTodo(todoData)
+  globalTodoVisible.value = false
+}
+
 async function handleMenuClick(key: string) {
   menuOpen.value = false
 
   const currentPath = route.path
 
+  // 待办：始终打开全局弹框（即使在 /todo 页面）
+  if (key === 'todo') {
+    globalTodoVisible.value = true
+    return
+  }
+
   // 已在目标页面则直接触发当前动作
   if (
     (key === 'notes' && currentPath.startsWith('/notes')) ||
     (key === 'billing' && currentPath.startsWith('/billing')) ||
-    (key === 'todo' && currentPath === '/todo')
+    (key === 'goal' && currentPath === '/goals')
   ) {
     const action = fab.getCurrentAction()
     action?.()
@@ -202,8 +228,8 @@ async function handleMenuClick(key: string) {
   }
 
   // 目标：若动作已注册则直接触发，否则打开全局弹框
-  if (key === 'todo') {
-    const action = fab.actions.value['todo']
+  if (key === 'goal') {
+    const action = fab.actions.value['goal']
     if (action) {
       action()
     } else {
@@ -352,6 +378,10 @@ onBeforeUnmount(() => {
 
 .fab-menu.visible .fab-menu-item:nth-child(3) {
   transition-delay: 0.10s;
+}
+
+.fab-menu.visible .fab-menu-item:nth-child(4) {
+  transition-delay: 0.14s;
 }
 
 .fab-menu-label {

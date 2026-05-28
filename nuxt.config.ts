@@ -1,19 +1,22 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { defineNuxtConfig } from 'nuxt/config'
 
-// Vite plugin to polyfill 'self' with 'globalThis' for pouchdb-browser
+// Vite plugin to polyfill 'self' with 'globalThis' for pouchdb-browser (client-side)
 function selfPolyfillPlugin() {
   return {
     name: 'self-polyfill',
     enforce: 'pre' as const,
     transform(code: string, id: string) {
-      // Only apply to pouchdb-browser files
-      if (id.includes('pouchdb-browser') || id.includes('pouchdb-find') || id.includes('pouchdb-replication')) {
-        // Replace 'self' with 'globalThis' using a regex that avoids property access
-        // This pattern matches 'self' when it's not preceded by a dot (avoiding obj.self)
-        return {
-          code: code.replace(/\bself\b/g, 'globalThis'),
-          map: null
+      // Check if this is a pouchdb file
+      const pouchPattern = /[\\/]node_modules[\\/](pouchdb-browser|pouchdb-find|pouchdb-replication)[\\/]/
+      if (pouchPattern.test(id)) {
+        // Replace 'self' with 'globalThis' using word boundary to avoid obj.self
+        const transformed = code.replace(/\bself\b/g, 'globalThis')
+        if (transformed !== code) {
+          return {
+            code: transformed,
+            map: null
+          }
         }
       }
     }

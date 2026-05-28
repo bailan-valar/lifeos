@@ -1,0 +1,311 @@
+<template>
+  <div class="todo-week-view">
+    <!-- 周视图头部 -->
+    <WeekViewHeader
+      :week-start="config.weekStart"
+      :time-start="config.timeStart"
+      :time-end="config.timeEnd"
+      :color-mode="config.colorMode"
+      @prev-week="prevWeek"
+      @next-week="nextWeek"
+      @go-today="goToToday"
+      @open-settings="showSettings = true"
+    />
+
+    <!-- 周视图主体 -->
+    <div class="week-body">
+      <!-- 全天任务区域 -->
+      <WeekViewAllDay
+        :week-days="weekColumns"
+        :loading="loading"
+        @toggle-task="handleToggleTask"
+        @click-task="handleClickTask"
+      />
+
+      <!-- 时间网格 -->
+      <WeekViewGrid
+        :time-slots="timeSlots"
+        :week-columns="weekColumns"
+        :loading="loading"
+        @toggle-task="handleToggleTask"
+        @click-task="handleClickTask"
+        @click-cell="handleClickCell"
+      />
+    </div>
+
+    <!-- 设置对话框 -->
+    <WeekViewSettings
+      v-model:visible="showSettings"
+      :time-start="config.timeStart"
+      :time-end="config.timeEnd"
+      :color-mode="config.colorMode"
+      @update-time-range="handleUpdateTimeRange"
+      @update-color-mode="handleUpdateColorMode"
+    />
+
+    <!-- 任务编辑对话框 -->
+    <TodoEditDialog
+      v-model:visible="showEditDialog"
+      :todo="editingTask"
+      :initial-data="initialTaskData"
+      :is-creating="isCreating"
+      @save="handleSaveTask"
+      @create="handleCreateTask"
+      @delete="handleDeleteTask"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ICONS } from '~/composables/useIcons'
+import { getDB } from '~/services/db'
+import { useTodoWeekView, type TodoColorMode } from '~/composables/useTodoWeekView'
+import type { GridTask } from '~/composables/useTodoWeekView'
+import type { TodoItem } from '~/types/todo'
+import WeekViewHeader from './WeekViewHeader.vue'
+import WeekViewAllDay from './WeekViewAllDay.vue'
+import WeekViewGrid from './WeekViewGrid.vue'
+import WeekViewSettings from './WeekViewSettings.vue'
+import TodoEditDialog from './TodoEditDialog.vue'
+
+interface Props {
+  weekStart?: Date
+  timeStart?: number
+  timeEnd?: number
+  colorMode?: TodoColorMode
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  timeStart: 8,
+  timeEnd: 23,
+  colorMode: 'priority'
+})
+
+const emit = defineEmits<{
+  (e: 'update:weekStart', value: Date): void
+}>()
+
+const showSettings = ref(false)
+const showEditDialog = ref(false)
+const editingTask = ref<TodoItem | null>(null)
+const isCreating = ref(false)
+const initialTaskData = ref<Partial<TodoItem> | null>(null)
+
+// 使用 composable
+const {
+  loading,
+  config,
+  timeSlots,
+  weekDays,
+  weekColumns,
+  loadWeekTasks,
+  subscribeChanges,
+  unsubscribeChanges,
+  prevWeek,
+  nextWeek,
+  goToToday,
+  setWeekStart,
+  updateTimeRange,
+  updateColorMode
+} = useTodoWeekView({
+  timeStart: props.timeStart,
+  timeEnd: props.timeEnd,
+  colorMode: props.colorMode
+})
+
+// 监听 props 变化更新配置
+watch(() => props.weekStart, (newVal) => {
+  if (newVal) {
+    setWeekStart(newVal)
+  }
+}, { immediate: true })
+
+// 监听配置变化通知父组件
+watch(() => config.weekStart, (newVal) => {
+  emit('update:weekStart', new Date(newVal))
+})
+
+// 初始化
+onMounted(() => {
+  loadWeekTasks()
+  subscribeChanges()
+})
+
+onUnmounted(() => {
+  unsubscribeChanges()
+})
+
+// 事件处理
+async function handleToggleTask(taskId: string) {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const data = doc.get('data') as { todos: any[] }
+      if (data?.todos) {
+        const index = data.todos.findIndex(t => t.id === taskId)
+        if (index !== -1) {
+          data.todos[index].completed = !data.todos[index].completed
+          await doc.patch({ data: { todos: data.todos } })
+          await loadWeekTasks()
+          break
+        }
+      }
+    }
+  } catch (err) {
+    console.error('切换任务状态失败:', err)
+  }
+}
+
+function handleClickTask(task: GridTask) {
+  // 打开编辑对话框
+  isCreating.value = false
+  initialTaskData.value = null
+  editingTask.value = task
+  showEditDialog.value = true
+}
+
+function handleUpdateTimeRange(start: number, end: number) {
+  updateTimeRange(start, end)
+}
+
+function handleUpdateColorMode(mode: TodoColorMode) {
+  updateColorMode(mode)
+}
+
+// 保存任务
+async function handleSaveTask(todo: TodoItem) {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const data = doc.get('data') as { todos: TodoItem[] }
+      if (data?.todos) {
+        const index = data.todos.findIndex(t => t.id === todo.id)
+        if (index !== -1) {
+          data.todos[index] = todo
+          await doc.patch({ data: { todos: data.todos } })
+          await loadWeekTasks()
+          break
+        }
+      }
+    }
+  } catch (err) {
+    console.error('保存任务失败:', err)
+  }
+}
+
+// 点击时间单元格创建任务
+function handleClickCell(data: { dateStr: string; timeSlot: { hour: number; minute: number; label: string } }) {
+  isCreating.value = true
+  editingTask.value = null
+
+  // 格式化开始时间字符串
+  const startTime = `${String(data.timeSlot.hour).padStart(2, '0')}:${String(data.timeSlot.minute).padStart(2, '0')}`
+
+  // 计算结束时间（使用配置的 slotDuration）
+  const slotDuration = config.slotDuration || 30
+  const totalMinutes = data.timeSlot.hour * 60 + data.timeSlot.minute + slotDuration
+  const endHour = Math.floor(totalMinutes / 60)
+  const endMinute = totalMinutes % 60
+  const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+  // 将时间合并到日期中，格式为 YYYY-MM-DDTHH:mm
+  initialTaskData.value = {
+    startDate: `${data.dateStr}T${startTime}`,
+    dueDate: `${data.dateStr}T${endTime}`
+  }
+  showEditDialog.value = true
+}
+
+// 创建新任务
+async function handleCreateTask(todo: TodoItem) {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    if (moduleDataList.length === 0) {
+      // 如果没有模块数据，需要创建一个
+      const { generateId, now } = await import('~/services/db')
+      const workspaceId = localStorage.getItem('lifeos:active-workspace-id')
+      await db.module_data.insert({
+        id: generateId(),
+        moduleId: 'todo',
+        noteId: workspaceId || 'default',
+        data: { todos: [todo] },
+        createdAt: now(),
+        updatedAt: now()
+      })
+    } else {
+      // 使用第一个模块数据
+      const doc = moduleDataList[0]
+      const data = doc.get('data') as { todos: TodoItem[] } || { todos: [] }
+      data.todos.push(todo)
+      await doc.patch({ data: { todos: data.todos } })
+    }
+
+    await loadWeekTasks()
+  } catch (err) {
+    console.error('创建任务失败:', err)
+  }
+}
+
+// 删除任务
+async function handleDeleteTask(todo: TodoItem) {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const data = doc.get('data') as { todos: TodoItem[] }
+      if (data?.todos) {
+        const index = data.todos.findIndex(t => t.id === todo.id)
+        if (index !== -1) {
+          data.todos.splice(index, 1)
+          await doc.patch({ data: { todos: data.todos } })
+          await loadWeekTasks()
+          break
+        }
+      }
+    }
+  } catch (err) {
+    console.error('删除任务失败:', err)
+  }
+}
+</script>
+
+<style scoped>
+.todo-week-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--liquid-bg, rgba(255, 255, 255, 0.1));
+  backdrop-filter: blur(var(--liquid-blur, 20px));
+  border-radius: var(--liquid-radius, 20px);
+}
+
+.week-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 深色模式适配 */
+@media (prefers-color-scheme: dark) {
+  .todo-week-view {
+    background: var(--liquid-bg, rgba(255, 255, 255, 0.05));
+  }
+}
+</style>

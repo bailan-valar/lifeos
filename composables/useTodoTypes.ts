@@ -1,46 +1,34 @@
-import { getDB } from '~/services/db'
+import type { TodoType, TodoTypeFormData } from '~/types/todo'
+import { useTodoStore } from '~/stores/todo'
 
-export interface TodoType {
-  id: string
-  name: string
-  icon: string
-  color: string
-  description?: string
-  order: number
-  createdAt: string
-  updatedAt: string
-}
-
+/**
+ * 待办类型管理 - Pinia Store 适配器
+ *
+ * 此 composable 提供对 Pinia store 中类型数据的访问，
+ * 保持与原有 API 的兼容性。
+ */
 export function useTodoTypes() {
-  const todoTypes = ref<TodoType[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const todoStore = useTodoStore()
 
-  const loadTodoTypes = async () => {
-    try {
-      loading.value = true
-      error.value = null
-      
-      const db = await getDB()
-      const docs = await db.todo_types.find().exec()
-      todoTypes.value = docs.map(doc => doc.toJSON()) as TodoType[]
-    } catch (err) {
-      console.error('加载待办类型失败:', err)
-      error.value = '加载待办类型失败'
-    } finally {
-      loading.value = false
+  // 初始化时加载类型（如果尚未加载）
+  onMounted(() => {
+    if (todoStore.types.length === 0) {
+      todoStore.loadTypes()
     }
-  }
+  })
 
-  const getTodoTypeById = (id: string): TodoType | undefined => {
-    return todoTypes.value.find(type => type.id === id)
+  // 监听工作空间切换，重新加载类型
+  if (import.meta.client) {
+    window.addEventListener('workspace:changed', () => {
+      todoStore.loadTypes()
+    })
   }
 
   const sortedTypes = computed(() => {
-    return [...todoTypes.value].sort((a, b) => a.order - b.order)
+    return [...todoStore.types].sort((a, b) => a.order - b.order)
   })
 
-  // 默认待办类型
+  // 默认待办类型（如果没有配置任何类型）
   const defaultTypes = computed(() => {
     return sortedTypes.value.length > 0 ? sortedTypes.value : [
       {
@@ -56,13 +44,35 @@ export function useTodoTypes() {
     ]
   })
 
+  function getTodoTypeById(id: string): TodoType | undefined {
+    return todoStore.types.find(type => type.id === id)
+  }
+
+  async function createTodoType(data: TodoTypeFormData): Promise<TodoType> {
+    return todoStore.createType(data)
+  }
+
+  async function updateTodoType(id: string, data: Partial<TodoTypeFormData>): Promise<void> {
+    await todoStore.updateType(id, data)
+  }
+
+  async function deleteTodoType(id: string): Promise<void> {
+    await todoStore.deleteType(id)
+  }
+
   return {
-    todoTypes: readonly(todoTypes),
+    todoTypes: computed(() => todoStore.types),
     sortedTypes,
     defaultTypes,
-    loading: readonly(loading),
-    error: readonly(error),
-    loadTodoTypes,
-    getTodoTypeById
+    loading: computed(() => todoStore.typesLoading),
+    error: ref(null), // Store 目前没有 error 字段，保持接口兼容
+    loadTodoTypes: () => todoStore.loadTypes(),
+    getTodoTypeById,
+    createTodoType,
+    updateTodoType,
+    deleteTodoType
   }
 }
+
+// 重新导出类型，保持向后兼容
+export type { TodoType } from '~/types/todo'

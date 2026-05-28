@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition name="dialog">
+    <Transition name="dialog" @after-enter="onAfterEnter">
       <div
         v-if="visible"
         class="dialog-overlay"
@@ -67,6 +67,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   close: []
+  opened: []
 }>()
 
 const { isMobile } = useDevice()
@@ -89,6 +90,10 @@ function onKeyDown(e: KeyboardEvent) {
   if (props.closeOnEsc && e.key === 'Escape') {
     onClose()
   }
+}
+
+function onAfterEnter() {
+  emit('opened')
 }
 
 // 暴露方法供外部调用

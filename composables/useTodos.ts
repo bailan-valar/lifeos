@@ -1,15 +1,12 @@
 import { getDB, generateId, now } from '~/services/db'
+import type { TodoItem, TodoTreeNode } from '~/types/todo'
 
-export interface TodoItem {
-  id: string
-  text: string
-  completed: boolean
-  createdAt: string
-  dueDate?: string
-  typeId?: string
-  priority?: 'none' | 'low' | 'medium' | 'high'
-  parentId?: string
-  noteId?: string
+// 格式化本地日期为 YYYY-MM-DD
+function formatDateLocal(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export interface TaskWithType extends TodoItem {
@@ -116,23 +113,30 @@ export function useTodos() {
     try {
       const db = await getDB()
 
-      // 查找或创建目标笔记
-      const notes = await db.notes.find().exec()
-      let targetNote = notes[0]
+      // 确定目标笔记：优先使用用户指定的 noteId，否则查找或创建默认笔记
+      let targetNoteId = todo.noteId
 
-      if (!targetNote) {
-        const noteId = generateId()
-        await db.notes.insert({
-          id: noteId,
-          title: '待办任务',
-          content: '',
-          createdAt: now(),
-          updatedAt: now()
-        })
-        targetNote = await db.notes.findOne(noteId).exec()
+      if (!targetNoteId) {
+        // 查找或创建目标笔记
+        const notes = await db.notes.find().exec()
+        let targetNote = notes[0]
+
+        if (!targetNote) {
+          const noteId = generateId()
+          await db.notes.insert({
+            id: noteId,
+            title: '待办任务',
+            content: '',
+            createdAt: now(),
+            updatedAt: now()
+          })
+          targetNoteId = noteId
+        } else {
+          targetNoteId = targetNote.get('id')
+        }
       }
 
-      if (!targetNote) {
+      if (!targetNoteId) {
         throw new Error('无法找到或创建目标笔记')
       }
 
@@ -140,13 +144,13 @@ export function useTodos() {
         ...todo,
         id: generateId(),
         createdAt: now(),
-        noteId: targetNote.get('id')
+        noteId: targetNoteId
       }
 
       // 查找或创建模块数据
       const moduleData = await db.module_data.findOne({
         selector: {
-          noteId: targetNote.get('id'),
+          noteId: targetNoteId,
           moduleId: 'todo'
         }
       }).exec()
@@ -158,7 +162,7 @@ export function useTodos() {
       } else {
         await db.module_data.insert({
           id: generateId(),
-          noteId: targetNote.get('id'),
+          noteId: targetNoteId,
           moduleId: 'todo',
           data: { todos: [newTodo] },
           createdAt: now(),
@@ -270,7 +274,7 @@ export function useTodos() {
   // 获取今日任务统计
   const getTodayStats = async (): Promise<{ total: number; completed: number; pending: number }> => {
     try {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = formatDateLocal(new Date())
       const tasks = await loadTodosByDateRange(today, today)
       const todayTasks = tasks[today] || []
 
@@ -295,8 +299,8 @@ export function useTodos() {
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekStart.getDate() + 6)
 
-      const startDate = weekStart.toISOString().slice(0, 10)
-      const endDate = weekEnd.toISOString().slice(0, 10)
+      const startDate = formatDateLocal(weekStart)
+      const endDate = formatDateLocal(weekEnd)
 
       const tasks = await loadTodosByDateRange(startDate, endDate)
       let total = 0, completed = 0, pending = 0
@@ -314,6 +318,192 @@ export function useTodos() {
     }
   }
 
+  // ==================== 父子任务相关方法 ====================
+
+  /**
+   * 获取指定父任务的所有直接子任务
+   */
+  const getChildren = (todos: TodoItem[], parentId: string): TodoItem[] => {
+    return todos.filter(t => t.parentId === parentId)
+  }
+
+  /**
+   * 检查任务是否有子任务
+   */
+  const hasChildren = (todos: TodoItem[], id: string): boolean => {
+    return todos.some(t => t.parentId === id)
+  }
+
+  /**
+   * 获取任务的层级深度（用于缩进）
+   */
+  const getDepth = (todos: TodoItem[], id: string, depth = 0): number => {
+    const todo = todos.find(t => t.id === id)
+    if (!todo?.parentId) return depth
+    return getDepth(todos, todo.parentId, depth + 1)
+  }
+
+  /**
+   * 获取父任务的完成进度
+   */
+  const getTodoProgress = (todos: TodoItem[], parentId: string): { completed: number; total: number; text: string } => {
+    const children = getChildren(todos, parentId)
+    if (children.length === 0) return { completed: 0, total: 0, text: '' }
+    const completed = children.filter(t => t.completed).length
+    return { completed, total: children.length, text: `${completed}/${children.length}` }
+  }
+
+  /**
+   * 递归更新子任务完成状态
+   */
+  const updateChildrenCompletion = (todos: TodoItem[], parentId: string, completed: boolean): TodoItem[] => {
+    const result = [...todos]
+    const updateRecursive = (todoId: string) => {
+      const children = getChildren(result, todoId)
+      children.forEach(child => {
+        const index = result.findIndex(t => t.id === child.id)
+        if (index !== -1) {
+          result[index] = { ...result[index], completed }
+        }
+        if (hasChildren(result, child.id)) {
+          updateRecursive(child.id)
+        }
+      })
+    }
+    updateRecursive(parentId)
+    return result
+  }
+
+  /**
+   * 递归检查并更新父任务完成状态（所有子任务完成时父任务也完成）
+   */
+  const updateParentCompletion = (todos: TodoItem[], parentId: string): TodoItem[] => {
+    const result = [...todos]
+    const updateRecursive = (currentParentId: string) => {
+      const children = getChildren(result, currentParentId)
+      const parentIndex = result.findIndex(t => t.id === currentParentId)
+
+      if (parentIndex !== -1 && children.length > 0) {
+        const allCompleted = children.every(t => t.completed)
+        result[parentIndex] = { ...result[parentIndex], completed: allCompleted }
+
+        // 继续向上检查
+        const parent = result[parentIndex]
+        if (parent.parentId) {
+          updateRecursive(parent.parentId)
+        }
+      }
+    }
+    updateRecursive(parentId)
+    return result
+  }
+
+  /**
+   * 递归删除任务及其所有子任务
+   */
+  const deleteTodoRecursive = (todos: TodoItem[], todoId: string): TodoItem[] => {
+    const result = [...todos]
+    const idsToDelete = new Set<string>()
+
+    const collectIds = (id: string) => {
+      idsToDelete.add(id)
+      const children = getChildren(result, id)
+      children.forEach(child => collectIds(child.id))
+    }
+
+    collectIds(todoId)
+    return result.filter(t => !idsToDelete.has(t.id))
+  }
+
+  /**
+   * 构建树形结构的任务列表（用于扁平展示）
+   */
+  const buildTodoTree = (
+    todos: TodoItem[],
+    expandedParents?: Record<string, boolean>
+  ): TodoTreeNode[] => {
+    const parents = expandedParents ?? {}
+    const result: TodoTreeNode[] = []
+
+    // 获取根任务
+    const rootTodos = todos
+      .filter(t => !t.parentId)
+      .sort((a, b) => {
+        if (a.completed === b.completed) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        }
+        return a.completed ? 1 : -1
+      })
+
+    const buildNode = (todo: TodoItem, level = 0): TodoTreeNode => {
+      const children = getChildren(todos, todo.id)
+      const node: TodoTreeNode = {
+        ...todo,
+        hasChildren: children.length > 0,
+        level
+      }
+
+      return node
+    }
+
+    const traverse = (todo: TodoItem, level = 0) => {
+      const node = buildNode(todo, level)
+      result.push(node)
+
+      // 如果展开或有子任务，递归添加子任务
+      const children = getChildren(todos, todo.id)
+      if (children.length > 0 && parents[todo.id] !== false) {
+        children
+          .sort((a, b) => {
+            if (a.completed === b.completed) {
+              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            }
+            return a.completed ? 1 : -1
+          })
+          .forEach(child => traverse(child, level + 1))
+      }
+    }
+
+    rootTodos.forEach(todo => traverse(todo))
+    return result
+  }
+
+  /**
+   * 切换任务完成状态（支持父子任务联动）
+   */
+  const toggleTodoWithChildren = async (
+    todos: TodoItem[],
+    todoId: string,
+    onSave: (todos: TodoItem[]) => Promise<void>
+  ): Promise<TodoItem[]> => {
+    const todo = todos.find(t => t.id === todoId)
+    if (!todo) return todos
+
+    const newCompletedState = !todo.completed
+    let result = [...todos]
+
+    // 更新当前任务
+    const index = result.findIndex(t => t.id === todoId)
+    if (index !== -1) {
+      result[index] = { ...result[index], completed: newCompletedState }
+    }
+
+    // 如果是父任务，同时更新所有子任务
+    if (hasChildren(result, todoId)) {
+      result = updateChildrenCompletion(result, todoId, newCompletedState)
+    }
+
+    // 如果是子任务，检查父任务是否应该被标记为完成
+    if (todo.parentId) {
+      result = updateParentCompletion(result, todo.parentId)
+    }
+
+    // 持久化
+    await onSave(result)
+
+    return result
+  }
+
   return {
     loading: readonly(loading),
     error: readonly(error),
@@ -323,6 +513,16 @@ export function useTodos() {
     toggleTodo,
     deleteTodo,
     getTodayStats,
-    getWeekStats
+    getWeekStats,
+    // 父子任务方法
+    getChildren,
+    hasChildren,
+    getDepth,
+    getTodoProgress,
+    updateChildrenCompletion,
+    updateParentCompletion,
+    deleteTodoRecursive,
+    buildTodoTree,
+    toggleTodoWithChildren
   }
 }

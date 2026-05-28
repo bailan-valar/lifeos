@@ -54,7 +54,7 @@
           >
             <div class="task-checkbox" @click.stop="toggleTask(task)">
               <Icon
-                :name="task.completed ? 'solar:check-circle-bold' : 'solar:round-linear'"
+                :name="task.completed ? ICONS.checkCircleBold : ICONS.round"
                 :size="18"
                 :class="{ checked: task.completed }"
               />
@@ -166,6 +166,7 @@
 </template>
 
 <script setup lang="ts">
+import { ICONS } from '~/composables/useIcons'
 import { getDB, generateId, now } from '~/services/db'
 
 interface TodoItem {

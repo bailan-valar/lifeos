@@ -383,8 +383,11 @@ function loadFromValue() {
   refreshInputText()
 }
 
-watch(() => props.modelValue, () => {
-  if (!open.value) loadFromValue()
+watch(() => props.modelValue, (newVal, oldVal) => {
+  // 如果是首次设置值（从空值变为有值），或者弹窗关闭时更新值，都重新加载
+  if (!open.value || (oldVal === '' && newVal !== '')) {
+    loadFromValue()
+  }
 })
 
 /* ---------- 输入框交互 ---------- */
@@ -558,6 +561,13 @@ function toggle() {
 
 function openPanel() {
   loadFromValue()
+  // 如果未设置值，默认选中当天
+  if (!selectedDate.value) {
+    selectedDate.value = { year: today.year, month: today.month, day: today.day }
+    selectedHour.value = 0
+    selectedMinute.value = 0
+    refreshInputText()
+  }
   open.value = true
   nextTick(() => {
     updatePanelPosition()

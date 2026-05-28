@@ -126,9 +126,12 @@
 
 <script setup lang="ts">
 import { getDB, generateId, now } from '~/services/db'
+import { useToast } from '~/composables/useToast'
 import type { Goal } from '~/types/goal'
 import DateRangePicker from '~/components/DateRangePicker.vue'
 import DateTimePicker from '~/app-modules/billing/components/DateTimePicker.vue'
+
+const { warning: showWarning } = useToast()
 
 interface NoteItem {
   id: string
@@ -223,17 +226,17 @@ async function onConfirm() {
 
   // 验证必填字段
   if (!form.title.trim()) {
-    alert('请输入目标名称')
+    showWarning('请输入目标名称')
     return
   }
 
   if (form.target <= 0) {
-    alert('请输入有效的目标量')
+    showWarning('请输入有效的目标量')
     return
   }
 
   if (!form.startDate || !form.endDate) {
-    alert('请选择时间范围')
+    showWarning('请选择时间范围')
     return
   }
 

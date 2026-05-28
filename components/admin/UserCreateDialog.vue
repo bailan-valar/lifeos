@@ -95,8 +95,10 @@
 </template>
 
 <script setup lang="ts">
+import { useToast } from '~/composables/useToast'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 
+const { error: showError } = useToast()
 const emit = defineEmits(['close', 'created'])
 
 const isOpen = ref(true)
@@ -166,11 +168,8 @@ const handleSubmit = async () => {
     emit('created')
     close()
   } catch (error: any) {
-    if (error.data) {
-      alert(`创建失败: ${error.data.message}`)
-    } else {
-      alert(`创建失败: ${error.message}`)
-    }
+    const msg = error.data?.message || error.message || '创建失败'
+    showError(`创建失败: ${msg}`)
   } finally {
     isLoading.value = false
   }

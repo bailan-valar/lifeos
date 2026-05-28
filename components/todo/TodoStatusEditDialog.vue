@@ -43,7 +43,7 @@
                   :class="{ active: formData.icon === icon }"
                   @click="formData.icon = icon"
                 >
-                  <Icon :name="icon" size="20" />
+                  <Icon :name="icon || 'solar:info-circle-linear'" size="20" />
                 </button>
               </div>
             </div>
@@ -87,7 +87,7 @@
                 color: formData.color 
               }"
             >
-              <Icon :name="formData.icon" size="16" />
+              <Icon :name="formData.icon || 'solar:info-circle-linear'" size="16" />
               <span class="preview-text">{{ formData.name || '状态名称' }}</span>
             </div>
           </div>
@@ -107,8 +107,12 @@
 </template>
 
 <script setup lang="ts">
+import { ICONS } from '~/composables/useIcons'
 import { useTodoStatus } from '~/composables/useTodoStatus'
+import { useToast } from '~/composables/useToast'
 import type { TodoStatus, TodoStatusFormData } from '~/types/todo'
+
+const { error: showError } = useToast()
 
 interface Props {
   visible: boolean
@@ -126,21 +130,21 @@ const { createStatus, updateStatus } = useTodoStatus()
 
 const formData = ref<TodoStatusFormData>({
   name: '',
-  icon: 'solar:round-circle-linear',
+  icon: ICONS.round,
   color: '#3b82f6',
   description: '',
   isDefault: false
 })
 
 const availableIcons = [
-  'solar:round-circle-linear',
-  'solar:clock-circle-linear',
-  'solar:pause-circle-linear',
-  'solar:check-circle-linear',
-  'solar:play-circle-linear',
-  'solar:danger-circle-linear',
-  'solar:info-circle-linear',
-  'solar:star-circle-linear'
+  ICONS.round,
+  ICONS.clockCircle,
+  ICONS.pauseCircle,
+  ICONS.checkCircle,
+  ICONS.playCircle,
+  ICONS.dangerCircle,
+  ICONS.infoCircle,
+  ICONS.starCircle
 ]
 
 const availableColors = [
@@ -174,7 +178,7 @@ watch(() => props.visible, (newVal) => {
     // 新建模式：重置为默认值
     formData.value = {
       name: '',
-      icon: 'solar:round-circle-linear',
+      icon: ICONS.round,
       color: '#3b82f6',
       description: '',
       isDefault: false
@@ -199,7 +203,7 @@ async function handleSubmit() {
     }
     close()
   } catch (e) {
-    alert(e instanceof Error ? e.message : '保存失败')
+    showError(e instanceof Error ? e.message : '保存失败')
   }
 }
 </script>

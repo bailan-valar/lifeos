@@ -17,7 +17,7 @@
         }"
         @click="selectStatus(status.id)"
       >
-        <Icon :name="status.icon" size="18" :style="{ color: status.color }" />
+        <Icon :name="status.icon || ICONS.round" size="18" :style="{ color: status.color }" />
         <div class="status-info">
           <span class="status-name">{{ status.name }}</span>
           <span v-if="status.description" class="status-description">{{ status.description }}</span>
@@ -36,6 +36,7 @@
 
 <script setup lang="ts">
 import { useTodoStatus } from '~/composables/useTodoStatus'
+import { ICONS } from '~/composables/useIcons'
 
 interface Props {
   modelValue?: string | null
