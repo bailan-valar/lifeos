@@ -48,6 +48,7 @@
                 :class="{ 'drag-over': dropTarget?.dateStr === column.dateStr && dropTarget?.timeSlot.value === slot.value }"
                 @click="$emit('clickCell', { dateStr: column.dateStr, timeSlot: slot })"
                 @dragover="(e) => handleDragOver(e, column.dateStr, slot)"
+                @dragenter="(e) => console.log('[拖拽] dragenter 时间单元格:', column.dateStr, slot.label)"
                 @drop="(e) => handleDrop(e, column.dateStr, slot)"
               />
 
@@ -196,8 +197,12 @@ function handleDragStart(task: GridTask, event: DragEvent) {
 
 // 拖拽中
 function handleDragOver(event: DragEvent, dateStr: string, timeSlot?: TimeSlot) {
+  console.log('[拖拽] handleDragOver 被调用:', { dateStr, timeSlot: timeSlot?.label })
   event.preventDefault()
-  if (!(event.dataTransfer)) return
+  if (!(event.dataTransfer)) {
+    console.log('[拖拽] 没有 dataTransfer')
+    return
+  }
 
   event.dataTransfer.dropEffect = 'move'
 
@@ -951,7 +956,7 @@ onUnmounted(() => {
 }
 
 .grid-task.dragging {
-  opacity: 0; /* 完全隐藏原元素，让浏览器使用 ghost image */
+  opacity: 0.01; /* 几乎透明但不为0，保持拖拽功能 */
   pointer-events: none; /* 不接收任何事件 */
 }
 
