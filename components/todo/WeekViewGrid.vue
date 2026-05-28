@@ -76,14 +76,23 @@
                 :class="{
                   'completed': task.completed,
                   'has-overlap': task.leftOffset !== undefined,
-                  'dragging': isDragging && draggedTask?.id === task.id
+                  'dragging': isDragging && draggedTask?.id === task.id,
+                  'resizing': isResizing && resizingTask?.id === task.id
                 }"
                 :style="getTaskStyle(task)"
-                :draggable="true"
+                :draggable="!isResizing"
                 @click="$emit('clickTask', task)"
                 @dragstart="(e) => handleDragStart(task, e)"
                 @dragend="handleDragEnd"
               >
+                <!-- 顶部调整手柄 - 修改开始时间 -->
+                <div
+                  class="resize-handle resize-handle-top"
+                  :class="{ 'active': resizeEdge === 'top' }"
+                  @mousedown.stop="(e) => handleResizeStart(task, 'top', e)"
+                  @touchstart.stop="(e) => handleResizeStart(task, 'top', e)"
+                />
+
                 <div class="task-content">
                   <button
                     class="task-checkbox"
@@ -99,6 +108,14 @@
                     <div class="task-time">{{ formatTaskTime(task) }}</div>
                   </div>
                 </div>
+
+                <!-- 底部调整手柄 - 修改结束时间 -->
+                <div
+                  class="resize-handle resize-handle-bottom"
+                  :class="{ 'active': resizeEdge === 'bottom' }"
+                  @mousedown.stop="(e) => handleResizeStart(task, 'bottom', e)"
+                  @touchstart.stop="(e) => handleResizeStart(task, 'bottom', e)"
+                />
               </div>
             </div>
           </div>
@@ -127,6 +144,7 @@ const emit = defineEmits<{
   dragStart: [task: GridTask, event: DragEvent]
   dragEnd: []
   dropTask: [data: { task: GridTask; newDateStr: string; newStartTime: string; newEndTime: string }]
+  resizeTask: [data: { task: GridTask; newStartTime?: string; newEndTime?: string }]
 }>()
 
 const rowHeight = 36 // 每行高度（像素）
@@ -136,6 +154,16 @@ const isDragging = ref(false)
 const draggedTask = ref<GridTask | null>(null)
 const dragPreview = ref<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false })
 const dropTarget = ref<{ dateStr: string; timeSlot: TimeSlot } | null>(null)
+
+// 调整大小相关状态
+const isResizing = ref(false)
+const resizingTask = ref<GridTask | null>(null)
+const resizeEdge = ref<'top' | 'bottom' | null>(null)
+const resizeStartY = ref(0)
+const resizeStartTop = ref(0)
+const resizeStartHeight = ref(0)
+const resizeStartTime = ref<{ minutes: number } | null>(null)
+const resizeEndTime = ref<{ minutes: number } | null>(null)
 
 // 开始拖拽
 function handleDragStart(task: GridTask, event: DragEvent) {
@@ -171,6 +199,106 @@ function handleDragEnd() {
   dragPreview.value = { x: 0, y: 0, visible: false }
   dropTarget.value = null
   emit('dragEnd')
+}
+
+// 开始调整大小
+function handleResizeStart(task: GridTask, edge: 'top' | 'bottom', event: MouseEvent | TouchEvent) {
+  event.preventDefault()
+  isResizing.value = true
+  resizeEdge.value = edge
+  resizingTask.value = task
+
+  const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
+  resizeStartY.value = clientY
+
+  // 获取任务元素的位置信息
+  const targetEl = (event.currentTarget as HTMLElement)?.parentElement
+  if (targetEl) {
+    resizeStartTop.value = targetEl.offsetTop
+    resizeStartHeight.value = targetEl.offsetHeight
+  }
+
+  // 解析任务的开始和结束时间（转换为分钟数）
+  if (task.startDate && task.startDate.includes('T')) {
+    const startTime = task.startDate.split('T')[1]?.slice(0, 5) || '00:00'
+    const [h, m] = startTime.split(':').map(Number)
+    resizeStartTime.value = { minutes: h * 60 + m }
+  }
+
+  if (task.dueDate && task.dueDate.includes('T')) {
+    const endTime = task.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
+    const [h, m] = endTime.split(':').map(Number)
+    resizeEndTime.value = { minutes: h * 60 + m }
+  }
+
+  // 添加全局事件监听
+  document.addEventListener('mousemove', handleResizeMove)
+  document.addEventListener('mouseup', handleResizeEnd)
+  document.addEventListener('touchmove', handleResizeMove, { passive: false })
+  document.addEventListener('touchend', handleResizeEnd)
+}
+
+// 调整大小中
+function handleResizeMove(event: MouseEvent | TouchEvent) {
+  if (!isResizing.value || !resizingTask.value) return
+
+  event.preventDefault()
+
+  const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
+  const deltaY = clientY - resizeStartY.value
+
+  // 将像素变化转换为分钟数
+  const rowHeight = 36 // 每行高度
+  const slotDuration = 30 // 每槽30分钟
+  const deltaRows = Math.round(deltaY / rowHeight)
+  const deltaMinutes = deltaRows * slotDuration
+
+  if (resizeEdge.value === 'top') {
+    // 调整开始时间
+    if (!resizeStartTime.value) return
+    const newStartMinutes = resizeStartTime.value.minutes + deltaMinutes
+    const newStartTime = formatMinutesToTime(newStartMinutes)
+
+    // 确保开始时间早于结束时间
+    if (resizeEndTime.value && newStartMinutes < resizeEndTime.value.minutes - slotDuration) {
+      emit('resizeTask', {
+        task: resizingTask.value,
+        newStartTime
+      })
+    }
+  } else if (resizeEdge.value === 'bottom') {
+    // 调整结束时间
+    if (!resizeEndTime.value) return
+    const newEndMinutes = resizeEndTime.value.minutes + deltaMinutes
+    const newEndTime = formatMinutesToTime(newEndMinutes)
+
+    // 确保结束时间晚于开始时间
+    if (resizeStartTime.value && newEndMinutes > resizeStartTime.value.minutes + slotDuration) {
+      emit('resizeTask', {
+        task: resizingTask.value,
+        newEndTime
+      })
+    }
+  }
+}
+
+// 结束调整大小
+function handleResizeEnd() {
+  isResizing.value = false
+  resizingTask.value = null
+  resizeEdge.value = null
+
+  document.removeEventListener('mousemove', handleResizeMove)
+  document.removeEventListener('mouseup', handleResizeEnd)
+  document.removeEventListener('touchmove', handleResizeMove)
+  document.removeEventListener('touchend', handleResizeEnd)
+}
+
+// 将分钟数转换为 HH:mm 格式
+function formatMinutesToTime(minutes: number): string {
+  const hour = Math.floor(minutes / 60)
+  const minute = minutes % 60
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
 // 放置
@@ -603,7 +731,7 @@ onUnmounted(() => {
   padding: 4px 6px;
   cursor: pointer;
   transition: all 0.15s ease;
-  overflow: hidden;
+  overflow: visible; /* 允许手柄超出边界 */
 }
 
 .grid-task:hover {
@@ -674,6 +802,62 @@ onUnmounted(() => {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.8);
   margin-top: 2px;
+}
+
+/* 调整大小手柄 */
+.resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+}
+
+.resize-handle-top {
+  top: 0;
+}
+
+.resize-handle-bottom {
+  bottom: 0;
+}
+
+.resize-handle-top::after {
+  top: 2px;
+}
+
+.resize-handle-bottom::after {
+  bottom: 2px;
+}
+
+.grid-task:hover .resize-handle {
+  opacity: 1;
+}
+
+.resize-handle.active {
+  opacity: 1;
+}
+
+.resize-handle.active::after {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.grid-task.resizing {
+  cursor: ns-resize;
+  user-select: none;
 }
 
 /* 滚动条样式 */

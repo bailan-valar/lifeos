@@ -31,6 +31,7 @@
         @click-task="handleClickTask"
         @click-cell="handleClickCell"
         @drop-task="handleDropTask"
+        @resize-task="handleResizeTask"
       />
     </div>
 
@@ -288,6 +289,50 @@ async function handleDropTask(data: {
     }
   } catch (err) {
     console.error('拖拽任务失败:', err)
+  }
+}
+
+// 调整任务时间（开始/结束）
+async function handleResizeTask(data: {
+  task: GridTask
+  newStartTime?: string
+  newEndTime?: string
+}) {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const todos = doc.get('data') as { todos: TodoItem[] } | undefined
+      if (todos?.todos) {
+        const index = todos.todos.findIndex(t => t.id === data.task.id)
+        if (index !== -1) {
+          const originalTask = todos.todos[index]
+
+          // 获取原任务的日期部分
+          const originalDatePart = originalTask.startDate?.split('T')[0] || ''
+
+          // 更新开始时间
+          if (data.newStartTime !== undefined && originalDatePart) {
+            todos.todos[index].startDate = `${originalDatePart}T${data.newStartTime}`
+          }
+
+          // 更新结束时间
+          if (data.newEndTime !== undefined && originalTask.dueDate) {
+            const dueDatePart = originalTask.dueDate.split('T')[0] || originalDatePart
+            todos.todos[index].dueDate = `${dueDatePart}T${data.newEndTime}`
+          }
+
+          await doc.patch({ data: { todos: todos.todos } })
+          await loadWeekTasks()
+          break
+        }
+      }
+    }
+  } catch (err) {
+    console.error('调整任务时间失败:', err)
   }
 }
 
