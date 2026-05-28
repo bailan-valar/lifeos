@@ -918,8 +918,8 @@ onUnmounted(() => {
 }
 
 .grid-task.dragging {
-  opacity: 0.5;
-  cursor: grabbing;
+  opacity: 0; /* 完全隐藏原元素，让浏览器使用 ghost image */
+  pointer-events: none; /* 不接收任何事件 */
 }
 
 .grid-task:active {
