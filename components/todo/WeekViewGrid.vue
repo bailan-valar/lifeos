@@ -159,6 +159,8 @@ const isDragging = ref(false)
 const draggedTask = ref<GridTask | null>(null)
 const dragPreview = ref<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false })
 const dropTarget = ref<{ dateStr: string; timeSlot: TimeSlot } | null>(null)
+// 拖拽时的预览时间
+const dragPreviewTime = ref<{ startTime: string; endTime: string } | null>(null)
 
 // 调整大小相关状态
 const isResizing = ref(false)
@@ -201,6 +203,35 @@ function handleDragOver(event: DragEvent, dateStr: string, timeSlot?: TimeSlot) 
   // 计算拖拽位置对应的时间槽
   if (timeSlot) {
     dropTarget.value = { dateStr, timeSlot }
+
+    // 计算拖拽时的预览时间
+    if (draggedTask.value) {
+      const startTime = `${String(timeSlot.hour).padStart(2, '0')}:${String(timeSlot.minute).padStart(2, '0')}`
+
+      // 计算任务持续时长（保持原时长）
+      const originalTask = draggedTask.value
+      let duration = 60 // 默认1小时
+
+      if (originalTask.startDate && originalTask.startDate.includes('T')) {
+        const originalStart = originalTask.startDate.split('T')[1]?.slice(0, 5) || '00:00'
+        const [h1, m1] = originalStart.split(':').map(Number)
+
+        if (originalTask.dueDate && originalTask.dueDate.includes('T')) {
+          const originalEnd = originalTask.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
+          const [h2, m2] = originalEnd.split(':').map(Number)
+          duration = (h2 * 60 + m2) - (h1 * 60 + m1)
+        }
+      }
+
+      // 计算新的结束时间
+      const startMinutes = timeSlot.hour * 60 + timeSlot.minute
+      const endMinutes = startMinutes + duration
+      const endHour = Math.floor(endMinutes / 60)
+      const endMinute = endMinutes % 60
+      const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+      dragPreviewTime.value = { startTime, endTime }
+    }
   }
 }
 
@@ -210,6 +241,7 @@ function handleDragEnd() {
   draggedTask.value = null
   dragPreview.value = { x: 0, y: 0, visible: false }
   dropTarget.value = null
+  dragPreviewTime.value = null
   emit('dragEnd')
 }
 
@@ -535,6 +567,11 @@ function getTaskStyle(task: GridTask): {
 
 // 格式化任务时间
 function formatTaskTime(task: GridTask): string {
+  // 如果是正在拖拽的任务，显示预览时间
+  if (isDragging.value && draggedTask.value?.id === task.id && dragPreviewTime.value) {
+    return `${dragPreviewTime.value.startTime} - ${dragPreviewTime.value.endTime}`
+  }
+
   // 如果是正在调整的任务或正在更新数据的任务，显示临时时间
   const isAdjusting = (resizingTask.value && resizingTask.value.id === task.id) ||
                       (updatingTaskId.value && updatingTaskId.value === task.id)
