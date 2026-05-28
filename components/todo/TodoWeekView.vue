@@ -20,6 +20,8 @@
         :loading="loading"
         @toggle-task="handleToggleTask"
         @click-task="handleClickTask"
+        @drag-start="handleAllDayDragStart"
+        @drag-end="handleDragEnd"
       />
 
       <!-- 时间网格 -->
@@ -174,6 +176,17 @@ function handleClickTask(task: GridTask) {
 
 function handleUpdateTimeRange(start: number, end: number) {
   updateTimeRange(start, end)
+}
+
+// 全天任务开始拖拽
+const draggingAllDayTask = ref<GridTask | null>(null)
+
+function handleAllDayDragStart(task: GridTask, event: DragEvent) {
+  draggingAllDayTask.value = task
+}
+
+function handleDragEnd() {
+  draggingAllDayTask.value = null
 }
 
 function handleUpdateColorMode(mode: TodoColorMode) {

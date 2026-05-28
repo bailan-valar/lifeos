@@ -54,7 +54,7 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
     weekStart: getMonday(new Date()),
     timeStart: initialConfig?.timeStart ?? 8,
     timeEnd: initialConfig?.timeEnd ?? 23,
-    slotDuration: initialConfig?.slotDuration ?? 30,
+    slotDuration: initialConfig?.slotDuration ?? 5, // 5分钟粒度
     colorMode: initialConfig?.colorMode ?? 'priority'
   })
 

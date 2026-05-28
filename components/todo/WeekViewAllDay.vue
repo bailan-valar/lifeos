@@ -18,9 +18,12 @@
             v-for="task in column.allDayTasks"
             :key="task.id"
             class="all-day-task"
-            :class="{ completed: task.completed }"
+            :class="{ completed: task.completed, dragging: isDragging && draggedTask?.id === task.id }"
             :style="{ backgroundColor: task.color }"
+            draggable="true"
             @click="$emit('clickTask', task)"
+            @dragstart="(e) => handleDragStart(task, e)"
+            @dragend="handleDragEnd"
           >
             <button
               class="task-checkbox"
@@ -53,12 +56,40 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   toggleTask: [id: string]
   clickTask: [task: GridTask]
+  dragStart: [task: GridTask, event: DragEvent]
+  dragEnd: []
 }>()
 
 // 引用
 const allDayGridRef = ref<HTMLElement>()
 const allDayGridInnerRef = ref<HTMLElement>()
 const columnRefs: (HTMLElement | null)[] = []
+
+// 拖拽相关状态
+const isDragging = ref(false)
+const draggedTask = ref<GridTask | null>(null)
+
+// 开始拖拽
+function handleDragStart(task: GridTask, event: DragEvent) {
+  if (!(event.dataTransfer)) return
+  isDragging.value = true
+  draggedTask.value = task
+
+  // 设置拖拽数据
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', task.id)
+  event.dataTransfer.setData('task-type', 'all-day')
+
+  // 触发事件
+  emit('dragStart', task, event)
+}
+
+// 拖拽结束
+function handleDragEnd() {
+  isDragging.value = false
+  draggedTask.value = null
+  emit('dragEnd')
+}
 
 function setColumnRef(el: any, index: number) {
   if (el) {
@@ -196,6 +227,15 @@ defineExpose({
 
 .all-day-task.completed .task-text {
   text-decoration: line-through;
+}
+
+.all-day-task.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.all-day-task:active {
+  cursor: grabbing;
 }
 
 .task-checkbox {
