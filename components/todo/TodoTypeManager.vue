@@ -67,19 +67,7 @@
       </div>
 
       <div class="form-group">
-        <label>图标</label>
-        <div class="icon-grid">
-          <button
-            v-for="icon in presetIcons"
-            :key="icon"
-            type="button"
-            class="icon-option"
-            :class="{ active: form.icon === icon }"
-            @click="form.icon = icon"
-          >
-            <Icon :name="icon" size="20" />
-          </button>
-        </div>
+        <IconPicker v-model="form.icon" :icons="PRESET_ICON_SETS.todo" label="图标" />
       </div>
 
       <div class="form-group">
@@ -123,8 +111,9 @@
 
 <script setup lang="ts">
 import { getDB, generateId, now } from '~/services/db'
-import { SOLAR_ICONS, ICONS } from '~/composables/useIcons'
+import { SOLAR_ICONS, ICONS, PRESET_ICON_SETS } from '~/composables/useIcons'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
+import IconPicker from '~/components/IconPicker.vue'
 
 interface TodoType {
   id: string
@@ -160,24 +149,6 @@ const form = reactive<{
   color: '#3b82f6',
   description: ''
 })
-
-const presetIcons = [
-  'solar:check-circle-linear',
-  'solar:star-circle-linear',
-  'solar:flag-linear',
-  'solar:clock-circle-linear',
-  'solar:heart-circle-linear',
-  'solar:alert-circle-linear',
-  'solar:bolt-circle-linear',
-  'solar:calendar-circle-linear',
-  'solar:target-linear',
-  'solar:document-text-linear',
-  'solar:briefcase-linear',
-  'solar:home-smile-linear',
-  'solar:shop-linear',
-  'solar:health-linear',
-  'solar:graduation-cap-linear'
-]
 
 const presetColors = [
   '#3b82f6', // blue
@@ -443,37 +414,6 @@ watch(() => props.visible, (visible) => {
   font-size: 14px;
 }
 
-.icon-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-
-.icon-option {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--liquid-radius-button);
-  border: 2px solid var(--liquid-border, rgba(60, 60, 67, 0.15));
-  background: var(--liquid-bg);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--liquid-text-primary, rgba(0, 0, 0, 0.7));
-}
-
-.icon-option:hover {
-  background: var(--liquid-bg-thick);
-  border-color: #3b82f6;
-}
-
-.icon-option.active {
-  border-color: #3b82f6;
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-}
-
 .color-picker {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -513,10 +453,6 @@ watch(() => props.visible, (visible) => {
 
   .form-group label {
     color: var(--liquid-text-primary, rgba(255, 255, 255, 0.92));
-  }
-
-  .icon-option {
-    color: var(--liquid-text-primary, rgba(255, 255, 255, 0.7));
   }
 
   .create-type-btn {

@@ -73,7 +73,7 @@
                 </div>
 
                 <div class="form-group">
-                  <IconPicker v-model="form.icon" :icons="presetIcons" label="图标" />
+                  <IconPicker v-model="form.icon" :icons="PRESET_ICON_SETS.class" label="图标" />
                 </div>
 
                 <div class="form-group">
@@ -195,6 +195,7 @@ import type { Class, ClassField, ClassFieldType } from '~/types/block'
 import { generateId } from '~/services/db'
 import { useConfirm } from '~/composables/useConfirm'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
+import { PRESET_ICON_SETS } from '~/composables/useIcons'
 import IconPicker from '~/components/IconPicker.vue'
 
 const { isMobile } = useDevice()
@@ -252,21 +253,6 @@ const typeLabels: Record<string, string> = {
 }
 
 const fieldTypeOptions = Object.entries(typeLabels).map(([value, label]) => ({ value, label }))
-
-const presetIcons = [
-  'solar:document-text-linear',
-  'solar:folder-linear',
-  'solar:user-linear',
-  'solar:buildings-linear',
-  'solar:book-linear',
-  'solar:calendar-linear',
-  'solar:tag-linear',
-  'solar:star-linear',
-  'solar:heart-linear',
-  'solar:bolt-linear',
-  'solar:code-linear',
-  'solar:gallery-wide-linear'
-]
 
 const presetColors = [
   '#007AFF',

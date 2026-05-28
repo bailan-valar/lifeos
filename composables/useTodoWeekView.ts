@@ -120,6 +120,20 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
     return `${year}-${month}-${day}`
   }
 
+  // 从日期时间字符串中提取日期部分 (YYYY-MM-DD)
+  function extractDatePart(dateStr: string): string {
+    if (!dateStr) return ''
+    // 如果包含 'T'，只取日期部分
+    if (dateStr.includes('T')) {
+      return dateStr.split('T')[0]
+    }
+    // 如果是完整的 YYYY-MM-DD 格式，直接返回
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr
+    }
+    return dateStr.slice(0, 10)
+  }
+
   // 本周日期数组
   const weekDays = computed(() => {
     const days = []
@@ -196,19 +210,8 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
     const hasStartTime = task.startDate && task.startDate.includes('T')
     const hasEndTime = task.dueDate && task.dueDate.includes('T')
 
-    // 🐛 调试：输出任务时间信息
-    console.log('[周视图] calculateTaskPosition:', {
-      text: task.text,
-      startDate: task.startDate,
-      dueDate: task.dueDate,
-      hasStartTime,
-      hasEndTime,
-      timeRange: `${config.timeStart}:00 - ${config.timeEnd}:00`
-    })
-
     // 全天任务或无时间任务
     if (!hasStartTime) {
-      console.log('[周视图] -> 全天任务')
       return {
         ...task,
         columnIndex,
@@ -231,15 +234,12 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
 
     // 检查是否在时间范围内
     if (endMinutes <= config.timeStart * 60 || startMinutes >= config.timeEnd * 60) {
-      console.log('[周视图] -> 超出时间范围，返回 null')
       return null
     }
 
     const startRow = minutesToSlotIndex(startMinutes)
     const endRow = minutesToSlotIndex(endMinutes)
     const rowSpan = Math.max(1, endRow - startRow)
-
-    console.log('[周视图] -> 计算位置:', { startTimeStr, startMinutes, endMinutes, startRow, endRow, rowSpan })
 
     return {
       ...task,
@@ -360,8 +360,9 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
             // 跳过子任务和已完成任务（可选）
             // if (todo.parentId || todo.completed) continue
 
-            // 确定任务所属日期
-            const taskDate = todo.dueDate || todo.createdAt.slice(0, 10)
+            // 确定任务所属日期（只提取日期部分，不含时间）
+            const rawDate = todo.dueDate || todo.createdAt
+            const taskDate = extractDatePart(rawDate)
 
             // 检查是否在本周内
             if (taskDate >= startIso && taskDate < endIso) {
@@ -374,18 +375,6 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
 
               const positioned = calculateTaskPosition(todo, columnIndex)
               if (positioned) {
-                // 🐛 调试：输出任务位置信息
-                console.log('[周视图] 任务定位:', {
-                  id: todo.id,
-                  text: todo.text,
-                  taskDate,
-                  columnIndex,
-                  startRow: positioned.startRow,
-                  rowSpan: positioned.rowSpan,
-                  startDate: todo.startDate,
-                  dueDate: todo.dueDate
-                })
-
                 tasks.push({
                   ...positioned,
                   noteTitle: notesCache.value.get(noteId),

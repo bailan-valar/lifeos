@@ -97,7 +97,7 @@
       />
     </div>
     <div class="form-group">
-      <IconPicker v-model="form.icon" :icons="presetIcons" label="图标" />
+      <IconPicker v-model="form.icon" :icons="PRESET_ICON_SETS.billing" label="图标" />
     </div>
 
     <div class="form-group">
@@ -129,6 +129,7 @@
 <script setup lang="ts">
 import type { AccountFormData, AccountType, AccountSubtype, BillCategory } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
+import { PRESET_ICON_SETS } from '~/composables/useIcons'
 import IconPicker from '~/components/IconPicker.vue'
 
 const props = defineProps<{
@@ -152,25 +153,6 @@ const subtypeOptions: Array<{ value: AccountSubtype; label: string }> = [
   { value: 'debit_card', label: '储蓄卡' },
   { value: 'credit_card', label: '信用卡' },
   { value: 'online_account', label: '网络账户' }
-]
-
-const presetIcons = [
-  'solar:wallet-linear',
-  'solar:card-linear',
-  'solar:cart-linear',
-  'solar:bag-linear',
-  'solar:home-linear',
-  'solar:kick-scooter-linear',
-  'solar:cpu-linear',
-  'solar:bolt-linear',
-  'solar:heart-linear',
-  'solar:star-linear',
-  'solar:chef-hat-linear',
-  'solar:cup-hot-linear',
-  'solar:bus-linear',
-  'solar:health-linear',
-  'solar:book-linear',
-  'solar:gift-linear'
 ]
 
 const presetColors = [

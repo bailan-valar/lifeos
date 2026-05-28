@@ -190,19 +190,6 @@ function getTaskStyle(task: GridTask): {
     style.width = task.widthPercent + '%'
   }
 
-  // 🐛 调试：输出任务样式信息（仅在首次渲染时）
-  if (!task._debugged) {
-    console.log('[WeekViewGrid] 任务样式:', {
-      text: task.text,
-      startRow: task.startRow,
-      rowSpan: task.rowSpan,
-      top: style.top,
-      height: style.height,
-      backgroundColor: style.backgroundColor
-    })
-    ;(task as any)._debugged = true
-  }
-
   return style
 }
 
@@ -310,29 +297,6 @@ onMounted(() => {
 })
 
 watch(() => props.weekColumns, (newColumns) => {
-  // 🐛 调试：输出列变化信息
-  console.log('[WeekViewGrid] 列数据更新:', {
-    总列数: newColumns.length,
-    各列任务: newColumns.map(col => ({
-      date: col.dateStr,
-      allDay: col.allDayTasks.length,
-      timed: col.timedTasks.length
-    }))
-  })
-
-  // 输出定时任务的详细信息
-  newColumns.forEach((col, colIndex) => {
-    if (col.timedTasks.length > 0) {
-      console.log(`[WeekViewGrid] 列 ${colIndex} (${col.dateStr}) 定时任务:`, col.timedTasks.map(t => ({
-        text: t.text,
-        startRow: t.startRow,
-        rowSpan: t.rowSpan,
-        top: `${t.startRow * rowHeight}px`,
-        height: `${t.rowSpan * rowHeight}px`
-      })))
-    }
-  })
-
   nextTick(() => {
     syncColumnWidths()
     syncHeaderHeight()

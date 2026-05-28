@@ -6,11 +6,11 @@
         v-for="icon in icons"
         :key="icon"
         type="button"
-        class="icon-option"
+        class="icon-option liquid-glass-button"
         :class="{ active: modelValue === icon }"
         @click="onSelect(icon)"
       >
-        <Icon :name="icon" />
+        <Icon :name="icon" size="18" />
       </button>
     </div>
   </div>
@@ -19,7 +19,7 @@
 <script setup lang="ts">
 interface Props {
   modelValue: string
-  icons: string[]
+  icons: readonly string[] | string[]
   label?: string
 }
 
@@ -39,43 +39,46 @@ function onSelect(icon: string) {
 .icon-picker-root {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .picker-label {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(0, 0, 0, 0.92);
+  color: var(--liquid-text-primary);
 }
 
 .icon-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .icon-option {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.5);
-  color: rgba(60, 60, 67, 0.7);
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: var(--liquid-text-secondary);
+  border-color: transparent;
 }
 
 .icon-option:hover {
-  background: rgba(0, 122, 255, 0.08);
+  background: var(--liquid-bg-thick);
+  color: var(--liquid-text-primary);
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .icon-option.active {
-  border-color: rgb(0, 122, 255);
-  background: rgba(0, 122, 255, 0.12);
-  color: rgb(0, 102, 230);
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .icon-option.active {
+    background: rgba(96, 165, 250, 0.2);
+    border-color: #60a5fa;
+    color: #60a5fa;
+  }
 }
 </style>

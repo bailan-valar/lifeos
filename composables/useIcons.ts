@@ -198,3 +198,65 @@ export const SOLAR_ICONS = {
     loading: ICONS.loading,
   },
 } as const
+
+/**
+ * 预设图标组 — 用于 IconPicker 组件
+ */
+export const PRESET_ICON_SETS = {
+  // 笔记类图标
+  class: [
+    'solar:document-text-linear',
+    'solar:folder-linear',
+    'solar:user-linear',
+    'solar:buildings-linear',
+    'solar:book-linear',
+    'solar:calendar-linear',
+    'solar:tag-linear',
+    'solar:star-linear',
+    'solar:heart-linear',
+    'solar:bolt-linear',
+    'solar:code-linear',
+    'solar:gallery-wide-linear',
+  ] as const,
+
+  // 待办类型图标
+  todo: [
+    'solar:check-circle-linear',
+    'solar:star-circle-linear',
+    'solar:flag-linear',
+    'solar:clock-circle-linear',
+    'solar:heart-circle-linear',
+    'solar:alert-circle-linear',
+    'solar:bolt-circle-linear',
+    'solar:calendar-circle-linear',
+    'solar:target-linear',
+    'solar:document-text-linear',
+    'solar:briefcase-linear',
+    'solar:home-smile-linear',
+    'solar:shop-linear',
+    'solar:health-linear',
+    'solar:graduation-cap-linear',
+  ] as const,
+
+  // 记账分类/账户图标
+  billing: [
+    'solar:wallet-linear',
+    'solar:card-linear',
+    'solar:cart-linear',
+    'solar:bag-linear',
+    'solar:home-linear',
+    'solar:kick-scooter-linear',
+    'solar:cpu-linear',
+    'solar:bolt-linear',
+    'solar:heart-linear',
+    'solar:star-linear',
+    'solar:chef-hat-linear',
+    'solar:cup-hot-linear',
+    'solar:bus-linear',
+    'solar:health-linear',
+    'solar:book-linear',
+    'solar:gift-linear',
+  ] as const,
+} as const
+
+export type PresetIconSet = keyof typeof PRESET_ICON_SETS
