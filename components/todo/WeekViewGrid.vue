@@ -473,8 +473,12 @@ function getTaskStyle(task: GridTask): {
   left?: string
   width?: string
 } {
-  let top = task.startRow * rowHeight
-  let height = task.rowSpan * rowHeight - 2 // -2 用于留出间隙
+  // 使用分钟数计算精确位置（1分钟粒度）
+  const startMinutes = task.startMinutes ?? task.startRow * props.slotDuration + props.timeStart * 60
+  const endMinutes = task.endMinutes ?? ((task.startRow + task.rowSpan) * props.slotDuration + props.timeStart * 60)
+
+  let top = minutesToPixels(startMinutes)
+  let height = Math.max(rowHeight - 2, minutesToPixels(endMinutes) - minutesToPixels(startMinutes) - 2)
 
   // 如果是正在调整的任务或正在更新数据的任务，使用临时时间计算位置和高度
   const isAdjusting = (resizingTask.value && resizingTask.value.id === task.id) ||

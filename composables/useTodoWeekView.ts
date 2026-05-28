@@ -21,8 +21,10 @@ export interface TimeSlot {
 
 export interface GridTask extends TodoItem {
   columnIndex: number // 0-6 (周一到周日)
-  startRow: number // 从时间轴顶部算起的行数
-  rowSpan: number // 占据的行数
+  startRow: number // 从时间轴顶部算起的行数（废弃，兼容性保留）
+  rowSpan: number // 占据的行数（废弃，兼容性保留）
+  startMinutes?: number // 开始时间的分钟数（从00:00算起）
+  endMinutes?: number // 结束时间的分钟数（从00:00算起）
   leftOffset?: number // 重叠任务的左偏移百分比
   widthPercent?: number // 重叠任务的宽度百分比
   color: string // 任务显示颜色
@@ -223,22 +225,22 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
 
     // 从 startDate 中提取时间部分
     const startTimeStr = task.startDate!.split('T')[1]?.slice(0, 5) || '00:00'
-    const startMinutes = timeToMinutes(startTimeStr)
+    const taskStartMinutes = timeToMinutes(startTimeStr)
 
     // 从 dueDate 中提取时间部分，如果没有则使用开始时间 + 1小时
-    let endMinutes = startMinutes + 60
+    let taskEndMinutes = taskStartMinutes + 60
     if (hasEndTime && task.dueDate) {
       const endTimeStr = task.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
-      endMinutes = timeToMinutes(endTimeStr)
+      taskEndMinutes = timeToMinutes(endTimeStr)
     }
 
     // 检查是否在时间范围内
-    if (endMinutes <= config.timeStart * 60 || startMinutes >= config.timeEnd * 60) {
+    if (taskEndMinutes <= config.timeStart * 60 || taskStartMinutes >= config.timeEnd * 60) {
       return null
     }
 
-    const startRow = minutesToSlotIndex(startMinutes)
-    const endRow = minutesToSlotIndex(endMinutes)
+    const startRow = minutesToSlotIndex(taskStartMinutes)
+    const endRow = minutesToSlotIndex(taskEndMinutes)
     const rowSpan = Math.max(1, endRow - startRow)
 
     return {
@@ -246,20 +248,23 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
       columnIndex,
       startRow,
       rowSpan,
+      startMinutes: taskStartMinutes,
+      endMinutes: taskEndMinutes,
       color
     }
   }
 
   // 处理重叠任务
   function handleOverlappingTasks(tasks: GridTask[]): GridTask[] {
-    // 按开始时间分组
+    // 按开始时间分组（使用5分钟粒度分组）
     const groups: Record<number, GridTask[]> = {}
 
     for (const task of tasks) {
       // 检查是否有开始时间
       const hasStartTime = task.startDate && task.startDate.includes('T')
       if (!hasStartTime) continue
-      const key = task.startRow
+      // 使用 startMinutes 按5分钟粒度分组
+      const key = task.startMinutes ? Math.floor(task.startMinutes / 5) : task.startRow
       if (!groups[key]) groups[key] = []
       groups[key].push(task)
     }
