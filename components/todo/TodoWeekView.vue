@@ -282,28 +282,59 @@ async function handleDropTask(data: {
   newStartTime: string
   newEndTime: string
 }) {
+  console.log('[周视图] handleDropTask 接收数据:', {
+    taskId: data.task.id,
+    taskText: data.task.text,
+    newDateStr: data.newDateStr,
+    newStartTime: data.newStartTime,
+    newEndTime: data.newEndTime,
+    oldStartDate: data.task.startDate,
+    oldDueDate: data.task.dueDate
+  })
+
   try {
     const db = await getDB()
     const moduleDataList = await db.module_data.find({
       selector: { moduleId: 'todo' }
     }).exec()
 
+    console.log('[周视图] 找到模块数据数量:', moduleDataList.length)
+
+    let taskFound = false
     for (const doc of moduleDataList) {
       const todos = doc.get('data') as { todos: TodoItem[] } | undefined
       if (todos?.todos) {
         const index = todos.todos.findIndex(t => t.id === data.task.id)
+        console.log('[周视图] 查找任务:', { taskId: data.task.id, found: index !== -1, index })
         if (index !== -1) {
+          taskFound = true
           // 更新任务的日期和时间
-          todos.todos[index].startDate = `${data.newDateStr}T${data.newStartTime}`
-          todos.todos[index].dueDate = `${data.newDateStr}T${data.newEndTime}`
+          const newStartDate = `${data.newDateStr}T${data.newStartTime}`
+          const newDueDate = `${data.newDateStr}T${data.newEndTime}`
+
+          console.log('[周视图] 更新任务时间:', {
+            oldStart: todos.todos[index].startDate,
+            oldEnd: todos.todos[index].dueDate,
+            newStart: newStartDate,
+            newEnd: newDueDate
+          })
+
+          todos.todos[index].startDate = newStartDate
+          todos.todos[index].dueDate = newDueDate
           await doc.patch({ data: { todos: todos.todos } })
+          console.log('[周视图] 数据已保存到数据库')
           await loadWeekTasks()
+          console.log('[周视图] 已重新加载任务')
           break
         }
       }
     }
+
+    if (!taskFound) {
+      console.error('[周视图] 未找到要更新的任务:', data.task.id)
+    }
   } catch (err) {
-    console.error('拖拽任务失败:', err)
+    console.error('[周视图] 拖拽任务失败:', err)
   }
 }
 

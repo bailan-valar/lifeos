@@ -182,6 +182,7 @@ const updatingTaskId = ref<string | null>(null)
 // 开始拖拽
 function handleDragStart(task: GridTask, event: DragEvent) {
   if (!(event.dataTransfer)) return
+  console.log('[拖拽] 开始拖拽任务:', { id: task.id, text: task.text, startDate: task.startDate, dueDate: task.dueDate })
   isDragging.value = true
   draggedTask.value = task
 
@@ -202,6 +203,7 @@ function handleDragOver(event: DragEvent, dateStr: string, timeSlot?: TimeSlot) 
 
   // 计算拖拽位置对应的时间槽
   if (timeSlot) {
+    console.log('[拖拽] 悬停在时间槽:', { dateStr, timeSlot: timeSlot.label })
     dropTarget.value = { dateStr, timeSlot }
 
     // 计算拖拽时的预览时间
@@ -230,6 +232,7 @@ function handleDragOver(event: DragEvent, dateStr: string, timeSlot?: TimeSlot) 
       const endMinute = endMinutes % 60
       const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
 
+      console.log('[拖拽] 预览时间:', { startTime, endTime, duration })
       dragPreviewTime.value = { startTime, endTime }
     }
   }
@@ -395,13 +398,24 @@ function formatMinutesToTime(minutes: number): string {
 // 放置
 function handleDrop(event: DragEvent, dateStr: string, timeSlot: TimeSlot) {
   event.preventDefault()
-  if (!(event.dataTransfer) || !draggedTask.value) return
+  console.log('[拖拽] handleDrop 被调用:', { dateStr, timeSlot })
+
+  if (!(event.dataTransfer) || !draggedTask.value) {
+    console.error('[拖拽] 缺少 dataTransfer 或 draggedTask')
+    return
+  }
 
   const taskId = event.dataTransfer.getData('text/plain')
-  if (taskId !== draggedTask.value.id) return
+  console.log('[拖拽] 拖拽数据:', { taskId, draggedTaskId: draggedTask.value.id })
+
+  if (taskId !== draggedTask.value.id) {
+    console.error('[拖拽] 任务ID不匹配')
+    return
+  }
 
   // 计算新的开始和结束时间
   const startTime = `${String(timeSlot.hour).padStart(2, '0')}:${String(timeSlot.minute).padStart(2, '0')}`
+  console.log('[拖拽] 新的开始时间:', startTime)
 
   // 计算任务持续时长（保持原时长）
   const originalTask = draggedTask.value
@@ -418,12 +432,22 @@ function handleDrop(event: DragEvent, dateStr: string, timeSlot: TimeSlot) {
     }
   }
 
+  console.log('[拖拽] 任务持续时间（分钟）:', duration)
+
   // 计算新的结束时间
   const startMinutes = timeSlot.hour * 60 + timeSlot.minute
   const endMinutes = startMinutes + duration
   const endHour = Math.floor(endMinutes / 60)
   const endMinute = endMinutes % 60
   const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+  console.log('[拖拽] 触发 dropTask 事件:', {
+    taskId: originalTask.id,
+    taskText: originalTask.text,
+    newDateStr: dateStr,
+    newStartTime: startTime,
+    newEndTime: endTime
+  })
 
   // 触发放置事件
   emit('dropTask', {
@@ -695,6 +719,15 @@ watch(() => props.weekColumns, (newColumns) => {
     syncHeaderHeight()
   })
 }, { deep: true })
+
+// 调试：监控时间槽变化
+watch(() => props.timeSlots, (newSlots) => {
+  console.log('[周视图] 时间槽数据更新:', {
+    总数: newSlots.length,
+    前5个: newSlots.slice(0, 5).map(s => ({ label: s.label, hour: s.hour, minute: s.minute, value: s.value })),
+    后5个: newSlots.slice(-5).map(s => ({ label: s.label, hour: s.hour, minute: s.minute, value: s.value }))
+  })
+}, { immediate: true })
 
 onUnmounted(() => {
   pause()
