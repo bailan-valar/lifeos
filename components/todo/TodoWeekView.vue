@@ -30,6 +30,7 @@
         @toggle-task="handleToggleTask"
         @click-task="handleClickTask"
         @click-cell="handleClickCell"
+        @drop-task="handleDropTask"
       />
     </div>
 
@@ -255,6 +256,38 @@ async function handleCreateTask(todo: TodoItem) {
     await loadWeekTasks()
   } catch (err) {
     console.error('创建任务失败:', err)
+  }
+}
+
+// 拖拽任务到新位置
+async function handleDropTask(data: {
+  task: GridTask
+  newDateStr: string
+  newStartTime: string
+  newEndTime: string
+}) {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const todos = doc.get('data') as { todos: TodoItem[] } | undefined
+      if (todos?.todos) {
+        const index = todos.todos.findIndex(t => t.id === data.task.id)
+        if (index !== -1) {
+          // 更新任务的日期和时间
+          todos.todos[index].startDate = `${data.newDateStr}T${data.newStartTime}`
+          todos.todos[index].dueDate = `${data.newDateStr}T${data.newEndTime}`
+          await doc.patch({ data: { todos: todos.todos } })
+          await loadWeekTasks()
+          break
+        }
+      }
+    }
+  } catch (err) {
+    console.error('拖拽任务失败:', err)
   }
 }
 

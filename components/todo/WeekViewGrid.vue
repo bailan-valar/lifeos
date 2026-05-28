@@ -45,7 +45,10 @@
                 v-for="slot in timeSlots"
                 :key="slot.value"
                 class="time-cell"
+                :class="{ 'drag-over': dropTarget?.dateStr === column.dateStr && dropTarget?.timeSlot.value === slot.value }"
                 @click="$emit('clickCell', { dateStr: column.dateStr, timeSlot: slot })"
+                @dragover="(e) => handleDragOver(e, column.dateStr, slot)"
+                @drop="(e) => handleDrop(e, column.dateStr, slot)"
               />
 
               <!-- 时间线（仅在今天的列显示） -->
@@ -72,10 +75,14 @@
                 class="grid-task"
                 :class="{
                   'completed': task.completed,
-                  'has-overlap': task.leftOffset !== undefined
+                  'has-overlap': task.leftOffset !== undefined,
+                  'dragging': isDragging && draggedTask?.id === task.id
                 }"
                 :style="getTaskStyle(task)"
+                :draggable="true"
                 @click="$emit('clickTask', task)"
+                @dragstart="(e) => handleDragStart(task, e)"
+                @dragend="handleDragEnd"
               >
                 <div class="task-content">
                   <button
@@ -117,9 +124,98 @@ const emit = defineEmits<{
   toggleTask: [id: string]
   clickTask: [task: GridTask]
   clickCell: [data: { dateStr: string; timeSlot: TimeSlot }]
+  dragStart: [task: GridTask, event: DragEvent]
+  dragEnd: []
+  dropTask: [data: { task: GridTask; newDateStr: string; newStartTime: string; newEndTime: string }]
 }>()
 
 const rowHeight = 36 // 每行高度（像素）
+
+// 拖拽相关状态
+const isDragging = ref(false)
+const draggedTask = ref<GridTask | null>(null)
+const dragPreview = ref<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false })
+const dropTarget = ref<{ dateStr: string; timeSlot: TimeSlot } | null>(null)
+
+// 开始拖拽
+function handleDragStart(task: GridTask, event: DragEvent) {
+  if (!(event.dataTransfer)) return
+  isDragging.value = true
+  draggedTask.value = task
+
+  // 设置拖拽数据
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', task.id)
+
+  // 触发事件
+  emit('dragStart', task, event)
+}
+
+// 拖拽中
+function handleDragOver(event: DragEvent, dateStr: string, timeSlot?: TimeSlot) {
+  event.preventDefault()
+  if (!(event.dataTransfer)) return
+
+  event.dataTransfer.dropEffect = 'move'
+
+  // 计算拖拽位置对应的时间槽
+  if (timeSlot) {
+    dropTarget.value = { dateStr, timeSlot }
+  }
+}
+
+// 拖拽结束
+function handleDragEnd() {
+  isDragging.value = false
+  draggedTask.value = null
+  dragPreview.value = { x: 0, y: 0, visible: false }
+  dropTarget.value = null
+  emit('dragEnd')
+}
+
+// 放置
+function handleDrop(event: DragEvent, dateStr: string, timeSlot: TimeSlot) {
+  event.preventDefault()
+  if (!(event.dataTransfer) || !draggedTask.value) return
+
+  const taskId = event.dataTransfer.getData('text/plain')
+  if (taskId !== draggedTask.value.id) return
+
+  // 计算新的开始和结束时间
+  const startTime = `${String(timeSlot.hour).padStart(2, '0')}:${String(timeSlot.minute).padStart(2, '0')}`
+
+  // 计算任务持续时长（保持原时长）
+  const originalTask = draggedTask.value
+  let duration = 60 // 默认1小时
+
+  if (originalTask.startDate && originalTask.startDate.includes('T')) {
+    const originalStart = originalTask.startDate.split('T')[1]?.slice(0, 5) || '00:00'
+    const [h1, m1] = originalStart.split(':').map(Number)
+
+    if (originalTask.dueDate && originalTask.dueDate.includes('T')) {
+      const originalEnd = originalTask.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
+      const [h2, m2] = originalEnd.split(':').map(Number)
+      duration = (h2 * 60 + m2) - (h1 * 60 + m1)
+    }
+  }
+
+  // 计算新的结束时间
+  const startMinutes = timeSlot.hour * 60 + timeSlot.minute
+  const endMinutes = startMinutes + duration
+  const endHour = Math.floor(endMinutes / 60)
+  const endMinute = endMinutes % 60
+  const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+  // 触发放置事件
+  emit('dropTask', {
+    task: originalTask,
+    newDateStr: dateStr,
+    newStartTime: startTime,
+    newEndTime: endTime
+  })
+
+  handleDragEnd()
+}
 
 // 格式化本地日期为 YYYY-MM-DD
 function formatDateLocal(date: Date): string {
@@ -522,6 +618,19 @@ onUnmounted(() => {
 
 .grid-task.completed .task-text {
   text-decoration: line-through;
+}
+
+.grid-task.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.grid-task:active {
+  cursor: grabbing;
+}
+
+.time-cell.drag-over {
+  background-color: rgba(0, 122, 255, 0.15) !important;
 }
 
 .task-content {
