@@ -164,6 +164,9 @@ const resizeStartTop = ref(0)
 const resizeStartHeight = ref(0)
 const resizeStartTime = ref<{ minutes: number } | null>(null)
 const resizeEndTime = ref<{ minutes: number } | null>(null)
+// 临时存储调整后的时间（只在结束时提交）
+const pendingNewStartTime = ref<string | null>(null)
+const pendingNewEndTime = ref<string | null>(null)
 
 // 开始拖拽
 function handleDragStart(task: GridTask, event: DragEvent) {
@@ -259,12 +262,9 @@ function handleResizeMove(event: MouseEvent | TouchEvent) {
     const newStartMinutes = resizeStartTime.value.minutes + deltaMinutes
     const newStartTime = formatMinutesToTime(newStartMinutes)
 
-    // 确保开始时间早于结束时间
+    // 确保开始时间早于结束时间（至少保留一个时间段）
     if (resizeEndTime.value && newStartMinutes < resizeEndTime.value.minutes - slotDuration) {
-      emit('resizeTask', {
-        task: resizingTask.value,
-        newStartTime
-      })
+      pendingNewStartTime.value = newStartTime
     }
   } else if (resizeEdge.value === 'bottom') {
     // 调整结束时间
@@ -272,21 +272,32 @@ function handleResizeMove(event: MouseEvent | TouchEvent) {
     const newEndMinutes = resizeEndTime.value.minutes + deltaMinutes
     const newEndTime = formatMinutesToTime(newEndMinutes)
 
-    // 确保结束时间晚于开始时间
+    // 确保结束时间晚于开始时间（至少保留一个时间段）
     if (resizeStartTime.value && newEndMinutes > resizeStartTime.value.minutes + slotDuration) {
-      emit('resizeTask', {
-        task: resizingTask.value,
-        newEndTime
-      })
+      pendingNewEndTime.value = newEndTime
     }
   }
 }
 
 // 结束调整大小
 function handleResizeEnd() {
+  if (resizingTask.value) {
+    // 提交调整后的时间
+    if (pendingNewStartTime.value || pendingNewEndTime.value) {
+      emit('resizeTask', {
+        task: resizingTask.value,
+        newStartTime: pendingNewStartTime.value ?? undefined,
+        newEndTime: pendingNewEndTime.value ?? undefined
+      })
+    }
+  }
+
+  // 清理状态
   isResizing.value = false
   resizingTask.value = null
   resizeEdge.value = null
+  pendingNewStartTime.value = null
+  pendingNewEndTime.value = null
 
   document.removeEventListener('mousemove', handleResizeMove)
   document.removeEventListener('mouseup', handleResizeEnd)
