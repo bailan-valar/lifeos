@@ -81,7 +81,7 @@
                 }"
                 :style="getTaskStyle(task)"
                 :draggable="!isResizing"
-                @click="$emit('clickTask', task)"
+                @click="handleTaskClick(task)"
                 @dragstart="(e) => handleDragStart(task, e)"
                 @dragend="handleDragEnd"
               >
@@ -167,6 +167,8 @@ const resizeEndTime = ref<{ minutes: number } | null>(null)
 // 临时存储调整后的时间（只在结束时提交）
 const pendingNewStartTime = ref<string | null>(null)
 const pendingNewEndTime = ref<string | null>(null)
+// 标志：是否刚刚完成了调整操作（用于避免触发点击）
+const justFinishedResize = ref(false)
 
 // 开始拖拽
 function handleDragStart(task: GridTask, event: DragEvent) {
@@ -207,6 +209,7 @@ function handleDragEnd() {
 // 开始调整大小
 function handleResizeStart(task: GridTask, edge: 'top' | 'bottom', event: MouseEvent | TouchEvent) {
   event.preventDefault()
+  justFinishedResize.value = false
   isResizing.value = true
   resizeEdge.value = edge
   resizingTask.value = task
@@ -299,10 +302,25 @@ function handleResizeEnd() {
   pendingNewStartTime.value = null
   pendingNewEndTime.value = null
 
+  // 标记刚刚完成了调整，避免触发点击
+  justFinishedResize.value = true
+  setTimeout(() => {
+    justFinishedResize.value = false
+  }, 100)
+
   document.removeEventListener('mousemove', handleResizeMove)
   document.removeEventListener('mouseup', handleResizeEnd)
   document.removeEventListener('touchmove', handleResizeMove)
   document.removeEventListener('touchend', handleResizeEnd)
+}
+
+// 处理任务点击
+function handleTaskClick(task: GridTask) {
+  // 如果刚刚完成了调整操作，不触发点击
+  if (justFinishedResize.value) {
+    return
+  }
+  emit('clickTask', task)
 }
 
 // 将分钟数转换为 HH:mm 格式
