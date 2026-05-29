@@ -9,7 +9,7 @@
         'drop-after': ctx.isDropTarget(note.id) && ctx.dropPosition() === 'after',
         'drop-child': ctx.isDropTarget(note.id) && ctx.dropPosition() === 'child'
       }"
-      :style="{ paddingLeft: `${depth * 16 + 10}px` }"
+      :style="{ paddingLeft: `${depth * 12 + 6}px` }"
       draggable="true"
       role="treeitem"
       :aria-expanded="hasChildren ? ctx.isExpanded(note.id) : undefined"
@@ -49,7 +49,8 @@
           </div>
         </div>
         <div class="note-meta">
-          <span class="note-date">{{ formatDate(note.updatedAt) }}</span>
+          <!-- 隐藏日期显示 -->
+          <!-- <span class="note-date">{{ formatDate(note.updatedAt) }}</span> -->
           <span v-if="false" class="sync-indicator" title="未同步">
             <Icon name="solar:cloud-storage-linear" />
           </span>
@@ -308,10 +309,10 @@ const formatDate = (dateString: string) => {
   position: relative;
   display: flex;
   align-items: stretch;
-  gap: 8px;
-  padding: 10px 10px 10px 14px;
-  margin-bottom: 2px;
-  border-radius: 10px;
+  gap: 6px;
+  padding: 6px 8px 6px 8px;
+  margin-bottom: 1px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.15s ease, transform 0.1s ease;
 }
@@ -337,8 +338,8 @@ const formatDate = (dateString: string) => {
 .tree-row.drop-after::after {
   content: '';
   position: absolute;
-  left: 8px;
-  right: 8px;
+  left: 6px;
+  right: 6px;
   height: 2px;
   border-radius: 2px;
   background: linear-gradient(90deg, rgb(0, 122, 255) 0%, rgb(94, 92, 230) 100%);
@@ -365,14 +366,14 @@ const formatDate = (dateString: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: rgba(60, 60, 67, 0.55);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease, transform 0.18s ease;
 }
@@ -388,8 +389,8 @@ const formatDate = (dateString: string) => {
 
 .chevron-spacer {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .note-item-bar {
@@ -411,12 +412,12 @@ const formatDate = (dateString: string) => {
 .note-title-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 3px;
+  gap: 5px;
+  margin-bottom: 2px;
 }
 
 .note-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: rgba(0, 0, 0, 0.88);
@@ -429,11 +430,11 @@ const formatDate = (dateString: string) => {
 .note-class-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s ease;
@@ -450,8 +451,8 @@ const formatDate = (dateString: string) => {
 .note-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11.5px;
+  gap: 6px;
+  font-size: 11px;
   color: rgba(60, 60, 67, 0.55);
   font-variant-numeric: tabular-nums;
 }
@@ -467,13 +468,13 @@ const formatDate = (dateString: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   color: rgba(60, 60, 67, 0.45);
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.18s ease, background-color 0.12s ease, color 0.12s ease;
@@ -502,13 +503,13 @@ const formatDate = (dateString: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   color: rgba(60, 60, 67, 0.45);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.18s ease, background-color 0.12s ease, color 0.12s ease;

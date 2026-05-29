@@ -48,9 +48,10 @@
           <div class="note-item-bar" />
           <div class="note-item-body">
             <div class="note-title">{{ note.title || '无标题' }}</div>
-            <div class="note-meta">
+            <!-- 隐藏搜索结果的日期显示 -->
+            <!-- <div class="note-meta">
               <span class="note-date">{{ formatDate(note.updatedAt) }}</span>
-            </div>
+            </div> -->
           </div>
         </div>
       </template>
@@ -342,25 +343,25 @@ const formatDate = (dateString: string) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 18px 12px;
+  padding: 12px 12px 8px;
 }
 
 .header-text {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
 }
 
 .note-list-header h3 {
   margin: 0;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: rgba(0, 0, 0, 0.92);
 }
 
 .note-count {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: rgba(60, 60, 67, 0.5);
   font-variant-numeric: tabular-nums;
@@ -370,13 +371,13 @@ const formatDate = (dateString: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: linear-gradient(180deg, rgb(10, 132, 255) 0%, rgb(0, 102, 230) 100%);
   color: white;
-  font-size: 17px;
+  font-size: 15px;
   cursor: pointer;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.32) inset,
@@ -397,28 +398,28 @@ const formatDate = (dateString: string) => {
 
 .search-box {
   position: relative;
-  margin: 0 14px 8px;
+  margin: 0 10px 6px;
 }
 
 .search-icon {
   position: absolute;
-  left: 12px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
   color: rgba(60, 60, 67, 0.5);
-  font-size: 14px;
+  font-size: 13px;
   pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 8px 32px 8px 34px;
+  padding: 6px 28px 6px 30px;
   border: 0.5px solid rgba(60, 60, 67, 0.16);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.6);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  font-size: 13.5px;
+  font-size: 13px;
   color: rgba(0, 0, 0, 0.86);
   outline: none;
   transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
@@ -460,7 +461,7 @@ const formatDate = (dateString: string) => {
   position: relative;
   flex: 1;
   overflow-y: auto;
-  padding: 6px 8px 32px;
+  padding: 4px 6px 8px;
   scrollbar-width: thin;
   scrollbar-color: rgba(60, 60, 67, 0.2) transparent;
   transition: background-color 0.18s ease, box-shadow 0.18s ease;
@@ -483,17 +484,17 @@ const formatDate = (dateString: string) => {
 
 .root-drop-hint {
   position: sticky;
-  bottom: 8px;
-  margin: 12px 12px 0;
-  padding: 8px 12px;
+  bottom: 4px;
+  margin: 8px 8px 0;
+  padding: 6px 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border-radius: 10px;
+  gap: 5px;
+  border-radius: 8px;
   background: rgba(0, 122, 255, 0.92);
   color: white;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   box-shadow: 0 6px 20px rgba(0, 122, 255, 0.32);
   pointer-events: none;
@@ -503,10 +504,10 @@ const formatDate = (dateString: string) => {
   position: relative;
   display: flex;
   align-items: stretch;
-  gap: 10px;
-  padding: 10px 12px;
-  margin-bottom: 4px;
-  border-radius: 10px;
+  gap: 8px;
+  padding: 7px 10px;
+  margin-bottom: 2px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
@@ -536,17 +537,17 @@ const formatDate = (dateString: string) => {
 }
 
 .search-result-item .note-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.88);
-  margin-bottom: 3px;
+  margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .search-result-item .note-meta {
-  font-size: 11.5px;
+  font-size: 11px;
   color: rgba(60, 60, 67, 0.55);
 }
 
@@ -555,26 +556,26 @@ const formatDate = (dateString: string) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 16px;
+  padding: 32px 16px;
   text-align: center;
   color: rgba(60, 60, 67, 0.5);
 }
 
 .empty-icon {
-  font-size: 40px;
-  margin-bottom: 12px;
+  font-size: 32px;
+  margin-bottom: 8px;
   color: rgba(60, 60, 67, 0.35);
 }
 
 .empty-text {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .note-list-footer {
   flex-shrink: 0;
-  padding: 8px 14px;
+  padding: 6px 10px;
   border-top: 0.5px solid rgba(60, 60, 67, 0.1);
   background: rgba(255, 255, 255, 0.4);
 }
@@ -582,14 +583,14 @@ const formatDate = (dateString: string) => {
 .class-manager-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: rgba(60, 60, 67, 0.65);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;

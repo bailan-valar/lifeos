@@ -47,9 +47,6 @@
                 class="time-cell"
                 :class="{ 'drag-over': dropTarget?.dateStr === column.dateStr && dropTarget?.timeSlot.value === slot.value }"
                 @click="$emit('clickCell', { dateStr: column.dateStr, timeSlot: slot })"
-                @dragover="(e) => handleDragOver(e, column.dateStr, slot)"
-                @dragenter="(e) => console.log('[拖拽] dragenter 时间单元格:', column.dateStr, slot.label)"
-                @drop="(e) => handleDrop(e, column.dateStr, slot)"
               />
 
               <!-- 时间线（仅在今天的列显示） -->
@@ -81,10 +78,9 @@
                   'resizing': isResizing && resizingTask?.id === task.id
                 }"
                 :style="getTaskStyle(task)"
-                :draggable="!isResizing"
                 @click="handleTaskClick(task)"
-                @dragstart="(e) => handleDragStart(task, e)"
-                @dragend="handleDragEnd"
+                @mousedown="(e) => !isResizing && handleDragStart(task, e)"
+                @touchstart="(e) => !isResizing && handleDragStart(task, e)"
               >
                 <!-- 顶部调整手柄 - 修改开始时间 -->
                 <div
@@ -155,13 +151,15 @@ const emit = defineEmits<{
 
 const rowHeight = 36 // 每行高度（像素）
 
-// 拖拽相关状态
+// 拖拽相关状态（自定义实现）
 const isDragging = ref(false)
 const draggedTask = ref<GridTask | null>(null)
-const dragPreview = ref<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false })
+const dragPosition = ref<{ x: number; y: number } | null>(null)
 const dropTarget = ref<{ dateStr: string; timeSlot: TimeSlot } | null>(null)
-// 拖拽时的预览时间
-const dragPreviewTime = ref<{ startTime: string; endTime: string } | null>(null)
+const dragPreviewTime = ref<{ startTime: string; endTime: string } | null>(null) // 预览元素显示的拖拽后时间
+const dragOriginalTime = ref<{ startTime: string; endTime: string } | null>(null) // 原始块显示的拖拽前时间
+const dragPreviewElement = ref<HTMLElement | null>(null)
+const dragOffset = ref<{ x: number; y: number }>({ x: 0, y: 0 })
 
 // 调整大小相关状态
 const isResizing = ref(false)
@@ -180,77 +178,298 @@ const justFinishedResize = ref(false)
 // 用于跟踪正在更新数据的任务ID，防止闪回
 const updatingTaskId = ref<string | null>(null)
 
-// 开始拖拽
-function handleDragStart(task: GridTask, event: DragEvent) {
-  if (!(event.dataTransfer)) return
-  console.log('[拖拽] 开始拖拽任务:', { id: task.id, text: task.text, startDate: task.startDate, dueDate: task.dueDate })
+// 自定义拖拽 - 开始
+function handleDragStart(task: GridTask, event: MouseEvent | TouchEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  // 获取初始位置
+  const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX
+  const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
+
+  console.log('[拖拽] 开始拖拽任务:', {
+    id: task.id,
+    text: task.text,
+    原始开始时间: task.startDate,
+    原始结束时间: task.dueDate,
+    鼠标位置: { x: clientX, y: clientY }
+  })
+
   isDragging.value = true
   draggedTask.value = task
 
-  // 设置拖拽数据
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', task.id)
-
-  // 触发事件
-  emit('dragStart', task, event)
-}
-
-// 拖拽中
-function handleDragOver(event: DragEvent, dateStr: string, timeSlot?: TimeSlot) {
-  console.log('[拖拽] handleDragOver 被调用:', { dateStr, timeSlot: timeSlot?.label })
-  event.preventDefault()
-  if (!(event.dataTransfer)) {
-    console.log('[拖拽] 没有 dataTransfer')
-    return
+  const targetEl = event.currentTarget as HTMLElement
+  const rect = targetEl.getBoundingClientRect()
+  dragOffset.value = {
+    x: clientX - rect.left,
+    y: clientY - rect.top
   }
 
-  event.dataTransfer.dropEffect = 'move'
+  // 创建拖拽预览元素
+  createDragPreview(task, clientX, clientY)
 
-  // 计算拖拽位置对应的时间槽
-  if (timeSlot) {
-    console.log('[拖拽] 悬停在时间槽:', { dateStr, timeSlot: timeSlot.label })
-    dropTarget.value = { dateStr, timeSlot }
+  // 初始化原始时间（用于虚化块显示拖拽前时间）
+  if (task.startDate && task.startDate.includes('T')) {
+    const startTime = task.startDate.split('T')[1]?.slice(0, 5) || ''
+    let endTime = ''
+    if (task.dueDate && task.dueDate.includes('T')) {
+      endTime = task.dueDate.split('T')[1]?.slice(0, 5) || ''
+    }
+    dragOriginalTime.value = { startTime, endTime }
+  }
 
-    // 计算拖拽时的预览时间
-    if (draggedTask.value) {
-      const startTime = `${String(timeSlot.hour).padStart(2, '0')}:${String(timeSlot.minute).padStart(2, '0')}`
+  // 添加全局事件监听
+  document.addEventListener('mousemove', handleDragMove)
+  document.addEventListener('mouseup', handleDragEnd)
+  document.addEventListener('touchmove', handleDragMove, { passive: false })
+  document.addEventListener('touchend', handleDragEnd)
 
-      // 计算任务持续时长（保持原时长）
-      const originalTask = draggedTask.value
-      let duration = 60 // 默认1小时
+  // 触发事件
+  emit('dragStart', task, event as DragEvent)
+}
 
-      if (originalTask.startDate && originalTask.startDate.includes('T')) {
-        const originalStart = originalTask.startDate.split('T')[1]?.slice(0, 5) || '00:00'
-        const [h1, m1] = originalStart.split(':').map(Number)
+// 创建拖拽预览元素
+function createDragPreview(task: GridTask, x: number, y: number) {
+  const preview = document.createElement('div')
+  preview.className = 'custom-drag-preview'
+  preview.style.cssText = `
+    position: fixed;
+    left: ${x}px;
+    top: ${y}px;
+    width: 200px;
+    padding: 8px 12px;
+    background: ${task.color};
+    color: white;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 10000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    opacity: 0.9;
+    transform: translate(-50%, -50%);
+  `
+  preview.textContent = task.text
 
-        if (originalTask.dueDate && originalTask.dueDate.includes('T')) {
-          const originalEnd = originalTask.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
-          const [h2, m2] = originalEnd.split(':').map(Number)
-          duration = (h2 * 60 + m2) - (h1 * 60 + m1)
+  // 添加时间显示（添加 class 便于后续更新）
+  if (task.startDate && task.startDate.includes('T')) {
+    const startTime = task.startDate.split('T')[1]?.slice(0, 5) || ''
+    let timeText = startTime
+    if (task.dueDate && task.dueDate.includes('T')) {
+      const endTime = task.dueDate.split('T')[1]?.slice(0, 5) || ''
+      timeText += ` - ${endTime}`
+    }
+    const timeEl = document.createElement('div')
+    timeEl.className = 'preview-time'
+    timeEl.style.cssText = 'font-size: 10px; opacity: 0.8; margin-top: 2px;'
+    timeEl.textContent = timeText
+    preview.appendChild(timeEl)
+  }
+
+  document.body.appendChild(preview)
+  dragPreviewElement.value = preview
+}
+
+// 自定义拖拽 - 移动
+function handleDragMove(event: MouseEvent | TouchEvent) {
+  if (!isDragging.value || !draggedTask.value) return
+
+  event.preventDefault()
+
+  const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX
+  const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
+
+  dragPosition.value = { x: clientX, y: clientY }
+
+  // 更新预览元素位置
+  if (dragPreviewElement.value) {
+    dragPreviewElement.value.style.left = clientX + 'px'
+    dragPreviewElement.value.style.top = clientY + 'px'
+  }
+
+  // 检测下方的元素
+  const elementBelow = document.elementFromPoint(clientX, clientY)
+  if (!elementBelow) return
+
+  // 查找时间单元格
+  const timeCell = elementBelow.closest('.time-cell') as HTMLElement
+  if (timeCell) {
+    // 找到对应的列和时间槽
+    const dayColumn = elementBelow.closest('.day-column-bg') as HTMLElement
+    if (!dayColumn) return
+
+    const dayColumns = Array.from(document.querySelectorAll('.day-column-bg'))
+    const columnIndex = dayColumns.indexOf(dayColumn)
+
+    if (columnIndex >= 0 && props.weekColumns[columnIndex]) {
+      const column = props.weekColumns[columnIndex]
+
+      // 计算时间槽索引
+      const gridBody = gridBodyRef.value
+      if (!gridBody) return
+
+      // 使用 ref 获取星期标题行高度
+      const headerHeight = dayHeadersWrapperRef.value?.offsetHeight || 0
+      const gridRect = gridBody.getBoundingClientRect()
+      const scrollTop = gridBody.scrollTop
+
+      const relativeY = clientY - gridRect.top - headerHeight + scrollTop
+      const timeIndex = Math.floor(relativeY / rowHeight)
+
+      if (timeIndex >= 0 && timeIndex < props.timeSlots.length) {
+        const timeSlot = props.timeSlots[timeIndex]
+
+        // 只在目标变化时打印日志
+        if (!dropTarget.value || dropTarget.value.dateStr !== column.dateStr || dropTarget.value.timeSlot.value !== timeSlot.value) {
+          console.log('[拖拽] 目标位置:', {
+            日期: column.dateStr,
+            时间槽: timeSlot.label,
+            时间槽索引: timeIndex,
+            坐标计算: {
+              鼠标Y: clientY,
+              网格顶部: gridRect.top,
+              标题高度: headerHeight,
+              滚动偏移: scrollTop,
+              相对Y: relativeY,
+              行高: rowHeight,
+              计算结果: timeIndex
+            }
+          })
+        }
+
+        dropTarget.value = { dateStr: column.dateStr, timeSlot }
+
+        // 计算预览时间
+        if (draggedTask.value) {
+          const startTime = `${String(timeSlot.hour).padStart(2, '0')}:${String(timeSlot.minute).padStart(2, '0')}`
+          const originalTask = draggedTask.value
+          let duration = 60
+
+          if (originalTask.startDate && originalTask.startDate.includes('T')) {
+            const originalStart = originalTask.startDate.split('T')[1]?.slice(0, 5) || '00:00'
+            const [h1, m1] = originalStart.split(':').map(Number)
+
+            if (originalTask.dueDate && originalTask.dueDate.includes('T')) {
+              const originalEnd = originalTask.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
+              const [h2, m2] = originalEnd.split(':').map(Number)
+              duration = (h2 * 60 + m2) - (h1 * 60 + m1)
+            }
+          }
+
+          const startMinutes = timeSlot.hour * 60 + timeSlot.minute
+          const endMinutes = startMinutes + duration
+          const endHour = Math.floor(endMinutes / 60)
+          const endMinute = endMinutes % 60
+          const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+          // 保存预览时间（用于预览元素显示拖拽后时间）
+          dragPreviewTime.value = { startTime, endTime }
+
+          // 更新预览元素中的时间显示
+          if (dragPreviewElement.value) {
+            const timeEl = dragPreviewElement.value.querySelector('.preview-time') as HTMLElement
+            if (timeEl) {
+              timeEl.textContent = `${startTime} - ${endTime}`
+            }
+          }
+
+          // 高亮当前时间单元格
+          document.querySelectorAll('.time-cell.drag-over').forEach(el => {
+            el.classList.remove('drag-over')
+          })
+          timeCell.classList.add('drag-over')
         }
       }
-
-      // 计算新的结束时间
-      const startMinutes = timeSlot.hour * 60 + timeSlot.minute
-      const endMinutes = startMinutes + duration
-      const endHour = Math.floor(endMinutes / 60)
-      const endMinute = endMinutes % 60
-      const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
-
-      console.log('[拖拽] 预览时间:', { startTime, endTime, duration })
-      dragPreviewTime.value = { startTime, endTime }
     }
   }
 }
 
-// 拖拽结束
-function handleDragEnd() {
+// 自定义拖拽 - 结束
+function handleDragEnd(event: MouseEvent | TouchEvent) {
+  if (!isDragging.value || !draggedTask.value) {
+    cleanupDrag()
+    return
+  }
+
+  // 移除全局事件监听
+  document.removeEventListener('mousemove', handleDragMove)
+  document.removeEventListener('mouseup', handleDragEnd)
+  document.removeEventListener('touchmove', handleDragMove)
+  document.removeEventListener('touchend', handleDragEnd)
+
+  // 检查是否有有效的放置目标
+  if (dropTarget.value) {
+    const { dateStr, timeSlot } = dropTarget.value
+    const task = draggedTask.value
+
+    // 计算新的开始和结束时间
+    const startTime = `${String(timeSlot.hour).padStart(2, '0')}:${String(timeSlot.minute).padStart(2, '0')}`
+
+    let duration = 60
+    let originalStartTime = ''
+    let originalEndTime = ''
+
+    if (task.startDate && task.startDate.includes('T')) {
+      originalStartTime = task.startDate.split('T')[1]?.slice(0, 5) || '00:00'
+      const [h1, m1] = originalStartTime.split(':').map(Number)
+
+      if (task.dueDate && task.dueDate.includes('T')) {
+        originalEndTime = task.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
+        const [h2, m2] = originalEndTime.split(':').map(Number)
+        duration = (h2 * 60 + m2) - (h1 * 60 + m1)
+      }
+    }
+
+    const startMinutes = timeSlot.hour * 60 + timeSlot.minute
+    const endMinutes = startMinutes + duration
+    const endHour = Math.floor(endMinutes / 60)
+    const endMinute = endMinutes % 60
+    const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+    console.log('[拖拽] 放置任务详情:', {
+      任务ID: task.id,
+      任务文本: task.text,
+      目标日期: dateStr,
+      目标时间槽: timeSlot.label,
+      原始时间范围: `${originalStartTime} - ${originalEndTime}`,
+      新时间范围: `${startTime} - ${endTime}`,
+      持续时长: duration
+    })
+
+    // 触发放置事件
+    emit('dropTask', {
+      task,
+      newDateStr: dateStr,
+      newStartTime: startTime,
+      newEndTime: endTime
+    })
+  } else {
+    console.log('[拖拽] 拖拽取消：没有有效的放置目标')
+  }
+
+  cleanupDrag()
+  emit('dragEnd')
+}
+
+// 清理拖拽状态
+function cleanupDrag() {
   isDragging.value = false
   draggedTask.value = null
-  dragPreview.value = { x: 0, y: 0, visible: false }
+  dragPosition.value = null
   dropTarget.value = null
   dragPreviewTime.value = null
-  emit('dragEnd')
+  dragOriginalTime.value = null
+
+  // 移除预览元素
+  if (dragPreviewElement.value) {
+    dragPreviewElement.value.remove()
+    dragPreviewElement.value = null
+  }
+
+  // 移除高亮
+  document.querySelectorAll('.time-cell.drag-over').forEach(el => {
+    el.classList.remove('drag-over')
+  })
 }
 
 // 开始调整大小
@@ -400,71 +619,6 @@ function formatMinutesToTime(minutes: number): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
-// 放置
-function handleDrop(event: DragEvent, dateStr: string, timeSlot: TimeSlot) {
-  event.preventDefault()
-  console.log('[拖拽] handleDrop 被调用:', { dateStr, timeSlot })
-
-  if (!(event.dataTransfer) || !draggedTask.value) {
-    console.error('[拖拽] 缺少 dataTransfer 或 draggedTask')
-    return
-  }
-
-  const taskId = event.dataTransfer.getData('text/plain')
-  console.log('[拖拽] 拖拽数据:', { taskId, draggedTaskId: draggedTask.value.id })
-
-  if (taskId !== draggedTask.value.id) {
-    console.error('[拖拽] 任务ID不匹配')
-    return
-  }
-
-  // 计算新的开始和结束时间
-  const startTime = `${String(timeSlot.hour).padStart(2, '0')}:${String(timeSlot.minute).padStart(2, '0')}`
-  console.log('[拖拽] 新的开始时间:', startTime)
-
-  // 计算任务持续时长（保持原时长）
-  const originalTask = draggedTask.value
-  let duration = 60 // 默认1小时
-
-  if (originalTask.startDate && originalTask.startDate.includes('T')) {
-    const originalStart = originalTask.startDate.split('T')[1]?.slice(0, 5) || '00:00'
-    const [h1, m1] = originalStart.split(':').map(Number)
-
-    if (originalTask.dueDate && originalTask.dueDate.includes('T')) {
-      const originalEnd = originalTask.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
-      const [h2, m2] = originalEnd.split(':').map(Number)
-      duration = (h2 * 60 + m2) - (h1 * 60 + m1)
-    }
-  }
-
-  console.log('[拖拽] 任务持续时间（分钟）:', duration)
-
-  // 计算新的结束时间
-  const startMinutes = timeSlot.hour * 60 + timeSlot.minute
-  const endMinutes = startMinutes + duration
-  const endHour = Math.floor(endMinutes / 60)
-  const endMinute = endMinutes % 60
-  const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
-
-  console.log('[拖拽] 触发 dropTask 事件:', {
-    taskId: originalTask.id,
-    taskText: originalTask.text,
-    newDateStr: dateStr,
-    newStartTime: startTime,
-    newEndTime: endTime
-  })
-
-  // 触发放置事件
-  emit('dropTask', {
-    task: originalTask,
-    newDateStr: dateStr,
-    newStartTime: startTime,
-    newEndTime: endTime
-  })
-
-  handleDragEnd()
-}
-
 // 格式化本地日期为 YYYY-MM-DD
 function formatDateLocal(date: Date): string {
   const year = date.getFullYear()
@@ -596,9 +750,9 @@ function getTaskStyle(task: GridTask): {
 
 // 格式化任务时间
 function formatTaskTime(task: GridTask): string {
-  // 如果是正在拖拽的任务，显示预览时间
-  if (isDragging.value && draggedTask.value?.id === task.id && dragPreviewTime.value) {
-    return `${dragPreviewTime.value.startTime} - ${dragPreviewTime.value.endTime}`
+  // 如果是正在拖拽的任务，虚化的原始块显示原始时间（拖拽前）
+  if (isDragging.value && draggedTask.value?.id === task.id && dragOriginalTime.value) {
+    return `${dragOriginalTime.value.startTime} - ${dragOriginalTime.value.endTime}`
   }
 
   // 如果是正在调整的任务或正在更新数据的任务，显示临时时间
@@ -725,15 +879,6 @@ watch(() => props.weekColumns, (newColumns) => {
   })
 }, { deep: true })
 
-// 调试：监控时间槽变化
-watch(() => props.timeSlots, (newSlots) => {
-  console.log('[周视图] 时间槽数据更新:', {
-    总数: newSlots.length,
-    前5个: newSlots.slice(0, 5).map(s => ({ label: s.label, hour: s.hour, minute: s.minute, value: s.value })),
-    后5个: newSlots.slice(-5).map(s => ({ label: s.label, hour: s.hour, minute: s.minute, value: s.value }))
-  })
-}, { immediate: true })
-
 onUnmounted(() => {
   pause()
   window.removeEventListener('resize', syncColumnWidths)
@@ -855,11 +1000,14 @@ onUnmounted(() => {
   overflow-y: auto;
   overflow-x: auto;
   position: relative;
+  /* 确保网格主体可以接收拖拽事件 */
+  pointer-events: auto;
 }
 
 .grid-background {
   position: relative;
   min-height: 100%;
+  z-index: 0;
 }
 
 .day-columns {
@@ -922,17 +1070,22 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   display: flex;
-}
-
-/* 拖拽时禁用任务层事件接收，让事件传递到时间单元格 */
-.tasks-layer.is-dragging {
+  z-index: 1;
+  /* 默认让事件穿透到背景的时间单元格 */
   pointer-events: none;
 }
 
+/* 任务容器需要接收点击事件，但拖拽时让事件穿透 */
 .day-tasks {
+  pointer-events: auto;
   flex: 1;
   min-width: 0;
   position: relative;
+}
+
+/* 拖拽时任务容器让事件穿透 */
+.tasks-layer.is-dragging .day-tasks {
+  pointer-events: none;
 }
 
 .grid-task {
@@ -961,8 +1114,16 @@ onUnmounted(() => {
 }
 
 .grid-task.dragging {
-  opacity: 0.01; /* 几乎透明但不为0，保持拖拽功能 */
-  pointer-events: none; /* 不接收任何事件 */
+  opacity: 0.3;
+  pointer-events: none;
+  cursor: grabbing;
+}
+
+.grid-task.touch-dragging {
+  opacity: 0.5;
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 100;
 }
 
 .grid-task:active {
