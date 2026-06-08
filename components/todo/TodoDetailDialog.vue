@@ -133,8 +133,8 @@ const emit = defineEmits<Emits>()
 
 const { loadComments, addComment, deleteComment, onCommentsChange } = useTodoComments()
 const { statuses, loadStatuses } = useTodoStatus()
-const { types, loadTypes } = useTodoTypes()
-const { noteOptions, loadNotes } = useNotes()
+const { sortedTypes: types, loadTodoTypes } = useTodoTypes()
+const { noteOptions: rawNoteOptions, loadNotes } = useNotes()
 
 const internalVisible = computed({
   get: () => props.visible,
@@ -185,7 +185,7 @@ const statusInfo = computed(() => {
 // 笔记信息
 const noteInfo = computed(() => {
   if (!props.todo?.noteId) return null
-  const note = noteOptions.value.find(n => n.id === props.todo.noteId)
+  const note = rawNoteOptions.value.find(n => n.id === props.todo.noteId)
   return note?.title || null
 })
 
@@ -267,7 +267,7 @@ watch(() => props.visible, async (visible) => {
     // 加载静态数据
     await Promise.all([
       loadStatuses(),
-      loadTypes(),
+      loadTodoTypes(),
       loadNotes()
     ])
     // 加载评论
