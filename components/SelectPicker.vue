@@ -61,6 +61,16 @@
                 />
               </div>
             </template>
+
+            <!-- 快捷创建按钮 -->
+            <div
+              v-if="creatable && searchQuery.trim() && !hasExactMatch"
+              class="picker-item create-option"
+              @click.stop="quickCreate"
+            >
+              <Icon name="solar:add-circle-linear" size="14" class="create-icon" />
+              <span class="item-label">{{ quickCreateText }}: "{{ searchQuery.trim() }}"</span>
+            </div>
           </div>
         </div>
       </Transition>
@@ -88,6 +98,8 @@ interface Props {
   disabled?: boolean
   valueKey?: string
   labelKey?: string
+  creatable?: boolean
+  quickCreateText?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -97,12 +109,15 @@ const props = withDefaults(defineProps<Props>(), {
   searchable: false,
   disabled: false,
   valueKey: 'value',
-  labelKey: 'label'
+  labelKey: 'label',
+  creatable: false,
+  quickCreateText: '创建新选项'
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | number | null]
   'change': [value: string | number | null, option: SelectOption]
+  'create': [label: string]
 }>()
 
 const open = ref(false)
@@ -145,6 +160,18 @@ const filteredOptions = computed(() => {
   })
 })
 
+// 是否有精确匹配
+const hasExactMatch = computed(() => {
+  if (!props.searchable || !searchQuery.value.trim()) {
+    return false
+  }
+  const query = searchQuery.value.trim().toLowerCase()
+  return props.options.some(opt => {
+    const label = getOptionLabel(opt)
+    return label.toLowerCase() === query
+  })
+})
+
 // 判断选项是否被选中
 function isOptionSelected(option: SelectOption): boolean {
   return getOptionValue(option) === props.modelValue
@@ -164,6 +191,14 @@ function selectOption(option: SelectOption) {
 function clear() {
   emit('update:modelValue', null)
   emit('change', null, null as any)
+}
+
+// 快捷创建
+function quickCreate() {
+  if (!searchQuery.value.trim()) return
+  emit('create', searchQuery.value.trim())
+  searchQuery.value = ''
+  open.value = false
 }
 
 // 切换开关
@@ -490,6 +525,23 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
+/* 快捷创建选项 */
+.create-option {
+  color: rgb(0, 122, 255);
+  font-weight: 500;
+  margin-top: 4px;
+  border-top: 1px solid rgba(60, 60, 67, 0.1);
+}
+
+.create-option:hover {
+  background: rgba(0, 122, 255, 0.12);
+}
+
+.create-icon {
+  color: rgb(0, 122, 255);
+  flex-shrink: 0;
+}
+
 /* 动画 */
 .picker-fade-enter-active,
 .picker-fade-leave-active {
@@ -567,6 +619,14 @@ onBeforeUnmount(() => {
 
   .picker-item.is-active:not(.disabled) {
     background: rgba(0, 122, 255, 0.3);
+  }
+
+  .create-option {
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .create-option:hover {
+    background: rgba(0, 122, 255, 0.25);
   }
 }
 </style>
