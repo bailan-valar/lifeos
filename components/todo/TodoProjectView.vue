@@ -40,13 +40,6 @@
       <!-- 右侧操作区 -->
       <div class="header-actions">
         <button class="action-btn today-btn" @click="goToToday">今天</button>
-        <div class="action-divider" />
-        <button class="action-btn" @click="expandAll" title="展开全部">
-          <Icon :name="ICONS.altArrowDown" size="16" />
-        </button>
-        <button class="action-btn" @click="collapseAll" title="折叠全部">
-          <Icon :name="ICONS.altArrowLeft" size="16" />
-        </button>
       </div>
     </div>
 
@@ -933,13 +926,6 @@ onUnmounted(() => {
   gap: 4px;
 }
 
-.action-divider {
-  width: 1px;
-  height: 20px;
-  background: rgba(60, 60, 67, 0.15);
-  margin: 0 4px;
-}
-
 .action-btn {
   display: flex;
   align-items: center;
@@ -1381,10 +1367,6 @@ onUnmounted(() => {
 
   .view-header {
     border-bottom-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .action-divider {
-    background: rgba(255, 255, 255, 0.15);
   }
 
   .focus-breadcrumb {
