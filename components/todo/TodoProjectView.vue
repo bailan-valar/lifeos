@@ -140,7 +140,7 @@
               class="collapsed-count-badge"
               :title="`子笔记共有 ${row.collapsedCount[date.dateStr]} 个待办`"
             >
-              <Icon :name="SOLAR_ICONS.layer.layers" :size="10" />
+              <Icon :name="SOLAR_ICONS.layer.layers" :size="12" />
               <span>{{ row.collapsedCount[date.dateStr] }}</span>
             </div>
 
@@ -1196,24 +1196,18 @@ onUnmounted(() => {
   background: rgba(0, 122, 255, 0.03);
 }
 
-/* 折叠时子笔记待办合计数小标 */
+/* 折叠时子笔记待办合计数小标 - 使用与待办卡片相同的样式 */
 .collapsed-count-badge {
-  position: absolute;
-  top: 4px;
-  right: 4px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  height: 18px;
-  padding: 0 5px;
-  font-size: 10px;
-  font-weight: 600;
-  color: rgb(0, 122, 255);
-  background: rgba(0, 122, 255, 0.1);
-  border: 0.5px solid rgba(0, 122, 255, 0.2);
-  border-radius: 9px;
-  z-index: 1;
-  pointer-events: none;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(60, 60, 67, 0.15);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: default;
+  transition: all 0.15s ease;
 }
 
 .cell-tasks {
@@ -1583,9 +1577,8 @@ onUnmounted(() => {
   }
 
   .collapsed-count-badge {
-    color: rgb(0, 122, 255);
-    background: rgba(0, 122, 255, 0.15);
-    border-color: rgba(0, 122, 255, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
   }
 
   .header-expand-btn {
