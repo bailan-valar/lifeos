@@ -811,7 +811,7 @@ onUnmounted(() => {
 
 /* 面包屑占位区（始终预留空间） */
 .breadcrumb-placeholder {
-  width: 200px;
+  width: 240px;
   flex-shrink: 0;
   min-height: 32px;
   display: flex;
@@ -822,11 +822,13 @@ onUnmounted(() => {
 .focus-breadcrumb {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+  gap: 6px;
+  padding: 5px 10px;
   background: rgba(0, 122, 255, 0.08);
+  border: 0.5px solid rgba(0, 122, 255, 0.15);
   border-radius: var(--liquid-radius-button, 14px);
   width: 100%;
+  height: 32px;
   overflow: hidden;
 }
 
@@ -834,51 +836,75 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  background: rgba(60, 60, 67, 0.1);
+  background: rgba(60, 60, 67, 0.08);
   border: none;
   border-radius: 6px;
-  color: rgba(60, 60, 67, 0.6);
+  color: rgba(60, 60, 67, 0.55);
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
 .breadcrumb-clear:hover {
-  background: rgba(60, 60, 67, 0.2);
+  background: rgba(60, 60, 67, 0.15);
   color: rgba(60, 60, 67, 0.8);
 }
 
 .breadcrumb-items {
   display: flex;
   align-items: center;
-  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
 }
 
 .breadcrumb-item {
-  padding: 4px 8px;
+  position: relative;
+  padding: 3px 7px;
   font-size: 13px;
   font-weight: 500;
   background: transparent;
   border: none;
-  border-radius: 6px;
-  color: rgba(60, 60, 67, 0.7);
+  border-radius: 5px;
+  color: rgba(60, 60, 67, 0.65);
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.breadcrumb-item:not(:last-child)::after {
+  content: '/';
+  position: absolute;
+  right: -6px;
+  color: rgba(60, 60, 67, 0.25);
+  font-size: 12px;
+  pointer-events: none;
 }
 
 .breadcrumb-item:hover {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(60, 60, 67, 0.9);
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(60, 60, 67, 0.85);
 }
 
 .breadcrumb-item.current {
-  background: rgba(0, 122, 255, 0.15);
+  background: rgba(0, 122, 255, 0.12);
   color: rgb(0, 122, 255);
   cursor: default;
+  max-width: 140px;
+  font-weight: 600;
+}
+
+.breadcrumb-item.current:hover {
+  background: rgba(0, 122, 255, 0.12);
 }
 
 .week-nav {
@@ -1376,6 +1402,7 @@ onUnmounted(() => {
 
   .focus-breadcrumb {
     background: rgba(0, 122, 255, 0.15);
+    border-color: rgba(0, 122, 255, 0.25);
   }
 
   .breadcrumb-clear {
@@ -1400,6 +1427,10 @@ onUnmounted(() => {
   .breadcrumb-item.current {
     background: rgba(0, 122, 255, 0.2);
     color: rgb(0, 122, 255);
+  }
+
+  .breadcrumb-item:not(:last-child)::after {
+    color: rgba(255, 255, 255, 0.3);
   }
 
   .nav-btn {
@@ -1556,6 +1587,21 @@ onUnmounted(() => {
   .view-header {
     padding: 10px 12px;
     flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .breadcrumb-placeholder {
+    width: 160px;
+  }
+
+  .breadcrumb-item {
+    font-size: 12px;
+    padding: 3px 6px;
+    max-width: 80px;
+  }
+
+  .breadcrumb-item.current {
+    max-width: 90px;
   }
 
   .week-range {
