@@ -158,6 +158,7 @@ const { defaultTypes: types } = useTodoTypes()
 const views = computed(() => [
   { id: 'all' as ViewMode, label: '全部', icon: ICONS.list, count: props.stats?.all },
   { id: 'today' as ViewMode, label: '今日', icon: ICONS.calendar, count: props.stats?.today },
+  { id: 'project' as ViewMode, label: '项目', icon: ICONS.layers, count: props.stats?.all },
   { id: 'week' as ViewMode, label: '周视图', icon: ICONS.calendar, count: props.stats?.week },
   { id: 'overdue' as ViewMode, label: '逾期', icon: ICONS.dangerCircle, count: props.stats?.overdue },
   { id: 'important' as ViewMode, label: '重要', icon: ICONS.starCircle, count: props.stats?.important }

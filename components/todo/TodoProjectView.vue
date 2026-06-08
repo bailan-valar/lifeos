@@ -1,0 +1,843 @@
+<template>
+  <div class="todo-project-view">
+    <!-- 顶部工具栏 -->
+    <div class="view-header">
+      <div class="week-nav">
+        <button class="nav-btn" @click="prevWeek" title="上一周">
+          <Icon :name="ICONS.altArrowLeft" size="18" />
+        </button>
+        <button class="nav-btn today-btn" @click="goToToday">今天</button>
+        <button class="nav-btn" @click="nextWeek" title="下一周">
+          <Icon :name="ICONS.altArrowRight" size="18" />
+        </button>
+      </div>
+
+      <div class="week-range">
+        {{ weekRangeLabel }}
+      </div>
+
+      <div class="header-actions">
+        <button class="action-btn" @click="expandAll" title="展开全部">
+          <Icon :name="ICONS.altArrowDown" size="16" />
+        </button>
+        <button class="action-btn" @click="collapseAll" title="折叠全部">
+          <Icon :name="ICONS.altArrowLeft" size="16" />
+        </button>
+      </div>
+    </div>
+
+    <!-- 表头 -->
+    <div class="table-header">
+      <div class="header-cell header-note">笔记</div>
+      <div
+        v-for="date in weekDates"
+        :key="date.dateStr"
+        class="header-cell header-date"
+        :class="{ today: date.isToday }"
+      >
+        {{ date.label }}
+      </div>
+    </div>
+
+    <!-- 表格内容 -->
+    <div class="table-body">
+      <div v-if="loading" class="loading-state">
+        <div class="spinner" />
+        <p>加载中...</p>
+      </div>
+
+      <div v-else-if="weekRows.length === 0" class="empty-state">
+        <Icon :name="ICONS.notebook" size="48" />
+        <p>暂无数据</p>
+      </div>
+
+      <template v-else>
+        <div
+          v-for="row in weekRows"
+          :key="row.noteId"
+          class="table-row"
+          :style="{ paddingLeft: `${12 + row.level * 16}px` }"
+        >
+          <!-- 笔记列 -->
+          <div
+            class="row-cell cell-note"
+            :class="{ 'has-children': hasChildren(row.noteId) }"
+          >
+            <button
+              v-if="hasChildren(row.noteId)"
+              class="expand-btn"
+              @click="toggleNote(row.noteId)"
+            >
+              <Icon
+                :name="row.expanded ? ICONS.altArrowDown : ICONS.altArrowRight"
+                size="14"
+              />
+            </button>
+            <span class="note-title">{{ row.title }}</span>
+            <span v-if="row.tasks.length > 0" class="task-count">
+              {{ row.tasks.length }}
+            </span>
+          </div>
+
+          <!-- 日期列 -->
+          <div
+            v-for="date in weekDates"
+            :key="date.dateStr"
+            class="row-cell cell-date"
+            :class="{ today: date.isToday }"
+          >
+            <div class="cell-tasks">
+              <div
+                v-for="task in row.cells[date.dateStr]"
+                :key="task.id"
+                class="task-chip"
+                :class="{
+                  completed: task.completed,
+                  high: task.priority === 'high',
+                  medium: task.priority === 'medium'
+                }"
+                :style="getTaskStyle(task)"
+                @click="handleTaskClick(task)"
+              >
+                <Icon
+                  :name="task.completed ? ICONS.checkCircle : ICONS.round"
+                  :size="12"
+                  :color="task.statusColor"
+                  @click.stop="handleToggleTask(task)"
+                />
+                <span class="task-text">{{ task.text }}</span>
+              </div>
+
+              <!-- 快捷新增按钮 -->
+              <button
+                class="add-task-btn"
+                title="添加待办"
+                @click="handleQuickAdd(row.noteId, date.dateStr)"
+              >
+                <Icon :name="ICONS.addCircle" :size="14" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- 任务编辑对话框 -->
+    <TodoEditDialog
+      v-model:visible="showEditDialog"
+      :todo="editingTask"
+      :is-creating="isCreating"
+      :initial-data="initialTaskData"
+      @save="handleSaveTask"
+      @create="handleCreateTask"
+      @delete="handleDeleteTask"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
+import { useTodoProjectView } from '~/composables/useTodoProjectView'
+import { getDB } from '~/services/db'
+import type { CellTask } from '~/composables/useTodoProjectView'
+import type { TodoItem } from '~/types/todo'
+import TodoEditDialog from './TodoEditDialog.vue'
+
+interface Props {
+  weekStart?: Date
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  weekStart: () => new Date()
+})
+
+const emit = defineEmits<{
+  (e: 'update:weekStart', value: Date): void
+}>()
+
+// 使用 composable
+const {
+  loading,
+  weekStart,
+  weekDates,
+  notesWithLevel,
+  weekRows,
+  loadData,
+  toggleNote,
+  expandAll,
+  collapseAll,
+  prevWeek,
+  nextWeek,
+  goToToday,
+  subscribeChanges,
+  unsubscribeChanges
+} = useTodoProjectView({ weekStart: props.weekStart })
+
+// 对话框状态
+const showEditDialog = ref(false)
+const editingTask = ref<TodoItem | null>(null)
+const isCreating = ref(false)
+const initialTaskData = ref<Partial<TodoItem> | null>(null)
+
+// 周范围标签
+const weekRangeLabel = computed(() => {
+  if (weekDates.value.length === 0) return ''
+  const start = weekDates.value[0]
+  const end = weekDates.value[6]
+  const startMonth = start.date.getMonth() + 1
+  const endMonth = end.date.getMonth() + 1
+  if (startMonth === endMonth) {
+    return `${startMonth}月 ${start.date.getDate()}日 - ${end.date.getDate()}日`
+  }
+  return `${startMonth}月${start.date.getDate()}日 - ${endMonth}月${end.date.getDate()}日`
+})
+
+// 检查笔记是否有子笔记
+function hasChildren(noteId: string): boolean {
+  return notesWithLevel.value.some(n => n.parentId === noteId)
+}
+
+// 获取任务样式
+function getTaskStyle(task: CellTask): Record<string, string> {
+  const styles: Record<string, string> = {}
+  if (task.statusColor) {
+    styles.borderColor = task.statusColor
+  }
+  if (task.priority === 'high') {
+    styles.borderColor = '#ef4444'
+  }
+  return styles
+}
+
+// 切换任务完成状态
+async function handleToggleTask(task: CellTask): Promise<void> {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const data = doc.get('data') as { todos: any[] }
+      if (data?.todos) {
+        const index = data.todos.findIndex(t => t.id === task.id)
+        if (index !== -1) {
+          data.todos[index].completed = !data.todos[index].completed
+          await doc.patch({ data: { todos: data.todos } })
+          await loadData()
+          break
+        }
+      }
+    }
+  } catch (err) {
+    console.error('切换任务状态失败:', err)
+  }
+}
+
+// 点击任务
+function handleTaskClick(task: CellTask): void {
+  isCreating.value = false
+  initialTaskData.value = null
+  editingTask.value = {
+    id: task.id,
+    text: task.text,
+    completed: task.completed,
+    createdAt: '',
+    dueDate: task.dueDate,
+    statusId: task.statusId,
+    priority: task.priority,
+    noteId: task.noteId
+  }
+  showEditDialog.value = true
+}
+
+// 快捷新增任务
+function handleQuickAdd(noteId: string, dateStr: string): void {
+  isCreating.value = true
+  editingTask.value = null
+  initialTaskData.value = {
+    noteId,
+    dueDate: dateStr
+  }
+  showEditDialog.value = true
+}
+
+// 保存任务
+async function handleSaveTask(todo: TodoItem): Promise<void> {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const data = doc.get('data') as { todos: TodoItem[] }
+      if (data?.todos) {
+        const index = data.todos.findIndex(t => t.id === todo.id)
+        if (index !== -1) {
+          data.todos[index] = todo
+          await doc.patch({ data: { todos: data.todos } })
+          await loadData()
+          break
+        }
+      }
+    }
+    showEditDialog.value = false
+  } catch (err) {
+    console.error('保存任务失败:', err)
+  }
+}
+
+// 创建新任务
+async function handleCreateTask(todo: TodoItem): Promise<void> {
+  try {
+    const db = await getDB()
+
+    // 查找或创建该笔记的 module_data
+    const targetNoteId = todo.noteId || ''
+    let moduleData = await db.module_data.findOne({
+      selector: {
+        noteId: targetNoteId,
+        moduleId: 'todo'
+      }
+    }).exec()
+
+    if (moduleData) {
+      // 已存在，添加新任务
+      const data = moduleData.get('data') as { todos: TodoItem[] } | undefined
+      if (data?.todos) {
+        data.todos.push(todo)
+        await moduleData.patch({ data: { todos: data.todos } })
+      } else {
+        await moduleData.patch({ data: { todos: [todo] } })
+      }
+    } else {
+      // 不存在，创建新的 module_data
+      const { generateId, now } = await import('~/services/db')
+      await db.module_data.insert({
+        id: generateId(),
+        noteId: targetNoteId,
+        moduleId: 'todo',
+        data: { todos: [todo] },
+        createdAt: now(),
+        updatedAt: now()
+      })
+    }
+
+    await loadData()
+    showEditDialog.value = false
+  } catch (err) {
+    console.error('创建任务失败:', err)
+  }
+}
+
+// 删除任务
+async function handleDeleteTask(todo: TodoItem): Promise<void> {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const data = doc.get('data') as { todos: TodoItem[] }
+      if (data?.todos) {
+        const index = data.todos.findIndex(t => t.id === todo.id)
+        if (index !== -1) {
+          data.todos.splice(index, 1)
+          await doc.patch({ data: { todos: data.todos } })
+          await loadData()
+          break
+        }
+      }
+    }
+    showEditDialog.value = false
+  } catch (err) {
+    console.error('删除任务失败:', err)
+  }
+}
+
+// 监听周变化
+watch(weekStart, (newVal) => {
+  emit('update:weekStart', new Date(newVal))
+})
+
+// 初始化
+onMounted(() => {
+  loadData()
+  subscribeChanges()
+})
+
+onUnmounted(() => {
+  unsubscribeChanges()
+})
+</script>
+
+<style scoped>
+.todo-project-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--liquid-bg, rgba(255, 255, 255, 0.1));
+  backdrop-filter: blur(var(--liquid-blur, 20px));
+  border-radius: var(--liquid-radius, 20px);
+}
+
+/* 顶部工具栏 */
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+  gap: 16px;
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(60, 60, 67, 0.05);
+  border: none;
+  border-radius: var(--liquid-radius-button, 14px);
+  color: rgba(60, 60, 67, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-btn:hover {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.9);
+}
+
+.today-btn {
+  width: auto;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.week-range {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(60, 60, 67, 0.9);
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(60, 60, 67, 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-btn:hover {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.8);
+}
+
+/* 表头 */
+.table-header {
+  display: flex;
+  padding: 8px 16px;
+  background: rgba(60, 60, 67, 0.03);
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+}
+
+.header-cell {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(60, 60, 67, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.header-note {
+  width: 200px;
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: inherit;
+  z-index: 2;
+}
+
+.header-date {
+  width: 140px;
+}
+
+.header-date.today {
+  color: rgb(0, 122, 255);
+}
+
+/* 表格内容 */
+.table-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px;
+  color: rgba(60, 60, 67, 0.5);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(60, 60, 67, 0.1);
+  border-top-color: rgb(0, 122, 255);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 表格行 */
+.table-row {
+  display: flex;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
+  transition: background 0.15s ease;
+}
+
+.table-row:hover {
+  background: rgba(60, 60, 67, 0.03);
+}
+
+.row-cell {
+  flex-shrink: 0;
+  padding: 8px;
+  min-height: 40px;
+}
+
+/* 笔记列 */
+.cell-note {
+  width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: sticky;
+  left: 0;
+  background: inherit;
+  z-index: 1;
+}
+
+.cell-note::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(60, 60, 67, 0.1);
+}
+
+.expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(60, 60, 67, 0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.expand-btn:hover {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.7);
+}
+
+.note-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.4);
+  background: rgba(60, 60, 67, 0.08);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+/* 日期列 */
+.cell-date {
+  width: 140px;
+  padding: 6px 8px;
+  background: rgba(60, 60, 67, 0.02);
+  border-left: 0.5px solid rgba(60, 60, 67, 0.06);
+}
+
+.cell-date.today {
+  background: rgba(0, 122, 255, 0.03);
+}
+
+.cell-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.add-task-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 4px 8px;
+  background: transparent;
+  border: 0.5px dashed rgba(60, 60, 67, 0.15);
+  border-radius: 6px;
+  color: rgba(60, 60, 67, 0.3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0;
+}
+
+.cell-date:hover .add-task-btn {
+  opacity: 1;
+}
+
+.add-task-btn:hover {
+  background: rgba(60, 60, 67, 0.05);
+  border-color: rgba(60, 60, 67, 0.25);
+  color: rgba(0, 122, 255, 0.7);
+}
+
+.task-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(60, 60, 67, 0.15);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.task-chip:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(60, 60, 67, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.task-chip.completed {
+  opacity: 0.6;
+}
+
+.task-chip.completed .task-text {
+  text-decoration: line-through;
+}
+
+.task-chip.high {
+  border-left-width: 3px;
+}
+
+.task-chip.medium {
+  border-left-width: 2px;
+}
+
+.task-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(60, 60, 67, 0.8);
+}
+
+/* 深色模式适配 */
+@media (prefers-color-scheme: dark) {
+  .todo-project-view {
+    background: var(--liquid-bg, rgba(255, 255, 255, 0.05));
+  }
+
+  .view-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .nav-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .nav-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .week-range {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .action-btn {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .header-cell {
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .table-row {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .table-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .loading-state,
+  .empty-state {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .spinner {
+    border-color: rgba(255, 255, 255, 0.1);
+    border-top-color: rgb(0, 122, 255);
+  }
+
+  .cell-note::before {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .expand-btn {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .expand-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .note-title {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .task-count {
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .cell-date {
+    background: rgba(255, 255, 255, 0.02);
+    border-left-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .cell-date.today {
+    background: rgba(0, 122, 255, 0.05);
+  }
+
+  .task-chip {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .task-chip:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .task-text {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .add-task-btn {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  .add-task-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: rgb(0, 122, 255);
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .view-header {
+    padding: 10px 12px;
+    flex-wrap: wrap;
+  }
+
+  .week-range {
+    font-size: 14px;
+  }
+
+  .table-header {
+    padding: 6px 12px;
+  }
+
+  .header-note {
+    width: 150px;
+  }
+
+  .header-date {
+    width: 100px;
+  }
+
+  .cell-note {
+    width: 150px;
+  }
+
+  .cell-date {
+    width: 100px;
+  }
+
+  .task-chip {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+}
+</style>

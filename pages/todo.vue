@@ -28,9 +28,16 @@
 
       <!-- 任务区 -->
       <div class="tasks-area">
+        <!-- 项目视图 -->
+        <TodoProjectView
+          v-if="todoStore.viewMode === 'project'"
+          :week-start="projectWeekStart"
+          @update:week-start="projectWeekStart = $event"
+        />
+
         <!-- 周视图 -->
         <TodoWeekView
-          v-if="todoStore.viewMode === 'week'"
+          v-else-if="todoStore.viewMode === 'week'"
           :week-start="weekStartDate"
           @update:week-start="weekStartDate = $event"
         />
@@ -81,6 +88,7 @@ import { useTodoStatus } from '~/composables/useTodoStatus'
 import { useTodoTypes } from '~/composables/useTodoTypes'
 import type { TodoItem } from '~/types/todo'
 import TodoWeekView from '~/components/todo/TodoWeekView.vue'
+import TodoProjectView from '~/components/todo/TodoProjectView.vue'
 import TodoTypeManager from '~/components/todo/TodoTypeManager.vue'
 import TodoEditDialog from '~/components/todo/TodoEditDialog.vue'
 
@@ -115,6 +123,9 @@ const quickAddRef = ref()
 
 // 周视图当前周的起始日期
 const weekStartDate = ref(getMonday(new Date()))
+
+// 项目视图当前周的起始日期
+const projectWeekStart = ref(getMonday(new Date()))
 
 // 计算空状态消息
 const emptyMessage = computed(() => {

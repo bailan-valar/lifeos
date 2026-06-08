@@ -59,7 +59,7 @@ export interface TodoTypeFormData {
 
 // ==================== 视图相关类型 ====================
 
-export type ViewMode = 'all' | 'today' | 'week' | 'overdue' | 'important'
+export type ViewMode = 'all' | 'today' | 'week' | 'project' | 'overdue' | 'important'
 export type GroupBy = 'none' | 'date' | 'note' | 'status' | 'priority'
 export type SortBy = 'created' | 'dueDate' | 'priority' | 'name'
 
