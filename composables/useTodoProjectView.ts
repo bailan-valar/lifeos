@@ -27,7 +27,9 @@ export interface CellTask {
   statusName?: string
   statusColor?: string
   statusIcon?: string
+  startDate?: string
   dueDate?: string
+  createdAt?: string
   noteId: string
 }
 
@@ -326,7 +328,16 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
         if (data?.todos) {
           for (const todo of data.todos) {
             allTasks.push({
-              ...todo,
+              id: todo.id,
+              text: todo.text,
+              completed: todo.completed,
+              createdAt: todo.createdAt,
+              typeId: todo.typeId,
+              priority: todo.priority,
+              startDate: todo.startDate,
+              dueDate: todo.dueDate,
+              statusId: todo.statusId,
+              parentId: todo.parentId,
               noteId: doc.noteId,
               statusName: todo.statusId ? statuses.find(s => s.id === todo.statusId)?.name : undefined,
               statusColor: todo.statusId ? statuses.find(s => s.id === todo.statusId)?.color : undefined,
