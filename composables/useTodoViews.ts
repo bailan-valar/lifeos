@@ -1,4 +1,5 @@
 import { getDB, onCollectionChange } from '~/services/db'
+import { ICONS } from '~/composables/useIcons'
 import type {
   TodoItem,
   TodoTreeNode,
@@ -124,7 +125,7 @@ export function useTodoViews() {
               if (status) {
                 taskWithMeta.statusName = status.name
                 taskWithMeta.statusColor = status.color
-                taskWithMeta.statusIcon = status.icon
+                taskWithMeta.statusIcon = status.icon ?? ICONS.round
               }
             }
 

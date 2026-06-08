@@ -295,7 +295,7 @@ export const useTodoStore = defineStore('todo', () => {
         noteTitle: notesCache.value.get(task.noteId),
         statusName: task.statusId ? statuses.value.find(s => s.id === task.statusId)?.name : undefined,
         statusColor: task.statusId ? statuses.value.find(s => s.id === task.statusId)?.color : undefined,
-        statusIcon: task.statusId ? statuses.value.find(s => s.id === task.statusId)?.icon : undefined,
+        statusIcon: (task.statusId ? statuses.value.find(s => s.id === task.statusId)?.icon : undefined) ?? ICONS.round,
         typeName: task.typeId ? types.value.find(t => t.id === task.typeId)?.name : undefined,
         typeColor: task.typeId ? types.value.find(t => t.id === task.typeId)?.color : undefined,
         typeIcon: task.typeId ? types.value.find(t => t.id === task.typeId)?.icon : undefined
@@ -333,7 +333,7 @@ export const useTodoStore = defineStore('todo', () => {
       typeIcon: options?.typeId ? types.value.find(t => t.id === options.typeId)?.icon : undefined,
       statusName: options?.statusId ? statuses.value.find(s => s.id === options.statusId)?.name : undefined,
       statusColor: options?.statusId ? statuses.value.find(s => s.id === options.statusId)?.color : undefined,
-      statusIcon: options?.statusId ? statuses.value.find(s => s.id === options.statusId)?.icon : undefined
+      statusIcon: (options?.statusId ? statuses.value.find(s => s.id === options.statusId)?.icon : undefined) ?? ICONS.round
     }
 
     // 立即更新 UI
@@ -352,7 +352,7 @@ export const useTodoStore = defineStore('todo', () => {
           noteTitle: notesCache.value.get(result.noteId),
           statusName: result.statusId ? statuses.value.find(s => s.id === result.statusId)?.name : undefined,
           statusColor: result.statusId ? statuses.value.find(s => s.id === result.statusId)?.color : undefined,
-          statusIcon: result.statusId ? statuses.value.find(s => s.id === result.statusId)?.icon : undefined,
+          statusIcon: (result.statusId ? statuses.value.find(s => s.id === result.statusId)?.icon : undefined) ?? ICONS.round,
           typeName: result.typeId ? types.value.find(t => t.id === result.typeId)?.name : undefined,
           typeColor: result.typeId ? types.value.find(t => t.id === result.typeId)?.color : undefined,
           typeIcon: result.typeId ? types.value.find(t => t.id === result.typeId)?.icon : undefined
@@ -738,7 +738,7 @@ export const useTodoStore = defineStore('todo', () => {
       ...task,
       statusName: task.statusId ? statuses.value.find(s => s.id === task.statusId)?.name : undefined,
       statusColor: task.statusId ? statuses.value.find(s => s.id === task.statusId)?.color : undefined,
-      statusIcon: task.statusId ? statuses.value.find(s => s.id === task.statusId)?.icon : undefined
+      statusIcon: (task.statusId ? statuses.value.find(s => s.id === task.statusId)?.icon : undefined) ?? ICONS.round
     }))
   }
 

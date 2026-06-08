@@ -2,6 +2,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { Note, Class, NoteClassBinding } from '~/types/block'
 import type { TodoItem, TodoWithMeta } from '~/types/todo'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { ICONS } from '~/composables/useIcons'
 
 // ==================== 类型定义 ====================
 
@@ -329,7 +330,7 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
               noteId: doc.noteId,
               statusName: todo.statusId ? statuses.find(s => s.id === todo.statusId)?.name : undefined,
               statusColor: todo.statusId ? statuses.find(s => s.id === todo.statusId)?.color : undefined,
-              statusIcon: todo.statusId ? statuses.find(s => s.id === todo.statusId)?.icon : undefined
+              statusIcon: (todo.statusId ? statuses.find(s => s.id === todo.statusId)?.icon : undefined) ?? ICONS.round
             })
           }
         }
