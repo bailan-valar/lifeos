@@ -1442,9 +1442,9 @@ onUnmounted(() => {
   z-index: 10;
   pointer-events: none;
   padding: 4px 8px;
-  /* 确保任务容器在单元格顶部对齐 */
+  /* 确保任务容器跨越完整的列宽 */
   align-self: start;
-  justify-self: start;
+  justify-self: stretch;
 }
 
 .task-chip {
