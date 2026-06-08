@@ -186,11 +186,25 @@
       @saved="handleNoteSaved"
       @created="handleNoteCreated"
     />
+    <!-- 统计行 -->
+    <div v-if="!loading && weekRows.length > 0" class="table-footer">
+      <div class="footer-cell footer-label">统计</div>
+      <div class="footer-cell footer-stats">
+        <span class="stat-item stat-completed">
+          <Icon :name="ICONS.checkCircle" :size="14" />
+          已完成 {{ taskStats.completed }}
+        </span>
+        <span class="stat-item stat-pending">
+          <Icon :name="ICONS.round" :size="14" />
+          待完成 {{ taskStats.pending }}
+        </span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 import { useTodoProjectView, type WeekRow, type CellTask } from '~/composables/useTodoProjectView'
 import { getDB, generateId, now } from '~/services/db'
@@ -264,6 +278,26 @@ const weekRangeLabel = computed(() => {
     return `${startMonth}月 ${start.date.getDate()}日 - ${end.date.getDate()}日`
   }
   return `${startMonth}月${start.date.getDate()}日 - ${endMonth}月${end.date.getDate()}日`
+})
+
+// 统计数据
+const taskStats = computed(() => {
+  let completed = 0
+  let pending = 0
+
+  for (const row of weekRows.value) {
+    for (const tasks of Object.values(row.cells)) {
+      for (const task of tasks) {
+        if (task.completed) {
+          completed++
+        } else {
+          pending++
+        }
+      }
+    }
+  }
+
+  return { completed, pending, total: completed + pending }
 })
 
 // 检查笔记是否有子笔记
@@ -972,6 +1006,58 @@ onUnmounted(() => {
   color: rgba(60, 60, 67, 0.8);
 }
 
+/* 表格底部统计行 */
+.table-footer {
+  display: flex;
+  border-top: 1px solid rgba(60, 60, 67, 0.15);
+  background: rgba(60, 60, 67, 0.03);
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+}
+
+.footer-cell {
+  flex-shrink: 0;
+  padding: 10px 16px;
+}
+
+.footer-label {
+  width: 200px;
+  padding-left: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(60, 60, 67, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  left: 0;
+  background: inherit;
+}
+
+.footer-stats {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding-left: 20px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.stat-completed {
+  color: rgb(52, 199, 89);
+}
+
+.stat-pending {
+  color: rgba(60, 60, 67, 0.7);
+}
+
 /* 深色模式适配 */
 @media (prefers-color-scheme: dark) {
   .todo-project-view {
@@ -1121,6 +1207,19 @@ onUnmounted(() => {
     border-color: rgba(255, 255, 255, 0.25);
     color: rgb(0, 122, 255);
   }
+
+  .table-footer {
+    border-top-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .footer-label {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .stat-pending {
+    color: rgba(255, 255, 255, 0.7);
+  }
 }
 
 /* 移动端适配 */
@@ -1157,6 +1256,19 @@ onUnmounted(() => {
   .task-chip {
     font-size: 11px;
     padding: 3px 6px;
+  }
+
+  .footer-label {
+    width: 150px;
+  }
+
+  .footer-stats {
+    gap: 16px;
+    padding-left: 12px;
+  }
+
+  .stat-item {
+    font-size: 12px;
   }
 }
 </style>
