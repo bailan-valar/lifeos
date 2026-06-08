@@ -7,8 +7,10 @@ import type {
   SortBy,
   TodoWithMeta,
   TaskGroup,
-  ViewFilters
+  ViewFilters,
+  NoteClassInfo
 } from '~/types/todo'
+import type { Class, NoteClassBinding } from '~/types/block'
 
 // 格式化本地日期为 YYYY-MM-DD
 function formatDateLocal(date: Date): string {
@@ -27,6 +29,10 @@ export function useTodoViews() {
 
   // 笔记数据缓存
   const notesCache = ref<Map<string, string>>(new Map())
+
+  // 笔记类缓存
+  const classesCache = ref<Map<string, Class>>(new Map())
+  const noteClassBindingsCache = ref<Map<string, NoteClassBinding>>(new Map())
 
   // 变更订阅取消函数
   let unsubscribe: (() => void) | null = null
@@ -72,6 +78,20 @@ export function useTodoViews() {
       notesCache.value.clear()
       for (const note of notes) {
         notesCache.value.set(note.id, note.title || '未命名笔记')
+      }
+
+      // 加载笔记类
+      const classDocs = await db.classes.find().exec()
+      classesCache.value.clear()
+      for (const cls of classDocs) {
+        classesCache.value.set(cls.id, cls.toJSON() as Class)
+      }
+
+      // 加载笔记类绑定
+      const bindingDocs = await db.noteClassBindings.find().exec()
+      noteClassBindingsCache.value.clear()
+      for (const binding of bindingDocs) {
+        noteClassBindingsCache.value.set(binding.noteId, binding.toJSON() as NoteClassBinding)
       }
 
       // 加载状态和类型
@@ -306,13 +326,31 @@ export function useTodoViews() {
       }
 
       if (!groups[groupKey]) {
-        groups[groupKey] = {
+        const groupData: TaskGroup = {
           id: groupKey,
           title: groupTitle,
           count: 0,
           completedCount: 0,
           tasks: []
         }
+
+        // 按笔记分组时，添加笔记类信息
+        if (groupBy.value === 'note' && groupKey) {
+          const binding = noteClassBindingsCache.value.get(groupKey)
+          if (binding) {
+            const cls = classesCache.value.get(binding.classId)
+            if (cls) {
+              groupData.classInfo = {
+                id: cls.id,
+                name: cls.name,
+                icon: cls.icon,
+                color: cls.color
+              }
+            }
+          }
+        }
+
+        groups[groupKey] = groupData
       }
 
       groups[groupKey].tasks.push(task)

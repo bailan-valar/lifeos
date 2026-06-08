@@ -74,12 +74,21 @@ export interface TodoWithMeta extends TodoItem {
   typeIcon?: string
 }
 
+// 笔记类信息
+export interface NoteClassInfo {
+  id: string
+  name: string
+  icon: string
+  color: string
+}
+
 export interface TaskGroup {
   id: string
   title: string
   count: number
   completedCount: number
   tasks: TodoWithMeta[]
+  classInfo?: NoteClassInfo // 笔记类信息（按笔记分组时可用）
 }
 
 export interface ViewFilters {

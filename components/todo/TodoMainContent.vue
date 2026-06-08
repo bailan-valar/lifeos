@@ -21,7 +21,18 @@
       >
         <!-- 分组标题 -->
         <div class="group-header">
-          <h3 class="group-title">{{ group.title }}</h3>
+          <div class="group-title-wrapper">
+            <h3 class="group-title">{{ group.title }}</h3>
+            <!-- 笔记类标签 -->
+            <span
+              v-if="group.classInfo"
+              class="class-tag"
+              :style="{ '--tag-color': group.classInfo.color }"
+            >
+              <Icon :name="group.classInfo.icon" size="14" />
+              {{ group.classInfo.name }}
+            </span>
+          </div>
           <span class="group-count">{{ group.completedCount }} / {{ group.count }}</span>
         </div>
 
@@ -135,11 +146,31 @@ const handleReorder = (taskId: string, targetId: string) => {
   padding: 0 4px;
 }
 
+.group-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .group-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: rgba(60, 60, 67, 0.8);
+}
+
+/* 笔记类标签 */
+.class-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--tag-color, #007AFF) 15%, transparent);
+  color: var(--tag-color, #007AFF);
+  border: 1px solid color-mix(in srgb, var(--tag-color, #007AFF) 30%, transparent);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .group-count {
@@ -179,6 +210,11 @@ const handleReorder = (taskId: string, targetId: string) => {
 @media (prefers-color-scheme: dark) {
   .group-title {
     color: rgba(255, 255, 255, 0.8);
+  }
+
+  .class-tag {
+    background: color-mix(in srgb, var(--tag-color, #007AFF) 20%, transparent);
+    border-color: color-mix(in srgb, var(--tag-color, #007AFF) 40%, transparent);
   }
 
   .group-count {
