@@ -47,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+import BaseDialog from '~/components/ui/BaseDialog.vue'
 import { getDB, generateId, now } from '~/services/db'
 import type { Note } from '~/types/block'
 
