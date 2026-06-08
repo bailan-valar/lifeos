@@ -810,7 +810,7 @@ onUnmounted(() => {
 
 /* 面包屑占位区（始终预留空间） */
 .breadcrumb-placeholder {
-  width: 280px;
+  width: 320px;
   flex-shrink: 0;
   min-height: 32px;
   display: flex;
@@ -977,8 +977,8 @@ onUnmounted(() => {
 }
 
 .header-note {
-  width: 280px;
-  padding: 8px 8px 8px 12px;
+  width: 320px;
+  padding: 8px 12px;
   text-align: left;
   position: sticky;
   left: 0;
@@ -1062,7 +1062,7 @@ onUnmounted(() => {
 
 /* 笔记列 */
 .cell-note {
-  width: 280px;
+  width: 320px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1070,7 +1070,7 @@ onUnmounted(() => {
   left: 0;
   background: inherit;
   z-index: 1;
-  padding: 8px 8px 8px 12px;
+  padding: 8px 12px;
 }
 
 .note-indent {
@@ -1305,8 +1305,8 @@ onUnmounted(() => {
 }
 
 .footer-label {
-  width: 280px;
-  padding-left: 12px;
+  width: 320px;
+  padding: 8px 12px;
   font-size: 12px;
   font-weight: 600;
   color: rgba(60, 60, 67, 0.6);
@@ -1599,7 +1599,7 @@ onUnmounted(() => {
   }
 
   .breadcrumb-placeholder {
-    width: 180px;
+    width: 200px;
   }
 
   .breadcrumb-item {
@@ -1621,7 +1621,7 @@ onUnmounted(() => {
   }
 
   .header-note {
-    width: 180px;
+    width: 200px;
   }
 
   .header-date {
@@ -1629,7 +1629,7 @@ onUnmounted(() => {
   }
 
   .cell-note {
-    width: 180px;
+    width: 200px;
   }
 
   .cell-date {
@@ -1642,7 +1642,7 @@ onUnmounted(() => {
   }
 
   .footer-label {
-    width: 180px;
+    width: 200px;
     font-size: 11px;
   }
 
