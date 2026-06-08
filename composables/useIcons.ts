@@ -287,3 +287,19 @@ export const PRESET_ICON_SETS = {
 } as const
 
 export type PresetIconSet = keyof typeof PRESET_ICON_SETS
+
+/**
+ * 预设颜色 — 用于待办类型、笔记分类等
+ */
+export const PRESET_COLORS = [
+  '#3b82f6', // blue
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#ef4444', // red
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#22c55e', // green
+  '#14b8a6', // teal
+  '#06b6d4', // cyan
+  '#6366f1', // indigo
+] as const

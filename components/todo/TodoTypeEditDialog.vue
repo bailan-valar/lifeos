@@ -18,26 +18,14 @@
       </div>
 
       <div class="form-group">
-        <label>图标</label>
-        <div class="icon-grid">
-          <button
-            v-for="icon in presetIcons"
-            :key="icon"
-            type="button"
-            class="icon-option liquid-glass"
-            :class="{ active: form.icon === icon }"
-            @click="form.icon = icon"
-          >
-            <Icon :name="icon" :size="20" />
-          </button>
-        </div>
+        <IconPicker v-model="form.icon" :icons="PRESET_ICON_SETS.todo" label="图标" />
       </div>
 
       <div class="form-group">
         <label>颜色</label>
         <div class="color-grid">
           <button
-            v-for="color in presetColors"
+            v-for="color in PRESET_COLORS"
             :key="color"
             type="button"
             class="color-option"
@@ -64,7 +52,7 @@
         取消
       </button>
       <button class="liquid-glass-button liquid-glass-button-primary" type="button" @click="onConfirm">
-        <Icon :name="SOLAR_ICONS.action.save || 'solar:check-circle-linear'" :size="16" />
+        <Icon :name="SOLAR_ICONS.action.save" :size="16" />
         <span>{{ isEditMode ? '保存' : '创建' }}</span>
       </button>
     </template>
@@ -72,8 +60,9 @@
 </template>
 
 <script setup lang="ts">
-import { SOLAR_ICONS } from '~/composables/useIcons'
+import { SOLAR_ICONS, PRESET_ICON_SETS, PRESET_COLORS } from '~/composables/useIcons'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
+import IconPicker from '~/components/IconPicker.vue'
 
 interface TodoType {
   id?: string
@@ -122,22 +111,6 @@ const form = reactive<{
   description: ''
 })
 
-const presetIcons = [
-  'solar:check-circle-linear',
-  'solar:star-linear',
-  'solar:heart-linear',
-  'solar:flag-linear',
-  'solar:bookmark-linear',
-  'solar:tag-linear',
-  'solar:briefcase-linear',
-  'solar:home-linear'
-]
-
-const presetColors = [
-  '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
-  '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#6366f1'
-]
-
 const isEditMode = computed(() => !!props.editType)
 
 watch(() => props.visible, (visible) => {
@@ -150,7 +123,7 @@ watch(() => props.visible, (visible) => {
     } else {
       form.name = ''
       form.icon = 'solar:check-circle-linear'
-      form.color = presetColors[Math.floor(Math.random() * presetColors.length)]
+      form.color = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]
       form.description = ''
     }
     nextTick(() => {
@@ -201,36 +174,7 @@ const onCancel = () => {
 .form-group label {
   font-weight: 500;
   font-size: 13px;
-  color: rgba(0, 0, 0, 0.7);
-}
-
-.icon-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.icon-option {
-  aspect-ratio: 1;
-  border: 2px solid transparent;
-  border-radius: var(--liquid-radius-button);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  color: rgba(0, 0, 0, 0.5);
-}
-
-.icon-option:hover {
-  background: rgba(0, 122, 255, 0.1);
-  border-color: rgba(0, 122, 255, 0.3);
-}
-
-.icon-option.active {
-  background: rgba(0, 122, 255, 0.15);
-  border-color: rgb(0, 122, 255);
-  color: rgb(0, 122, 255);
+  color: var(--liquid-text-primary, rgba(0, 0, 0, 0.7));
 }
 
 .color-grid {
@@ -258,15 +202,7 @@ const onCancel = () => {
 
 @media (prefers-color-scheme: dark) {
   .form-group label {
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  .icon-option {
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-  .icon-option:hover {
-    background: rgba(0, 122, 255, 0.2);
+    color: var(--liquid-text-primary, rgba(255, 255, 255, 0.7));
   }
 
   .color-option.active {

@@ -5,115 +5,74 @@
     title="待办类型管理"
     size="medium"
   >
-    <!-- 列表视图 -->
-    <div v-if="editingType === null">
-      <div v-if="todoTypes.length === 0" class="empty-state">
-        <Icon :name="ICONS.folderOpen || 'solar:folder-open-linear'" size="48" />
-        <p>还没有创建任何待办类型</p>
-        <button class="liquid-glass-button liquid-glass-button-primary" type="button" @click="startCreate">
-          <Icon :name="SOLAR_ICONS.action.add || 'solar:add-circle-linear'" size="18" />
-          <span>创建第一个待办类型</span>
-        </button>
-      </div>
-
-      <div v-else class="type-list">
-        <div
-          v-for="type in sortedTypes"
-          :key="type.id"
-          class="type-card liquid-glass-card"
-          :style="{ borderLeftColor: type.color }"
-        >
-          <div class="type-info">
-            <div class="type-icon" :style="{ background: type.color + '18', color: type.color }">
-              <Icon :name="type.icon || 'solar:folder-linear'" size="20" />
-            </div>
-            <div class="type-meta">
-              <div class="type-name">{{ type.name }}</div>
-              <div class="type-desc">{{ type.description || '暂无描述' }}</div>
-            </div>
-          </div>
-          <div class="type-actions">
-            <button
-              class="liquid-glass-button icon-btn"
-              @click="editType(type)"
-              type="button"
-              title="编辑"
-            >
-              <Icon :name="SOLAR_ICONS.action.edit || 'solar:pen-linear'" size="16" />
-            </button>
-            <button
-              class="liquid-glass-button icon-btn danger"
-              @click="confirmDeleteType(type)"
-              type="button"
-              title="删除"
-            >
-              <Icon :name="SOLAR_ICONS.action.delete || 'solar:trash-bin-trash-linear'" size="16" />
-            </button>
-          </div>
-        </div>
-
-        <button class="create-type-btn liquid-glass" type="button" @click="startCreate">
-          <Icon :name="SOLAR_ICONS.action.add || 'solar:add-circle-linear'" size="18" />
-          <span>创建新待办类型</span>
-        </button>
-      </div>
+    <!-- 空状态 -->
+    <div v-if="todoTypes.length === 0" class="empty-state">
+      <Icon :name="ICONS.folderOpen" size="48" />
+      <p>还没有创建任何待办类型</p>
+      <button class="liquid-glass-button liquid-glass-button-primary" type="button" @click="startCreate">
+        <Icon :name="SOLAR_ICONS.action.add" size="18" />
+        <span>创建第一个待办类型</span>
+      </button>
     </div>
 
-    <!-- 编辑表单 -->
-    <div v-else class="edit-form">
-      <div class="form-group">
-        <label>名称</label>
-        <input v-model="form.name" type="text" class="liquid-glass-input" placeholder="待办类型名称" />
-      </div>
-
-      <div class="form-group">
-        <IconPicker v-model="form.icon" :icons="PRESET_ICON_SETS.todo" label="图标" />
-      </div>
-
-      <div class="form-group">
-        <label>颜色</label>
-        <div class="color-picker">
+    <!-- 类型列表 -->
+    <div v-else class="type-list">
+      <div
+        v-for="type in sortedTypes"
+        :key="type.id"
+        class="type-card liquid-glass-card"
+        :style="{ borderLeftColor: type.color }"
+      >
+        <div class="type-info">
+          <div class="type-icon" :style="{ background: type.color + '18', color: type.color }">
+            <Icon :name="type.icon" size="20" />
+          </div>
+          <div class="type-meta">
+            <div class="type-name">{{ type.name }}</div>
+            <div class="type-desc">{{ type.description || '暂无描述' }}</div>
+          </div>
+        </div>
+        <div class="type-actions">
           <button
-            v-for="color in presetColors"
-            :key="color"
+            class="liquid-glass-button icon-btn"
+            @click="editType(type)"
             type="button"
-            class="color-option"
-            :class="{ active: form.color === color }"
-            :style="{ background: color }"
-            @click="form.color = color"
-          />
+            title="编辑"
+          >
+            <Icon :name="SOLAR_ICONS.action.edit" size="16" />
+          </button>
+          <button
+            class="liquid-glass-button icon-btn danger"
+            @click="confirmDeleteType(type)"
+            type="button"
+            title="删除"
+          >
+            <Icon :name="SOLAR_ICONS.action.delete" size="16" />
+          </button>
         </div>
       </div>
 
-      <div class="form-group">
-        <label>描述</label>
-        <input
-          v-model="form.description"
-          type="text"
-          class="liquid-glass-input"
-          placeholder="可选描述"
-        />
-      </div>
+      <button class="create-type-btn liquid-glass" type="button" @click="startCreate">
+        <Icon :name="SOLAR_ICONS.action.add" size="18" />
+        <span>创建新待办类型</span>
+      </button>
     </div>
 
-    <!-- 编辑模式下的底部按钮 -->
-    <template v-if="editingType" #footer>
-      <button class="liquid-glass-button" @click="cancelEdit" type="button">
-        取消
-      </button>
-      <button class="liquid-glass-button liquid-glass-button-primary" type="button" @click="saveType">
-        <Icon :name="SOLAR_ICONS.action.save || 'solar:check-circle-linear'" size="16" />
-        <span>保存</span>
-      </button>
-    </template>
+    <!-- 编辑弹窗 -->
+    <TodoTypeEditDialog
+      v-model:visible="showEditDialog"
+      :edit-type="editingType"
+      @save="onTypeSave"
+    />
   </BaseDialog>
 </template>
 
 <script setup lang="ts">
 import { getDB, generateId, now } from '~/services/db'
-import { SOLAR_ICONS, ICONS, PRESET_ICON_SETS } from '~/composables/useIcons'
+import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
+import { useConfirm } from '~/composables/useConfirm'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
-import IconPicker from '~/components/IconPicker.vue'
+import TodoTypeEditDialog from './TodoTypeEditDialog.vue'
 
 interface TodoType {
   id: string
@@ -136,32 +95,11 @@ const emit = defineEmits<{
   'updated': [type: TodoType]
 }>()
 
-const todoTypes = ref<TodoType[]>([])
-const editingType = ref<TodoType | null>(null)
-const form = reactive<{
-  name: string
-  icon: string
-  color: string
-  description: string
-}>({
-  name: '',
-  icon: 'solar:check-circle-linear',
-  color: '#3b82f6',
-  description: ''
-})
+const { confirm } = useConfirm()
 
-const presetColors = [
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#ef4444', // red
-  '#f97316', // orange
-  '#eab308', // yellow
-  '#22c55e', // green
-  '#14b8a6', // teal
-  '#06b6d4', // cyan
-  '#6366f1'  // indigo
-]
+const todoTypes = ref<TodoType[]>([])
+const showEditDialog = ref(false)
+const editingType = ref<TodoType | null>(null)
 
 const sortedTypes = computed(() => {
   return [...todoTypes.value].sort((a, b) => a.order - b.order)
@@ -178,64 +116,49 @@ const loadTodoTypes = async () => {
 }
 
 const startCreate = () => {
-  editingType.value = undefined
-  form.name = ''
-  form.icon = 'solar:check-circle-linear'
-  form.color = '#3b82f6'
-  form.description = ''
+  editingType.value = null
+  showEditDialog.value = true
 }
 
 const editType = (type: TodoType) => {
   editingType.value = type
-  form.name = type.name
-  form.icon = type.icon
-  form.color = type.color
-  form.description = type.description || ''
+  showEditDialog.value = true
 }
 
-const cancelEdit = () => {
-  editingType.value = null
-}
-
-const saveType = async () => {
-  if (!form.name.trim()) {
-    return
-  }
-
+const onTypeSave = async (typeData: TodoType & { id?: string }) => {
   try {
     const db = await getDB()
 
-    if (editingType.value) {
-      const type = editingType.value
-      await db.todo_types.upsert({
-        id: type.id,
-        name: form.name.trim(),
-        icon: form.icon,
-        color: form.color,
-        description: form.description.trim(),
-        order: type.order,
-        createdAt: type.createdAt,
-        updatedAt: now()
-      })
+    if (typeData.id) {
+      // 编辑现有类型
+      const type = todoTypes.value.find(t => t.id === typeData.id)
+      if (type) {
+        await db.todo_types.upsert({
+          id: type.id,
+          name: typeData.name,
+          icon: typeData.icon,
+          color: typeData.color,
+          description: typeData.description,
+          order: type.order,
+          createdAt: type.createdAt,
+          updatedAt: now()
+        })
 
-      const updatedType: TodoType = {
-        ...type,
-        name: form.name.trim(),
-        icon: form.icon,
-        color: form.color,
-        description: form.description.trim(),
-        updatedAt: now()
+        emit('updated', {
+          ...type,
+          ...typeData,
+          updatedAt: now()
+        } as TodoType)
       }
-
-      emit('updated', updatedType)
     } else {
+      // 创建新类型
       const maxOrder = Math.max(0, ...todoTypes.value.map(t => t.order))
       const newType: TodoType = {
         id: generateId(),
-        name: form.name.trim(),
-        icon: form.icon,
-        color: form.color,
-        description: form.description.trim(),
+        name: typeData.name,
+        icon: typeData.icon,
+        color: typeData.color,
+        description: typeData.description,
         order: maxOrder + 1,
         createdAt: now(),
         updatedAt: now()
@@ -246,14 +169,12 @@ const saveType = async () => {
     }
 
     await loadTodoTypes()
-    editingType.value = null
   } catch (error) {
     console.error('保存待办类型失败:', error)
   }
 }
 
 const confirmDeleteType = async (type: TodoType) => {
-  const { confirm } = useConfirm()
   const confirmed = await confirm({
     title: '确认删除',
     message: `确定要删除待办类型"${type.name}"吗？`,
@@ -279,8 +200,6 @@ const confirmDeleteType = async (type: TodoType) => {
 watch(() => props.visible, (visible) => {
   if (visible) {
     loadTodoTypes()
-  } else {
-    editingType.value = null
   }
 })
 </script>
@@ -396,63 +315,13 @@ watch(() => props.visible, (visible) => {
   background: rgba(59, 130, 246, 0.08);
 }
 
-.edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  font-weight: 500;
-  color: var(--liquid-text-primary, rgba(0, 0, 0, 0.92));
-  font-size: 14px;
-}
-
-.color-picker {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-
-.color-option {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--liquid-radius-button);
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.color-option:hover {
-  transform: scale(1.1);
-}
-
-.color-option.active {
-  border-color: rgba(0, 0, 0, 0.2);
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
-}
-
 @media (prefers-color-scheme: dark) {
-  .color-option.active {
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-
   .type-name {
     color: var(--liquid-text-primary, rgba(255, 255, 255, 0.92));
   }
 
   .type-desc {
     color: var(--liquid-text-secondary, rgba(255, 255, 255, 0.55));
-  }
-
-  .form-group label {
-    color: var(--liquid-text-primary, rgba(255, 255, 255, 0.92));
   }
 
   .create-type-btn {
