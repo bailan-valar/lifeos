@@ -96,7 +96,10 @@
           <!-- 笔记列 -->
           <div
             class="row-cell cell-note"
-            :class="{ 'has-children': hasChildren(row.noteId) }"
+            :class="{ 'has-children': hasChildren(row.noteId), ...getNoteDragClass(row) }"
+            draggable="true"
+            @dragstart="handleNoteDragStart(row, $event)"
+            @dragend="resetDragState"
             @contextmenu.prevent="handleNoteContextMenu($event, row)"
           >
             <!-- 缩进占位 -->
@@ -134,7 +137,14 @@
             v-for="date in weekDates"
             :key="date.dateStr"
             class="row-cell cell-date"
-            :class="{ today: date.isToday }"
+            :class="{
+              today: date.isToday,
+              'drag-over': dropTarget?.dateStr === date.dateStr && dropTarget?.noteId === row.noteId,
+              'dragging-over': isDragging && dragType === 'task'
+            }"
+            @dragover="onTaskDragOver(date.dateStr, row.noteId, $event)"
+            @dragleave="onTaskDragLeave($event)"
+            @drop="onTaskDrop($event)"
           >
             <div class="cell-tasks">
               <div
@@ -144,9 +154,12 @@
                 :class="{
                   completed: task.completed,
                   high: task.priority === 'high',
-                  medium: task.priority === 'medium'
+                  medium: task.priority === 'medium',
+                  'dragging': isDragging && dragType === 'task' && dragState.value.dragData?.id === task.id
                 }"
                 :style="getTaskStyle(task)"
+                draggable="true"
+                @dragstart="handleDragStart(task, date.dateStr, row.noteId, $event)"
                 @click="handleTaskClick(task)"
               >
                 <Icon
@@ -227,6 +240,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 import { useTodoProjectView, type WeekRow, type CellTask } from '~/composables/useTodoProjectView'
+import { useDragDrop, type NoteDragData } from '~/composables/useDragDrop'
 import { getDB, generateId, now } from '~/services/db'
 import { useConfirm } from '~/composables/useConfirm'
 import type { TodoItem } from '~/types/todo'
@@ -268,6 +282,27 @@ const {
   subscribeChanges,
   unsubscribeChanges
 } = useTodoProjectView({ weekStart: props.weekStart })
+
+// 拖拽功能
+const {
+  dragState,
+  dropTarget,
+  isDragging,
+  dragType,
+  startDragTask,
+  onTaskDragOver,
+  onTaskDragLeave,
+  onTaskDrop,
+  startDragNote,
+  resetDragState
+} = useDragDrop({
+  onTaskDrop: async (taskId, targetNoteId, targetDate) => {
+    await handleMoveTask(taskId, targetNoteId, targetDate)
+  },
+  onNoteDrop: async (noteId, targetParentId, targetIndex) => {
+    await handleMoveNote(noteId, targetParentId, targetIndex)
+  }
+})
 
 // 对话框状态
 const showEditDialog = ref(false)
@@ -611,6 +646,138 @@ async function handleDeleteTask(todo: TodoItem): Promise<void> {
   } catch (err) {
     console.error('删除任务失败:', err)
   }
+}
+
+// 移动任务到新日期/笔记
+async function handleMoveTask(taskId: string, targetNoteId: string, targetDate: string): Promise<void> {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const data = doc.get('data') as { todos: TodoItem[] }
+      if (data?.todos) {
+        const index = data.todos.findIndex(t => t.id === taskId)
+        if (index !== -1) {
+          const task = data.todos[index]
+
+          // 如果目标笔记不同
+          if (doc.noteId !== targetNoteId) {
+            // 从原笔记移除
+            data.todos.splice(index, 1)
+            await doc.patch({ data: { todos: [...data.todos] } })
+
+            // 更新任务的 noteId 和日期
+            task.noteId = targetNoteId
+            task.dueDate = targetDate
+            task.startDate = targetDate
+
+            // 添加到目标笔记
+            let targetModuleData = await db.module_data.findOne({
+              selector: { noteId: targetNoteId, moduleId: 'todo' }
+            }).exec()
+
+            if (targetModuleData) {
+              const targetData = targetModuleData.get('data') as { todos: TodoItem[] } | undefined
+              const updatedTodos = targetData?.todos || []
+              updatedTodos.push(task)
+              await targetModuleData.patch({ data: { todos: updatedTodos } })
+            } else {
+              await db.module_data.insert({
+                id: generateId(),
+                noteId: targetNoteId,
+                moduleId: 'todo',
+                data: { todos: [task] },
+                createdAt: now(),
+                updatedAt: now()
+              })
+            }
+          } else {
+            // 同一笔记，只更新日期
+            data.todos[index].dueDate = targetDate
+            data.todos[index].startDate = targetDate
+            await doc.patch({ data: { todos: [...data.todos] } })
+          }
+
+          await loadData()
+          return
+        }
+      }
+    }
+  } catch (err) {
+    console.error('移动任务失败:', err)
+  }
+}
+
+// 移动笔记到新父级
+async function handleMoveNote(noteId: string, targetParentId: string | null, targetIndex: number): Promise<void> {
+  try {
+    const db = await getDB()
+    const noteDoc = await db.notes.findOne(noteId).exec()
+
+    if (!noteDoc) return
+
+    // 获取目标父级的子笔记
+    const selector = targetParentId
+      ? { parentId: targetParentId }
+      : { parentId: { $exists: false } }
+
+    const siblings = await db.notes.find({
+      selector,
+      sort: [{ order: 'asc' }]
+    }).exec()
+
+    // 计算新的 order 值
+    let newOrder: number
+    if (targetIndex >= siblings.length || siblings.length === 0) {
+      const lastSibling = siblings[siblings.length - 1]
+      newOrder = lastSibling ? (lastSibling.order || 0) + 1 : 0
+    } else if (targetIndex === 0) {
+      newOrder = (siblings[0]?.order || 0) - 1
+    } else {
+      const before = siblings[targetIndex - 1]
+      const after = siblings[targetIndex]
+      newOrder = ((before?.order || 0) + (after?.order || 1)) / 2
+    }
+
+    await noteDoc.patch({
+      parentId: targetParentId || undefined,
+      order: newOrder
+    })
+
+    await loadData()
+  } catch (err) {
+    console.error('移动笔记失败:', err)
+  }
+}
+
+// 拖拽任务开始
+function handleDragStart(task: CellTask, dateStr: string, noteId: string, event: DragEvent) {
+  startDragTask(task, dateStr, noteId, event)
+}
+
+// 拖拽笔记开始
+function handleNoteDragStart(row: WeekRow, event: DragEvent) {
+  const noteData: NoteDragData = {
+    noteId: row.noteId,
+    title: row.title,
+    level: row.level
+  }
+  startDragNote(noteData, event)
+}
+
+// 获取笔记拖拽样式
+function getNoteDragClass(row: WeekRow): string {
+  if (!isDragging.value) return ''
+  if (dragType.value === 'note' && dragState.value.dragData?.noteId === row.noteId) {
+    return 'dragging'
+  }
+  if (dragType.value === 'note' && dropTarget.value?.noteId === row.noteId) {
+    return 'drag-over'
+  }
+  return ''
 }
 
 // 监听周变化
@@ -1153,6 +1320,57 @@ onUnmounted(() => {
 
 .stat-pending {
   color: rgba(60, 60, 67, 0.7);
+}
+
+/* ==================== 拖拽样式 ==================== */
+
+/* 拖拽预览元素（不可见，仅用于生成拖拽图像） */
+.drag-preview {
+  position: fixed;
+  padding: 8px 12px;
+  background: rgba(0, 122, 255, 0.95);
+  color: white;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  z-index: 9999;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drag-preview-note {
+  background: rgba(60, 60, 67, 0.9);
+}
+
+/* 正在拖拽的元素样式 */
+.task-chip.dragging,
+.cell-note.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+}
+
+/* 拖拽悬停目标样式 */
+.cell-date.drag-over {
+  background: rgba(0, 122, 255, 0.1) !important;
+  border: 2px dashed rgba(0, 122, 255, 0.4);
+  border-radius: 8px;
+}
+
+.cell-date.dragging-over {
+  transition: background 0.15s ease;
+}
+
+.cell-date.dragging-over:hover {
+  background: rgba(0, 122, 255, 0.05);
+}
+
+/* 笔记行拖拽悬停样式 */
+.cell-note.drag-over {
+  background: rgba(0, 122, 255, 0.1) !important;
 }
 
 /* 深色模式适配 */
