@@ -263,29 +263,14 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
           noteClass: noteClassMap.get(note.id)
         })
       } else if (note.expanded && hasChildren) {
-        // 展开且有子笔记，聚合所有后代笔记的任务
-        const descendantNoteIds = getDescendantNoteIds(note.id)
-        const allTasks = tasks.value.filter(t =>
-          descendantNoteIds.includes(t.noteId)
-        )
-
-        // 按日期汇总所有子笔记的任务
-        const expandedCells: Record<string, CellTask[]> = {}
-        for (const date of weekDates.value) {
-          const tasksForDate = allTasks.filter(task => {
-            const taskDate = parseTaskDate(task.dueDate || task.createdAt.slice(0, 10))
-            return taskDate === date.dateStr
-          })
-          expandedCells[date.dateStr] = tasksForDate
-        }
-
+        // 展开且有子笔记，只显示该笔记自己的任务
         rows.push({
           noteId: note.id,
           title: note.title || '未命名笔记',
           level: note.level,
           expanded: note.expanded,
-          tasks: allTasks,
-          cells: expandedCells,
+          tasks: noteTasks,
+          cells,
           noteClass: noteClassMap.get(note.id)
         })
       } else {
