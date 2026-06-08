@@ -78,11 +78,8 @@
         <!-- 类型 -->
         <div class="option-group">
           <span class="option-label">类型</span>
-          <SelectPicker
+          <TodoTypePicker
             :model-value="options.typeId ?? null"
-            :options="typeOptions"
-            placeholder="选择类型"
-            clearable
             @update:model-value="v => options.typeId = (v ?? undefined) as string | undefined"
           />
         </div>
@@ -105,7 +102,7 @@
 <script setup lang="ts">
 import { ICONS } from '~/composables/useIcons'
 import { useTodoStatus } from '~/composables/useTodoStatus'
-import { useTodoTypes } from '~/composables/useTodoTypes'
+import TodoTypePicker from '~/components/todo/TodoTypePicker.vue'
 import type { TodoItem } from '~/types/todo'
 
 interface Props {
@@ -145,7 +142,6 @@ const options = reactive<{
 })
 
 const { statuses } = useTodoStatus()
-const { defaultTypes: types } = useTodoTypes()
 
 // 格式化本地日期为 YYYY-MM-DD
 function formatDateLocal(date: Date): string {
@@ -177,10 +173,6 @@ const quickDates = computed(() => {
     { value: formatDateLocal(nextWeek), label: '下周' }
   ]
 })
-
-const typeOptions = computed(() =>
-  types.value.map((t: { id: string; name: string }) => ({ label: t.name, value: t.id }))
-)
 
 const statusOptions = computed(() =>
   statuses.value.map((s: { id: string; name: string }) => ({ label: s.name, value: s.id }))
