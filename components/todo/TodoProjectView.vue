@@ -465,12 +465,14 @@ function getTaskStyle(task: CellTask): Record<string, string> {
   return styles
 }
 
-// 获取任务容器样式 (使用 grid-column 定位)
+// 获取任务容器样式 (使用 grid-column 和 grid-row 定位)
 function getTaskWrapperStyle(layout: TaskLayout): Record<string, string> {
   // grid-column 从 1 开始，所以 colIndex + 1
   // 使用 span colSpan 来跨越多列
+  // grid-row 使用计算出的 rowIndex
   return {
-    gridColumn: `${layout.colIndex + 1} / span ${layout.colSpan}`
+    gridColumn: `${layout.colIndex + 1} / span ${layout.colSpan}`,
+    gridRow: `${layout.rowIndex}`
   }
 }
 
@@ -1434,8 +1436,7 @@ onUnmounted(() => {
 
 /* 任务容器 - 直接参与 Grid 布局 */
 .task-chip-wrapper {
-  /* 任务容器通过 grid-column 定位列，grid-row 定位行 */
-  grid-row: 1;  /* 默认第一行 */
+  /* 任务容器通过 grid-column 和 grid-row 定位（由内联样式设置） */
   z-index: 10;
   pointer-events: none;
   padding: 4px 8px;
