@@ -2,39 +2,45 @@
   <div class="todo-project-view">
     <!-- 顶部工具栏 -->
     <div class="view-header">
-      <!-- 聚焦面包屑 -->
-      <div class="focus-breadcrumb" v-if="focusedNoteId">
-        <button class="breadcrumb-clear" @click="clearFocus" title="清除聚焦">
-          <Icon :name="ICONS.altArrowLeft" size="14" />
-        </button>
-        <div class="breadcrumb-items">
-          <button
-            v-for="(crumb, index) in focusBreadcrumbs"
-            :key="crumb.id"
-            class="breadcrumb-item"
-            :class="{ current: index === focusBreadcrumbs.length - 1 }"
-            @click="handleBreadcrumbClick(crumb, index)"
-          >
-            {{ crumb.title || '未命名' }}
+      <!-- 面包屑预留位置（始终占位） -->
+      <div class="breadcrumb-placeholder">
+        <div class="focus-breadcrumb" v-if="focusedNoteId">
+          <button class="breadcrumb-clear" @click="clearFocus" title="清除聚焦">
+            <Icon :name="ICONS.altArrowLeft" size="14" />
           </button>
+          <div class="breadcrumb-items">
+            <button
+              v-for="(crumb, index) in focusBreadcrumbs"
+              :key="crumb.id"
+              class="breadcrumb-item"
+              :class="{ current: index === focusBreadcrumbs.length - 1 }"
+              @click="handleBreadcrumbClick(crumb, index)"
+            >
+              {{ crumb.title || '未命名' }}
+            </button>
+          </div>
         </div>
       </div>
 
+      <!-- 周导航 -->
       <div class="week-nav">
         <button class="nav-btn" @click="prevWeek" title="上一周">
           <Icon :name="ICONS.altArrowLeft" size="18" />
         </button>
-        <button class="nav-btn today-btn" @click="goToToday">今天</button>
         <button class="nav-btn" @click="nextWeek" title="下一周">
           <Icon :name="ICONS.altArrowRight" size="18" />
         </button>
       </div>
 
+      <!-- 周范围 -->
       <div class="week-range">
         {{ weekRangeLabel }}
       </div>
 
+      <!-- 右侧操作区 -->
       <div class="header-actions">
+        <button class="action-btn today-btn" @click="goToToday">今天</button>
+        <div class="action-divider" />
         <button class="action-btn" @click="expandAll" title="展开全部">
           <Icon :name="ICONS.altArrowDown" size="16" />
         </button>
@@ -46,7 +52,19 @@
 
     <!-- 表头 -->
     <div class="table-header">
-      <div class="header-cell header-note">笔记</div>
+      <div class="header-cell header-note">
+        <div class="header-note-content">
+          <span>笔记</span>
+          <div class="header-expand-actions">
+            <button class="header-expand-btn" @click="expandAll" title="展开全部">
+              <Icon :name="ICONS.altArrowDown" size="14" />
+            </button>
+            <button class="header-expand-btn" @click="collapseAll" title="折叠全部">
+              <Icon :name="ICONS.altArrowLeft" size="14" />
+            </button>
+          </div>
+        </div>
+      </div>
       <div
         v-for="date in weekDates"
         :key="date.dateStr"
@@ -632,6 +650,15 @@ onUnmounted(() => {
   gap: 16px;
 }
 
+/* 面包屑占位区（始终预留空间） */
+.breadcrumb-placeholder {
+  width: 200px;
+  flex-shrink: 0;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
 /* 聚焦面包屑 */
 .focus-breadcrumb {
   display: flex;
@@ -640,6 +667,8 @@ onUnmounted(() => {
   padding: 4px 8px;
   background: rgba(0, 122, 255, 0.08);
   border-radius: var(--liquid-radius-button, 14px);
+  width: 100%;
+  overflow: hidden;
 }
 
 .breadcrumb-clear {
@@ -733,21 +762,32 @@ onUnmounted(() => {
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 4px;
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(60, 60, 67, 0.15);
+  margin: 0 4px;
 }
 
 .action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  min-width: 28px;
   height: 28px;
+  padding: 0 8px;
   background: transparent;
   border: none;
   border-radius: 6px;
   color: rgba(60, 60, 67, 0.5);
   cursor: pointer;
   transition: all 0.15s ease;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .action-btn:hover {
@@ -777,11 +817,50 @@ onUnmounted(() => {
 .header-note {
   width: 200px;
   padding-left: 12px;
+  padding-right: 8px;
   text-align: left;
   position: sticky;
   left: 0;
   background: inherit;
   z-index: 2;
+}
+
+.header-note-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.header-expand-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.header-note:hover .header-expand-actions {
+  opacity: 1;
+}
+
+.header-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(60, 60, 67, 0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.header-expand-btn:hover {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.7);
 }
 
 .header-date {
@@ -1086,6 +1165,10 @@ onUnmounted(() => {
     border-bottom-color: rgba(255, 255, 255, 0.1);
   }
 
+  .action-divider {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
   .focus-breadcrumb {
     background: rgba(0, 122, 255, 0.15);
   }
@@ -1244,6 +1327,15 @@ onUnmounted(() => {
   }
 
   .stat-pending {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .header-expand-btn {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .header-expand-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.7);
   }
 }
