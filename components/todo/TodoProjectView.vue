@@ -126,9 +126,10 @@
           <div class="row-cells-grid">
             <!-- 背景网格线 -->
             <div
-              v-for="date in weekDates"
+              v-for="(date, index) in weekDates"
               :key="date.dateStr"
               class="cell-date-bg"
+              :style="{ gridColumn: `${index + 1}`, gridRow: '1 / -1' }"
               :class="{
                 today: date.isToday,
                 'drag-over': dragDrop.dropTarget.value?.dateStr === date.dateStr && dragDrop.dropTarget.value?.noteId === row.noteId,
@@ -162,6 +163,7 @@
             <!-- 无日期列背景 -->
             <div
               class="cell-date-bg cell-undated"
+              style="grid-column: 8; grid-row: 1 / -1"
               :class="{
                 'drag-over': dragDrop.dropTarget.value?.dateStr === 'undated' && dragDrop.dropTarget.value?.noteId === row.noteId,
                 'dragging-over': isDragging && dragType === 'task'
@@ -1345,10 +1347,10 @@ onUnmounted(() => {
 .row-cells-grid {
   display: grid;
   grid-template-columns: repeat(8, 140px);
+  grid-auto-rows: min-content;
   gap: 0;
   flex: 1;
   position: relative;
-  /* 高度由内容决定，至少与背景列一样高 */
   align-items: start;
 }
 
