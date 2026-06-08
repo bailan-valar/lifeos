@@ -139,6 +139,7 @@
               v-if="!row.expanded && row.collapsedCount?.[date.dateStr] > 0"
               class="collapsed-count-badge"
               :title="`子笔记共有 ${row.collapsedCount[date.dateStr]} 个待办`"
+              @click.stop="toggleNote(row.noteId)"
             >
               <Icon :name="SOLAR_ICONS.layer.layers" :size="12" />
               <span>{{ row.collapsedCount[date.dateStr] }}</span>
@@ -1206,8 +1207,15 @@ onUnmounted(() => {
   border: 1px solid rgba(60, 60, 67, 0.15);
   border-radius: 6px;
   font-size: 12px;
-  cursor: default;
+  cursor: pointer;
   transition: all 0.15s ease;
+}
+
+.collapsed-count-badge:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(60, 60, 67, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .cell-tasks {
@@ -1579,6 +1587,12 @@ onUnmounted(() => {
   .collapsed-count-badge {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .collapsed-count-badge:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 
   .header-expand-btn {
