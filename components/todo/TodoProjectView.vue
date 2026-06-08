@@ -120,54 +120,31 @@
             </span>
           </div>
 
-          <!-- 日期列 -->
-          <div
-            v-for="date in weekDates"
-            :key="date.dateStr"
-            class="row-cell cell-date"
-            :class="{
-              today: date.isToday,
-              'drag-over': dragDrop.dropTarget.value?.dateStr === date.dateStr && dragDrop.dropTarget.value?.noteId === row.noteId,
-              'dragging-over': isDragging && dragType === 'task'
-            }"
-            @dragover="dragDrop.onTaskDragOver(date.dateStr, row.noteId, $event)"
-            @dragleave="dragDrop.onTaskDragLeave($event)"
-            @drop="dragDrop.onTaskDrop($event)"
-          >
-            <!-- 折叠时显示子笔记待办合计数小标 -->
+          <!-- 日期列容器 (Grid 布局) -->
+          <div class="row-cells-grid">
+            <!-- 背景网格线 -->
             <div
-              v-if="!row.expanded && row.collapsedCount?.[date.dateStr] > 0"
-              class="collapsed-count-badge"
-              :title="`子笔记共有 ${row.collapsedCount[date.dateStr]} 个待办`"
-              @click.stop="toggleNote(row.noteId)"
+              v-for="date in weekDates"
+              :key="date.dateStr"
+              class="cell-date-bg"
+              :class="{
+                today: date.isToday,
+                'drag-over': dragDrop.dropTarget.value?.dateStr === date.dateStr && dragDrop.dropTarget.value?.noteId === row.noteId,
+                'dragging-over': isDragging && dragType === 'task'
+              }"
+              @dragover="dragDrop.onTaskDragOver(date.dateStr, row.noteId, $event)"
+              @dragleave="dragDrop.onTaskDragLeave($event)"
+              @drop="dragDrop.onTaskDrop($event)"
             >
-              <Icon :name="SOLAR_ICONS.layer.layers" :size="12" />
-              <span>{{ row.collapsedCount[date.dateStr] }}</span>
-            </div>
-
-            <div class="cell-tasks">
+              <!-- 折叠时显示子笔记待办合计数小标 -->
               <div
-                v-for="task in row.cells[date.dateStr]"
-                :key="task.id"
-                class="task-chip"
-                :class="{
-                  completed: task.completed,
-                  high: task.priority === 'high',
-                  medium: task.priority === 'medium',
-                  'dragging': isDragging && dragType === 'task' && dragDrop.dragState.value.dragData?.id === task.id
-                }"
-                :style="getTaskStyle(task)"
-                draggable="true"
-                @dragstart="handleDragStart(task, date.dateStr, row.noteId, $event)"
-                @click="handleTaskClick(task)"
+                v-if="!row.expanded && (row.collapsedCount?.[date.dateStr] ?? 0) > 0"
+                class="collapsed-count-badge"
+                :title="`子笔记共有 ${row.collapsedCount?.[date.dateStr] ?? 0} 个待办`"
+                @click.stop="toggleNote(row.noteId)"
               >
-                <Icon
-                  :name="task.completed ? ICONS.checkCircle : ICONS.round"
-                  :size="12"
-                  :color="task.statusColor"
-                  @click.stop="handleToggleTask(task)"
-                />
-                <span class="task-text">{{ task.text }}</span>
+                <Icon :name="SOLAR_ICONS.layer.layers" :size="12" />
+                <span>{{ row.collapsedCount?.[date.dateStr] ?? 0 }}</span>
               </div>
 
               <!-- 快捷新增按钮 -->
@@ -178,6 +155,40 @@
               >
                 <Icon :name="ICONS.addCircle" :size="14" />
               </button>
+            </div>
+
+            <!-- 任务层 (使用 grid-column 定位) -->
+            <div
+              v-for="layout in row.taskLayouts"
+              :key="layout.task.id"
+              class="task-chip-wrapper"
+              :style="getTaskWrapperStyle(layout)"
+            >
+              <div
+                class="task-chip"
+                :class="{
+                  completed: layout.task.completed,
+                  high: layout.task.priority === 'high',
+                  medium: layout.task.priority === 'medium',
+                  'multi-day': layout.isMultiDay,
+                  'dragging': isDragging && dragType === 'task' && (dragDrop.dragState.value.dragData as any)?.id === layout.task.id
+                }"
+                :style="getTaskStyle(layout.task)"
+                draggable="true"
+                @dragstart="handleDragStartByLayout(layout, $event)"
+                @click="handleTaskClick(layout.task)"
+              >
+                <Icon
+                  :name="layout.task.completed ? ICONS.checkCircle : ICONS.round"
+                  :size="12"
+                  :color="layout.task.statusColor"
+                  @click.stop="handleToggleTask(layout.task)"
+                />
+                <span class="task-text">{{ layout.task.text }}</span>
+                <span v-if="layout.isMultiDay" class="task-duration">
+                  {{ formatTaskDuration(layout) }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -239,7 +250,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
-import { useTodoProjectView, type WeekRow, type CellTask } from '~/composables/useTodoProjectView'
+import { useTodoProjectView, type WeekRow, type CellTask, type TaskLayout } from '~/composables/useTodoProjectView'
 import { useDragDrop, type NoteDragData } from '~/composables/useDragDrop'
 import { getDB, generateId, now } from '~/services/db'
 import { useConfirm } from '~/composables/useConfirm'
@@ -337,16 +348,23 @@ const dailyStats = computed(() => {
     stats[date.dateStr] = { completed: 0, pending: 0 }
   }
 
-  // 遍历所有行和单元格统计
+  // 遍历所有行统计
   for (const row of weekRows.value) {
     // 统计该行自己的任务
-    for (const [dateStr, tasks] of Object.entries(row.cells)) {
-      if (stats[dateStr]) {
-        for (const task of tasks) {
-          if (task.completed) {
-            stats[dateStr].completed++
-          } else {
-            stats[dateStr].pending++
+    for (const layout of row.taskLayouts) {
+      // 根据任务的列索引和跨度，找出它跨越的所有日期
+      for (let i = layout.colIndex; i < layout.colIndex + layout.colSpan; i++) {
+        if (i >= 0 && i < weekDates.value.length) {
+          const dateStr = weekDates.value[i].dateStr
+          if (stats[dateStr]) {
+            // 每个任务只在起始日计一次（避免重复计数）
+            if (i === layout.colIndex) {
+              if (layout.task.completed) {
+                stats[dateStr].completed++
+              } else {
+                stats[dateStr].pending++
+              }
+            }
           }
         }
       }
@@ -382,6 +400,50 @@ function getTaskStyle(task: CellTask): Record<string, string> {
     styles.borderColor = '#ef4444'
   }
   return styles
+}
+
+// 获取任务容器样式 (用于 grid-column 定位)
+function getTaskWrapperStyle(layout: TaskLayout): Record<string, string> {
+  // grid-column 从 1 开始，所以 colIndex + 1
+  // 使用 span colSpan 来跨越多列
+  return {
+    gridColumn: `${layout.colIndex + 1} / span ${layout.colSpan}`
+  }
+}
+
+// 格式化任务持续时间
+function formatTaskDuration(layout: TaskLayout): string {
+  const startDate = parseTaskDate(layout.task.startDate)
+  const endDate = parseTaskDate(layout.task.dueDate)
+
+  if (!startDate || !endDate) return ''
+
+  // 如果跨多天，显示 "X天"
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  if (days > 1) {
+    return `${days}天`
+  }
+  return ''
+}
+
+// 解析任务日期
+function parseTaskDate(dateStr: string | undefined): string {
+  if (!dateStr) return ''
+  if (dateStr.includes('T')) {
+    return dateStr.split('T')[0]
+  }
+  return dateStr
+}
+
+// 处理跨天任务的拖拽开始
+function handleDragStartByLayout(layout: TaskLayout, event: DragEvent): void {
+  // 使用任务的实际起始日期（而不是点击位置的日期）
+  const startIdx = layout.colIndex
+  const startDate = weekDates.value[startIdx]?.dateStr || ''
+  handleDragStart(layout.task, startDate, layout.task.noteId || '', event)
 }
 
 // 切换任务完成状态
@@ -791,15 +853,15 @@ function handleNoteDragStart(row: WeekRow, event: DragEvent) {
 }
 
 // 获取笔记拖拽样式
-function getNoteDragClass(row: WeekRow): string {
-  if (!isDragging.value) return ''
+function getNoteDragClass(row: WeekRow): Record<string, boolean> {
+  if (!isDragging.value) return {}
   if (dragType.value === 'note' && dragDrop.dragState.value.dragData?.noteId === row.noteId) {
-    return 'dragging'
+    return { dragging: true }
   }
   if (dragType.value === 'note' && dragDrop.dropTarget.value?.noteId === row.noteId) {
-    return 'drag-over'
+    return { 'drag-over': true }
   }
-  return ''
+  return {}
 }
 
 // 监听周变化
@@ -1201,20 +1263,47 @@ onUnmounted(() => {
   opacity: 0.7;
 }
 
-/* 日期列 */
-.cell-date {
-  width: 140px;
+/* 日期列容器 - Grid 布局 */
+.row-cells-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 140px);
+  gap: 0;
+  flex: 1;
+  position: relative;
+}
+
+/* 日期列背景 */
+.cell-date-bg {
+  min-height: 40px;
   padding: 6px 8px;
   background: rgba(60, 60, 67, 0.02);
   border-left: 0.5px solid rgba(60, 60, 67, 0.06);
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
 }
 
-.cell-date.today {
+.cell-date-bg.today {
   background: rgba(0, 122, 255, 0.03);
 }
 
-/* 折叠时子笔记待办合计数小标 - 使用与待办卡片相同的样式 */
+.cell-date-bg.drag-over {
+  background: rgba(0, 122, 255, 0.1) !important;
+  border: 2px dashed rgba(0, 122, 255, 0.4);
+  border-radius: 8px;
+}
+
+.cell-date-bg.dragging-over {
+  transition: background 0.15s ease;
+}
+
+.cell-date-bg.dragging-over:hover {
+  background: rgba(0, 122, 255, 0.05);
+}
+
+/* 折叠时子笔记待办合计数小标 */
 .collapsed-count-badge {
   display: flex;
   align-items: center;
@@ -1226,6 +1315,7 @@ onUnmounted(() => {
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
+  width: fit-content;
 }
 
 .collapsed-count-badge:hover {
@@ -1233,12 +1323,6 @@ onUnmounted(() => {
   border-color: rgba(60, 60, 67, 0.25);
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.cell-tasks {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .add-task-btn {
@@ -1256,7 +1340,7 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.cell-date:hover .add-task-btn {
+.cell-date-bg:hover .add-task-btn {
   opacity: 1;
 }
 
@@ -1264,6 +1348,37 @@ onUnmounted(() => {
   background: rgba(60, 60, 67, 0.05);
   border-color: rgba(60, 60, 67, 0.25);
   color: rgba(0, 122, 255, 0.7);
+}
+
+/* 任务容器 - 定位在 Grid 上 */
+.task-chip-wrapper {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* 多行任务堆叠处理 */
+.task-chip-wrapper:nth-child(8) {
+  top: calc(6px + 36px);
+}
+
+.task-chip-wrapper:nth-child(9) {
+  top: calc(6px + 72px);
+}
+
+.task-chip-wrapper:nth-child(10) {
+  top: calc(6px + 108px);
+}
+
+.task-chip-wrapper:nth-child(11) {
+  top: calc(6px + 144px);
+}
+
+.task-chip-wrapper:nth-child(n+12) {
+  display: none;
 }
 
 .task-chip {
@@ -1277,6 +1392,9 @@ onUnmounted(() => {
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
+  /* 恢复点击事件，因为父容器禁用了 */
+  pointer-events: auto;
+  width: 100%;
 }
 
 .task-chip:hover {
@@ -1292,6 +1410,27 @@ onUnmounted(() => {
 
 .task-chip.completed .task-text {
   text-decoration: line-through;
+}
+
+/* 跨天任务样式 */
+.task-chip.multi-day {
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.08), rgba(0, 122, 255, 0.04));
+  border-color: rgba(0, 122, 255, 0.2);
+}
+
+.task-chip.multi-day:hover {
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.12), rgba(0, 122, 255, 0.06));
+  border-color: rgba(0, 122, 255, 0.3);
+}
+
+.task-duration {
+  font-size: 10px;
+  color: rgb(0, 122, 255);
+  font-weight: 500;
+  padding: 2px 4px;
+  background: rgba(0, 122, 255, 0.1);
+  border-radius: 4px;
+  margin-left: auto;
 }
 
 .task-chip.high {
@@ -1545,13 +1684,24 @@ onUnmounted(() => {
     opacity: 0.8;
   }
 
-  .cell-date {
+  .cell-date-bg {
     background: rgba(255, 255, 255, 0.02);
     border-left-color: rgba(255, 255, 255, 0.06);
   }
 
-  .cell-date.today {
+  .cell-date-bg.today {
     background: rgba(0, 122, 255, 0.05);
+  }
+
+  .collapsed-count-badge {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .collapsed-count-badge:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 
   .task-chip {
@@ -1563,6 +1713,16 @@ onUnmounted(() => {
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.25);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .task-chip.multi-day {
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.12), rgba(0, 122, 255, 0.06));
+    border-color: rgba(0, 122, 255, 0.3);
+  }
+
+  .task-chip.multi-day:hover {
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.18), rgba(0, 122, 255, 0.08));
+    border-color: rgba(0, 122, 255, 0.4);
   }
 
   .task-text {

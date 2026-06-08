@@ -154,7 +154,7 @@ function calculateTaskLayout(
   // 计算任务在本周中的显示范围
   let startIdx = -1
   let endIdx = -1
-  const isMultiDay = startDate && startDate !== dueDate
+  const isMultiDay: boolean = !!startDate && startDate !== dueDate
 
   // 找到开始日期在本周的位置
   const displayStart = startDate || dueDate
@@ -317,23 +317,23 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
       // 获取该笔记的所有待办任务
       const noteTasks = tasks.value.filter(t => t.noteId === note.id)
 
-      // 按日期分组任务
-      const cells: Record<string, CellTask[]> = {}
-
-      for (const date of weekDates.value) {
-        // 找出在该日期范围内的任务（包含跨天待办）
-        const tasksForDate = noteTasks.filter(task =>
-          isTaskInRange(task, date.dateStr)
-        )
-
-        cells[date.dateStr] = tasksForDate
+      // 计算每个任务的布局信息
+      const taskLayouts: TaskLayout[] = []
+      for (const task of noteTasks) {
+        const layout = calculateTaskLayout(task, weekDates.value)
+        if (layout) {
+          taskLayouts.push(layout)
+        }
       }
+
+      // 按列索引排序，确保渲染顺序正确
+      taskLayouts.sort((a, b) => a.colIndex - b.colIndex)
 
       // 如果笔记有子笔记
       const hasChildren = notes.value.some(n => n.parentId === note.id)
 
       if (!note.expanded && hasChildren) {
-        // 折叠且有子笔记，只显示笔记行本身，但计算子笔记的合计数
+        // 折叠且有子笔记，计算子笔记的合计数
         const descendantNoteIds = getDescendantNoteIds(note.id)
         const allDescendantTasks = tasks.value.filter(t =>
           descendantNoteIds.includes(t.noteId)
@@ -353,31 +353,18 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
           title: note.title || '未命名笔记',
           level: note.level,
           expanded: note.expanded,
-          tasks: noteTasks, // 只显示该笔记自己的任务
-          cells, // 只显示该笔记自己的任务
+          taskLayouts, // 只显示该笔记自己的任务
           collapsedCount, // 子笔记的合计数
           noteClass: noteClassMap.get(note.id)
         })
-      } else if (note.expanded && hasChildren) {
-        // 展开且有子笔记，只显示该笔记自己的任务
-        rows.push({
-          noteId: note.id,
-          title: note.title || '未命名笔记',
-          level: note.level,
-          expanded: note.expanded,
-          tasks: noteTasks,
-          cells,
-          noteClass: noteClassMap.get(note.id)
-        })
       } else {
-        // 叶子笔记（无子笔记），正常显示
+        // 展开状态或叶子笔记，正常显示
         rows.push({
           noteId: note.id,
           title: note.title || '未命名笔记',
           level: note.level,
           expanded: note.expanded,
-          tasks: noteTasks,
-          cells,
+          taskLayouts,
           noteClass: noteClassMap.get(note.id)
         })
       }
