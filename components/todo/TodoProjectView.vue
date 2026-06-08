@@ -56,13 +56,17 @@
           v-for="row in weekRows"
           :key="row.noteId"
           class="table-row"
-          :style="{ paddingLeft: `${12 + row.level * 16}px` }"
         >
           <!-- 笔记列 -->
           <div
             class="row-cell cell-note"
             :class="{ 'has-children': hasChildren(row.noteId) }"
           >
+            <!-- 缩进占位 -->
+            <span
+              class="note-indent"
+              :style="{ width: `${row.level * 16}px` }"
+            />
             <button
               v-if="hasChildren(row.noteId)"
               class="expand-btn"
@@ -481,6 +485,7 @@ onUnmounted(() => {
 
 .header-note {
   width: 200px;
+  padding-left: 12px;
   text-align: left;
   position: sticky;
   left: 0;
@@ -554,6 +559,12 @@ onUnmounted(() => {
   left: 0;
   background: inherit;
   z-index: 1;
+  padding-left: 12px;
+}
+
+.note-indent {
+  flex-shrink: 0;
+  display: inline-block;
 }
 
 .cell-note::before {
