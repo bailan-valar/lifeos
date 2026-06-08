@@ -79,6 +79,7 @@
           <div
             class="row-cell cell-note"
             :class="{ 'has-children': hasChildren(row.noteId) }"
+            @contextmenu.prevent="handleNoteContextMenu($event, row)"
           >
             <!-- 缩进占位 -->
             <span
@@ -163,18 +164,42 @@
       @create="handleCreateTask"
       @delete="handleDeleteTask"
     />
+
+    <!-- 笔记右键菜单 -->
+    <NoteContextMenu
+      v-model:visible="contextMenuVisible"
+      :note="contextMenuNote"
+      :x="contextMenuX"
+      :y="contextMenuY"
+      @view="handleMenuViewNote"
+      @edit="handleMenuEditNote"
+      @add-child="handleMenuAddChildNote"
+      @delete="handleMenuDeleteNote"
+    />
+
+    <!-- 笔记编辑对话框 -->
+    <NoteEditorDialog
+      v-model:visible="showNoteEditDialog"
+      :note="noteToEdit"
+      :parent-id="parentNoteId"
+      :is-creating="isNoteCreating"
+      @saved="handleNoteSaved"
+      @created="handleNoteCreated"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
-import { useTodoProjectView } from '~/composables/useTodoProjectView'
-import { getDB } from '~/services/db'
-import type { CellTask } from '~/composables/useTodoProjectView'
+import { useTodoProjectView, type WeekRow, type CellTask } from '~/composables/useTodoProjectView'
+import { getDB, generateId, now } from '~/services/db'
+import { useConfirm } from '~/composables/useConfirm'
 import type { TodoItem } from '~/types/todo'
 import type { Note } from '~/types/block'
 import TodoEditDialog from './TodoEditDialog.vue'
+import NoteContextMenu from '~/components/NoteContextMenu.vue'
+import NoteEditorDialog from '~/components/NoteEditDialog.vue'
 
 interface Props {
   weekStart?: Date
@@ -215,6 +240,18 @@ const showEditDialog = ref(false)
 const editingTask = ref<TodoItem | null>(null)
 const isCreating = ref(false)
 const initialTaskData = ref<Partial<TodoItem> | null>(null)
+
+// 笔记右键菜单状态
+const contextMenuVisible = ref(false)
+const contextMenuNote = ref<Note | null>(null)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+
+// 笔记编辑对话框状态
+const showNoteEditDialog = ref(false)
+const noteToEdit = ref<Note | null>(null)
+const isNoteCreating = ref(false)
+const parentNoteId = ref<string | undefined>(undefined)
 
 // 周范围标签
 const weekRangeLabel = computed(() => {
@@ -313,6 +350,111 @@ function handleBreadcrumbClick(note: Note, index: number) {
 // 点击笔记标题聚焦
 function handleNoteClick(noteId: string) {
   focusNote(noteId)
+}
+
+// 笔记右键菜单
+async function handleNoteContextMenu(event: MouseEvent, row: WeekRow) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  try {
+    const db = await getDB()
+    const noteDoc = await db.notes.findOne(row.noteId).exec()
+    if (noteDoc) {
+      const note = noteDoc.toJSON() as Note
+      contextMenuNote.value = note
+      contextMenuX.value = event.clientX
+      contextMenuY.value = event.clientY
+      contextMenuVisible.value = true
+    }
+  } catch (err) {
+    console.error('获取笔记失败:', err)
+  }
+}
+
+// 右键菜单 - 查看笔记
+function handleMenuViewNote(note: Note) {
+  // 跳转到笔记页面
+  navigateTo({ path: '/notes', query: { id: note.id } })
+}
+
+// 右键菜单 - 编辑笔记
+function handleMenuEditNote(note: Note) {
+  noteToEdit.value = note
+  isNoteCreating.value = false
+  showNoteEditDialog.value = true
+}
+
+// 右键菜单 - 新建子笔记
+function handleMenuAddChildNote(note: Note) {
+  noteToEdit.value = null
+  isNoteCreating.value = true
+  parentNoteId.value = note.id
+  showNoteEditDialog.value = true
+}
+
+// 右键菜单 - 删除笔记
+async function handleMenuDeleteNote(note: Note) {
+  const { confirm } = useConfirm()
+  const ok = await confirm({
+    message: `确定要删除笔记"${note.title || '未命名'}"吗？子笔记和待办也会被删除。`,
+    danger: true
+  })
+  if (!ok) return
+
+  try {
+    const db = await getDB()
+    // 获取所有子孙笔记ID
+    const descendantIds = [note.id]
+    const queue = [note.id]
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      const children = await db.notes.find({
+        selector: { parentId: current }
+      }).exec()
+      for (const child of children) {
+        descendantIds.push(child.id)
+        queue.push(child.id)
+      }
+    }
+
+    // 删除所有笔记的块
+    for (const noteId of descendantIds) {
+      await db.blocks.find({
+        selector: { noteId }
+      }).remove()
+
+      // 删除该笔记的待办模块数据
+      const moduleDataList = await db.module_data.find({
+        selector: { noteId, moduleId: 'todo' }
+      }).exec()
+      for (const md of moduleDataList) {
+        await md.remove()
+      }
+    }
+
+    // 删除笔记
+    for (const noteId of descendantIds) {
+      const noteDoc = await db.notes.findOne(noteId).exec()
+      if (noteDoc) {
+        await noteDoc.remove()
+      }
+    }
+
+    await loadData()
+  } catch (err) {
+    console.error('删除笔记失败:', err)
+  }
+}
+
+// 笔记编辑完成
+async function handleNoteSaved(note: Note) {
+  await loadData()
+}
+
+// 笔记创建完成
+async function handleNoteCreated(note: Note) {
+  await loadData()
 }
 
 // 保存任务
