@@ -101,6 +101,13 @@
     </div>
 
     <ClassManager v-model:visible="classManagerVisible" />
+    <NoteEditDialog
+      v-model:visible="editDialogVisible"
+      :note="editDialogNote"
+      :parent-id="editDialogParentId"
+      :is-creating="true"
+      @created="onDialogCreated"
+    />
   </div>
 </template>
 
@@ -111,6 +118,7 @@ import type { Directive } from 'vue'
 import NoteList from '~/components/NoteList.vue'
 import NoteViewSwitcher from '~/components/NoteViewSwitcher.vue'
 import ClassManager from '~/components/class/ClassManager.vue'
+import NoteEditDialog from '~/components/NoteEditDialog.vue'
 import { loadBindings } from '~/composables/useNoteClasses'
 
 const { isMobile } = useDevice()
@@ -118,6 +126,9 @@ const notes = ref<Note[]>([])
 const activeNoteId = ref<string | null>(null)
 const sidebarCollapsed = ref(false)
 const classManagerVisible = ref(false)
+const editDialogVisible = ref(false)
+const editDialogParentId = ref<string>('')
+const editDialogNote = ref<Note | null>(null)
 const route = useRoute()
 const router = useRouter()
 const fab = useGlobalFab()
@@ -231,96 +242,24 @@ const onTitleUpdate = (noteId: string, title: string) => {
   notes.value[idx] = { ...notes.value[idx], title, updatedAt: now() }
 }
 
-const createNote = async () => {
-  const db = await getDB()
-
-  console.log('[Notes] Creating new note...')
-  const rootSiblings = notes.value.filter(n => !n.parentId)
-  const newNote: Note = {
-    id: generateId(),
-    title: '新笔记',
-    folderId: '',
-    parentId: '',
-    order: rootSiblings.length,
-    createdAt: now(),
-    updatedAt: now(),
-    version: 1,
-  }
-
-  console.log('[Notes] New note object:', JSON.stringify(newNote, null, 2))
-  console.log('[Notes] Attempting to insert note...')
-  try {
-    await db.notes.insert(newNote)
-    console.log('[Notes] Note inserted successfully')
-  } catch (error) {
-    console.error('[Notes] Error inserting note:', error)
-    console.error('[Notes] Error stack:', error instanceof Error ? error.stack : 'No stack')
-    throw error
-  }
-
-  console.log('[Notes] Creating initial block for note...')
-  const newBlock: Block = {
-    id: generateId(),
-    noteId: newNote.id,
-    type: 'text',
-    content: '',
-    order: 0,
-    createdAt: now(),
-    updatedAt: now(),
-    version: 1,
-  }
-
-  console.log('[Notes] New block object:', JSON.stringify(newBlock, null, 2))
-  console.log('[Notes] Attempting to insert block...')
-  try {
-    await db.blocks.insert(newBlock)
-    console.log('[Notes] Block inserted successfully')
-  } catch (error) {
-    console.error('[Notes] Error inserting block:', error)
-    console.error('[Notes] Error stack:', error instanceof Error ? error.stack : 'No stack')
-    throw error
-  }
-
-  await loadNotes()
-  activeNoteId.value = newNote.id
-  if (isMobile.value) {
-    mobileView.value = 'editor'
-    await router.push({ query: { note: newNote.id } })
-  }
+const createNote = () => {
+  editDialogParentId.value = ''
+  editDialogNote.value = null
+  editDialogVisible.value = true
 }
 
-const createChildNote = async (parentId: string) => {
-  const db = await getDB()
-  const childSiblings = notes.value.filter(n => n.parentId === parentId)
-  const newNote: Note = {
-    id: generateId(),
-    title: '新笔记',
-    folderId: '',
-    parentId,
-    order: childSiblings.length,
-    createdAt: now(),
-    updatedAt: now(),
-    version: 1,
-  }
-  await db.notes.insert(newNote)
+const createChildNote = (parentId: string) => {
+  editDialogParentId.value = parentId
+  editDialogNote.value = null
+  editDialogVisible.value = true
+}
 
-  const newBlock: Block = {
-    id: generateId(),
-    noteId: newNote.id,
-    type: 'text',
-    content: '',
-    order: 0,
-    createdAt: now(),
-    updatedAt: now(),
-    version: 1,
-  }
-  await db.blocks.insert(newBlock)
-
+const onDialogCreated = async (note: Note) => {
   await loadNotes()
-  activeNoteId.value = newNote.id
+  activeNoteId.value = note.id
   if (isMobile.value) {
     mobileView.value = 'editor'
-    await router.push({ query: { note: newNote.id } })
+    await router.push({ query: { note: note.id } })
   }
 }
 
