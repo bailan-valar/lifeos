@@ -265,6 +265,7 @@ function handleQuickAdd(noteId: string, dateStr: string): void {
   editingTask.value = null
   initialTaskData.value = {
     noteId,
+    startDate: dateStr,
     dueDate: dateStr
   }
   showEditDialog.value = true

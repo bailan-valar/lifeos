@@ -338,7 +338,7 @@ const initForm = () => {
     form.startDate = props.initialData?.startDate ? toPickerFormat(props.initialData.startDate) : null
     form.dueDate = props.initialData?.dueDate ? toPickerFormat(props.initialData.dueDate) : null
     form.statusId = getDefaultStatus()?.id || null
-    form.noteId = null
+    form.noteId = props.initialData?.noteId || null
     form.parentId = props.parentId || null
   }
 }
