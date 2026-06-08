@@ -203,6 +203,17 @@ function calculateTaskLayout(
   // 计算跨越的列数
   const colSpan = endIdx - startIdx + 1
 
+  // 调试：输出布局信息
+  console.log('calculateTaskLayout:', {
+    taskText: task.text,
+    startDate,
+    dueDate,
+    startIdx,
+    endIdx,
+    colSpan,
+    gridColumn: `${startIdx + 1} / span ${colSpan}`
+  })
+
   return {
     task: {
       id: task.id,

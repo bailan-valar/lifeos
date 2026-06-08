@@ -472,10 +472,13 @@ function getTaskWrapperStyle(layout: TaskLayout): Record<string, string> {
   // grid-column 从 1 开始，所以 colIndex + 1
   // 使用 span colSpan 来跨越多列
   // grid-row 使用计算出的 rowIndex
-  return {
+  const style = {
     gridColumn: `${layout.colIndex + 1} / span ${layout.colSpan}`,
     gridRow: `${layout.rowIndex}`
   }
+  // 调试：输出布局信息
+  console.log('Task layout:', layout.task.text, 'colIndex:', layout.colIndex, 'colSpan:', layout.colSpan, 'gridColumn:', style.gridColumn)
+  return style
 }
 
 // 格式化任务持续时间
@@ -1347,7 +1350,7 @@ onUnmounted(() => {
 .row-cells-grid {
   display: grid;
   grid-template-columns: repeat(8, 140px);
-  grid-auto-rows: min-content;
+  grid-auto-rows: 44px;
   gap: 0;
   flex: 1;
   position: relative;
@@ -1358,6 +1361,7 @@ onUnmounted(() => {
 .cell-date-bg {
   min-height: 40px;
   padding: 6px 8px;
+  padding-bottom: 40px; /* 为新增按钮留出空间 */
   background: rgba(60, 60, 67, 0.02);
   border-left: 0.5px solid rgba(60, 60, 67, 0.06);
   position: relative;
@@ -1413,12 +1417,14 @@ onUnmounted(() => {
 }
 
 .add-task-btn {
-  position: relative;
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
   z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
   padding: 4px 8px;
   background: transparent;
   border: 0.5px dashed rgba(60, 60, 67, 0.15);
