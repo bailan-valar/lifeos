@@ -337,6 +337,7 @@ const dailyStats = computed(() => {
 
   // 遍历所有行和单元格统计
   for (const row of weekRows.value) {
+    // 统计该行自己的任务
     for (const [dateStr, tasks] of Object.entries(row.cells)) {
       if (stats[dateStr]) {
         for (const task of tasks) {
@@ -345,6 +346,17 @@ const dailyStats = computed(() => {
           } else {
             stats[dateStr].pending++
           }
+        }
+      }
+    }
+
+    // 如果笔记折叠且有子笔记，加上折叠的子笔记待办数
+    if (!row.expanded && row.collapsedCount) {
+      for (const [dateStr, count] of Object.entries(row.collapsedCount)) {
+        if (stats[dateStr] && count > 0) {
+          // 折叠的子笔记待办数不计入完成/未完成分类，统一计入待办总数
+          // 因为 collapsedCount 只包含总数，没有区分完成状态
+          stats[dateStr].pending += count
         }
       }
     }
