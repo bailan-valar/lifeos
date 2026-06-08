@@ -2,6 +2,24 @@
   <div class="todo-project-view">
     <!-- 顶部工具栏 -->
     <div class="view-header">
+      <!-- 聚焦面包屑 -->
+      <div class="focus-breadcrumb" v-if="focusedNoteId">
+        <button class="breadcrumb-clear" @click="clearFocus" title="清除聚焦">
+          <Icon :name="ICONS.altArrowLeft" size="14" />
+        </button>
+        <div class="breadcrumb-items">
+          <button
+            v-for="(crumb, index) in focusBreadcrumbs"
+            :key="crumb.id"
+            class="breadcrumb-item"
+            :class="{ current: index === focusBreadcrumbs.length - 1 }"
+            @click="handleBreadcrumbClick(crumb, index)"
+          >
+            {{ crumb.title || '未命名' }}
+          </button>
+        </div>
+      </div>
+
       <div class="week-nav">
         <button class="nav-btn" @click="prevWeek" title="上一周">
           <Icon :name="ICONS.altArrowLeft" size="18" />
@@ -70,14 +88,20 @@
             <button
               v-if="hasChildren(row.noteId)"
               class="expand-btn"
-              @click="toggleNote(row.noteId)"
+              @click.stop="toggleNote(row.noteId)"
             >
               <Icon
                 :name="row.expanded ? ICONS.altArrowDown : ICONS.altArrowRight"
                 size="14"
               />
             </button>
-            <span class="note-title">{{ row.title }}</span>
+            <button
+              class="note-title"
+              :title="row.title"
+              @click.stop="handleNoteClick(row.noteId)"
+            >
+              {{ row.title }}
+            </button>
             <span v-if="row.tasks.length > 0" class="task-count">
               {{ row.tasks.length }}
             </span>
@@ -149,6 +173,7 @@ import { useTodoProjectView } from '~/composables/useTodoProjectView'
 import { getDB } from '~/services/db'
 import type { CellTask } from '~/composables/useTodoProjectView'
 import type { TodoItem } from '~/types/todo'
+import type { Note } from '~/types/block'
 import TodoEditDialog from './TodoEditDialog.vue'
 
 interface Props {
@@ -177,6 +202,10 @@ const {
   prevWeek,
   nextWeek,
   goToToday,
+  focusNote,
+  clearFocus,
+  focusedNoteId,
+  focusBreadcrumbs,
   subscribeChanges,
   unsubscribeChanges
 } = useTodoProjectView({ weekStart: props.weekStart })
@@ -269,6 +298,21 @@ function handleQuickAdd(noteId: string, dateStr: string): void {
     dueDate: dateStr
   }
   showEditDialog.value = true
+}
+
+// 点击面包屑
+function handleBreadcrumbClick(note: Note, index: number) {
+  const isLast = index === focusBreadcrumbs.value.length - 1
+  if (!isLast) {
+    // 点击中间的面包屑项，聚焦到该笔记
+    focusNote(note.id)
+  }
+  // 最后一项是当前聚焦的笔记，点击不做任何事
+}
+
+// 点击笔记标题聚焦
+function handleNoteClick(noteId: string) {
+  focusNote(noteId)
 }
 
 // 保存任务
@@ -401,6 +445,67 @@ onUnmounted(() => {
   padding: 12px 16px;
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
   gap: 16px;
+}
+
+/* 聚焦面包屑 */
+.focus-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: rgba(0, 122, 255, 0.08);
+  border-radius: var(--liquid-radius-button, 14px);
+}
+
+.breadcrumb-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: rgba(60, 60, 67, 0.1);
+  border: none;
+  border-radius: 6px;
+  color: rgba(60, 60, 67, 0.6);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.breadcrumb-clear:hover {
+  background: rgba(60, 60, 67, 0.2);
+  color: rgba(60, 60, 67, 0.8);
+}
+
+.breadcrumb-items {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breadcrumb-item {
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(60, 60, 67, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.breadcrumb-item:hover {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.9);
+}
+
+.breadcrumb-item.current {
+  background: rgba(0, 122, 255, 0.15);
+  color: rgb(0, 122, 255);
+  cursor: default;
 }
 
 .week-nav {
@@ -601,12 +706,24 @@ onUnmounted(() => {
 
 .note-title {
   flex: 1;
+  padding: 4px 6px;
   font-size: 14px;
   font-weight: 500;
   color: rgba(60, 60, 67, 0.8);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: all 0.15s ease;
+}
+
+.note-title:hover {
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
 }
 
 .task-count {
@@ -723,6 +840,34 @@ onUnmounted(() => {
     border-bottom-color: rgba(255, 255, 255, 0.1);
   }
 
+  .focus-breadcrumb {
+    background: rgba(0, 122, 255, 0.15);
+  }
+
+  .breadcrumb-clear {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .breadcrumb-clear:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .breadcrumb-item {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .breadcrumb-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .breadcrumb-item.current {
+    background: rgba(0, 122, 255, 0.2);
+    color: rgb(0, 122, 255);
+  }
+
   .nav-btn {
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.7);
@@ -784,6 +929,11 @@ onUnmounted(() => {
 
   .note-title {
     color: rgba(255, 255, 255, 0.8);
+  }
+
+  .note-title:hover {
+    background: rgba(0, 122, 255, 0.15);
+    color: rgb(0, 122, 255);
   }
 
   .task-count {

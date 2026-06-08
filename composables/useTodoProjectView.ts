@@ -123,10 +123,31 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
   // 展开的笔记ID集合
   const expandedNotes = ref<Set<string>>(new Set())
 
+  // 聚焦的笔记ID（null 表示不聚焦，显示所有笔记）
+  const focusedNoteId = ref<string | null>(null)
+
   // ==================== 计算属性 ====================
 
   // 一周的日期
   const weekDates = computed(() => generateWeekDates(weekStart.value))
+
+  // 面包屑导航：从根笔记到聚焦笔记的路径
+  const focusBreadcrumbs = computed(() => {
+    if (!focusedNoteId.value) return []
+
+    const crumbs: Note[] = []
+    let currentId = focusedNoteId.value
+
+    while (currentId) {
+      const note = notes.value.find(n => n.id === currentId)
+      if (!note) break
+
+      crumbs.unshift(note) // 添加到开头，保持从根到子的顺序
+      currentId = note.parentId || ''
+    }
+
+    return crumbs
+  })
 
   // 构建带层级的笔记列表（树形结构扁平化）
   const notesWithLevel = computed(() => {
@@ -153,6 +174,11 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
   // 构建周视图行数据
   const weekRows = computed(() => {
     const rows: WeekRow[] = []
+
+    // 聚焦模式下，只显示聚焦笔记及其子笔记
+    const visibleNoteIds = focusedNoteId.value
+      ? new Set([focusedNoteId.value, ...getDescendantNoteIds(focusedNoteId.value)])
+      : null
 
     // 构建笔记ID到展开状态的映射（用于快速查找祖先折叠状态）
     const noteExpandedMap = new Map<string, boolean>()
@@ -181,6 +207,9 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
     }
 
     for (const note of notesWithLevel.value) {
+      // 聚焦模式：如果不是聚焦笔记或其子笔记，跳过
+      if (visibleNoteIds && !visibleNoteIds.has(note.id)) continue
+
       // 如果有被折叠的祖先笔记，跳过（不显示）
       if (hasCollapsedAncestor(note.id)) continue
 
@@ -409,6 +438,22 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
     weekStart.value = getMonday(new Date())
   }
 
+  /**
+   * 聚焦到指定笔记
+   */
+  function focusNote(noteId: string): void {
+    focusedNoteId.value = noteId
+    // 聚焦时自动展开该笔记
+    expandNote(noteId)
+  }
+
+  /**
+   * 清除聚焦
+   */
+  function clearFocus(): void {
+    focusedNoteId.value = null
+  }
+
   // ==================== 订阅变更 ====================
   let unsubscribes: (() => void)[] = []
 
@@ -435,6 +480,8 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
     notesWithLevel,
     weekRows,
     expandedNotes,
+    focusedNoteId,
+    focusBreadcrumbs,
 
     // 方法
     loadData,
@@ -446,6 +493,8 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
     prevWeek,
     nextWeek,
     goToToday,
+    focusNote,
+    clearFocus,
     subscribeChanges,
     unsubscribeChanges
   }
