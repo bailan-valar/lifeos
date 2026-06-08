@@ -77,6 +77,9 @@
             <span v-if="row.tasks.length > 0" class="task-count">
               {{ row.tasks.length }}
             </span>
+            <span v-if="row.noteClass" class="note-class" :style="{ color: row.noteClass.color }">
+              <Icon :name="row.noteClass.icon" size="12" />
+            </span>
           </div>
 
           <!-- 日期列 -->
@@ -603,6 +606,15 @@ onUnmounted(() => {
   border-radius: 8px;
 }
 
+.note-class {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
 /* 日期列 */
 .cell-date {
   width: 140px;
@@ -766,6 +778,10 @@ onUnmounted(() => {
   .task-count {
     color: rgba(255, 255, 255, 0.4);
     background: rgba(255, 255, 255, 0.08);
+  }
+
+  .note-class {
+    opacity: 0.8;
   }
 
   .cell-date {

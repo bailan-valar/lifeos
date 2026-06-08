@@ -1,5 +1,5 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import type { Note } from '~/types/block'
+import type { Note, Class, NoteClassBinding } from '~/types/block'
 import type { TodoItem, TodoWithMeta } from '~/types/todo'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
 
@@ -39,6 +39,7 @@ export interface WeekRow {
   cells: {
     [dateStr: string]: CellTask[] // 按日期分组的待办
   }
+  noteClass?: Class // 笔记类
 }
 
 export interface ProjectViewConfig {
@@ -113,6 +114,12 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
   // 待办任务列表
   const tasks = ref<TodoWithMeta[]>([])
 
+  // 笔记类列表
+  const classes = ref<Class[]>([])
+
+  // 笔记与类的绑定
+  const noteBindings = ref<NoteClassBinding[]>([])
+
   // 展开的笔记ID集合
   const expandedNotes = ref<Set<string>>(new Set())
 
@@ -151,6 +158,15 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
     const noteExpandedMap = new Map<string, boolean>()
     for (const note of notesWithLevel.value) {
       noteExpandedMap.set(note.id, note.expanded)
+    }
+
+    // 构建笔记ID到类的映射
+    const noteClassMap = new Map<string, Class>()
+    for (const binding of noteBindings.value) {
+      const cls = classes.value.find(c => c.id === binding.classId)
+      if (cls) {
+        noteClassMap.set(binding.noteId, cls)
+      }
     }
 
     // 检查笔记是否有被折叠的祖先笔记
@@ -195,7 +211,8 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
           level: note.level,
           expanded: note.expanded,
           tasks: noteTasks,
-          cells
+          cells,
+          noteClass: noteClassMap.get(note.id)
         })
       } else if (note.expanded && hasChildren) {
         // 展开且有子笔记，聚合所有后代笔记的任务
@@ -220,7 +237,8 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
           level: note.level,
           expanded: note.expanded,
           tasks: allTasks,
-          cells: expandedCells
+          cells: expandedCells,
+          noteClass: noteClassMap.get(note.id)
         })
       } else {
         // 叶子笔记（无子笔记），正常显示
@@ -230,7 +248,8 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
           level: note.level,
           expanded: note.expanded,
           tasks: noteTasks,
-          cells
+          cells,
+          noteClass: noteClassMap.get(note.id)
         })
       }
     }
@@ -250,11 +269,13 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
     try {
       const db = await getDB()
 
-      // 并行加载笔记和待办任务
-      const [notesResult, moduleDataList, statusDocs] = await Promise.all([
+      // 并行加载笔记、待办任务和笔记类数据
+      const [notesResult, moduleDataList, statusDocs, classesResult, bindingsResult] = await Promise.all([
         db.notes.find({ sort: [{ order: 'asc' }] }).exec(),
         db.module_data.find({ selector: { moduleId: 'todo' } }).exec(),
-        db.todoStatuses.find().exec()
+        db.todoStatuses.find().exec(),
+        db.classes.find({ sort: [{ order: 'asc' }] }).exec(),
+        db.noteClassBindings.find().exec()
       ])
 
       notes.value = notesResult.map((doc: any) => doc.toJSON())
@@ -279,6 +300,10 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
       }
 
       tasks.value = allTasks
+
+      // 处理笔记类数据
+      classes.value = classesResult.map((doc: any) => doc.toJSON())
+      noteBindings.value = bindingsResult.map((doc: any) => doc.toJSON())
 
       // 默认展开所有有任务的笔记
       const notesWithTasks = new Set(allTasks.map(t => t.noteId))
@@ -390,7 +415,9 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
   function subscribeChanges(): void {
     unsubscribes = [
       onCollectionChange('notes', () => loadData()),
-      onCollectionChange('module_data', () => loadData())
+      onCollectionChange('module_data', () => loadData()),
+      onCollectionChange('classes', () => loadData()),
+      onCollectionChange('noteClassBindings', () => loadData())
     ]
   }
 
