@@ -138,6 +138,15 @@
             @drop="onTaskDrop($event)"
           >
             <div class="cell-tasks">
+              <!-- 折叠时显示子笔记待办合计数 -->
+              <div
+                v-if="!row.expanded && row.collapsedCount?.[date.dateStr] > 0"
+                class="collapsed-count-badge"
+                :title="`子笔记共有 ${row.collapsedCount[date.dateStr]} 个待办`"
+              >
+                {{ row.collapsedCount[date.dateStr] }}
+              </div>
+
               <div
                 v-for="task in row.cells[date.dateStr]"
                 :key="task.id"
@@ -1155,6 +1164,24 @@ onUnmounted(() => {
   gap: 4px;
 }
 
+/* 折叠时子笔记待办合计数小标 */
+.collapsed-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(60, 60, 67, 0.5);
+  background: rgba(60, 60, 67, 0.06);
+  border: 1px solid rgba(60, 60, 67, 0.1);
+  border-radius: 10px;
+  user-select: none;
+}
+
 .add-task-btn {
   display: flex;
   align-items: center;
@@ -1505,6 +1532,12 @@ onUnmounted(() => {
 
   .stat-pending {
     color: rgba(255, 255, 255, 0.7);
+  }
+
+  .collapsed-count-badge {
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .header-expand-btn {

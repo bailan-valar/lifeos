@@ -39,6 +39,9 @@ export interface WeekRow {
   cells: {
     [dateStr: string]: CellTask[] // 按日期分组的待办
   }
+  collapsedCount?: {
+    [dateStr: string]: number // 折叠时，每天子笔记的待办合计数
+  }
   noteClass?: Class // 笔记类
 }
 
@@ -233,14 +236,30 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
       const hasChildren = notes.value.some(n => n.parentId === note.id)
 
       if (!note.expanded && hasChildren) {
-        // 折叠且有子笔记，只显示笔记行本身
+        // 折叠且有子笔记，只显示笔记行本身，但计算子笔记的合计数
+        const descendantNoteIds = getDescendantNoteIds(note.id)
+        const allDescendantTasks = tasks.value.filter(t =>
+          descendantNoteIds.includes(t.noteId)
+        )
+
+        // 计算每天子笔记的待办合计数（不包含该笔记自己的待办）
+        const collapsedCount: Record<string, number> = {}
+        for (const date of weekDates.value) {
+          const count = allDescendantTasks.filter(task => {
+            const taskDate = parseTaskDate(task.dueDate || task.createdAt.slice(0, 10))
+            return taskDate === date.dateStr
+          }).length
+          collapsedCount[date.dateStr] = count
+        }
+
         rows.push({
           noteId: note.id,
           title: note.title || '未命名笔记',
           level: note.level,
           expanded: note.expanded,
-          tasks: noteTasks,
-          cells,
+          tasks: noteTasks, // 只显示该笔记自己的任务
+          cells, // 只显示该笔记自己的任务
+          collapsedCount, // 子笔记的合计数
           noteClass: noteClassMap.get(note.id)
         })
       } else if (note.expanded && hasChildren) {
