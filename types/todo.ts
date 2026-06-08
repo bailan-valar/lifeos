@@ -96,3 +96,13 @@ export interface ViewFilters {
   type: string[]
   search: string
 }
+
+// ==================== 评论相关类型 ====================
+
+export interface TodoComment {
+  id: string
+  todoId: string // 关联的待办ID
+  content: string // 评论内容
+  createdAt: string // 创建时间
+  updatedAt: string // 更新时间
+}

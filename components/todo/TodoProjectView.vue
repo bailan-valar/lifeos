@@ -240,6 +240,13 @@
       @delete="handleDeleteTask"
     />
 
+    <!-- 任务详情对话框 -->
+    <TodoDetailDialog
+      v-model:visible="showDetailDialog"
+      :todo="editingTask"
+      @edit="handleEditFromDetail"
+    />
+
     <!-- 笔记右键菜单 -->
     <NoteContextMenu
       v-model:visible="contextMenuVisible"
@@ -299,6 +306,7 @@ import { useConfirm } from '~/composables/useConfirm'
 import type { TodoItem } from '~/types/todo'
 import type { Note } from '~/types/block'
 import TodoEditDialog from './TodoEditDialog.vue'
+import TodoDetailDialog from './TodoDetailDialog.vue'
 import NoteContextMenu from '~/components/NoteContextMenu.vue'
 import NoteEditorDialog from '~/components/NoteEditDialog.vue'
 
@@ -352,6 +360,7 @@ const dragType = dragDrop.dragType
 
 // 对话框状态
 const showEditDialog = ref(false)
+const showDetailDialog = ref(false)
 const editingTask = ref<TodoItem | null>(null)
 const isCreating = ref(false)
 const initialTaskData = ref<Partial<TodoItem> | null>(null)
@@ -456,7 +465,7 @@ function getTaskStyle(task: CellTask): Record<string, string> {
   return styles
 }
 
-// 获取任务容器样式 (用于 grid-column 定位)
+// 获取任务容器样式 (使用 grid-column 定位)
 function getTaskWrapperStyle(layout: TaskLayout): Record<string, string> {
   // grid-column 从 1 开始，所以 colIndex + 1
   // 使用 span colSpan 来跨越多列
@@ -525,10 +534,8 @@ async function handleToggleTask(task: CellTask): Promise<void> {
   }
 }
 
-// 点击任务
+// 点击任务 - 打开详情弹框
 function handleTaskClick(task: CellTask): void {
-  isCreating.value = false
-  initialTaskData.value = null
   editingTask.value = {
     id: task.id,
     text: task.text,
@@ -541,6 +548,15 @@ function handleTaskClick(task: CellTask): void {
     priority: task.priority,
     noteId: task.noteId
   }
+  showDetailDialog.value = true
+}
+
+// 从详情弹框跳转到编辑弹框
+function handleEditFromDetail(todo: TodoItem): void {
+  showDetailDialog.value = false
+  isCreating.value = false
+  initialTaskData.value = null
+  editingTask.value = todo
   showEditDialog.value = true
 }
 
@@ -1330,6 +1346,8 @@ onUnmounted(() => {
   gap: 0;
   flex: 1;
   position: relative;
+  /* 高度由内容决定，至少与背景列一样高 */
+  align-items: start;
 }
 
 /* 日期列背景 */
@@ -1414,35 +1432,16 @@ onUnmounted(() => {
   color: rgba(0, 122, 255, 0.7);
 }
 
-/* 任务容器 - 定位在 Grid 上 */
+/* 任务容器 - 直接参与 Grid 布局 */
 .task-chip-wrapper {
-  position: absolute;
-  top: 6px;
-  left: 8px;
-  right: 8px;
+  /* 任务容器通过 grid-column 定位列，grid-row 定位行 */
+  grid-row: 1;  /* 默认第一行 */
   z-index: 10;
   pointer-events: none;
-}
-
-/* 多行任务堆叠处理 */
-.task-chip-wrapper:nth-child(8) {
-  top: calc(6px + 36px);
-}
-
-.task-chip-wrapper:nth-child(9) {
-  top: calc(6px + 72px);
-}
-
-.task-chip-wrapper:nth-child(10) {
-  top: calc(6px + 108px);
-}
-
-.task-chip-wrapper:nth-child(11) {
-  top: calc(6px + 144px);
-}
-
-.task-chip-wrapper:nth-child(n+12) {
-  display: none;
+  padding: 4px 8px;
+  /* 确保任务容器在单元格顶部对齐 */
+  align-self: start;
+  justify-self: start;
 }
 
 .task-chip {

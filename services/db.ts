@@ -118,6 +118,7 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   todo_types: [['order'], ['createdAt']],
   todoStatuses: [['order'], ['createdAt']],
   todos: [['createdAt'], ['parentId'], ['statusId']],
+  todo_comments: [['todoId', 'createdAt']],
   // 学习板块集合
   learning_goals: [['createdAt'], ['status'], ['dimension']],
   learning_stages: [['goalId'], ['goalId', 'order']],

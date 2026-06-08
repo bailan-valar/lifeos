@@ -40,8 +40,9 @@ export interface CellTask {
  */
 export interface TaskLayout {
   task: CellTask
-  colIndex: number      // 起始列索引 (0-6)，对应 weekDates 的索引
+  colIndex: number      // 起始列索引 (0-7)，0-6 为日期列，7 为无日期列
   colSpan: number       // 跨越的列数 (1-7)
+  rowIndex: number      // 行索引 (1+)，用于同一列多个任务的堆叠
   isMultiDay: boolean   // 是否跨天任务
 }
 
@@ -216,7 +217,8 @@ function calculateTaskLayout(
       startDate: task.startDate,
       dueDate: task.dueDate,
       createdAt: task.createdAt,
-      noteId: task.noteId
+      noteId: task.noteId,
+      isUndated: false
     },
     colIndex: startIdx,
     colSpan,
@@ -344,9 +346,32 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
 
       // 计算每个任务的布局信息
       const taskLayouts: TaskLayout[] = []
+
+      // 记录每列当前已使用的最大行数（用于堆叠同一列的多个任务）
+      const columnRowCounts = new Map<string, number>()
+
       for (const task of noteTasks) {
         const layout = calculateTaskLayout(task, weekDates.value)
         if (layout) {
+          // 计算该任务应该在的行位置
+          // 检查任务跨越的所有列，找出最大行数
+          let maxRowCount = 0
+          for (let i = layout.colIndex; i < layout.colIndex + layout.colSpan; i++) {
+            const key = `col-${i}`
+            const count = columnRowCounts.get(key) || 0
+            maxRowCount = Math.max(maxRowCount, count)
+          }
+
+          // 行索引 = 最大行数 + 1（Grid 行从 1 开始）
+          const rowIndex = maxRowCount + 1
+          layout.rowIndex = rowIndex
+
+          // 更新所有跨越列的行数
+          for (let i = layout.colIndex; i < layout.colIndex + layout.colSpan; i++) {
+            const key = `col-${i}`
+            columnRowCounts.set(key, rowIndex)
+          }
+
           taskLayouts.push(layout)
         }
       }
