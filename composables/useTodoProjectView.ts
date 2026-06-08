@@ -146,9 +146,28 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
   // 构建周视图行数据
   const weekRows = computed(() => {
     const rows: WeekRow[] = []
-    const weekDateSet = new Set(weekDates.value.map(d => d.dateStr))
+
+    // 构建笔记ID到展开状态的映射（用于快速查找祖先折叠状态）
+    const noteExpandedMap = new Map<string, boolean>()
+    for (const note of notesWithLevel.value) {
+      noteExpandedMap.set(note.id, note.expanded)
+    }
+
+    // 检查笔记是否有被折叠的祖先笔记
+    function hasCollapsedAncestor(noteId: string): boolean {
+      const note = notes.value.find(n => n.id === noteId)
+      if (!note || !note.parentId) return false
+
+      const parentExpanded = noteExpandedMap.get(note.parentId)
+      if (parentExpanded === false) return true
+
+      return hasCollapsedAncestor(note.parentId)
+    }
 
     for (const note of notesWithLevel.value) {
+      // 如果有被折叠的祖先笔记，跳过（不显示）
+      if (hasCollapsedAncestor(note.id)) continue
+
       // 获取该笔记的所有待办任务
       const noteTasks = tasks.value.filter(t => t.noteId === note.id)
 
@@ -165,8 +184,11 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
         cells[date.dateStr] = tasksForDate
       }
 
-      // 如果笔记本身折叠了，且有子笔记，则只显示笔记行
-      if (!note.expanded) {
+      // 如果笔记有子笔记
+      const hasChildren = notes.value.some(n => n.parentId === note.id)
+
+      if (!note.expanded && hasChildren) {
+        // 折叠且有子笔记，只显示笔记行本身
         rows.push({
           noteId: note.id,
           title: note.title || '未命名笔记',
@@ -175,8 +197,8 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
           tasks: noteTasks,
           cells
         })
-      } else {
-        // 展开状态，显示所有子笔记的任务
+      } else if (note.expanded && hasChildren) {
+        // 展开且有子笔记，聚合所有后代笔记的任务
         const descendantNoteIds = getDescendantNoteIds(note.id)
         const allTasks = tasks.value.filter(t =>
           descendantNoteIds.includes(t.noteId)
@@ -199,6 +221,16 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
           expanded: note.expanded,
           tasks: allTasks,
           cells: expandedCells
+        })
+      } else {
+        // 叶子笔记（无子笔记），正常显示
+        rows.push({
+          noteId: note.id,
+          title: note.title || '未命名笔记',
+          level: note.level,
+          expanded: note.expanded,
+          tasks: noteTasks,
+          cells
         })
       }
     }
