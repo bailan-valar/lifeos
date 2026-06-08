@@ -115,9 +115,6 @@
             >
               {{ row.title }}
             </button>
-            <span v-if="row.tasks.length > 0" class="task-count">
-              {{ row.tasks.length }}
-            </span>
             <span v-if="row.noteClass" class="note-class" :style="{ color: row.noteClass.color }">
               {{ row.noteClass.name }}
             </span>
@@ -813,7 +810,7 @@ onUnmounted(() => {
 
 /* 面包屑占位区（始终预留空间） */
 .breadcrumb-placeholder {
-  width: 240px;
+  width: 280px;
   flex-shrink: 0;
   min-height: 32px;
   display: flex;
@@ -980,7 +977,7 @@ onUnmounted(() => {
 }
 
 .header-note {
-  width: 200px;
+  width: 280px;
   padding-left: 12px;
   padding-right: 8px;
   text-align: left;
@@ -1086,7 +1083,7 @@ onUnmounted(() => {
 
 /* 笔记列 */
 .cell-note {
-  width: 200px;
+  width: 280px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1307,7 +1304,7 @@ onUnmounted(() => {
 }
 
 .footer-label {
-  width: 200px;
+  width: 280px;
   padding-left: 12px;
   font-size: 12px;
   font-weight: 600;
@@ -1601,7 +1598,7 @@ onUnmounted(() => {
   }
 
   .breadcrumb-placeholder {
-    width: 160px;
+    width: 180px;
   }
 
   .breadcrumb-item {
@@ -1623,7 +1620,7 @@ onUnmounted(() => {
   }
 
   .header-note {
-    width: 150px;
+    width: 180px;
   }
 
   .header-date {
@@ -1631,7 +1628,7 @@ onUnmounted(() => {
   }
 
   .cell-note {
-    width: 150px;
+    width: 180px;
   }
 
   .cell-date {
@@ -1644,7 +1641,7 @@ onUnmounted(() => {
   }
 
   .footer-label {
-    width: 150px;
+    width: 180px;
     font-size: 11px;
   }
 
