@@ -135,16 +135,17 @@
             @dragleave="dragDrop.onTaskDragLeave($event)"
             @drop="dragDrop.onTaskDrop($event)"
           >
-            <div class="cell-tasks">
-              <!-- 折叠时显示子笔记待办合计数 -->
-              <div
-                v-if="!row.expanded && row.collapsedCount?.[date.dateStr] > 0"
-                class="collapsed-count-badge"
-                :title="`子笔记共有 ${row.collapsedCount[date.dateStr]} 个待办`"
-              >
-                {{ row.collapsedCount[date.dateStr] }}
-              </div>
+            <!-- 折叠时显示子笔记待办合计数小标 -->
+            <div
+              v-if="!row.expanded && row.collapsedCount?.[date.dateStr] > 0"
+              class="collapsed-count-badge"
+              :title="`子笔记共有 ${row.collapsedCount[date.dateStr]} 个待办`"
+            >
+              <Icon :name="SOLAR_ICONS.action.layers" :size="10" />
+              <span>{{ row.collapsedCount[date.dateStr] }}</span>
+            </div>
 
+            <div class="cell-tasks">
               <div
                 v-for="task in row.cells[date.dateStr]"
                 :key="task.id"
@@ -1149,34 +1150,37 @@ onUnmounted(() => {
   padding: 6px 8px;
   background: rgba(60, 60, 67, 0.02);
   border-left: 0.5px solid rgba(60, 60, 67, 0.06);
+  position: relative;
 }
 
 .cell-date.today {
   background: rgba(0, 122, 255, 0.03);
 }
 
+/* 折叠时子笔记待办合计数小标 */
+.collapsed-count-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(60, 60, 67, 0.6);
+  background: rgba(60, 60, 67, 0.08);
+  border: 0.5px solid rgba(60, 60, 67, 0.12);
+  border-radius: 9px;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .cell-tasks {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-/* 折叠时子笔记待办合计数小标 */
-.collapsed-count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  align-self: flex-start;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(60, 60, 67, 0.5);
-  background: rgba(60, 60, 67, 0.06);
-  border: 1px solid rgba(60, 60, 67, 0.1);
-  border-radius: 10px;
-  user-select: none;
 }
 
 .add-task-btn {
@@ -1532,9 +1536,9 @@ onUnmounted(() => {
   }
 
   .collapsed-count-badge {
-    color: rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 
   .header-expand-btn {
