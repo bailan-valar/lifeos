@@ -88,7 +88,7 @@
             :class="{ 'has-children': hasChildren(row.noteId), ...getNoteDragClass(row) }"
             draggable="true"
             @dragstart="handleNoteDragStart(row, $event)"
-            @dragend="resetDragState"
+            @dragend="dragDrop.resetDragState"
             @contextmenu.prevent="handleNoteContextMenu($event, row)"
           >
             <!-- 缩进占位 -->
@@ -128,12 +128,12 @@
             class="row-cell cell-date"
             :class="{
               today: date.isToday,
-              'drag-over': dropTarget?.dateStr === date.dateStr && dropTarget?.noteId === row.noteId,
+              'drag-over': dragDrop.dropTarget.value?.dateStr === date.dateStr && dragDrop.dropTarget.value?.noteId === row.noteId,
               'dragging-over': isDragging && dragType === 'task'
             }"
-            @dragover="onTaskDragOver(date.dateStr, row.noteId, $event)"
-            @dragleave="onTaskDragLeave($event)"
-            @drop="onTaskDrop($event)"
+            @dragover="dragDrop.onTaskDragOver(date.dateStr, row.noteId, $event)"
+            @dragleave="dragDrop.onTaskDragLeave($event)"
+            @drop="dragDrop.onTaskDrop($event)"
           >
             <div class="cell-tasks">
               <!-- 折叠时显示子笔记待办合计数 -->
@@ -153,7 +153,7 @@
                   completed: task.completed,
                   high: task.priority === 'high',
                   medium: task.priority === 'medium',
-                  'dragging': isDragging && dragType === 'task' && dragState.value.dragData?.id === task.id
+                  'dragging': isDragging && dragType === 'task' && dragDrop.dragState.value.dragData?.id === task.id
                 }"
                 :style="getTaskStyle(task)"
                 draggable="true"
@@ -281,19 +281,8 @@ const {
   unsubscribeChanges
 } = useTodoProjectView({ weekStart: props.weekStart })
 
-// 拖拽功能
-const {
-  dragState,
-  dropTarget,
-  isDragging,
-  dragType,
-  startDragTask,
-  onTaskDragOver,
-  onTaskDragLeave,
-  onTaskDrop,
-  startDragNote,
-  resetDragState
-} = useDragDrop({
+// 拖拽功能 - 不解构 dragState 和 dropTarget 以保持响应式
+const dragDrop = useDragDrop({
   onTaskDrop: async (taskId, targetNoteId, targetDate) => {
     await handleMoveTask(taskId, targetNoteId, targetDate)
   },
@@ -301,6 +290,10 @@ const {
     await handleMoveNote(noteId, targetParentId, targetIndex)
   }
 })
+
+// 从 composable 获取响应式值
+const isDragging = dragDrop.isDragging
+const dragType = dragDrop.dragType
 
 // 对话框状态
 const showEditDialog = ref(false)
@@ -753,7 +746,7 @@ async function handleMoveNote(noteId: string, targetParentId: string | null, tar
 
 // 拖拽任务开始
 function handleDragStart(task: CellTask, dateStr: string, noteId: string, event: DragEvent) {
-  startDragTask(task, dateStr, noteId, event)
+  dragDrop.startDragTask(task, dateStr, noteId, event)
 }
 
 // 拖拽笔记开始
@@ -763,16 +756,16 @@ function handleNoteDragStart(row: WeekRow, event: DragEvent) {
     title: row.title,
     level: row.level
   }
-  startDragNote(noteData, event)
+  dragDrop.startDragNote(noteData, event)
 }
 
 // 获取笔记拖拽样式
 function getNoteDragClass(row: WeekRow): string {
   if (!isDragging.value) return ''
-  if (dragType.value === 'note' && dragState.value.dragData?.noteId === row.noteId) {
+  if (dragType.value === 'note' && dragDrop.dragState.value.dragData?.noteId === row.noteId) {
     return 'dragging'
   }
-  if (dragType.value === 'note' && dropTarget.value?.noteId === row.noteId) {
+  if (dragType.value === 'note' && dragDrop.dropTarget.value?.noteId === row.noteId) {
     return 'drag-over'
   }
   return ''
