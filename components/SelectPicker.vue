@@ -199,7 +199,8 @@ function clear() {
 
 // 快捷创建
 function quickCreate() {
-  if (!searchQuery.value.trim()) return
+  // 当 alwaysShowCreateButton 为 true 时，允许搜索为空的情况
+  if (!props.alwaysShowCreateButton && !searchQuery.value.trim()) return
   emit('create', searchQuery.value.trim())
   searchQuery.value = ''
   open.value = false

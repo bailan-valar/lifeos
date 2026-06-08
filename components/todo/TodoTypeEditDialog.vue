@@ -78,6 +78,7 @@ interface TodoType {
 interface Props {
   visible?: boolean
   editType?: TodoType | null
+  initialName?: string
 }
 
 interface Emits {
@@ -87,7 +88,8 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   visible: false,
-  editType: null
+  editType: null,
+  initialName: ''
 })
 
 const emit = defineEmits<Emits>()
@@ -121,7 +123,7 @@ watch(() => props.visible, (visible) => {
       form.color = props.editType.color || '#3b82f6'
       form.description = props.editType.description || ''
     } else {
-      form.name = ''
+      form.name = props.initialName || ''
       form.icon = 'solar:check-circle-linear'
       form.color = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]
       form.description = ''

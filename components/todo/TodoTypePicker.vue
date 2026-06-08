@@ -26,6 +26,7 @@
     <!-- 创建/编辑待办类型弹窗 -->
     <TodoTypeEditDialog
       v-model:visible="editDialogVisible"
+      :initial-name="initialTypeName"
       @save="onTypeSaved"
     />
   </div>
@@ -64,6 +65,7 @@ const emit = defineEmits<{
 
 const todoTypes = ref<TodoType[]>([])
 const editDialogVisible = ref(false)
+const initialTypeName = ref('')
 
 const typeOptions = computed(() => {
   return todoTypes.value.map(type => ({
@@ -85,7 +87,8 @@ const loadTodoTypes = async () => {
   }
 }
 
-const onOpenCreateDialog = () => {
+const onOpenCreateDialog = (searchText = '') => {
+  initialTypeName.value = searchText
   editDialogVisible.value = true
 }
 
