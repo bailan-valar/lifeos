@@ -157,7 +157,7 @@ const emit = defineEmits<{
 }>()
 
 // Composables
-const { noteOptions } = useNotes()
+const { noteOptions, loadNotes: loadNotesOptions } = useNotes()
 const { classes, classFields, loadClasses, bindClass, updateBindingValues, getClassForNote } = useNoteClasses()
 
 // 表单数据
@@ -233,17 +233,25 @@ const selectedClassFields = computed(() => {
 // 加载数据
 watch(() => props.visible, async (v) => {
   if (v) {
+    // 加载笔记列表
+    await loadNotesOptions()
     // 加载类列表
     await loadClasses()
 
     if (props.isCreating) {
+      console.log('[NoteEditDialog] Creating mode, parentId:', props.parentId)
+      console.log('[NoteEditDialog] noteOptions:', noteOptions.value)
       formData.value = {
         title: '',
         content: '',
-        parentId: props.parentId || null,
+        parentId: props.parentId ?? null,
         classId: null,
         classValues: {}
       }
+      console.log('[NoteEditDialog] formData.parentId after set:', formData.value.parentId)
+      // 等待响应式更新完成
+      await nextTick()
+      console.log('[NoteEditDialog] After nextTick, parentNoteOptions:', parentNoteOptions.value)
     } else if (props.note) {
       formData.value = {
         title: props.note.title || '',
