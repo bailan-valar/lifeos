@@ -23,6 +23,7 @@ export interface CellTask {
   text: string
   completed: boolean
   priority?: TodoItem['priority']
+  typeId?: string
   statusId?: string
   statusName?: string
   statusColor?: string
@@ -184,6 +185,7 @@ function calculateTaskLayout(
       text: task.text,
       completed: task.completed,
       priority: task.priority,
+      typeId: task.typeId,
       statusId: task.statusId,
       statusName: task.statusName,
       statusColor: task.statusColor,

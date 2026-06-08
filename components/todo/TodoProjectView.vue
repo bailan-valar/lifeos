@@ -482,6 +482,7 @@ function handleTaskClick(task: CellTask): void {
     createdAt: task.createdAt || '',
     startDate: task.startDate,
     dueDate: task.dueDate,
+    typeId: task.typeId,
     statusId: task.statusId,
     priority: task.priority,
     noteId: task.noteId
