@@ -692,7 +692,7 @@ async function handleMoveTask(taskId: string, targetNoteId: string, targetDate: 
             await doc.patch({ data: { todos: [...data.todos] } })
           }
 
-          await loadData()
+          // 不需要手动调用 loadData，onCollectionChange 会自动刷新
           return
         }
       }
@@ -738,7 +738,7 @@ async function handleMoveNote(noteId: string, targetParentId: string | null, tar
       order: newOrder
     })
 
-    await loadData()
+    // 不需要手动调用 loadData，onCollectionChange 会自动刷新
   } catch (err) {
     console.error('移动笔记失败:', err)
   }
