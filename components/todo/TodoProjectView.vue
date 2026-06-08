@@ -984,6 +984,7 @@ onUnmounted(() => {
   left: 0;
   background: inherit;
   z-index: 2;
+  border-right: 1px solid rgba(60, 60, 67, 0.1);
 }
 
 .header-note-content {
@@ -1071,21 +1072,12 @@ onUnmounted(() => {
   background: inherit;
   z-index: 1;
   padding: 8px 12px;
+  border-right: 1px solid rgba(60, 60, 67, 0.1);
 }
 
 .note-indent {
   flex-shrink: 0;
   display: inline-block;
-}
-
-.cell-note::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: rgba(60, 60, 67, 0.1);
 }
 
 .expand-btn {
@@ -1316,6 +1308,7 @@ onUnmounted(() => {
   position: sticky;
   left: 0;
   background: inherit;
+  border-right: 1px solid rgba(60, 60, 67, 0.1);
 }
 
 .footer-date {
@@ -1487,8 +1480,10 @@ onUnmounted(() => {
     border-top-color: rgb(0, 122, 255);
   }
 
-  .cell-note::before {
-    background: rgba(255, 255, 255, 0.1);
+  .header-note,
+  .cell-note,
+  .footer-label {
+    border-right-color: rgba(255, 255, 255, 0.1);
   }
 
   .expand-btn {
