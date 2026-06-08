@@ -33,15 +33,22 @@ export interface CellTask {
   noteId: string
 }
 
+/**
+ * 任务布局信息，用于在周视图中定位任务
+ */
+export interface TaskLayout {
+  task: CellTask
+  colIndex: number      // 起始列索引 (0-6)，对应 weekDates 的索引
+  colSpan: number       // 跨越的列数 (1-7)
+  isMultiDay: boolean   // 是否跨天任务
+}
+
 export interface WeekRow {
   noteId: string
   title: string
   level: number
   expanded: boolean
-  tasks: CellTask[] // 该笔记的所有待办
-  cells: {
-    [dateStr: string]: CellTask[] // 按日期分组的待办
-  }
+  taskLayouts: TaskLayout[]  // 该笔记的所有任务布局信息
   collapsedCount?: {
     [dateStr: string]: number // 折叠时，每天子笔记的待办合计数
   }
@@ -126,6 +133,70 @@ function isTaskInRange(task: TodoWithMeta, targetDate: string): boolean {
 
   // 跨天任务：检查目标日期是否在 [startDate, dueDate] 范围内
   return targetDate >= startDate && targetDate <= dueDate
+}
+
+/**
+ * 计算任务在本周视图中的布局信息
+ * @param task - 待办任务
+ * @param weekDates - 本周的日期数组
+ * @returns 任务布局信息，如果任务不在本周显示则返回 null
+ */
+function calculateTaskLayout(
+  task: TodoWithMeta,
+  weekDates: WeekDate[]
+): TaskLayout | null {
+  const dueDate = parseTaskDate(task.dueDate)
+  const startDate = parseTaskDate(task.startDate)
+
+  // 如果没有截止日期，不显示
+  if (!dueDate) return null
+
+  // 计算任务在本周中的显示范围
+  let startIdx = -1
+  let endIdx = -1
+  const isMultiDay = startDate && startDate !== dueDate
+
+  // 找到开始日期在本周的位置
+  const displayStart = startDate || dueDate
+  const displayEnd = dueDate
+
+  for (let i = 0; i < weekDates.length; i++) {
+    const dateStr = weekDates[i].dateStr
+    if (startIdx === -1 && dateStr >= displayStart) {
+      startIdx = i
+    }
+    if (dateStr <= displayEnd) {
+      endIdx = i
+    }
+  }
+
+  // 如果任务不在本周范围内，不显示
+  if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) {
+    return null
+  }
+
+  // 计算跨越的列数
+  const colSpan = endIdx - startIdx + 1
+
+  return {
+    task: {
+      id: task.id,
+      text: task.text,
+      completed: task.completed,
+      priority: task.priority,
+      statusId: task.statusId,
+      statusName: task.statusName,
+      statusColor: task.statusColor,
+      statusIcon: task.statusIcon,
+      startDate: task.startDate,
+      dueDate: task.dueDate,
+      createdAt: task.createdAt,
+      noteId: task.noteId
+    },
+    colIndex: startIdx,
+    colSpan,
+    isMultiDay
+  }
 }
 
 // ==================== Composable ====================
