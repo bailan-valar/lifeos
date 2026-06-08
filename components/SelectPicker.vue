@@ -64,12 +64,14 @@
 
             <!-- 快捷创建按钮 -->
             <div
-              v-if="creatable && searchQuery.trim() && !hasExactMatch"
+              v-if="creatable && (alwaysShowCreateButton || (searchQuery.trim() && !hasExactMatch))"
               class="picker-item create-option"
               @click.stop="quickCreate"
             >
               <Icon name="solar:add-circle-linear" size="14" class="create-icon" />
-              <span class="item-label">{{ quickCreateText }}: "{{ searchQuery.trim() }}"</span>
+              <span class="item-label">
+                {{ searchQuery.trim() && !hasExactMatch ? `${quickCreateText}: "${searchQuery.trim()}"` : quickCreateText }}
+              </span>
             </div>
           </div>
         </div>
@@ -100,6 +102,7 @@ interface Props {
   labelKey?: string
   creatable?: boolean
   quickCreateText?: string
+  alwaysShowCreateButton?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -111,7 +114,8 @@ const props = withDefaults(defineProps<Props>(), {
   valueKey: 'value',
   labelKey: 'label',
   creatable: false,
-  quickCreateText: '创建新选项'
+  quickCreateText: '创建新选项',
+  alwaysShowCreateButton: false
 })
 
 const emit = defineEmits<{
