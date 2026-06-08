@@ -211,7 +211,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const { confirm } = useConfirm()
-const { noteOptions: rawNoteOptions } = useNotes()
+const { noteOptions: rawNoteOptions, loadNotes } = useNotes()
 const { statuses, loadStatuses, getDefaultStatus } = useTodoStatus()
 
 // 转换笔记选项格式以适配 SelectPicker
@@ -425,19 +425,25 @@ const onDialogOpened = () => {
 }
 
 // 初始化时加载数据
-onMounted(() => {
+onMounted(async () => {
   if (props.visible) {
-    loadTodoTypes()
-    loadStatuses()
+    await Promise.all([
+      loadTodoTypes(),
+      loadStatuses(),
+      loadNotes()
+    ])
     initForm()
   }
 })
 
 // 监听 visible 变化
-watch(() => props.visible, (visible) => {
+watch(() => props.visible, async (visible) => {
   if (visible) {
-    loadTodoTypes()
-    loadStatuses()
+    await Promise.all([
+      loadTodoTypes(),
+      loadStatuses(),
+      loadNotes()
+    ])
     initForm()
   }
 }, { immediate: true })
