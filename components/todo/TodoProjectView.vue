@@ -202,6 +202,7 @@
       :x="contextMenuX"
       :y="contextMenuY"
       @view="handleMenuViewNote"
+      @focus="handleMenuFocusNote"
       @edit="handleMenuEditNote"
       @add-child="handleMenuAddChildNote"
       @delete="handleMenuDeleteNote"
@@ -448,9 +449,20 @@ function handleBreadcrumbClick(note: Note, index: number) {
   // 最后一项是当前聚焦的笔记，点击不做任何事
 }
 
-// 点击笔记标题聚焦
-function handleNoteClick(noteId: string) {
-  focusNote(noteId)
+// 点击笔记标题打开编辑弹框
+async function handleNoteClick(noteId: string) {
+  try {
+    const db = await getDB()
+    const noteDoc = await db.notes.findOne(noteId).exec()
+    if (noteDoc) {
+      const note = noteDoc.toJSON() as Note
+      noteToEdit.value = note
+      isNoteCreating.value = false
+      showNoteEditDialog.value = true
+    }
+  } catch (err) {
+    console.error('获取笔记失败:', err)
+  }
 }
 
 // 笔记右键菜单
@@ -477,6 +489,11 @@ async function handleNoteContextMenu(event: MouseEvent, row: WeekRow) {
 function handleMenuViewNote(note: Note) {
   // 跳转到笔记页面
   navigateTo({ path: '/notes', query: { id: note.id } })
+}
+
+// 右键菜单 - 聚焦笔记
+function handleMenuFocusNote(note: Note) {
+  focusNote(note.id)
 }
 
 // 右键菜单 - 编辑笔记

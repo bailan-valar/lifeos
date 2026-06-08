@@ -98,6 +98,7 @@ export const ICONS = {
   info: 'solar:info-circle-linear',
   checkRead: 'solar:check-read-linear',
   chart: 'solar:chart-linear',
+  focus: 'solar:eye-linear',
 
   // === 用户/群组 ===
   usersGroupRounded: 'solar:users-group-rounded-linear',

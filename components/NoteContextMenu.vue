@@ -15,6 +15,14 @@
           <button
             type="button"
             class="menu-item"
+            @click="handleFocus"
+          >
+            <Icon :name="ICONS.focus" size="16" />
+            <span>聚焦笔记</span>
+          </button>
+          <button
+            type="button"
+            class="menu-item"
             @click="handleView"
           >
             <Icon :name="SOLAR_ICONS.doc.default" size="16" />
@@ -52,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { SOLAR_ICONS } from '~/composables/useIcons'
+import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 import type { Note } from '~/types/block'
 
 const props = defineProps<{
@@ -64,6 +72,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
+  focus: [note: Note]
   view: [note: Note]
   edit: [note: Note]
   'add-child': [note: Note]
@@ -74,6 +83,13 @@ const { isMobile } = useDevice()
 
 function close() {
   emit('update:visible', false)
+}
+
+function handleFocus() {
+  if (props.note) {
+    emit('focus', props.note)
+    close()
+  }
 }
 
 function handleView() {
