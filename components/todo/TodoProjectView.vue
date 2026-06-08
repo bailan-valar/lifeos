@@ -189,15 +189,17 @@
     <!-- 统计行 -->
     <div v-if="!loading && weekRows.length > 0" class="table-footer">
       <div class="footer-cell footer-label">统计</div>
-      <div class="footer-cell footer-stats">
-        <span class="stat-item stat-completed">
-          <Icon :name="ICONS.checkCircle" :size="14" />
-          已完成 {{ taskStats.completed }}
-        </span>
-        <span class="stat-item stat-pending">
-          <Icon :name="ICONS.round" :size="14" />
-          待完成 {{ taskStats.pending }}
-        </span>
+      <div
+        v-for="date in weekDates"
+        :key="date.dateStr"
+        class="footer-cell footer-date"
+        :class="{ today: date.isToday }"
+      >
+        <div class="daily-stat">
+          <span class="stat-completed">{{ dailyStats[date.dateStr]?.completed ?? 0 }}</span>
+          <span class="stat-separator">/</span>
+          <span class="stat-pending">{{ dailyStats[date.dateStr]?.pending ?? 0 }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -280,24 +282,31 @@ const weekRangeLabel = computed(() => {
   return `${startMonth}月${start.date.getDate()}日 - ${endMonth}月${end.date.getDate()}日`
 })
 
-// 统计数据
-const taskStats = computed(() => {
-  let completed = 0
-  let pending = 0
+// 统计数据 - 按天统计
+const dailyStats = computed(() => {
+  const stats: Record<string, { completed: number; pending: number }> = {}
 
+  // 初始化每一天
+  for (const date of weekDates.value) {
+    stats[date.dateStr] = { completed: 0, pending: 0 }
+  }
+
+  // 遍历所有行和单元格统计
   for (const row of weekRows.value) {
-    for (const tasks of Object.values(row.cells)) {
-      for (const task of tasks) {
-        if (task.completed) {
-          completed++
-        } else {
-          pending++
+    for (const [dateStr, tasks] of Object.entries(row.cells)) {
+      if (stats[dateStr]) {
+        for (const task of tasks) {
+          if (task.completed) {
+            stats[dateStr].completed++
+          } else {
+            stats[dateStr].pending++
+          }
         }
       }
     }
   }
 
-  return { completed, pending, total: completed + pending }
+  return stats
 })
 
 // 检查笔记是否有子笔记
@@ -1018,7 +1027,10 @@ onUnmounted(() => {
 
 .footer-cell {
   flex-shrink: 0;
-  padding: 10px 16px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .footer-label {
@@ -1029,29 +1041,35 @@ onUnmounted(() => {
   color: rgba(60, 60, 67, 0.6);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  justify-content: flex-start;
   position: sticky;
   left: 0;
   background: inherit;
 }
 
-.footer-stats {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding-left: 20px;
+.footer-date {
+  width: 140px;
 }
 
-.stat-item {
+.footer-date.today {
+  background: rgba(0, 122, 255, 0.05);
+}
+
+.daily-stat {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   font-size: 13px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-completed {
   color: rgb(52, 199, 89);
+}
+
+.stat-separator {
+  color: rgba(60, 60, 67, 0.3);
 }
 
 .stat-pending {
@@ -1217,6 +1235,14 @@ onUnmounted(() => {
     color: rgba(255, 255, 255, 0.6);
   }
 
+  .footer-date.today {
+    background: rgba(0, 122, 255, 0.08);
+  }
+
+  .stat-separator {
+    color: rgba(255, 255, 255, 0.3);
+  }
+
   .stat-pending {
     color: rgba(255, 255, 255, 0.7);
   }
@@ -1260,14 +1286,14 @@ onUnmounted(() => {
 
   .footer-label {
     width: 150px;
+    font-size: 11px;
   }
 
-  .footer-stats {
-    gap: 16px;
-    padding-left: 12px;
+  .footer-date {
+    width: 100px;
   }
 
-  .stat-item {
+  .daily-stat {
     font-size: 12px;
   }
 }
