@@ -62,6 +62,8 @@
       >
         {{ date.label }}
       </div>
+      <!-- 无日期列 -->
+      <div class="header-cell header-undated">无日期</div>
     </div>
 
     <!-- 表格内容 -->
@@ -157,6 +159,38 @@
               </button>
             </div>
 
+            <!-- 无日期列背景 -->
+            <div
+              class="cell-date-bg cell-undated"
+              :class="{
+                'drag-over': dragDrop.dropTarget.value?.dateStr === 'undated' && dragDrop.dropTarget.value?.noteId === row.noteId,
+                'dragging-over': isDragging && dragType === 'task'
+              }"
+              @dragover="dragDrop.onTaskDragOver('undated', row.noteId, $event)"
+              @dragleave="dragDrop.onTaskDragLeave($event)"
+              @drop="dragDrop.onTaskDrop($event)"
+            >
+              <!-- 折叠时显示子笔记待办合计数小标 -->
+              <div
+                v-if="!row.expanded && (row.collapsedCount?.['undated'] ?? 0) > 0"
+                class="collapsed-count-badge"
+                :title="`子笔记共有 ${row.collapsedCount?.['undated'] ?? 0} 个无日期待办`"
+                @click.stop="toggleNote(row.noteId)"
+              >
+                <Icon :name="SOLAR_ICONS.layer.layers" :size="12" />
+                <span>{{ row.collapsedCount?.['undated'] ?? 0 }}</span>
+              </div>
+
+              <!-- 快捷新增按钮 -->
+              <button
+                class="add-task-btn"
+                title="添加待办"
+                @click="handleQuickAdd(row.noteId, '')"
+              >
+                <Icon :name="ICONS.addCircle" :size="14" />
+              </button>
+            </div>
+
             <!-- 任务层 (使用 grid-column 定位) -->
             <div
               v-for="layout in row.taskLayouts"
@@ -241,6 +275,14 @@
           <span class="stat-completed">{{ dailyStats[date.dateStr]?.completed ?? 0 }}</span>
           <span class="stat-separator">/</span>
           <span class="stat-pending">{{ dailyStats[date.dateStr]?.pending ?? 0 }}</span>
+        </div>
+      </div>
+      <!-- 无日期统计 -->
+      <div class="footer-cell footer-undated">
+        <div class="daily-stat">
+          <span class="stat-completed">{{ dailyStats.undated?.completed ?? 0 }}</span>
+          <span class="stat-separator">/</span>
+          <span class="stat-pending">{{ dailyStats.undated?.pending ?? 0 }}</span>
         </div>
       </div>
     </div>
@@ -347,11 +389,23 @@ const dailyStats = computed(() => {
   for (const date of weekDates.value) {
     stats[date.dateStr] = { completed: 0, pending: 0 }
   }
+  // 初始化无日期统计
+  stats['undated'] = { completed: 0, pending: 0 }
 
   // 遍历所有行统计
   for (const row of weekRows.value) {
     // 统计该行自己的任务
     for (const layout of row.taskLayouts) {
+      // 处理无日期任务
+      if (layout.task.isUndated) {
+        if (layout.task.completed) {
+          stats['undated'].completed++
+        } else {
+          stats['undated'].pending++
+        }
+        continue
+      }
+
       // 根据任务的列索引和跨度，找出它跨越的所有日期
       for (let i = layout.colIndex; i < layout.colIndex + layout.colSpan; i++) {
         if (i >= 0 && i < weekDates.value.length) {
@@ -1107,6 +1161,11 @@ onUnmounted(() => {
   color: rgb(0, 122, 255);
 }
 
+.header-undated {
+  width: 140px;
+  color: rgba(60, 60, 67, 0.5);
+}
+
 /* 表格内容 */
 .table-body {
   flex: 1;
@@ -1267,7 +1326,7 @@ onUnmounted(() => {
 /* 日期列容器 - Grid 布局 */
 .row-cells-grid {
   display: grid;
-  grid-template-columns: repeat(7, 140px);
+  grid-template-columns: repeat(8, 140px);
   gap: 0;
   flex: 1;
   position: relative;
@@ -1302,6 +1361,10 @@ onUnmounted(() => {
 
 .cell-date-bg.dragging-over:hover {
   background: rgba(0, 122, 255, 0.05);
+}
+
+.cell-undated {
+  border-left: 0.5px solid rgba(60, 60, 67, 0.06);
 }
 
 /* 折叠时子笔记待办合计数小标 */
@@ -1491,6 +1554,10 @@ onUnmounted(() => {
   background: rgba(0, 122, 255, 0.05);
 }
 
+.footer-undated {
+  width: 140px;
+}
+
 .daily-stat {
   display: flex;
   align-items: center;
@@ -1632,6 +1699,10 @@ onUnmounted(() => {
   .header-cell {
     color: rgba(255, 255, 255, 0.6);
     background: rgba(255, 255, 255, 0.03);
+  }
+
+  .header-undated {
+    color: rgba(255, 255, 255, 0.4);
   }
 
   .table-row {
@@ -1821,6 +1892,10 @@ onUnmounted(() => {
     width: 100px;
   }
 
+  .header-undated {
+    width: 100px;
+  }
+
   .cell-note {
     width: 200px;
   }
@@ -1840,6 +1915,10 @@ onUnmounted(() => {
   }
 
   .footer-date {
+    width: 100px;
+  }
+
+  .footer-undated {
     width: 100px;
   }
 

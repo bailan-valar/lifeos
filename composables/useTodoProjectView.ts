@@ -32,6 +32,7 @@ export interface CellTask {
   dueDate?: string
   createdAt?: string
   noteId: string
+  isUndated?: boolean  // 是否为无日期待办
 }
 
 /**
@@ -149,8 +150,30 @@ function calculateTaskLayout(
   const dueDate = parseTaskDate(task.dueDate)
   const startDate = parseTaskDate(task.startDate)
 
-  // 如果没有截止日期，不显示
-  if (!dueDate) return null
+  // 如果没有截止日期，放在无日期列（索引 7）
+  if (!dueDate) {
+    return {
+      task: {
+        id: task.id,
+        text: task.text,
+        completed: task.completed,
+        priority: task.priority,
+        typeId: task.typeId,
+        statusId: task.statusId,
+        statusName: task.statusName,
+        statusColor: task.statusColor,
+        statusIcon: task.statusIcon,
+        startDate: task.startDate,
+        dueDate: task.dueDate,
+        createdAt: task.createdAt,
+        noteId: task.noteId,
+        isUndated: true
+      },
+      colIndex: 7,  // 无日期列在最后
+      colSpan: 1,
+      isMultiDay: false
+    }
+  }
 
   // 计算任务在本周中的显示范围
   let startIdx = -1
@@ -348,6 +371,11 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
             isTaskInRange(task, date.dateStr)
           ).length
           collapsedCount[date.dateStr] = count
+        }
+        // 添加无日期待办的计数
+        const undatedCount = allDescendantTasks.filter(task => !task.dueDate).length
+        if (undatedCount > 0) {
+          collapsedCount['undated'] = undatedCount
         }
 
         rows.push({
