@@ -96,6 +96,7 @@
               class="note-indent"
               :style="{ width: `${row.level * 16}px` }"
             />
+            <!-- 展开按钮或占位符，保持对齐 -->
             <button
               v-if="hasChildren(row.noteId)"
               class="expand-btn"
@@ -106,6 +107,7 @@
                 size="14"
               />
             </button>
+            <span v-else class="expand-spacer" />
             <button
               class="note-title"
               :title="row.title"
@@ -1129,6 +1131,14 @@ onUnmounted(() => {
 .expand-btn:hover {
   background: rgba(60, 60, 67, 0.1);
   color: rgba(60, 60, 67, 0.7);
+}
+
+/* 展开按钮占位符，保持对齐 */
+.expand-spacer {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .note-title {
