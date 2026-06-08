@@ -1365,6 +1365,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 4px;
   align-items: center;
+  z-index: 5;
 }
 
 .cell-date-bg.today {
@@ -1412,6 +1413,8 @@ onUnmounted(() => {
 }
 
 .add-task-btn {
+  position: relative;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
