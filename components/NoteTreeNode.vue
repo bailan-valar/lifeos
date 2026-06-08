@@ -1,669 +1,158 @@
 <template>
-  <div class="tree-node">
+  <div class="tree-node" :style="{ paddingLeft: `${level * 16}px` }">
     <div
-      class="tree-row"
-      :class="{
-        active: ctx.isActive(note.id),
-        'is-dragging': ctx.isDragging(note.id),
-        'drop-before': ctx.isDropTarget(note.id) && ctx.dropPosition() === 'before',
-        'drop-after': ctx.isDropTarget(note.id) && ctx.dropPosition() === 'after',
-        'drop-child': ctx.isDropTarget(note.id) && ctx.dropPosition() === 'child'
-      }"
-      :style="{ paddingLeft: `${depth * 12 + 6}px` }"
-      draggable="true"
-      role="treeitem"
-      :aria-expanded="hasChildren ? ctx.isExpanded(note.id) : undefined"
-      @click="ctx.onSelect(note.id)"
-      @dragstart="onDragStart"
-      @dragend="ctx.onDragEnd()"
-      @dragover.prevent="onDragOver"
-      @dragleave="onDragLeave"
-      @drop.prevent.stop="onDrop"
+      class="tree-node-content"
+      :class="{ selected: node.id === selectedId }"
+      @click="handleClick"
     >
       <button
         v-if="hasChildren"
-        class="chevron"
-        :class="{ expanded: ctx.isExpanded(note.id) }"
         type="button"
-        title="展开/收起"
-        @click.stop="ctx.onToggleExpand(note.id)"
-        @mousedown.stop
+        class="expand-btn"
+        :class="{ expanded }"
+        @click="handleToggle"
       >
-        <Icon name="solar:alt-arrow-right-linear" />
+        <Icon :name="SOLAR_ICONS.nav.right" size="12" />
       </button>
-      <span v-else class="chevron-spacer" />
-
-      <div class="note-item-bar" />
-
-      <div class="note-item-body">
-        <div class="note-title-row">
-          <span class="note-title">{{ note.title || '无标题' }}</span>
-          <div
-            v-if="noteClassBadge"
-            class="note-class-badge"
-            :style="{ background: noteClassBadge.color + '18', color: noteClassBadge.color }"
-            @click.stop="toggleMenu"
-          >
-            <Icon :name="noteClassBadge.icon" />
-            <span>{{ noteClassBadge.name }}</span>
-          </div>
-        </div>
-        <div class="note-meta">
-          <!-- 隐藏日期显示 -->
-          <!-- <span class="note-date">{{ formatDate(note.updatedAt) }}</span> -->
-          <span v-if="false" class="sync-indicator" title="未同步">
-            <Icon name="solar:cloud-storage-linear" />
-          </span>
-        </div>
-      </div>
-
-      <button
-        class="row-add"
-        type="button"
-        title="添加子笔记"
-        @click.stop="ctx.onCreateChild(note.id)"
-        @mousedown.stop
-      >
-        <Icon name="solar:add-circle-linear" />
-      </button>
-
-      <div class="row-menu-wrapper">
-        <button
-          ref="settingsBtnRef"
-          class="row-settings"
-          type="button"
-          title="设置"
-          @click.stop="toggleMenu"
-          @mousedown.stop
-        >
-          <Icon name="solar:settings-linear" />
-        </button>
-
-        <Teleport to="body">
-          <div
-            v-if="menuOpen"
-            ref="menuRef"
-            class="row-settings-menu"
-            :style="menuPosition"
-          >
-            <div
-              class="menu-item menu-item-danger"
-              @click.stop="deleteNote"
-            >
-              <Icon name="solar:trash-bin-trash-linear" class="menu-item-icon" />
-              <span>删除</span>
-            </div>
-            <div class="menu-divider" />
-            <div
-              class="menu-item has-submenu"
-              @mouseenter="submenuOpen = true"
-              @mouseleave="submenuOpen = false"
-            >
-              <span>设置类型</span>
-              <Icon name="solar:alt-arrow-right-linear" class="menu-arrow" />
-              <div v-if="submenuOpen" class="submenu">
-                <div
-                  v-for="cls in classes"
-                  :key="cls.id"
-                  class="submenu-item"
-                  @click.stop="bindToClass(cls.id)"
-                >
-                  <span
-                    class="submenu-icon"
-                    :style="{ background: cls.color + '18', color: cls.color }"
-                  >
-                    <Icon :name="cls.icon" />
-                  </span>
-                  <span class="submenu-name">{{ cls.name }}</span>
-                </div>
-                <div v-if="classes.length === 0" class="submenu-empty">
-                  暂无笔记类
-                </div>
-                <div class="submenu-divider" />
-                <div class="submenu-item submenu-add" @click.stop="openClassCreator">
-                  <span class="submenu-icon" :style="{ background: 'rgba(0,122,255,0.12)', color: 'rgb(0,122,255)' }">
-                    <Icon name="solar:add-circle-linear" />
-                  </span>
-                  <span class="submenu-name">新增笔记类</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Teleport>
-      </div>
+      <span v-else class="expand-spacer" />
+      <span class="node-label">{{ node.title }}</span>
     </div>
-
-    <div v-if="ctx.isExpanded(note.id) && hasChildren" class="tree-children">
+    <div v-if="expanded && hasChildren" class="tree-children">
       <NoteTreeNode
-        v-for="child in children"
+        v-for="child in node.children"
         :key="child.id"
-        :note="child"
-        :depth="depth + 1"
+        :node="child"
+        :selected-id="selectedId"
+        :expanded="false"
+        :level="level + 1"
+        @select="$emit('select', $event)"
+        @toggle="$emit('toggle', $event)"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Note } from '~/types/block'
-import { useNoteClasses, loadClasses, bindClass } from '~/composables/useNoteClasses'
-import { getNextZIndex } from '~/composables/useZIndex'
+import { SOLAR_ICONS } from '~/composables/useIcons'
+
+interface TreeNode {
+  id: string
+  title: string
+  level: number
+  children: TreeNode[]
+}
 
 interface Props {
-  note: Note
-  depth: number
+  node: TreeNode
+  selectedId?: string
+  expanded?: boolean
+  level?: number
 }
 
-const props = defineProps<Props>()
-
-const menuOpen = ref(false)
-const submenuOpen = ref(false)
-const settingsBtnRef = ref<HTMLButtonElement | null>(null)
-const menuRef = ref<HTMLDivElement | null>(null)
-const menuPosition = ref<Record<string, string>>({})
-
-const { classes, noteBindings } = useNoteClasses()
-
-const noteClassBadge = computed(() => {
-  const binding = noteBindings.value.find(b => b.noteId === props.note.id)
-  if (!binding) return null
-  const cls = classes.value.find(c => c.id === binding.classId)
-  if (!cls) return null
-  return { name: cls.name, icon: cls.icon, color: cls.color }
+const props = withDefaults(defineProps<Props>(), {
+  selectedId: '',
+  expanded: false,
+  level: 0
 })
 
-const updateMenuPosition = () => {
-  const btn = settingsBtnRef.value
-  if (!btn) return
-  const rect = btn.getBoundingClientRect()
-  menuPosition.value = {
-    top: `${rect.bottom + 4}px`,
-    left: `${rect.left - 100 + rect.width}px`,
-    zIndex: String(getNextZIndex())
-  }
+const emit = defineEmits<{
+  select: [id: string]
+  toggle: [id: string]
+}>()
+
+const hasChildren = computed(() => props.node.children.length > 0)
+
+function handleClick() {
+  emit('select', props.node.id)
 }
 
-const toggleMenu = async () => {
-  menuOpen.value = !menuOpen.value
-  if (menuOpen.value) {
-    await loadClasses()
-    nextTick(updateMenuPosition)
-  }
-}
-
-const bindToClass = async (classId: string) => {
-  await bindClass(props.note.id, classId)
-  menuOpen.value = false
-  submenuOpen.value = false
-}
-
-const openClassManager = inject<(mode: 'list' | 'create' | 'edit', cls?: any, options?: { onCreated?: (classId: string) => void }) => void>('openClassManager', () => {})
-
-const openClassCreator = () => {
-  openClassManager('create', undefined, {
-    onCreated: (classId: string) => {
-      bindClass(props.note.id, classId)
-    }
-  })
-  menuOpen.value = false
-  submenuOpen.value = false
-}
-
-const deleteNote = () => {
-  ctx.onDelete(props.note.id)
-  menuOpen.value = false
-  submenuOpen.value = false
-}
-
-const closeMenu = (e: MouseEvent) => {
-  const target = e.target as HTMLElement
-  if (menuRef.value && !menuRef.value.contains(target) && settingsBtnRef.value && !settingsBtnRef.value.contains(target)) {
-    menuOpen.value = false
-    submenuOpen.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', closeMenu)
-  window.addEventListener('resize', updateMenuPosition)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', closeMenu)
-  window.removeEventListener('resize', updateMenuPosition)
-})
-
-interface TreeContext {
-  isActive: (id: string) => boolean
-  isDragging: (id: string) => boolean
-  isDropTarget: (id: string) => boolean
-  isExpanded: (id: string) => boolean
-  dropPosition: () => 'before' | 'after' | 'child' | null
-  getChildren: (parentId: string) => Note[]
-  onSelect: (id: string) => void
-  onCreateChild: (parentId: string) => void
-  onToggleExpand: (id: string) => void
-  onDragStart: (id: string, parentId: string) => void
-  onDragOver: (targetId: string, position: 'before' | 'after' | 'child') => void
-  onDragLeave: (targetId: string) => void
-  onDrop: (targetId: string) => void
-  onDragEnd: () => void
-  onDelete: (id: string) => void
-}
-
-const ctx = inject<TreeContext>('noteTreeContext')!
-
-const children = computed(() => ctx.getChildren(props.note.id))
-const hasChildren = computed(() => children.value.length > 0)
-
-const onDragStart = (e: DragEvent) => {
-  if (!e.dataTransfer) return
-  e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer.setData('text/plain', props.note.id)
-  ctx.onDragStart(props.note.id, props.note.parentId)
-}
-
-const onDragOver = (e: DragEvent) => {
-  if (!e.dataTransfer) return
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const ratio = (e.clientY - rect.top) / rect.height
-  let position: 'before' | 'after' | 'child'
-  if (ratio < 0.28) position = 'before'
-  else if (ratio > 0.72) position = 'after'
-  else position = 'child'
-  e.dataTransfer.dropEffect = 'move'
-  ctx.onDragOver(props.note.id, position)
-}
-
-const onDragLeave = () => {
-  ctx.onDragLeave(props.note.id)
-}
-
-const onDrop = () => {
-  ctx.onDrop(props.note.id)
-}
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  const nowDate = new Date()
-  const diff = nowDate.getTime() - date.getTime()
-
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
-
-  return date.toLocaleDateString('zh-CN', {
-    month: 'short',
-    day: 'numeric'
-  })
+function handleToggle(e: MouseEvent) {
+  e.stopPropagation()
+  emit('toggle', props.node.id)
 }
 </script>
 
 <style scoped>
 .tree-node {
-  position: relative;
+  user-select: none;
 }
 
-.tree-row {
-  position: relative;
+.tree-node-content {
   display: flex;
-  align-items: stretch;
-  gap: 6px;
-  padding: 6px 8px 6px 8px;
-  margin-bottom: 1px;
-  border-radius: 8px;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.12s ease;
 }
 
-.tree-row:hover {
-  background-color: rgba(0, 0, 0, 0.04);
+.tree-node-content:hover {
+  background: rgba(0, 122, 255, 0.08);
 }
 
-.tree-row:active {
-  transform: scale(0.99);
+.tree-node-content.selected {
+  background: rgba(0, 122, 255, 0.15);
+  color: rgb(0, 102, 230);
 }
 
-.tree-row.active {
-  background: rgba(0, 122, 255, 0.12);
-  box-shadow: inset 0 0 0 0.5px rgba(0, 122, 255, 0.32);
-}
-
-.tree-row.is-dragging {
-  opacity: 0.45;
-}
-
-.tree-row.drop-before::before,
-.tree-row.drop-after::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, rgb(0, 122, 255) 0%, rgb(94, 92, 230) 100%);
-  box-shadow: 0 0 8px rgba(0, 122, 255, 0.45);
-  pointer-events: none;
-  z-index: 5;
-}
-
-.tree-row.drop-before::before {
-  top: -2px;
-}
-
-.tree-row.drop-after::after {
-  bottom: -2px;
-}
-
-.tree-row.drop-child {
-  background: rgba(0, 122, 255, 0.18);
-  box-shadow: inset 0 0 0 1.5px rgba(0, 122, 255, 0.55);
-}
-
-.chevron {
-  flex-shrink: 0;
+.expand-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin-top: 1px;
+  width: 18px;
+  height: 18px;
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: rgba(60, 60, 67, 0.55);
-  font-size: 11px;
+  color: rgba(60, 60, 67, 0.4);
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease, transform 0.18s ease;
+  transition: all 0.15s ease;
 }
 
-.chevron:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: rgba(0, 0, 0, 0.78);
+.expand-btn:hover {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.7);
 }
 
-.chevron.expanded {
+.expand-btn.expanded {
   transform: rotate(90deg);
 }
 
-.chevron-spacer {
+.expand-spacer {
+  width: 18px;
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
 }
 
-.note-item-bar {
-  width: 3px;
-  border-radius: 2px;
-  background: transparent;
-  transition: background-color 0.18s ease;
-}
-
-.tree-row.active .note-item-bar {
-  background: linear-gradient(180deg, rgb(0, 122, 255) 0%, rgb(94, 92, 230) 100%);
-}
-
-.note-item-body {
+.node-label {
   flex: 1;
-  min-width: 0;
-}
-
-.note-title-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 2px;
-}
-
-.note-title {
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: rgba(0, 0, 0, 0.88);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
-}
-
-.note-class-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  flex-shrink: 0;
-  padding: 1px 6px;
-  border-radius: 5px;
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.note-class-badge:hover {
-  opacity: 0.8;
-}
-
-.tree-row.active .note-title {
-  color: rgb(0, 102, 230);
-}
-
-.note-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.55);
-  font-variant-numeric: tabular-nums;
-}
-
-.sync-indicator {
-  display: flex;
-  align-items: center;
-  color: rgb(255, 149, 0);
-}
-
-.row-add {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.45);
-  font-size: 13px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.18s ease, background-color 0.12s ease, color 0.12s ease;
-}
-
-.tree-row:hover .row-add,
-.row-add:focus-visible {
-  opacity: 1;
-}
-
-.row-add:hover {
-  background: rgba(0, 122, 255, 0.14);
-  color: rgb(0, 102, 230);
 }
 
 .tree-children {
-  position: relative;
+  margin-left: 0;
 }
 
-.row-menu-wrapper {
-  position: relative;
-  flex-shrink: 0;
-}
+@media (prefers-color-scheme: dark) {
+  .tree-node-content:hover {
+    background: rgba(0, 122, 255, 0.15);
+  }
 
-.row-settings {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.45);
-  font-size: 12px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.18s ease, background-color 0.12s ease, color 0.12s ease;
-}
+  .tree-node-content.selected {
+    background: rgba(0, 122, 255, 0.25);
+    color: rgb(0, 122, 255);
+  }
 
-.tree-row:hover .row-settings,
-.row-settings:focus-visible {
-  opacity: 1;
-}
+  .expand-btn {
+    color: rgba(255, 255, 255, 0.4);
+  }
 
-.row-settings:hover {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(0, 0, 0, 0.78);
-}
-
-.row-settings-menu {
-  position: fixed;
-  z-index: 100;
-  min-width: 120px;
-  padding: 4px;
-  background: rgba(255, 255, 255, 0.88);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
-  border: 0.5px solid rgba(60, 60, 67, 0.12);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.88);
-  cursor: pointer;
-  transition: background-color 0.12s ease;
-  white-space: nowrap;
-}
-
-.menu-item:hover {
-  background: rgba(0, 122, 255, 0.1);
-}
-
-.menu-arrow {
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.45);
-}
-
-.has-submenu {
-  position: relative;
-}
-
-.submenu {
-  position: absolute;
-  top: 0;
-  left: calc(100% + 2px);
-  z-index: 11;
-  min-width: 140px;
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 4px;
-  background: rgba(255, 255, 255, 0.92);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
-  border: 0.5px solid rgba(60, 60, 67, 0.12);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(60, 60, 67, 0.2) transparent;
-}
-
-.submenu::-webkit-scrollbar {
-  width: 4px;
-}
-
-.submenu::-webkit-scrollbar-thumb {
-  background: rgba(60, 60, 67, 0.2);
-  border-radius: 2px;
-}
-
-.submenu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.88);
-  cursor: pointer;
-  transition: background-color 0.12s ease;
-}
-
-.submenu-item:hover {
-  background: rgba(0, 122, 255, 0.1);
-}
-
-.submenu-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.submenu-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.submenu-empty {
-  padding: 8px 10px;
-  font-size: 12px;
-  color: rgba(60, 60, 67, 0.5);
-  text-align: center;
-}
-
-.submenu-divider {
-  height: 0.5px;
-  margin: 4px 10px;
-  background: rgba(60, 60, 67, 0.1);
-}
-
-.submenu-add {
-  color: rgb(0, 122, 255);
-}
-
-.submenu-add:hover {
-  background: rgba(0, 122, 255, 0.1);
-}
-
-.menu-divider {
-  height: 0.5px;
-  margin: 4px 10px;
-  background: rgba(60, 60, 67, 0.1);
-}
-
-.menu-item-danger {
-  color: rgb(255, 59, 48);
-  justify-content: flex-start;
-}
-
-.menu-item-danger:hover {
-  background: rgba(255, 59, 48, 0.1);
-}
-
-.menu-item-icon {
-  font-size: 14px;
-  margin-right: 4px;
+  .expand-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+  }
 }
 </style>
