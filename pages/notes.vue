@@ -249,7 +249,6 @@ const createNote = () => {
 }
 
 const createChildNote = (parentId: string) => {
-  console.log('[Notes] createChildNote called with parentId:', parentId)
   editDialogParentId.value = parentId
   editDialogNote.value = null
   editDialogVisible.value = true

@@ -22,9 +22,9 @@
 
       <div class="form-row">
         <label for="note-parent">父笔记</label>
-        <SelectPicker
+        <NoteTreePicker
           v-model="formData.parentId"
-          :options="parentNoteOptions"
+          :notes="availableNotes"
           placeholder="无（根级笔记）"
           clearable
           searchable
@@ -137,6 +137,7 @@
 <script setup lang="ts">
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import SelectPicker from '~/components/SelectPicker.vue'
+import NoteTreePicker from '~/components/NoteTreePicker.vue'
 import { getDB, generateId, now } from '~/services/db'
 import { useNotes } from '~/composables/useNotes'
 import { useNoteClasses } from '~/composables/useNoteClasses'
@@ -157,7 +158,7 @@ const emit = defineEmits<{
 }>()
 
 // Composables
-const { noteOptions, loadNotes: loadNotesOptions } = useNotes()
+const { notes, loadNotes: loadNotesOptions } = useNotes()
 const { classes, classFields, loadClasses, bindClass, updateBindingValues, getClassForNote } = useNoteClasses()
 
 // 表单数据
@@ -179,38 +180,28 @@ const formData = ref<FormData>({
 
 const titleInput = ref<HTMLInputElement | null>(null)
 
-// 父笔记选项（排除自己和子孙笔记，防止循环）
-const parentNoteOptions = computed(() => {
+// 可用的父笔记列表（排除自己和子孙笔记，防止循环）
+const availableNotes = computed(() => {
+  // 创建模式：所有笔记都可作为父笔记
   if (props.isCreating || !props.note) {
-    return noteOptions.value.map(opt => ({
-      label: `${'  '.repeat(opt.level)}${opt.title}`,
-      value: opt.id
-    }))
+    return notes.value
   }
 
   // 编辑模式：排除自己和子孙笔记
-  const excludeIds = new Set([props.note.id])
+  const excludeIds = new Set<string>()
   const queue = [props.note.id]
+
   while (queue.length > 0) {
     const current = queue.shift()!
-    const children = noteOptions.value.filter(opt => {
-      // 找到以 current 为父级的笔记
-      const note = noteOptions.value.find(o => o.id === current)
-      // 这里简化处理，实际需要根据 parentId 判断
-      return false
-    })
+    excludeIds.add(current)
+    // 找到以 current 为父级的笔记
+    const children = notes.value.filter(n => n.parentId === current)
     for (const child of children) {
-      excludeIds.add(child.id)
       queue.push(child.id)
     }
   }
 
-  return noteOptions.value
-    .filter(opt => !excludeIds.has(opt.id))
-    .map(opt => ({
-      label: `${'  '.repeat(opt.level)}${opt.title}`,
-      value: opt.id
-    }))
+  return notes.value.filter(n => !excludeIds.has(n.id))
 })
 
 // 类选项
@@ -239,8 +230,6 @@ watch(() => props.visible, async (v) => {
     await loadClasses()
 
     if (props.isCreating) {
-      console.log('[NoteEditDialog] Creating mode, parentId:', props.parentId)
-      console.log('[NoteEditDialog] noteOptions:', noteOptions.value)
       formData.value = {
         title: '',
         content: '',
@@ -248,10 +237,6 @@ watch(() => props.visible, async (v) => {
         classId: null,
         classValues: {}
       }
-      console.log('[NoteEditDialog] formData.parentId after set:', formData.value.parentId)
-      // 等待响应式更新完成
-      await nextTick()
-      console.log('[NoteEditDialog] After nextTick, parentNoteOptions:', parentNoteOptions.value)
     } else if (props.note) {
       formData.value = {
         title: props.note.title || '',
