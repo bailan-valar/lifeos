@@ -141,7 +141,7 @@
               class="collapsed-count-badge"
               :title="`子笔记共有 ${row.collapsedCount[date.dateStr]} 个待办`"
             >
-              <Icon :name="SOLAR_ICONS.action.layers" :size="10" />
+              <Icon :name="SOLAR_ICONS.layer.layers" :size="10" />
               <span>{{ row.collapsedCount[date.dateStr] }}</span>
             </div>
 
