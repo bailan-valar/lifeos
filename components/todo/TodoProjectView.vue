@@ -1350,7 +1350,7 @@ onUnmounted(() => {
 .row-cells-grid {
   display: grid;
   grid-template-columns: repeat(8, 140px);
-  grid-auto-rows: 44px;
+  grid-auto-rows: min-content;
   gap: 0;
   flex: 1;
   position: relative;
@@ -1450,7 +1450,6 @@ onUnmounted(() => {
   /* 任务容器通过 grid-column 和 grid-row 定位（由内联样式设置） */
   z-index: 10;
   pointer-events: none;
-  padding: 4px 8px;
   /* 确保任务容器跨越完整的列宽 */
   align-self: start;
   justify-self: stretch;
@@ -1470,6 +1469,7 @@ onUnmounted(() => {
   /* 恢复点击事件，因为父容器禁用了 */
   pointer-events: auto;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .task-chip:hover {
