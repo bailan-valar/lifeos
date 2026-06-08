@@ -978,8 +978,7 @@ onUnmounted(() => {
 
 .header-note {
   width: 280px;
-  padding-left: 12px;
-  padding-right: 8px;
+  padding: 8px 8px 8px 12px;
   text-align: left;
   position: sticky;
   left: 0;
@@ -1003,26 +1002,6 @@ onUnmounted(() => {
 
 .header-note:hover .header-expand-actions {
   opacity: 1;
-}
-
-.header-expand-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  color: rgba(60, 60, 67, 0.4);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.header-expand-btn:hover {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(60, 60, 67, 0.7);
 }
 
 .header-date {
@@ -1091,7 +1070,7 @@ onUnmounted(() => {
   left: 0;
   background: inherit;
   z-index: 1;
-  padding-left: 12px;
+  padding: 8px 8px 8px 12px;
 }
 
 .note-indent {
@@ -1126,6 +1105,28 @@ onUnmounted(() => {
 }
 
 .expand-btn:hover {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.7);
+}
+
+/* Header 中的展开按钮样式与 cell 中的统一 */
+.header-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(60, 60, 67, 0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.header-expand-btn:hover {
   background: rgba(60, 60, 67, 0.1);
   color: rgba(60, 60, 67, 0.7);
 }
