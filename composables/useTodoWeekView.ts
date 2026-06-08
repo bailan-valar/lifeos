@@ -256,45 +256,62 @@ export function useTodoWeekView(initialConfig?: Partial<WeekViewConfig>) {
 
   // 处理重叠任务
   function handleOverlappingTasks(tasks: GridTask[]): GridTask[] {
-    // 按开始时间分组（使用5分钟粒度分组）
-    const groups: Record<number, GridTask[]> = {}
+    // 按列（天）分组
+    const byColumn: Record<number, GridTask[]> = {}
 
     for (const task of tasks) {
-      // 检查是否有开始时间
-      const hasStartTime = task.startDate && task.startDate.includes('T')
-      if (!hasStartTime) continue
-      // 使用 startMinutes 按5分钟粒度分组
-      const key = task.startMinutes ? Math.floor(task.startMinutes / 5) : task.startRow
-      if (!groups[key]) groups[key] = []
-      groups[key].push(task)
+      if (!byColumn[task.columnIndex]) byColumn[task.columnIndex] = []
+      byColumn[task.columnIndex].push(task)
     }
 
-    // 为每组重叠任务计算位置
-    for (const key in groups) {
-      const group = groups[key]
-      if (group.length <= 1) continue
+    // 对每一天分别处理重叠
+    for (const colIndex in byColumn) {
+      const colTasks = byColumn[colIndex]
 
-      // 按结束时间排序
-      group.sort((a, b) => {
-        // 计算结束时间
-        const getEndTime = (task: GridTask): number => {
-          const hasEndTime = task.dueDate && task.dueDate.includes('T')
-          if (hasEndTime && task.dueDate) {
-            const endTimeStr = task.dueDate.split('T')[1]?.slice(0, 5) || '00:00'
-            return timeToMinutes(endTimeStr)
+      // 分离有时间任务和全天任务
+      const timedTasks = colTasks.filter(
+        t => t.startMinutes !== undefined && t.endMinutes !== undefined
+      )
+
+      if (timedTasks.length <= 1) continue
+
+      // 按开始时间排序
+      timedTasks.sort((a, b) => (a.startMinutes ?? 0) - (b.startMinutes ?? 0))
+
+      // columns[i] 存储第 i 列中最后一个任务的结束时间
+      const columns: number[] = []
+      // 记录每个任务所在的列索引
+      const taskColumns = new Map<string, number>()
+
+      for (const task of timedTasks) {
+        const start = task.startMinutes ?? 0
+        const end = task.endMinutes ?? (start + 60)
+
+        // 找到第一个不重叠的列（结束时间 <= 当前任务开始时间）
+        let placed = false
+        for (let i = 0; i < columns.length; i++) {
+          if (columns[i] <= start) {
+            taskColumns.set(task.id, i)
+            columns[i] = end
+            placed = true
+            break
           }
-          // 使用开始时间 + 1小时
-          const startTimeStr = task.startDate?.split('T')[1]?.slice(0, 5) || '00:00'
-          return timeToMinutes(startTimeStr) + 60
         }
-        return getEndTime(a) - getEndTime(b)
-      })
 
-      // 计算每个任务的偏移和宽度
-      const count = group.length
-      for (let i = 0; i < count; i++) {
-        group[i].leftOffset = (i / count) * 100
-        group[i].widthPercent = 100 / count
+        if (!placed) {
+          const newCol = columns.length
+          taskColumns.set(task.id, newCol)
+          columns.push(end)
+        }
+      }
+
+      const totalCols = columns.length
+
+      // 为每个任务计算 leftOffset 和 widthPercent
+      for (const task of timedTasks) {
+        const col = taskColumns.get(task.id) ?? 0
+        task.leftOffset = (col / totalCols) * 100
+        task.widthPercent = 100 / totalCols
       }
     }
 

@@ -50,6 +50,20 @@
         </div>
       </template>
 
+      <!-- 学习Tab -->
+      <template v-else-if="tab.id === 'learning'">
+        <button
+          type="button"
+          class="sidebar-btn"
+          :class="{ active: activeTab === 'learning' }"
+          :title="store.sidebarCollapsed ? tab.name : ''"
+          @click="navigateToTab('learning')"
+        >
+          <Icon :name="tab.icon" size="18" />
+          <span class="sidebar-btn-text">{{ tab.name }}</span>
+        </button>
+      </template>
+
       <!-- 其他Tab（类型管理、统计） -->
       <button
         v-else
@@ -78,7 +92,7 @@ const store = useGoalsStore()
 // 根据路由查询参数计算当前活跃的Tab
 const activeTab = computed(() => {
   const tab = route.query.tab as string
-  const validTabs = ['goals', 'types', 'statistics']
+  const validTabs = ['goals', 'learning', 'types', 'statistics']
   return validTabs.includes(tab) ? tab as GoalsTabId : 'goals'
 })
 

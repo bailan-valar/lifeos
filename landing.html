@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeOS - 你的个人信息操作系统</title>
+  <meta name="description" content="LifeOS 是基于模块化设计的个人信息操作系统，集笔记、记账、待办于一体，本地优先，数据完全掌控。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* iOS 26 Liquid Glass Tokens */
+      --liquid-blur: 20px;
+      --liquid-blur-thick: 32px;
+      --liquid-saturate: 180%;
+      --liquid-bg: rgba(255, 255, 255, 0.15);
+      --liquid-bg-thick: rgba(255, 255, 255, 0.22);
+      --liquid-bg-thin: rgba(255, 255, 255, 0.10);
+      --liquid-bg-solid: rgba(255, 255, 255, 0.85);
+      --liquid-border: 0.5px solid rgba(255, 255, 255, 0.25);
+      --liquid-border-strong: 0.5px solid rgba(255, 255, 255, 0.35);
+      --liquid-radius: 20px;
+      --liquid-radius-lg: 28px;
+      --liquid-radius-button: 14px;
+      --liquid-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), inset 0 -1px 1px rgba(0, 0, 0, 0.05), 0 8px 32px rgba(0, 0, 0, 0.12);
+      --liquid-shadow-strong: inset 0 1px 1px rgba(255, 255, 255, 0.30), inset 0 -1px 1px rgba(0, 0, 0, 0.05), 0 16px 48px rgba(0, 0, 0, 0.18);
+      --liquid-shadow-elevated: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+      --liquid-refraction: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.30) 0%, transparent 60%);
+      --liquid-refraction-strong: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.40) 0%, transparent 55%);
+
+      /* Brand Colors */
+      --brand-primary: #007AFF;
+      --brand-primary-dark: #0056CC;
+      --brand-accent: #5AC8FA;
+      --brand-success: #34C759;
+      --brand-warning: #FF9500;
+
+      /* Text Colors */
+      --text-primary: rgba(0, 0, 0, 0.88);
+      --text-secondary: rgba(0, 0, 0, 0.55);
+      --text-tertiary: rgba(0, 0, 0, 0.35);
+
+      /* Animation */
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --liquid-bg: rgba(30, 30, 30, 0.40);
+        --liquid-bg-thick: rgba(30, 30, 30, 0.55);
+        --liquid-bg-thin: rgba(30, 30, 30, 0.25);
+        --liquid-bg-solid: rgba(30, 30, 30, 0.90);
+        --liquid-border: 0.5px solid rgba(255, 255, 255, 0.12);
+        --liquid-border-strong: 0.5px solid rgba(255, 255, 255, 0.18);
+        --text-primary: rgba(255, 255, 255, 0.92);
+        --text-secondary: rgba(255, 255, 255, 0.60);
+        --text-tertiary: rgba(255, 255, 255, 0.38);
+      }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+      background: linear-gradient(135deg, #f0f4f8 0%, #e0e7ff 25%, #f0f4f8 50%, #dbeafe 75%, #f0f4f8 100%);
+      background-size: 400% 400%;
+      animation: gradientShift 20s ease infinite;
+      min-height: 100vh;
+      color: var(--text-primary);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 25%, #0f172a 50%, #1e3a5f 75%, #0f172a 100%);
+        background-size: 400% 400%;
+      }
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    /* Ambient Orbs Background */
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.4;
+      animation: float 20s ease-in-out infinite;
+    }
+
+    .orb-1 {
+      width: 600px;
+      height: 600px;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+      top: -200px;
+      left: -100px;
+      animation-delay: 0s;
+    }
+
+    .orb-2 {
+      width: 500px;
+      height: 500px;
+      background: linear-gradient(135deg, var(--brand-accent), var(--brand-success));
+      bottom: -150px;
+      right: -100px;
+      animation-delay: -7s;
+    }
+
+    .orb-3 {
+      width: 400px;
+      height: 400px;
+      background: linear-gradient(135deg, var(--brand-warning), var(--brand-primary));
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation-delay: -14s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(50px, -50px) scale(1.05); }
+      50% { transform: translate(-30px, 30px) scale(0.95); }
+      75% { transform: translate(-50px, -30px) scale(1.02); }
+    }
+
+    /* Liquid Glass Base */
+    .liquid-glass {
+      position: relative;
+      backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+      -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+      background: var(--liquid-bg);
+      border: var(--liquid-border);
+      border-radius: var(--liquid-radius);
+      box-shadow: var(--liquid-shadow);
+      overflow: hidden;
+    }
+
+    .liquid-glass::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--liquid-refraction);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .liquid-glass-thick {
+      position: relative;
+      backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+      -webkit-backdrop-filter: blur(var(--liquid-blur-thick)) saturate(var(--liquid-saturate));
+      background: var(--liquid-bg-thick);
+      border: var(--liquid-border-strong);
+      border-radius: var(--liquid-radius);
+      box-shadow: var(--liquid-shadow-strong);
+      overflow: hidden;
+    }
+
+    .liquid-glass-thick::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--liquid-refraction-strong);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Navigation */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      background: rgba(255, 255, 255, 0.12);
+      border-bottom: 0.5px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .nav-logo {
+      font-size: 24px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      border-radius: var(--liquid-radius-button);
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      text-decoration: none;
+      transition: transform 0.2s var(--ease-out-expo), box-shadow 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--brand-primary);
+      border: none;
+      color: white;
+      box-shadow: 0 4px 16px rgba(0, 122, 255, 0.35);
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.25) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .btn-primary:hover {
+      background: var(--brand-primary-dark);
+      box-shadow: 0 6px 24px rgba(0, 122, 255, 0.45);
+      transform: translateY(-2px);
+    }
+
+    .btn-glass {
+      background: var(--liquid-bg-thick);
+      backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+      -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+      border: var(--liquid-border-strong);
+      color: var(--text-primary);
+    }
+
+    .btn-glass:hover {
+      background: var(--liquid-bg-solid);
+      transform: translateY(-2px);
+    }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--brand-primary);
+      background: rgba(0, 122, 255, 0.10);
+      border: 1px solid rgba(0, 122, 255, 0.20);
+      margin-bottom: 24px;
+    }
+
+    .hero-badge-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--brand-success);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.2); }
+    }
+
+    .hero-title {
+      font-size: clamp(40px, 8vw, 72px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-title span {
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(18px, 3vw, 22px);
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin-bottom: 40px;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      max-width: 600px;
+      margin: 40px 0;
+      width: 100%;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-value {
+      font-size: clamp(28px, 4vw, 36px);
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .hero-stat-label {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Hero Visual */
+    .hero-visual {
+      position: relative;
+      margin-top: 80px;
+      width: 100%;
+      max-width: 900px;
+      aspect-ratio: 16/10;
+    }
+
+    .hero-mockup {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--liquid-radius-lg);
+      background: var(--liquid-bg-solid);
+      border: var(--liquid-border-strong);
+      box-shadow: var(--liquid-shadow-elevated);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .mockup-sidebar {
+      background: var(--liquid-bg-thick);
+      border-right: var(--liquid-border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .mockup-nav-item {
+      height: 36px;
+      border-radius: 10px;
+      background: var(--liquid-bg);
+      border: var(--liquid-border);
+    }
+
+    .mockup-nav-item.active {
+      background: var(--brand-primary);
+      border-color: var(--brand-primary);
+    }
+
+    .mockup-header {
+      grid-column: 2;
+      height: 60px;
+      background: var(--liquid-bg-thick);
+      border-bottom: var(--liquid-border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+    }
+
+    .mockup-header-search {
+      flex: 1;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--liquid-bg);
+      border: var(--liquid-border);
+    }
+
+    .mockup-content {
+      grid-column: 2;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      align-content: start;
+    }
+
+    .mockup-card {
+      aspect-ratio: 4/3;
+      border-radius: 14px;
+      background: var(--liquid-bg);
+      border: var(--liquid-border);
+    }
+
+    .mockup-footer {
+      grid-column: 1 / -1;
+      height: 48px;
+      background: var(--liquid-bg-thick);
+      border-top: var(--liquid-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+    }
+
+    .mockup-footer-item {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--liquid-bg);
+      border: var(--liquid-border);
+    }
+
+    .mockup-footer-item.active {
+      background: var(--brand-primary);
+      border-color: var(--brand-primary);
+    }
+
+    /* Features Section */
+    .features {
+      position: relative;
+      padding: 120px 24px;
+      z-index: 1;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 80px;
+    }
+
+    .section-label {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--brand-primary);
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      font-size: 18px;
+      color: var(--text-secondary);
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .feature-card {
+      position: relative;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: transform 0.3s var(--ease-out-expo), box-shadow 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-8px);
+    }
+
+    .feature-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    .feature-icon.blue {
+      background: linear-gradient(135deg, rgba(0, 122, 255, 0.15), rgba(90, 200, 250, 0.15));
+      color: var(--brand-primary);
+    }
+
+    .feature-icon.green {
+      background: linear-gradient(135deg, rgba(52, 199, 89, 0.15), rgba(90, 200, 250, 0.15));
+      color: var(--brand-success);
+    }
+
+    .feature-icon.orange {
+      background: linear-gradient(135deg, rgba(255, 149, 0, 0.15), rgba(255, 59, 48, 0.15));
+      color: var(--brand-warning);
+    }
+
+    .feature-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 100px;
+      background: var(--brand-primary);
+      color: white;
+    }
+
+    .feature-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .feature-desc {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    .feature-points {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .feature-point {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-tertiary);
+    }
+
+    .feature-point::before {
+      content: '✓';
+      color: var(--brand-success);
+      font-weight: 700;
+    }
+
+    /* Modules Section */
+    .modules {
+      position: relative;
+      padding: 120px 24px;
+      z-index: 1;
+    }
+
+    .modules-showcase {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .module-card {
+      position: relative;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      cursor: pointer;
+      transition: transform 0.3s var(--ease-out-expo);
+    }
+
+    .module-card:hover {
+      transform: scale(1.02);
+    }
+
+    .module-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .module-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .module-toggle {
+      width: 48px;
+      height: 28px;
+      border-radius: 100px;
+      background: var(--brand-success);
+      position: relative;
+    }
+
+    .module-toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+
+    .module-name {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .module-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .module-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .module-feature-tag {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      background: var(--liquid-bg);
+      border: var(--liquid-border);
+      color: var(--text-secondary);
+    }
+
+    /* Pain Points Section */
+    .pain-points {
+      position: relative;
+      padding: 120px 24px;
+      z-index: 1;
+    }
+
+    .pain-comparison {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+      align-items: center;
+    }
+
+    .pain-column {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .pain-column-header {
+      text-align: center;
+      padding: 16px;
+      border-radius: var(--liquid-radius-button);
+      font-weight: 700;
+    }
+
+    .pain-column-header.before {
+      background: rgba(255, 59, 48, 0.10);
+      color: rgb(255, 59, 48);
+    }
+
+    .pain-column-header.after {
+      background: rgba(52, 199, 89, 0.10);
+      color: var(--brand-success);
+    }
+
+    .pain-item {
+      padding: 20px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .pain-item.before {
+      background: rgba(255, 59, 48, 0.05);
+      border: 1px solid rgba(255, 59, 48, 0.15);
+      border-radius: var(--liquid-radius-button);
+    }
+
+    .pain-item.after {
+      background: rgba(52, 199, 89, 0.05);
+      border: 1px solid rgba(52, 199, 89, 0.15);
+      border-radius: var(--liquid-radius-button);
+    }
+
+    .pain-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .pain-content h4 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .pain-content p {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      line-height: 1.5;
+    }
+
+    .vs-divider {
+      font-size: 24px;
+      font-weight: 900;
+      background: linear-gradient(135deg, rgb(255, 59, 48), var(--brand-success));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Local First Section */
+    .local-first {
+      position: relative;
+      padding: 120px 24px;
+      z-index: 1;
+    }
+
+    .local-first-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      max-width: 1100px;
+      margin: 0 auto;
+      align-items: center;
+    }
+
+    .local-first-visual {
+      position: relative;
+      aspect-ratio: 1;
+      max-width: 500px;
+    }
+
+    .sync-ring {
+      position: absolute;
+      inset: 0;
+      border: 2px solid var(--liquid-border);
+      border-radius: 50%;
+      animation: syncSpin 8s linear infinite;
+    }
+
+    .sync-ring:nth-child(2) {
+      inset: 15%;
+      animation-duration: 12s;
+      animation-direction: reverse;
+    }
+
+    .sync-ring:nth-child(3) {
+      inset: 30%;
+      animation-duration: 16s;
+    }
+
+    @keyframes syncSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .sync-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: var(--liquid-bg-solid);
+      border: var(--liquid-border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+    }
+
+    .local-first-text h3 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 20px;
+    }
+
+    .local-first-text p {
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .local-first-list {
+      margin-top: 24px;
+    }
+
+    .local-first-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .local-first-item:last-child {
+      border-bottom: none;
+    }
+
+    .check-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: var(--brand-success);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+    }
+
+    /* CTA Section */
+    .cta-section {
+      position: relative;
+      padding: 120px 24px;
+      z-index: 1;
+    }
+
+    .cta-box {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 60px 40px;
+      text-align: center;
+    }
+
+    .cta-title {
+      font-size: clamp(28px, 5vw, 40px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .cta-subtitle {
+      font-size: 17px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+
+    .cta-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .cta-actions .btn {
+      justify-content: center;
+    }
+
+    /* Footer */
+    .footer {
+      position: relative;
+      padding: 60px 24px;
+      z-index: 1;
+      text-align: center;
+    }
+
+    .footer-content {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .footer-logo {
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    .footer-text {
+      font-size: 14px;
+      color: var(--text-tertiary);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .local-first-content {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .local-first-visual {
+        order: -1;
+      }
+
+      .hero-visual {
+        display: none;
+      }
+
+      .nav {
+        padding: 12px 16px;
+      }
+
+      .btn {
+        padding: 10px 18px;
+        font-size: 14px;
+      }
+
+      .hero-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+
+      .pain-comparison {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+
+      .vs-divider {
+        order: -1;
+        text-align: center;
+        margin: 16px 0;
+      }
+
+      .pain-item {
+        padding: 16px;
+      }
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-in {
+      animation: fadeInUp 0.8s var(--ease-out-expo) forwards;
+      opacity: 0;
+    }
+
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+  </style>
+</head>
+<body>
+  <!-- Ambient Background -->
+  <div class="ambient-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-logo">LifeOS</div>
+    <div class="nav-actions">
+      <a href="#" class="btn btn-glass">GitHub</a>
+      <a href="#" class="btn btn-primary">开始使用</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-badge animate-in">
+      <span class="hero-badge-dot"></span>
+      本地优先 · 数据掌控
+    </div>
+    <h1 class="hero-title animate-in delay-1">
+      你的个人<br><span>信息操作系统</span>
+    </h1>
+    <p class="hero-subtitle animate-in delay-2">
+      集笔记、记账、待办于一体。模块化设计，按需启用。<br>
+      本地优先存储，支持多设备同步。
+    </p>
+    <div class="hero-stats animate-in delay-3">
+      <div class="hero-stat">
+        <div class="hero-stat-value">100%</div>
+        <div class="hero-stat-label">数据掌控</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">4+</div>
+        <div class="hero-stat-label">核心模块</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">0ms</div>
+        <div class="hero-stat-label">本地延迟</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">∞</div>
+        <div class="hero-stat-label">离线可用</div>
+      </div>
+    </div>
+    <div class="hero-cta animate-in delay-4">
+      <a href="#" class="btn btn-primary">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+          <polyline points="16 6 12 2 8 6"/>
+          <line x1="12" y1="2" x2="12" y2="15"/>
+        </svg>
+        立即体验
+      </a>
+      <a href="#" class="btn btn-glass">了解更多</a>
+    </div>
+
+    <!-- Hero Mockup -->
+    <div class="hero-visual animate-in delay-4">
+      <div class="hero-mockup">
+        <div class="mockup-sidebar">
+          <div class="mockup-nav-item active"></div>
+          <div class="mockup-nav-item"></div>
+          <div class="mockup-nav-item"></div>
+          <div class="mockup-nav-item"></div>
+        </div>
+        <div class="mockup-header">
+          <div class="mockup-header-search"></div>
+        </div>
+        <div class="mockup-content">
+          <div class="mockup-card"></div>
+          <div class="mockup-card"></div>
+          <div class="mockup-card"></div>
+          <div class="mockup-card"></div>
+          <div class="mockup-card"></div>
+          <div class="mockup-card"></div>
+        </div>
+        <div class="mockup-footer">
+          <div class="mockup-footer-item active"></div>
+          <div class="mockup-footer-item"></div>
+          <div class="mockup-footer-item"></div>
+          <div class="mockup-footer-item"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features">
+    <div class="section-header">
+      <span class="section-label">核心特性</span>
+      <h2 class="section-title">为什么选择 LifeOS？</h2>
+      <p class="section-desc">专为个人数据主权设计的信息管理平台</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card liquid-glass">
+        <div class="feature-header">
+          <div class="feature-icon blue">📦</div>
+          <span class="feature-badge">核心</span>
+        </div>
+        <h3 class="feature-title">模块化架构</h3>
+        <p class="feature-desc">记账、待办、笔记等核心功能作为独立模块，按需启用，灵活组合。</p>
+        <div class="feature-points">
+          <span class="feature-point">笔记模块可单独启用</span>
+          <span class="feature-point">按笔记配置模块可见性</span>
+          <span class="feature-point">保持界面清爽简洁</span>
+        </div>
+      </div>
+      <div class="feature-card liquid-glass">
+        <div class="feature-header">
+          <div class="feature-icon green">🔒</div>
+          <span class="feature-badge">安全</span>
+        </div>
+        <h3 class="feature-title">本地优先</h3>
+        <p class="feature-desc">基于 PouchDB 的本地存储，数据完全掌控。可选择 CouchDB 同步到私有服务器。</p>
+        <div class="feature-points">
+          <span class="feature-point">数据存储在本地 IndexedDB</span>
+          <span class="feature-point">支持自建 CouchDB 同步</span>
+          <span class="feature-point">拒绝云厂商锁定</span>
+        </div>
+      </div>
+      <div class="feature-card liquid-glass">
+        <div class="feature-header">
+          <div class="feature-icon orange">🎨</div>
+          <span class="feature-badge">设计</span>
+        </div>
+        <h3 class="feature-title">极致美学</h3>
+        <p class="feature-desc">采用 iOS 26 Liquid Glass 设计语言，玻璃态质感，深浅色自适应。</p>
+        <div class="feature-points">
+          <span class="feature-point">玻璃态毛玻璃效果</span>
+          <span class="feature-point">折射高光视觉层次</span>
+          <span class="feature-point">深浅色自动切换</span>
+        </div>
+      </div>
+      <div class="feature-card liquid-glass">
+        <div class="feature-header">
+          <div class="feature-icon blue">🗂️</div>
+          <span class="feature-badge">隔离</span>
+        </div>
+        <h3 class="feature-title">多工作空间</h3>
+        <p class="feature-desc">工作、生活、学习完全隔离。每个工作空间独立存储，互不干扰。</p>
+        <div class="feature-points">
+          <span class="feature-point">18个独立集合/工作空间</span>
+          <span class="feature-point">数据物理隔离</span>
+          <span class="feature-point">一键切换上下文</span>
+        </div>
+      </div>
+      <div class="feature-card liquid-glass">
+        <div class="feature-header">
+          <div class="feature-icon green">📱</div>
+          <span class="feature-badge">同步</span>
+        </div>
+        <h3 class="feature-title">跨设备同步</h3>
+        <p class="feature-desc">支持多设备数据同步，手机、平板、电脑无缝切换，随时随地访问。</p>
+        <div class="feature-points">
+          <span class="feature-point">按工作空间独立同步</span>
+          <span class="feature-point">冲突自动解决</span>
+          <span class="feature-point">增量同步节省流量</span>
+        </div>
+      </div>
+      <div class="feature-card liquid-glass">
+        <div class="feature-header">
+          <div class="feature-icon orange">⚡</div>
+          <span class="feature-badge">性能</span>
+        </div>
+        <h3 class="feature-title">极速响应</h3>
+        <p class="feature-desc">基于 Nuxt 3 构建，本地数据毫秒级响应。离线可用，网络恢复后自动同步。</p>
+        <div class="feature-points">
+          <span class="feature-point">本地数据 0ms 延迟</span>
+          <span class="feature-point">离线完整功能可用</span>
+          <span class="feature-point">网络恢复自动同步</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modules Section -->
+  <section class="modules">
+    <div class="section-header">
+      <span class="section-label">功能模块</span>
+      <h2 class="section-title">按需构建你的系统</h2>
+      <p class="section-desc">每个模块都可独立启用或禁用</p>
+    </div>
+    <div class="modules-showcase">
+      <div class="module-card liquid-glass-thick">
+        <div class="module-header">
+          <div class="module-icon" style="background: linear-gradient(135deg, rgba(0, 122, 255, 0.15), rgba(90, 200, 250, 0.15));">📝</div>
+          <div class="module-toggle"></div>
+        </div>
+        <div>
+          <div class="module-name">笔记</div>
+          <div class="module-desc">模块化笔记系统，支持富文本块编辑，按文件夹分类管理。</div>
+        </div>
+        <div class="module-features">
+          <span class="module-feature-tag">Tiptap 富文本</span>
+          <span class="module-feature-tag">块级编辑</span>
+          <span class="module-feature-tag">文件夹分类</span>
+        </div>
+      </div>
+      <div class="module-card liquid-glass-thick">
+        <div class="module-header">
+          <div class="module-icon" style="background: linear-gradient(135deg, rgba(52, 199, 89, 0.15), rgba(90, 200, 250, 0.15));">💰</div>
+          <div class="module-toggle"></div>
+        </div>
+        <div>
+          <div class="module-name">记账</div>
+          <div class="module-desc">完整的记账系统，支持多账户、分类管理、预算追踪、CSV 导入。</div>
+        </div>
+        <div class="module-features">
+          <span class="module-feature-tag">多账户管理</span>
+          <span class="module-feature-tag">分类树</span>
+          <span class="module-feature-tag">CSV 导入</span>
+          <span class="module-feature-tag">月度预算</span>
+        </div>
+      </div>
+      <div class="module-card liquid-glass-thick">
+        <div class="module-header">
+          <div class="module-icon" style="background: linear-gradient(135deg, rgba(255, 149, 0, 0.15), rgba(255, 59, 48, 0.15));">✅</div>
+          <div class="module-toggle"></div>
+        </div>
+        <div>
+          <div class="module-name">待办</div>
+          <div class="module-desc">任务管理系统，支持周视图、目标关联、拖拽排期。</div>
+        </div>
+        <div class="module-features">
+          <span class="module-feature-tag">周视图</span>
+          <span class="module-feature-tag">拖拽排期</span>
+          <span class="module-feature-tag">目标关联</span>
+        </div>
+      </div>
+      <div class="module-card liquid-glass-thick">
+        <div class="module-header">
+          <div class="module-icon" style="background: linear-gradient(135deg, rgba(175, 82, 222, 0.15), rgba(255, 45, 85, 0.15));">🎯</div>
+          <div class="module-toggle"></div>
+        </div>
+        <div>
+          <div class="module-name">目标</div>
+          <div class="module-desc">长期目标追踪与规划，与待办任务联动，让目标落地。</div>
+        </div>
+        <div class="module-features">
+          <span class="module-feature-tag">长期追踪</span>
+          <span class="module-feature-tag">任务联动</span>
+          <span class="module-feature-tag">进度可视化</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pain Points Section -->
+  <section class="pain-points">
+    <div class="section-header">
+      <span class="section-label">痛点解决</span>
+      <h2 class="section-title">为什么你需要 LifeOS？</h2>
+      <p class="section-desc">解决传统工具的核心痛点</p>
+    </div>
+    <div class="pain-comparison">
+      <div class="pain-column">
+        <div class="pain-column-header before">传统工具</div>
+        <div class="pain-item before">
+          <div class="pain-icon">☁️</div>
+          <div class="pain-content">
+            <h4>数据被云厂商锁定</h4>
+            <p>数据存储在第三方服务器，一旦服务关闭或账号被封，数据无处可寻</p>
+          </div>
+        </div>
+        <div class="pain-item before">
+          <div class="pain-icon">📦</div>
+          <div class="pain-content">
+            <h4>功能臃肿无法定制</h4>
+            <p>用不上功能塞满界面，需要的功能藏在深处，无法按需精简</p>
+          </div>
+        </div>
+        <div class="pain-item before">
+          <div class="pain-icon">🔄</div>
+          <div class="pain-content">
+            <h4>多个应用数据割裂</h4>
+            <p>笔记在 A 应用，记账在 B 应用，待办在 C 应用，数据无法联动</p>
+          </div>
+        </div>
+      </div>
+      <div class="vs-divider">VS</div>
+      <div class="pain-column">
+        <div class="pain-column-header after">LifeOS</div>
+        <div class="pain-item after">
+          <div class="pain-icon">🔒</div>
+          <div class="pain-content">
+            <h4>数据完全掌控</h4>
+            <p>本地优先存储，可选自建服务器同步，数据主权在你手中</p>
+          </div>
+        </div>
+        <div class="pain-item after">
+          <div class="pain-icon">🧩</div>
+          <div class="pain-content">
+            <h4>模块化按需启用</h4>
+            <p>每个功能独立模块，不需要就关闭，界面永远清爽专注</p>
+          </div>
+        </div>
+        <div class="pain-item after">
+          <div class="pain-icon">🔗</div>
+          <div class="pain-content">
+            <h4>一体化数据联动</h4>
+            <p>笔记、记账、待办、目标在同一系统，模块间数据天然联动</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Local First Section -->
+  <section class="local-first">
+    <div class="local-first-content">
+      <div class="local-first-visual">
+        <div class="sync-ring"></div>
+        <div class="sync-ring"></div>
+        <div class="sync-ring"></div>
+        <div class="sync-center liquid-glass-thick">🔄</div>
+      </div>
+      <div class="local-first-text">
+        <h3>本地优先，<span style="color: var(--brand-primary);">数据自主</span></h3>
+        <p>你的数据，完全由你掌控。LifeOS 采用本地优先架构，所有数据存储在你的设备上。你可以选择同步到自己的 CouchDB 服务器，也可以完全离线使用。</p>
+        <div class="local-first-list">
+          <div class="local-first-item">
+            <div class="check-icon">✓</div>
+            <span>数据存储在本地，无需联网即可使用，网络断开也能完整操作</span>
+          </div>
+          <div class="local-first-item">
+            <div class="check-icon">✓</div>
+            <span>可选同步到自建 CouchDB，拒绝云厂商锁定，数据完全私有</span>
+          </div>
+          <div class="local-first-item">
+            <div class="check-icon">✓</div>
+            <span>多设备自动同步，冲突自动解决，每份变更都有历史记录</span>
+          </div>
+          <div class="local-first-item">
+            <div class="check-icon">✓</div>
+            <span>工作空间完全隔离，数据互不干扰，18个集合独立管理</span>
+          </div>
+          <div class="local-first-item">
+            <div class="check-icon">✓</div>
+            <span>支持增量同步，只传输变更内容，节省流量和时间</span>
+          </div>
+          <div class="local-first-item">
+            <div class="check-icon">✓</div>
+            <span>同步凭证加密存储在工作空间配置中，安全性可控</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta-section">
+    <div class="cta-box liquid-glass-thick">
+      <h2 class="cta-title">开始构建你的 LifeOS</h2>
+      <p class="cta-subtitle">开源、本地优先、完全掌控。立即体验个人信息操作系统。</p>
+      <div class="cta-actions">
+        <a href="#" class="btn btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.6.11.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+          </svg>
+          GitHub 开源
+        </a>
+        <a href="#" class="btn btn-glass">在线演示</a>
+        <a href="#" class="btn btn-glass">部署指南</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-logo">LifeOS</div>
+      <p class="footer-text">© 2024 LifeOS. 本地优先的个人信息操作系统。</p>
+    </div>
+  </footer>
+
+  <script>
+    // Intersection Observer for scroll animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.1 });
+
+    // Observe all liquid-glass elements
+    document.querySelectorAll('.liquid-glass, .liquid-glass-thick').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      observer.observe(el);
+    });
+
+    // Parallax effect on orbs
+    document.addEventListener('mousemove', (e) => {
+      const orbs = document.querySelectorAll('.orb');
+      const x = e.clientX / window.innerWidth;
+      const y = e.clientY / window.innerHeight;
+
+      orbs.forEach((orb, i) => {
+        const speed = (i + 1) * 20;
+        orb.style.transform = `translate(${x * speed}px, ${y * speed}px)`;
+      });
+    });
+  </script>
+</body>
+</html>

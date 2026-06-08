@@ -55,6 +55,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     databaseUrl: '',
     jwtSecret: '',
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
     public: {
       apiBase: '/api',
       couchdbUrl: process.env.NUXT_PUBLIC_COUCHDB_URL || '',

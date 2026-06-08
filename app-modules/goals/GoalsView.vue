@@ -10,6 +10,12 @@
         <GoalProgressDashboard :type-filter="activeTypeFilter" />
       </div>
 
+      <!-- 学习Tab -->
+      <div v-show="activeTab === 'learning'" class="tab-panel-wrapper">
+        <LearningPanel v-if="!learningDetailId" />
+        <LearningDetailView v-else />
+      </div>
+
       <!-- 类型管理Tab -->
       <div v-show="activeTab === 'types'" class="tab-panel-wrapper">
         <GoalTypesManagement />
@@ -38,6 +44,8 @@ import GoalsMobileTabbar from './components/layout/GoalsMobileTabbar.vue'
 
 // 面板组件
 import GoalProgressDashboard from './GoalProgressDashboard.vue'
+import LearningPanel from './components/LearningPanel.vue'
+import LearningDetailView from './LearningDetailView.vue'
 import GoalTypesManagement from './components/panels/GoalTypesManagement.vue'
 import GoalStatisticsPanel from './components/panels/GoalStatisticsPanel.vue'
 
@@ -49,7 +57,7 @@ const store = useGoalsStore()
 // 根据路由查询参数计算当前活跃的Tab
 const activeTab = computed(() => {
   const tab = route.query.tab as string
-  const validTabs = ['goals', 'types', 'statistics']
+  const validTabs = ['goals', 'learning', 'types', 'statistics']
   return validTabs.includes(tab) ? tab as GoalsTabId : 'goals'
 })
 
@@ -58,6 +66,11 @@ const activeTypeFilter = computed(() => {
   const type = route.query.type as string
   const validTypes = ['all', 'short_term', 'long_term', 'habit', 'project']
   return validTypes.includes(type) ? type : 'all'
+})
+
+// 是否显示学习详情
+const learningDetailId = computed(() => {
+  return route.query.learningId as string | undefined
 })
 
 // 监听路由变化，同步到store（如果需要）

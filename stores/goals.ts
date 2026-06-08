@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-export type GoalsTabId = 'goals' | 'types' | 'statistics'
+export type GoalsTabId = 'goals' | 'learning' | 'types' | 'statistics'
 export type GoalsViewMode = 'card' | 'table'
-export type GoalTypeFilter = 'all' | 'short_term' | 'long_term' | 'habit' | 'project'
+export type GoalTypeFilter = 'all' | 'short_term' | 'long_term' | 'habit' | 'project' | 'learning'
 
 export const useGoalsStore = defineStore('goals', () => {
   // ========== 导航状态 ==========
@@ -24,12 +24,14 @@ export const useGoalsStore = defineStore('goals', () => {
   // 常量数据
   const tabs = [
     { id: 'goals' as GoalsTabId, name: '目标', icon: 'solar:target-linear' },
+    { id: 'learning' as GoalsTabId, name: '学习', icon: 'solar:book-bookmark-linear' },
     { id: 'types' as GoalsTabId, name: '类型管理', icon: 'solar:folder-linear' },
     { id: 'statistics' as GoalsTabId, name: '统计', icon: 'solar:chart-linear' }
   ]
 
   const mobileTabs = [
     { id: 'goals' as GoalsTabId, name: '目标', icon: 'solar:target-linear' },
+    { id: 'learning' as GoalsTabId, name: '学习', icon: 'solar:book-bookmark-linear' },
     { id: 'types' as GoalsTabId, name: '类型', icon: 'solar:folder-linear' },
     { id: 'statistics' as GoalsTabId, name: '统计', icon: 'solar:chart-linear' }
   ]

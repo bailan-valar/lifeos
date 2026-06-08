@@ -117,7 +117,12 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   balanceAdjustments: [['accountId', 'date']],
   todo_types: [['order'], ['createdAt']],
   todoStatuses: [['order'], ['createdAt']],
-  todos: [['createdAt'], ['parentId'], ['statusId']]
+  todos: [['createdAt'], ['parentId'], ['statusId']],
+  // 学习板块集合
+  learning_goals: [['createdAt'], ['status'], ['dimension']],
+  learning_stages: [['goalId'], ['goalId', 'order']],
+  learning_sessions: [['stageId'], ['stageId', 'order'], ['goalId']],
+  learning_progress: [['sessionId'], ['goalId'], ['stageId']]
 }
 
 export const COLLECTION_NAMES = Object.keys(COLLECTION_INDEXES)

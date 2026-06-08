@@ -89,7 +89,15 @@ export const ICONS = {
 
   // === 圆形 ===
   round: 'solar:info-circle-linear',
-  circle: 'solar:info-circle-linear',
+  circle: 'solar:circle-linear',
+
+  // === 其他 ===
+  book: 'solar:book-bookmark-linear',
+  bookBookmark: 'solar:book-bookmark-linear',
+  layers: 'solar:layers-linear',
+  info: 'solar:info-circle-linear',
+  checkRead: 'solar:check-read-linear',
+  chart: 'solar:chart-linear',
 
   // === 用户/群组 ===
   usersGroupRounded: 'solar:users-group-rounded-linear',
@@ -137,6 +145,7 @@ export const SOLAR_ICONS = {
     refresh: ICONS.refreshCircle,
     split: ICONS.callSplit,
     handle: ICONS.handle,
+    circle: ICONS.circle,
   },
 
   // 文档
@@ -147,6 +156,8 @@ export const SOLAR_ICONS = {
     clipboard: ICONS.clipboardList,
     folder: ICONS.folder,
     folderOpen: ICONS.folderOpen,
+    book: ICONS.book,
+    bookmark: ICONS.bookBookmark,
   },
 
   // 搜索
@@ -196,6 +207,22 @@ export const SOLAR_ICONS = {
     warning: ICONS.closeCircle,
     pending: 'solar:info-circle-linear',
     loading: ICONS.loading,
+    play: ICONS.playCircle,
+  },
+
+  // 时间
+  time: {
+    clock: ICONS.clockCircle,
+  },
+
+  // 信息
+  info: {
+    info: ICONS.infoCircle,
+  },
+
+  // 图层
+  layer: {
+    layers: ICONS.layers,
   },
 } as const
 
