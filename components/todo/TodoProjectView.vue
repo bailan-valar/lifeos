@@ -82,7 +82,7 @@
               {{ row.tasks.length }}
             </span>
             <span v-if="row.noteClass" class="note-class" :style="{ color: row.noteClass.color }">
-              <Icon :name="row.noteClass.icon" size="12" />
+              {{ row.noteClass.name }}
             </span>
           </div>
 
@@ -618,11 +618,10 @@ onUnmounted(() => {
 }
 
 .note-class {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
   margin-left: 4px;
+  font-size: 11px;
+  font-weight: 500;
   opacity: 0.7;
 }
 
