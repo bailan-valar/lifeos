@@ -1195,9 +1195,9 @@ onUnmounted(() => {
   padding: 0 5px;
   font-size: 10px;
   font-weight: 600;
-  color: rgba(60, 60, 67, 0.6);
-  background: rgba(60, 60, 67, 0.08);
-  border: 0.5px solid rgba(60, 60, 67, 0.12);
+  color: rgb(0, 122, 255);
+  background: rgba(0, 122, 255, 0.1);
+  border: 0.5px solid rgba(0, 122, 255, 0.2);
   border-radius: 9px;
   z-index: 1;
   pointer-events: none;
@@ -1567,9 +1567,9 @@ onUnmounted(() => {
   }
 
   .collapsed-count-badge {
-    color: rgba(255, 255, 255, 0.6);
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.12);
+    color: rgb(0, 122, 255);
+    background: rgba(0, 122, 255, 0.15);
+    border-color: rgba(0, 122, 255, 0.25);
   }
 
   .header-expand-btn {
