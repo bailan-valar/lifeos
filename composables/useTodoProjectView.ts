@@ -77,9 +77,11 @@ function generateWeekDates(weekStart: Date): WeekDate[] {
   for (let i = 0; i < 7; i++) {
     const date = new Date(weekStart)
     date.setDate(date.getDate() + i)
-    const dateStr = date.toISOString().slice(0, 10)
+    // 使用本地时间而非 UTC 时间，避免时区偏差
+    const year = date.getFullYear()
     const month = date.getMonth() + 1
     const day = date.getDate()
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
     dates.push({
       date,
