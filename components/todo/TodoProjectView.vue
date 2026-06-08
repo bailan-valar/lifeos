@@ -22,25 +22,23 @@
         </div>
       </div>
 
-      <!-- 周导航 -->
-      <div class="week-nav">
-        <button class="nav-btn" @click="prevWeek" title="上一周">
-          <Icon :name="ICONS.altArrowLeft" size="18" />
-        </button>
-        <button class="nav-btn" @click="nextWeek" title="下一周">
-          <Icon :name="ICONS.altArrowRight" size="18" />
-        </button>
-      </div>
-
       <!-- 周范围 -->
       <div class="week-range">
         {{ weekRangeLabel }}
       </div>
 
-      <!-- 右侧操作区 -->
-      <div class="header-actions">
-        <button class="action-btn today-btn" @click="goToToday">今天</button>
-      </div>
+      <!-- 周导航 -->
+      <button class="nav-btn" @click="prevWeek" title="上一周">
+        <Icon :name="ICONS.altArrowLeft" size="18" />
+      </button>
+
+      <!-- 今天 -->
+      <button class="today-btn" @click="goToToday">今天</button>
+
+      <!-- 周导航 -->
+      <button class="nav-btn" @click="nextWeek" title="下一周">
+        <Icon :name="ICONS.altArrowRight" size="18" />
+      </button>
     </div>
 
     <!-- 表头 -->
@@ -882,12 +880,6 @@ onUnmounted(() => {
   cursor: default;
 }
 
-.week-nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .nav-btn {
   display: flex;
   align-items: center;
@@ -908,44 +900,29 @@ onUnmounted(() => {
 }
 
 .today-btn {
-  width: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
   padding: 0 12px;
   font-size: 13px;
   font-weight: 500;
+  background: rgba(0, 122, 255, 0.08);
+  border: none;
+  border-radius: var(--liquid-radius-button, 14px);
+  color: rgb(0, 122, 255);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.today-btn:hover {
+  background: rgba(0, 122, 255, 0.15);
 }
 
 .week-range {
   font-size: 15px;
   font-weight: 600;
   color: rgba(60, 60, 67, 0.9);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: rgba(60, 60, 67, 0.5);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.action-btn:hover {
-  background: rgba(60, 60, 67, 0.1);
-  color: rgba(60, 60, 67, 0.8);
 }
 
 /* 表头 */
@@ -1407,17 +1384,17 @@ onUnmounted(() => {
     color: rgba(255, 255, 255, 0.9);
   }
 
+  .today-btn {
+    background: rgba(0, 122, 255, 0.15);
+    color: rgb(0, 122, 255);
+  }
+
+  .today-btn:hover {
+    background: rgba(0, 122, 255, 0.25);
+  }
+
   .week-range {
     color: rgba(255, 255, 255, 0.9);
-  }
-
-  .action-btn {
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-  .action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
   }
 
   .header-cell {
