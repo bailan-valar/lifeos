@@ -104,6 +104,28 @@ function parseTaskDate(dateStr: string | undefined): string {
   return dateStr
 }
 
+/**
+ * 检查任务是否在指定日期范围内（包含跨天待办）
+ * @param task - 待办任务
+ * @param targetDate - 目标日期 (YYYY-MM-DD)
+ * @returns 是否应该在该日期显示
+ */
+function isTaskInRange(task: TodoWithMeta, targetDate: string): boolean {
+  const dueDate = parseTaskDate(task.dueDate)
+  const startDate = parseTaskDate(task.startDate)
+
+  // 如果没有截止日期，不显示
+  if (!dueDate) return false
+
+  // 如果没有开始日期或开始日期等于截止日期（单日任务），直接比较截止日期
+  if (!startDate || startDate === dueDate) {
+    return dueDate === targetDate
+  }
+
+  // 跨天任务：检查目标日期是否在 [startDate, dueDate] 范围内
+  return targetDate >= startDate && targetDate <= dueDate
+}
+
 // ==================== Composable ====================
 
 export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
@@ -226,11 +248,10 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
       const cells: Record<string, CellTask[]> = {}
 
       for (const date of weekDates.value) {
-        // 找出在该日期有截止日期的任务
-        const tasksForDate = noteTasks.filter(task => {
-          const taskDate = parseTaskDate(task.dueDate || task.createdAt.slice(0, 10))
-          return taskDate === date.dateStr
-        })
+        // 找出在该日期范围内的任务（包含跨天待办）
+        const tasksForDate = noteTasks.filter(task =>
+          isTaskInRange(task, date.dateStr)
+        )
 
         cells[date.dateStr] = tasksForDate
       }
@@ -248,10 +269,9 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
         // 计算每天子笔记的待办合计数（不包含该笔记自己的待办）
         const collapsedCount: Record<string, number> = {}
         for (const date of weekDates.value) {
-          const count = allDescendantTasks.filter(task => {
-            const taskDate = parseTaskDate(task.dueDate || task.createdAt.slice(0, 10))
-            return taskDate === date.dateStr
-          }).length
+          const count = allDescendantTasks.filter(task =>
+            isTaskInRange(task, date.dateStr)
+          ).length
           collapsedCount[date.dateStr] = count
         }
 
