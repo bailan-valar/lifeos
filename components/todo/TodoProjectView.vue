@@ -28,17 +28,15 @@
       </div>
 
       <!-- 周导航 -->
-      <button class="nav-btn" @click="prevWeek" title="上一周">
-        <Icon :name="ICONS.altArrowLeft" size="18" />
-      </button>
-
-      <!-- 今天 -->
-      <button class="today-btn" @click="goToToday">今天</button>
-
-      <!-- 周导航 -->
-      <button class="nav-btn" @click="nextWeek" title="下一周">
-        <Icon :name="ICONS.altArrowRight" size="18" />
-      </button>
+      <div class="week-nav">
+        <button class="nav-btn" @click="prevWeek" title="上一周">
+          <Icon :name="ICONS.altArrowLeft" size="18" />
+        </button>
+        <button class="today-btn" @click="goToToday">今天</button>
+        <button class="nav-btn" @click="nextWeek" title="下一周">
+          <Icon :name="ICONS.altArrowRight" size="18" />
+        </button>
+      </div>
     </div>
 
     <!-- 表头 -->
@@ -887,6 +885,12 @@ onUnmounted(() => {
   background: rgba(0, 122, 255, 0.15);
   color: rgb(0, 122, 255);
   cursor: default;
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .nav-btn {
