@@ -294,9 +294,12 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
 
   /**
    * 加载数据
+   * @param silent - 静默模式，不显示 loading 状态（用于拖拽等本地操作）
    */
-  async function loadData(): Promise<void> {
-    loading.value = true
+  async function loadData(silent = false): Promise<void> {
+    if (!silent) {
+      loading.value = true
+    }
     error.value = null
 
     try {
@@ -463,10 +466,10 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
 
   function subscribeChanges(): void {
     unsubscribes = [
-      onCollectionChange('notes', () => loadData()),
-      onCollectionChange('module_data', () => loadData()),
-      onCollectionChange('classes', () => loadData()),
-      onCollectionChange('noteClassBindings', () => loadData())
+      onCollectionChange('notes', () => loadData(true)),
+      onCollectionChange('module_data', () => loadData(true)),
+      onCollectionChange('classes', () => loadData(true)),
+      onCollectionChange('noteClassBindings', () => loadData(true))
     ]
   }
 
