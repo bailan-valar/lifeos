@@ -207,6 +207,7 @@
                   high: layout.task.priority === 'high',
                   medium: layout.task.priority === 'medium',
                   'multi-day': layout.isMultiDay,
+                  'has-parent': layout.task.parentId,
                   'dragging': isDragging && dragType === 'task' && (dragDrop.dragState.value.dragData as any)?.id === layout.task.id
                 }"
                 :style="getTaskStyle(layout.task)"
@@ -221,6 +222,8 @@
                   :color="layout.task.statusColor"
                   @click.stop="handleToggleTask(layout.task)"
                 />
+                <!-- 子任务指示符 -->
+                <Icon v-if="layout.task.parentId" :name="SOLAR_ICONS.nav.right" :size="10" class="parent-indicator" title="子任务" />
                 <span class="task-text">{{ layout.task.text }}</span>
                 <span v-if="layout.isMultiDay" class="task-duration">
                   {{ formatTaskDuration(layout) }}
@@ -1698,6 +1701,22 @@ onUnmounted(() => {
   border-left-width: 2px;
 }
 
+/* 子任务指示符 */
+.task-chip.has-parent {
+  padding-left: 6px;
+}
+
+.parent-indicator {
+  flex-shrink: 0;
+  color: rgba(60, 60, 67, 0.35);
+  margin-left: 2px;
+  transform: rotate(-90deg);
+}
+
+.task-chip.has-parent .task-text {
+  margin-left: 2px;
+}
+
 .task-text {
   flex: 1;
   white-space: nowrap;
@@ -2057,6 +2076,10 @@ onUnmounted(() => {
   .header-expand-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.7);
+  }
+
+  .parent-indicator {
+    color: rgba(255, 255, 255, 0.35);
   }
 }
 

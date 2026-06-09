@@ -33,6 +33,7 @@ export interface CellTask {
   dueDate?: string
   createdAt?: string
   noteId: string
+  parentId?: string  // 父任务ID，用于显示父子关系
   isUndated?: boolean  // 是否为无日期待办
 }
 
@@ -170,6 +171,7 @@ function calculateTaskLayout(
         dueDate: task.dueDate,
         createdAt: task.createdAt,
         noteId: task.noteId,
+        parentId: task.parentId,
         isUndated: true
       },
       colIndex: 7,  // 无日期列在最后
@@ -221,6 +223,7 @@ function calculateTaskLayout(
       dueDate: task.dueDate,
       createdAt: task.createdAt,
       noteId: task.noteId,
+      parentId: task.parentId,
       isUndated: false
     },
     colIndex: startIdx,
