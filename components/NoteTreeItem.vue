@@ -5,6 +5,7 @@
       :class="itemClasses"
       :draggable="!isMobile"
       @click="handleClick"
+      @contextmenu.prevent="handleContextMenu"
       @dragstart="handleDragStart"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
@@ -119,6 +120,10 @@ function handleDelete() {
   noteTreeContext?.onDelete(props.note.id)
 }
 
+function handleContextMenu(e: MouseEvent) {
+  noteTreeContext?.onContextMenu(props.note, e)
+}
+
 function handleDragStart(e: DragEvent) {
   e.stopPropagation()
   noteTreeContext?.onDragStart(props.note.id, props.note.parentId || '')
@@ -177,7 +182,8 @@ function useNoteTreeContext() {
     onDragLeave: (targetId: string) => {},
     onDrop: (targetId: string) => {},
     onDragEnd: () => {},
-    onDelete: (id: string) => {}
+    onDelete: (id: string) => {},
+    onContextMenu: (note: Note, e: MouseEvent) => {}
   }
 }
 </script>

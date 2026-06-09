@@ -94,12 +94,25 @@
         <span>笔记类管理</span>
       </button>
     </div>
+
+    <NoteContextMenu
+      v-model:visible="contextMenuVisible"
+      :note="contextMenuNote"
+      :x="contextMenuPosition.x"
+      :y="contextMenuPosition.y"
+      @focus="handleContextMenuFocus"
+      @view="handleContextMenuView"
+      @edit="handleContextMenuEdit"
+      @add-child="handleContextMenuAddChild"
+      @delete="handleContextMenuDelete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Note } from '~/types/block'
 import NoteTreeItem from '~/components/NoteTreeItem.vue'
+import NoteContextMenu from '~/components/NoteContextMenu.vue'
 
 interface Props {
   notes: Note[]
@@ -122,6 +135,9 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const searchQuery = ref('')
+const contextMenuVisible = ref(false)
+const contextMenuNote = ref<Note | null>(null)
+const contextMenuPosition = ref({ x: 0, y: 0 })
 
 const childrenMap = computed<Record<string, Note[]>>(() => {
   const map: Record<string, Note[]> = {}
@@ -261,7 +277,12 @@ provide('noteTreeContext', {
   onDragEnd: () => {
     resetDragState()
   },
-  onDelete: (id: string) => emit('delete', id)
+  onDelete: (id: string) => emit('delete', id),
+  onContextMenu: (note: Note, e: MouseEvent) => {
+    contextMenuNote.value = note
+    contextMenuPosition.value = { x: e.clientX, y: e.clientY }
+    contextMenuVisible.value = true
+  }
 })
 
 const onRootDragOver = (e: DragEvent) => {
@@ -300,6 +321,39 @@ const onRootDrop = () => {
     position: 'root-end'
   })
   resetDragState()
+}
+
+const handleContextMenuFocus = () => {
+  if (contextMenuNote.value) {
+    emit('select', contextMenuNote.value.id)
+  }
+}
+
+const handleContextMenuView = () => {
+  if (contextMenuNote.value) {
+    emit('select', contextMenuNote.value.id)
+  }
+}
+
+const handleContextMenuEdit = () => {
+  if (contextMenuNote.value) {
+    emit('select', contextMenuNote.value.id)
+  }
+}
+
+const handleContextMenuAddChild = () => {
+  if (contextMenuNote.value) {
+    const next = new Set(expandedSet.value)
+    next.add(contextMenuNote.value.id)
+    expandedSet.value = next
+    emit('create-child', contextMenuNote.value.id)
+  }
+}
+
+const handleContextMenuDelete = () => {
+  if (contextMenuNote.value) {
+    emit('delete', contextMenuNote.value.id)
+  }
 }
 
 const { isMobile } = useDevice()
