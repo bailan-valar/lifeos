@@ -203,8 +203,7 @@ function handleBudgetsClick() {
 
 // 处理预算子Tab点击
 function handleBudgetSubTabClick(type: BillingBudgetType) {
-  navigateToTab('budgets')
-  store.activeBudgetSubTab = type
+  router.push({ path: '/billing', query: { tab: 'budgets', subTab: type } })
 }
 </script>
 

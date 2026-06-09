@@ -13,9 +13,9 @@ const router = useRouter()
 const route = useRoute()
 
 onMounted(() => {
-  // 如果没有tab参数，默认显示bills
+  // 如果没有tab参数，默认显示budgets（项目预算）
   if (!route.query.tab) {
-    router.replace({ path: '/billing', query: { tab: 'bills' } })
+    router.replace({ path: '/billing', query: { tab: 'budgets', subTab: 'project' } })
   }
 })
 </script>

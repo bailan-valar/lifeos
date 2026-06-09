@@ -115,6 +115,13 @@ const activeTab = computed(() => {
   return validTabs.includes(tab) ? tab as BillingTabId : 'bills'
 })
 
+// 根据路由参数设置预算子标签
+watch(() => route.query.subTab, (subTab) => {
+  if (subTab === 'category' || subTab === 'project') {
+    store.activeBudgetSubTab = subTab
+  }
+}, { immediate: true })
+
 // 数据获取
 const { bills, loading, hasMore, totalIncome, totalExpense, netBalance, loadBillsPaginated, loadMoreBills, loadBillsByDateRange, createBill, updateBill, updateBills, deleteBill, deleteBills } = useBills()
 const { accounts, loadAccounts, createAccount, updateAccount } = useAccounts()

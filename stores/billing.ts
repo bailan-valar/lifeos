@@ -28,7 +28,7 @@ export const useBillingStore = defineStore('billing', () => {
   const activeCategorySubTab = ref<BillingCategoryType | 'all'>('expense')
   const categoryMenuExpanded = ref(true)
 
-  const activeBudgetSubTab = ref<BillingBudgetType>('category')
+  const activeBudgetSubTab = ref<BillingBudgetType>('project')
   const budgetMenuExpanded = ref(true)
 
   // 常量数据
