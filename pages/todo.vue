@@ -60,6 +60,7 @@
             @update="handleUpdate"
             @reorder="handleReorder"
             @edit="openEditDialog"
+            @add-child="handleAddChild"
           />
         </template>
       </div>
@@ -223,6 +224,27 @@ const handleReorder = async (taskId: string, targetId: string) => {
   // 由于数据存储在笔记的 module_data 中，跨笔记拖拽比较复杂
   // 暂时只处理同笔记内的排序
   console.log('Reorder:', taskId, 'to', targetId)
+}
+
+// 添加子任务
+const handleAddChild = async (parentId: string) => {
+  try {
+    const parentTask = todoStore.allTasks.find(t => t.id === parentId)
+    if (!parentTask) return
+
+    // 获取默认状态
+    const defaultStatus = statuses.value.find(s => s.isDefault) || statuses.value[0]
+
+    // 创建子任务
+    await todoStore.createTask({
+      text: '',
+      parentId: parentId,
+      noteId: parentTask.noteId,
+      statusId: defaultStatus?.id
+    })
+  } catch (err) {
+    console.error('添加子任务失败:', err)
+  }
 }
 
 // 打开编辑弹框

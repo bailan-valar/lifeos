@@ -49,17 +49,33 @@
             @delete="(id) => $emit('delete', id)"
             @reorder="(taskId, targetId) => $emit('reorder', taskId, targetId)"
             @edit="(id) => $emit('edit', id)"
+            @contextmenu="handleContextMenu"
           />
         </div>
       </div>
     </div>
+
+    <!-- 待办右键菜单 -->
+    <TodoContextMenu
+      v-model:visible="contextMenuVisible"
+      :todo="contextMenuTodo"
+      :x="contextMenuX"
+      :y="contextMenuY"
+      @toggle-complete="handleToggleComplete"
+      @edit="handleMenuEdit"
+      @add-child="handleMenuAddChild"
+      @view-detail="handleMenuViewDetail"
+      @delete="handleMenuDelete"
+    />
   </main>
 </template>
 
 <script setup lang="ts">
 import { ICONS } from '~/composables/useIcons'
 import TodoItem from './TodoItem.vue'
+import TodoContextMenu from './TodoContextMenu.vue'
 import type { TaskGroup } from '~/types/todo'
+import type { TodoItem as TodoItemType } from '~/types/todo'
 
 interface Props {
   loading?: boolean
@@ -73,6 +89,7 @@ interface Emits {
   (e: 'update', id: string, text: string): void
   (e: 'reorder', taskId: string, targetId: string): void
   (e: 'edit', id: string): void
+  (e: 'add-child', id: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -88,9 +105,48 @@ const groupArray = computed(() => {
   return Object.values(props.groupedTasks)
 })
 
+// 右键菜单状态
+const contextMenuVisible = ref(false)
+const contextMenuTodo = ref<{ id: string; text: string; completed: boolean; parentId?: string; noteId?: string } | null>(null)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+
 // 处理拖拽排序
 const handleReorder = (taskId: string, targetId: string) => {
   emit('reorder', taskId, targetId)
+}
+
+// 右键菜单处理
+const handleContextMenu = (event: MouseEvent, todo: TodoItemType) => {
+  contextMenuTodo.value = todo
+  contextMenuX.value = event.clientX
+  contextMenuY.value = event.clientY
+  contextMenuVisible.value = true
+}
+
+// 右键菜单 - 切换完成状态
+const handleToggleComplete = (todo: { id: string; text: string; completed: boolean }) => {
+  emit('toggle', todo.id)
+}
+
+// 右键菜单 - 编辑
+const handleMenuEdit = (todo: { id: string }) => {
+  emit('edit', todo.id)
+}
+
+// 右键菜单 - 添加子任务
+const handleMenuAddChild = (todo: { id: string }) => {
+  emit('add-child', todo.id)
+}
+
+// 右键菜单 - 查看详情
+const handleMenuViewDetail = (todo: { id: string }) => {
+  emit('edit', todo.id)
+}
+
+// 右键菜单 - 删除
+const handleMenuDelete = (todo: { id: string }) => {
+  emit('delete', todo.id)
 }
 </script>
 

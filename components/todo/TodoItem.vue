@@ -18,6 +18,7 @@
     @dragover="handleDragOver"
     @dragleave="handleDragLeave"
     @drop="handleDrop"
+    @contextmenu.prevent="handleContextMenu"
   >
     <!-- 拖拽手柄 (可拖拽时显示) -->
     <div v-if="draggable && !readonly" class="drag-handle">
@@ -189,6 +190,7 @@ interface Emits {
   (e: 'toggle-expand', id: string): void
   (e: 'reorder', taskId: string, targetId: string): void
   (e: 'edit', id: string): void
+  (e: 'contextmenu', event: MouseEvent, todo: TodoItemProps): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -315,6 +317,12 @@ const handleDelete = () => {
 
 const handleToggleExpand = () => {
   emit('toggle-expand', props.todo.id)
+}
+
+// 右键菜单
+const handleContextMenu = (event: MouseEvent) => {
+  if (props.readonly) return
+  emit('contextmenu', event, props.todo)
 }
 
 // 拖拽开始

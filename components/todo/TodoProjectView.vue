@@ -213,6 +213,7 @@
                 draggable="true"
                 @dragstart="handleDragStartByLayout(layout, $event)"
                 @click="handleTaskClick(layout.task)"
+                @contextmenu.prevent="handleTaskContextMenu($event, layout.task)"
               >
                 <Icon
                   :name="(layout.task.completed || layout.task.statusIsCompleted) ? ICONS.checkCircle : ICONS.round"
@@ -248,6 +249,19 @@
       v-model:visible="showDetailDialog"
       :todo="editingTask"
       @edit="handleEditFromDetail"
+    />
+
+    <!-- 任务右键菜单 -->
+    <TodoContextMenu
+      v-model:visible="taskContextMenuVisible"
+      :todo="contextMenuTask"
+      :x="taskContextMenuX"
+      :y="taskContextMenuY"
+      @toggle-complete="handleTaskToggleComplete"
+      @edit="handleTaskMenuEdit"
+      @add-child="handleTaskMenuAddChild"
+      @view-detail="handleTaskMenuViewDetail"
+      @delete="handleTaskMenuDelete"
     />
 
     <!-- 笔记右键菜单 -->
@@ -306,10 +320,12 @@ import { useTodoProjectView, type WeekRow, type CellTask, type TaskLayout } from
 import { useDragDrop, type NoteDragData } from '~/composables/useDragDrop'
 import { getDB, generateId, now } from '~/services/db'
 import { useConfirm } from '~/composables/useConfirm'
+import { useTodoStatus } from '~/composables/useTodoStatus'
 import type { TodoItem } from '~/types/todo'
 import type { Note } from '~/types/block'
 import TodoEditDialog from './TodoEditDialog.vue'
 import TodoDetailDialog from './TodoDetailDialog.vue'
+import TodoContextMenu from './TodoContextMenu.vue'
 import NoteContextMenu from '~/components/NoteContextMenu.vue'
 import NoteEditorDialog from '~/components/NoteEditDialog.vue'
 
@@ -373,6 +389,12 @@ const contextMenuVisible = ref(false)
 const contextMenuNote = ref<Note | null>(null)
 const contextMenuX = ref(0)
 const contextMenuY = ref(0)
+
+// 任务右键菜单状态
+const taskContextMenuVisible = ref(false)
+const contextMenuTask = ref<{ id: string; text: string; completed: boolean; noteId: string; createdAt?: string } | null>(null)
+const taskContextMenuX = ref(0)
+const taskContextMenuY = ref(0)
 
 // 笔记编辑对话框状态
 const showNoteEditDialog = ref(false)
@@ -703,6 +725,107 @@ async function handleMenuDeleteNote(note: Note) {
   } catch (err) {
     console.error('删除笔记失败:', err)
   }
+}
+
+// 任务右键菜单
+function handleTaskContextMenu(event: MouseEvent, task: CellTask) {
+  event.preventDefault()
+  event.stopPropagation()
+  contextMenuTask.value = task
+  taskContextMenuX.value = event.clientX
+  taskContextMenuY.value = event.clientY
+  taskContextMenuVisible.value = true
+}
+
+// 任务右键菜单 - 切换完成状态
+async function handleTaskToggleComplete(task: { id: string; text: string; completed: boolean; noteId: string }) {
+  await handleToggleTask(task as CellTask)
+}
+
+// 任务右键菜单 - 编辑任务
+function handleTaskMenuEdit(task: { id: string; text: string; completed: boolean; noteId: string; createdAt?: string }) {
+  // 从 contextMenuTask 获取完整数据
+  const fullTask = contextMenuTask.value as CellTask | null
+  if (!fullTask) return
+
+  editingTask.value = {
+    id: fullTask.id,
+    text: fullTask.text,
+    completed: fullTask.completed,
+    createdAt: fullTask.createdAt || '',
+    startDate: fullTask.startDate,
+    dueDate: fullTask.dueDate,
+    typeId: fullTask.typeId,
+    statusId: fullTask.statusId,
+    priority: fullTask.priority,
+    noteId: fullTask.noteId
+  }
+  isCreating.value = false
+  initialTaskData.value = null
+  showEditDialog.value = true
+}
+
+// 任务右键菜单 - 添加子任务
+async function handleTaskMenuAddChild(task: { id: string; noteId: string }) {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo', noteId: task.noteId }
+    }).exec()
+
+    if (moduleDataList.length > 0) {
+      const doc = moduleDataList[0]
+      const data = doc.get('data') as { todos: TodoItem[] } | undefined
+      const todos = data?.todos || []
+
+      // 获取默认状态
+      const { statuses } = useTodoStatus()
+      const defaultStatus = statuses.value.find(s => s.isDefault) || statuses.value[0]
+
+      const newTask: TodoItem = {
+        id: generateId(),
+        text: '',
+        completed: false,
+        parentId: task.id,
+        createdAt: now()
+      }
+
+      if (defaultStatus) {
+        newTask.statusId = defaultStatus.id
+      }
+
+      todos.push(newTask)
+      await doc.patch({ data: { todos } })
+      await loadData()
+    }
+  } catch (err) {
+    console.error('添加子任务失败:', err)
+  }
+}
+
+// 任务右键菜单 - 查看详情
+function handleTaskMenuViewDetail(task: { id: string; text: string; completed: boolean; noteId: string }) {
+  const fullTask = contextMenuTask.value as CellTask | null
+  if (fullTask) {
+    handleTaskClick(fullTask)
+  }
+}
+
+// 任务右键菜单 - 删除任务
+async function handleTaskMenuDelete(task: { id: string; text: string; completed: boolean; noteId: string }) {
+  const { confirm } = useConfirm()
+  const ok = await confirm({
+    message: `确定要删除任务"${task.text}"吗？`,
+    danger: true
+  })
+  if (!ok) return
+
+  await handleDeleteTask({
+    id: task.id,
+    text: task.text,
+    completed: task.completed,
+    noteId: task.noteId
+  } as TodoItem)
 }
 
 // 笔记编辑完成

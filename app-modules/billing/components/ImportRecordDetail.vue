@@ -41,6 +41,7 @@
                   失败 {{ isPending ? 0 : record.failedCount }}
                 </span>
               </div>
+            </div>
 
             <!-- Pending 编辑态 -->
             <template v-if="isPending">
