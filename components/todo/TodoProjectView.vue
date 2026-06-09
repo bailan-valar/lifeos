@@ -474,10 +474,12 @@ function getTaskWrapperStyle(layout: TaskLayout): Record<string, string> {
   // grid-row 使用计算出的 rowIndex
   const style = {
     gridColumn: `${layout.colIndex + 1} / span ${layout.colSpan}`,
-    gridRow: `${layout.rowIndex}`
+    gridRow: `${layout.rowIndex}`,
+    // 添加调试样式
+    minWidth: `${layout.colSpan * 140}px`
   }
   // 调试：输出布局信息
-  console.log('Task layout:', layout.task.text, 'colIndex:', layout.colIndex, 'colSpan:', layout.colSpan, 'gridColumn:', style.gridColumn)
+  console.log('Task layout:', layout.task.text, 'colIndex:', layout.colIndex, 'colSpan:', layout.colSpan, 'gridColumn:', style.gridColumn, 'minWidth:', style.minWidth)
   return style
 }
 

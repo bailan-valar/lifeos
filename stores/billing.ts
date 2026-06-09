@@ -5,6 +5,7 @@ export type BillingTabId = 'bills' | 'accounts' | 'categories' | 'budgets' | 'ru
 export type BillingViewMode = 'card' | 'table' | 'calendar'
 export type BillingAccountType = 'personal' | 'contact' | 'merchant' | 'other'
 export type BillingCategoryType = 'income' | 'expense'
+export type BillingBudgetType = 'category' | 'project'
 
 export const useBillingStore = defineStore('billing', () => {
   // ========== 导航状态 ==========
@@ -26,6 +27,9 @@ export const useBillingStore = defineStore('billing', () => {
 
   const activeCategorySubTab = ref<BillingCategoryType | 'all'>('expense')
   const categoryMenuExpanded = ref(true)
+
+  const activeBudgetSubTab = ref<BillingBudgetType>('category')
+  const budgetMenuExpanded = ref(true)
 
   // 常量数据
   const tabs = [
@@ -55,6 +59,11 @@ export const useBillingStore = defineStore('billing', () => {
     { type: 'expense' as BillingCategoryType, label: '支出' }
   ]
 
+  const budgetSubTabs = [
+    { type: 'category' as BillingBudgetType, label: '分类预算' },
+    { type: 'project' as BillingBudgetType, label: '项目预算' }
+  ]
+
   // 计算属性
   const accountSubTabTitle = computed(() => {
     const map: Record<string, string> = {
@@ -76,6 +85,14 @@ export const useBillingStore = defineStore('billing', () => {
 
   const accountSubTabOptions = computed(() => accountSubTabs.map(s => ({ value: s.type, label: s.label })))
   const categorySubTabOptions = computed(() => categorySubTabs.map(s => ({ value: s.type, label: s.label })))
+
+  const budgetSubTabTitle = computed(() => {
+    const map: Record<string, string> = {
+      category: '分类预算',
+      project: '项目预算'
+    }
+    return map[activeBudgetSubTab.value] || '预算'
+  })
 
   // 操作
   function toggleSidebar() {
@@ -141,14 +158,19 @@ export const useBillingStore = defineStore('billing', () => {
     accountsMenuExpanded,
     activeCategorySubTab,
     categoryMenuExpanded,
+    activeBudgetSubTab,
+    budgetMenuExpanded,
     tabs,
     mobileTabs,
     accountSubTabs,
     categorySubTabs,
+    budgetSubTabs,
     accountSubTabTitle,
     categorySubTabTitle,
+    budgetSubTabTitle,
     accountSubTabOptions,
     categorySubTabOptions,
+    budgetSubTabOptions: computed(() => budgetSubTabs.map(s => ({ value: s.type, label: s.label }))),
     toggleSidebar,
     setActiveTab,
     onAccountsTabClick,
