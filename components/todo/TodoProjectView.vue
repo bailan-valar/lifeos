@@ -262,6 +262,7 @@
       @add-child="handleTaskMenuAddChild"
       @view-detail="handleTaskMenuViewDetail"
       @delete="handleTaskMenuDelete"
+      @set-date="handleTaskMenuSetDate"
     />
 
     <!-- 笔记右键菜单 -->
@@ -826,6 +827,28 @@ async function handleTaskMenuDelete(task: { id: string; text: string; completed:
     completed: task.completed,
     noteId: task.noteId
   } as TodoItem)
+}
+
+// 任务右键菜单 - 设置日期
+async function handleTaskMenuSetDate(task: { id: string; noteId: string }, date: string | null) {
+  try {
+    const db = await getDB()
+    const moduleDataList = await db.module_data.find({
+      selector: { moduleId: 'todo' }
+    }).exec()
+
+    for (const doc of moduleDataList) {
+      const project = doc.data as TodoProjectData
+      const taskToUpdate = findTaskById(project.todos, task.id)
+      if (taskToUpdate) {
+        taskToUpdate.dueDate = date || undefined
+        await doc.patch({ data: { todos: project.todos } })
+        break
+      }
+    }
+  } catch (err) {
+    console.error('设置任务日期失败:', err)
+  }
 }
 
 // 笔记编辑完成

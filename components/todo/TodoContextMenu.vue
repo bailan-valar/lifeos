@@ -46,15 +46,72 @@
             <span>添加子任务</span>
           </button>
 
-          <!-- 查看详情 -->
-          <button
-            type="button"
-            class="menu-item"
-            @click="handleViewDetail"
-          >
-            <Icon :name="ICONS.info" size="16" />
-            <span>查看详情</span>
-          </button>
+          <!-- 设置日期 -->
+          <div class="menu-item-wrapper">
+            <button
+              type="button"
+              class="menu-item"
+              :class="{ active: dateMenuOpen }"
+              @click="toggleDateMenu"
+            >
+              <Icon :name="ICONS.calendar" size="16" />
+              <span>设置日期</span>
+              <Icon :name="SOLAR_ICONS.nav.up" :class="{ 'rotate-180': dateMenuOpen }" size="14" class="ml-auto" />
+            </button>
+            <Transition name="submenu-slide">
+              <div v-if="dateMenuOpen" class="submenu">
+                <button
+                  type="button"
+                  class="menu-item submenu-item"
+                  @click="handleSetDate('today')"
+                >
+                  <span>今天</span>
+                  <span class="date-hint">{{ dateHints.today }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="menu-item submenu-item"
+                  @click="handleSetDate('tomorrow')"
+                >
+                  <span>明天</span>
+                  <span class="date-hint">{{ dateHints.tomorrow }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="menu-item submenu-item"
+                  @click="handleSetDate('nextWeek')"
+                >
+                  <span>下周</span>
+                  <span class="date-hint">{{ dateHints.nextWeek }}</span>
+                </button>
+                <div class="menu-divider submenu-divider" />
+                <button
+                  type="button"
+                  class="menu-item submenu-item"
+                  @click="handleCustomDate"
+                >
+                  <span>自定义</span>
+                </button>
+                <input
+                  v-if="showDatePicker"
+                  ref="datePickerRef"
+                  type="date"
+                  class="date-picker"
+                  :value="customDateValue"
+                  @change="handleDateChange"
+                  @click.stop
+                />
+                <button
+                  v-if="showDatePicker"
+                  type="button"
+                  class="menu-item submenu-item danger"
+                  @click="handleClearDate"
+                >
+                  <span>清除日期</span>
+                </button>
+              </div>
+            </Transition>
+          </div>
 
           <div class="menu-divider" />
 
@@ -104,8 +161,8 @@ const emit = defineEmits<{
   'toggle-complete': [todo: BaseTask]
   edit: [todo: BaseTask]
   'add-child': [todo: BaseTask]
-  'view-detail': [todo: BaseTask]
   delete: [todo: BaseTask]
+  'set-date': [todo: BaseTask, date: string | null]
 }>()
 
 const { isMobile } = useDevice()
@@ -135,13 +192,6 @@ function handleAddChild() {
   }
 }
 
-function handleViewDetail() {
-  if (props.todo) {
-    emit('view-detail', props.todo)
-    close()
-  }
-}
-
 function handleDelete() {
   if (props.todo) {
     emit('delete', props.todo)
@@ -149,15 +199,104 @@ function handleDelete() {
   }
 }
 
-// ESC 关闭
-onKeyStroke('Escape', close)
+// 日期菜单状态
+const dateMenuOpen = ref(false)
+const showDatePicker = ref(false)
+const customDateValue = ref('')
+const datePickerRef = ref<HTMLInputElement | null>(null)
 
-// 监听可见性变化，调整位置防止溢出
+// 计算日期提示
+const dateHints = computed(() => {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const nextWeek = new Date(today)
+  nextWeek.setDate(nextWeek.getDate() + 7)
+
+  const formatDate = (date: Date) => {
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    return `${month}/${day} ${weekDays[date.getDay()]}`
+  }
+
+  return {
+    today: formatDate(today),
+    tomorrow: formatDate(tomorrow),
+    nextWeek: formatDate(nextWeek)
+  }
+})
+
+function toggleDateMenu() {
+  dateMenuOpen.value = !dateMenuOpen.value
+  showDatePicker.value = false
+}
+
+function handleSetDate(type: 'today' | 'tomorrow' | 'nextWeek') {
+  if (!props.todo) return
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  let targetDate = today
+
+  switch (type) {
+    case 'today':
+      targetDate = today
+      break
+    case 'tomorrow':
+      targetDate = new Date(today)
+      targetDate.setDate(targetDate.getDate() + 1)
+      break
+    case 'nextWeek':
+      targetDate = new Date(today)
+      targetDate.setDate(targetDate.getDate() + 7)
+      break
+  }
+
+  // 格式化为 YYYY-MM-DD
+  const dateStr = targetDate.toISOString().split('T')[0]
+  emit('set-date', props.todo, dateStr)
+  close()
+}
+
+function handleCustomDate() {
+  showDatePicker.value = !showDatePicker.value
+  if (showDatePicker.value) {
+    nextTick(() => {
+      datePickerRef.value?.showPicker()
+    })
+  }
+}
+
+function handleDateChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (props.todo && target.value) {
+    emit('set-date', props.todo, target.value)
+    close()
+  }
+}
+
+function handleClearDate() {
+  if (props.todo) {
+    emit('set-date', props.todo, null)
+    close()
+  }
+}
+
+// 关闭日期菜单当主菜单关闭时
 watch(() => props.visible, (visible) => {
+  if (!visible) {
+    dateMenuOpen.value = false
+    showDatePicker.value = false
+  }
   if (visible) {
     nextTick(adjustPosition)
   }
 })
+
+// ESC 关闭
+onKeyStroke('Escape', close)
 
 function adjustPosition() {
   const menu = document.querySelector('.todo-context-menu .context-menu') as HTMLElement
@@ -258,6 +397,74 @@ function adjustPosition() {
   background: rgba(60, 60, 67, 0.12);
 }
 
+/* 日期子菜单 */
+.menu-item-wrapper {
+  position: relative;
+}
+
+.menu-item.active {
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
+}
+
+.rotate-180 {
+  transform: rotate(180deg);
+}
+
+.ml-auto {
+  margin-left: auto;
+}
+
+.submenu {
+  position: absolute;
+  left: 100%;
+  top: -6px;
+  margin-left: 4px;
+  width: 160px;
+  padding: 6px;
+  background: var(--liquid-bg, rgba(255, 255, 255, 0.92));
+  backdrop-filter: blur(var(--liquid-blur, 20px)) saturate(var(--liquid-saturate, 180%));
+  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--liquid-radius-button, 14px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  z-index: 1;
+}
+
+.context-menu.mobile .submenu {
+  position: static;
+  margin-left: 0;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.submenu-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.date-hint {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.submenu-divider {
+  margin: 6px 0;
+}
+
+.date-picker {
+  width: calc(100% - 24px);
+  margin: 4px 12px;
+  padding: 8px;
+  border: 0.5px solid rgba(60, 60, 67, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  color: rgba(60, 60, 67, 0.85);
+}
+
 /* 过渡动画 */
 .menu-fade-enter-active,
 .menu-fade-leave-active {
@@ -280,6 +487,18 @@ function adjustPosition() {
   transform: scale(0.95);
 }
 
+/* 子菜单动画 */
+.submenu-slide-enter-active,
+.submenu-slide-leave-active {
+  transition: all 0.15s ease;
+}
+
+.submenu-slide-enter-from,
+.submenu-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+
 /* 深色模式 */
 @media (prefers-color-scheme: dark) {
   .context-menu {
@@ -294,6 +513,22 @@ function adjustPosition() {
 
   .menu-item:hover {
     background: rgba(0, 122, 255, 0.15);
+  }
+
+  .menu-item.active {
+    background: rgba(0, 122, 255, 0.15);
+    color: rgb(0, 122, 255);
+  }
+
+  .submenu {
+    background: var(--liquid-bg, rgba(255, 255, 255, 0.08));
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .date-picker {
+    background: rgba(60, 60, 67, 0.3);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.85);
   }
 
   .menu-divider {

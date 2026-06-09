@@ -351,13 +351,12 @@ export function useBills() {
       }
 
       // 精确重复检查：检查数据库中是否有完全相同的账单
-      // 包含：日期、金额、对方、账户、类型
+      // 包含：日期、金额、账户、类型（不包含对方，因为用户可能不设置）
       const existingDuplicate = await db.bills.findOne({
         selector: {
           noteId,
           date: { $gte: `${item.date.slice(0, 10)}T00:00:00.000Z`, $lt: `${item.date.slice(0, 10)}T23:59:59.999Z` },
           amount: item.amount,
-          counterpartyRaw: item.counterparty,
           fromAccountId: item.fromAccountId || '',
           toAccountId: item.toAccountId || '',
           type: item.type || 'expense'

@@ -410,10 +410,6 @@ export async function parseCmbCreditPdf(buffer: ArrayBuffer): Promise<CsvParsedR
   })
 }
 
-/**
- * 去重指纹类型
- */
-type ImportSource = 'alipay' | 'wechat' | 'cmb' | 'cmb_credit'
 
 /**
  * 是否具有精确时间（支付宝、微信有精确到秒的时间）
@@ -423,32 +419,30 @@ function hasPreciseTime(source: ImportSource): boolean {
 }
 
 /**
- * 基础指纹：来源 + 日期 + 金额 + 对方
- * 用于分组同日内相同条件的交易
+ * 基础指纹：来源 + 日期 + 金额
+ * 不包含对方字段，因为用户不可能每次都设置对方
  */
 function buildBaseFingerprint(
   source: ImportSource,
   date: string,
-  amount: number,
-  counterparty: string
+  amount: number
 ): string {
   const dateKey = hasPreciseTime(source) ? date.slice(0, 16) : date.slice(0, 10)
-  return `${source}|${dateKey}|${amount.toFixed(2)}|${counterparty.trim()}`
+  return `${source}|${dateKey}|${amount.toFixed(2)}`
 }
 
 /**
  * 精确去重指纹：包含序号，处理同日多笔相同金额的场景
- * 格式：来源|时间|金额|对方|序号
+ * 格式：来源|时间|金额|序号
  * 序号从0开始，同日内相同基础指纹的交易递增
  */
 export function buildExactFingerprint(
   source: ImportSource,
   date: string,
   amount: number,
-  counterparty: string,
   index: number = 0
 ): string {
-  const base = buildBaseFingerprint(source, date, amount, counterparty)
+  const base = buildBaseFingerprint(source, date, amount)
   // 对于有精确时间的来源，序号通常为0（时间已区分）
   // 对于只有日期的来源，序号用于区分同日多笔
   if (hasPreciseTime(source) && index === 0) {
@@ -458,28 +452,16 @@ export function buildExactFingerprint(
 }
 
 /**
- * 宽松去重指纹：用于跨来源疑似重复检测
- * 只包含日期 + 金额 + 对方，忽略来源和精确时间
- */
-export function buildLooseFingerprint(
-  date: string,
-  amount: number,
-  counterparty: string
-): string {
-  return `${date.slice(0, 10)}|${amount.toFixed(2)}|${counterparty.trim()}`
-}
-
-/**
  * 计算导入数据的序号（用于处理同日多笔相同金额）
  * 对相同基础指纹的行进行分组，每组的序号递增
  */
-export function calculateIndexes(rows: Array<{ source: ImportSource; date: string; amount: number; counterparty: string }>): Map<number, number> {
+export function calculateIndexes(rows: Array<{ source: ImportSource; date: string; amount: number }>): Map<number, number> {
   const indexMap = new Map<number, number>()
   const groupCount = new Map<string, number>()
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const base = buildBaseFingerprint(row.source, row.date, row.amount, row.counterparty)
+    const base = buildBaseFingerprint(row.source, row.date, row.amount)
     const count = groupCount.get(base) || 0
     indexMap.set(i, count)
     groupCount.set(base, count + 1)
@@ -493,5 +475,13 @@ export function calculateIndexes(rows: Array<{ source: ImportSource; date: strin
  * 去重指纹:同一日期 + 金额 + 对方 视为重复
  */
 export function dedupeKey(date: string, amount: number, counterparty: string): string {
-  return buildLooseFingerprint(date, amount, counterparty)
+  // 保持向后兼容，但不再使用对方字段
+  return `${date.slice(0, 10)}|${amount.toFixed(2)}`
+}
+
+/**
+ * @deprecated 已废弃，不再使用对方字段
+ */
+export function buildLooseFingerprint(date: string, amount: number, counterparty: string): string {
+  return `${date.slice(0, 10)}|${amount.toFixed(2)}`
 }

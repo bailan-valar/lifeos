@@ -228,9 +228,8 @@ function buildImportRecordItem(parsed: CsvParsedRow, index: number = 0): ImportR
 
   const debtSubtype = inferDebtSubtype(direction)
   // 使用精确指纹（包含来源、时间、序号），避免跨来源误判，处理同日多笔相同金额
-  const exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, parsed.counterparty, index)
-  // 宽松指纹用于疑似重复检测（仅日期+金额+对方）
-  const looseFingerprint = buildLooseFingerprint(parsed.date, parsed.amount, parsed.counterparty)
+  // 不包含对方字段，因为用户不可能每次都设置对方
+  const exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, index)
 
   // 检查是否重复：精确匹配表示完全相同
   const isDuplicate = props.existingFingerprints.has(exactFingerprint)
@@ -315,8 +314,7 @@ async function onFileChange(event: Event) {
       parsedRows.map(r => ({
         source: source.value,
         date: r.date,
-        amount: r.amount,
-        counterparty: r.counterparty
+        amount: r.amount
       }))
     )
 

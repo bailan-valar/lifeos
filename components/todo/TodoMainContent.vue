@@ -66,6 +66,7 @@
       @add-child="handleMenuAddChild"
       @view-detail="handleMenuViewDetail"
       @delete="handleMenuDelete"
+      @set-date="handleMenuSetDate"
     />
   </main>
 </template>
@@ -90,6 +91,7 @@ interface Emits {
   (e: 'reorder', taskId: string, targetId: string): void
   (e: 'edit', id: string): void
   (e: 'add-child', id: string): void
+  (e: 'set-date', id: string, date: string | null): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -147,6 +149,11 @@ const handleMenuViewDetail = (todo: { id: string }) => {
 // 右键菜单 - 删除
 const handleMenuDelete = (todo: { id: string }) => {
   emit('delete', todo.id)
+}
+
+// 右键菜单 - 设置日期
+const handleMenuSetDate = (todo: { id: string }, date: string | null) => {
+  emit('set-date', todo.id, date)
 }
 </script>
 

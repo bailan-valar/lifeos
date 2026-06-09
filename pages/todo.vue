@@ -61,6 +61,7 @@
             @reorder="handleReorder"
             @edit="openEditDialog"
             @add-child="handleAddChild"
+            @set-date="handleSetDate"
           />
         </template>
       </div>
@@ -279,6 +280,15 @@ const deleteEdit = async (todo: TodoItem) => {
     editingTodo.value = null
   } catch (err) {
     console.error('删除任务失败:', err)
+  }
+}
+
+// 设置任务日期
+const handleSetDate = async (taskId: string, date: string | null) => {
+  try {
+    await todoStore.updateTask(taskId, { dueDate: date || undefined })
+  } catch (err) {
+    console.error('设置任务日期失败:', err)
   }
 }
 
