@@ -284,6 +284,12 @@ function onOpenRulesFromImport() {
 onMounted(() => {
   fab.register('billing', () => billDialogs.openBillDialog())
 
+  // 初始化预算子标签
+  const subTab = route.query.subTab as string
+  if (subTab === 'category' || subTab === 'project') {
+    store.activeBudgetSubTab = subTab
+  }
+
   if (lifecycle.savedViewMode.value) {
     store.viewMode = lifecycle.savedViewMode.value
   }

@@ -6,17 +6,14 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import BillingView from '~/app-modules/billing/BillingView.vue'
 
 const router = useRouter()
-const route = useRoute()
 
 onMounted(() => {
-  // 如果没有tab参数，默认显示budgets（项目预算）
-  if (!route.query.tab) {
-    router.replace({ path: '/billing', query: { tab: 'budgets', subTab: 'project' } })
-  }
+  // 强制默认显示budgets（项目预算）
+  router.replace({ path: '/billing', query: { tab: 'budgets', subTab: 'project' } })
 })
 </script>
 
