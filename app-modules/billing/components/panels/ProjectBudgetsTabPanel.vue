@@ -1,0 +1,211 @@
+<template>
+  <div class="tab-panel">
+    <ProjectBudgetDashboard
+      :year="budgetYear"
+      @edit-cell="openMonthBillsDialog"
+      @note-contextmenu="openNoteContextMenu"
+      @note-click="onNoteClick"
+    />
+  </div>
+  <ProjectBudgetDialog
+    ref="budgetDialogRef"
+    v-if="budgetDialogVisible"
+    :visible="budgetDialogVisible"
+    :budget="editingBudget"
+    :note-options="noteOptions"
+    :default-year="budgetYear"
+    :default-month="new Date().getMonth() + 1"
+    :default-note-id="currentNoteId"
+    @confirm="handleBudgetConfirm"
+    @cancel="closeBudgetDialog"
+    @show-history="openBudgetHistory"
+  />
+  <ProjectBudgetHistory
+    v-if="budgetHistoryVisible"
+    :visible="budgetHistoryVisible"
+    :note-id="historyDialogData.noteId"
+    :note-name="historyDialogData.noteName"
+    :current-budget-id="historyDialogData.currentBudgetId"
+    :history-entries="historyDialogData.historyEntries"
+    @cancel="closeBudgetHistory"
+  />
+  <NoteMonthBillsDialog
+    v-if="monthBillsDialogVisible"
+    :visible="monthBillsDialogVisible"
+    :note-id="monthBillsDialogData.noteId"
+    :note-name="monthBillsDialogData.noteName"
+    :year="monthBillsDialogData.year"
+    :month="monthBillsDialogData.month"
+    @cancel="closeMonthBillsDialog"
+  />
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
+import { useNotes } from '~/composables/useNotes'
+import { useBudgets } from '~/composables/useBudgets'
+import { useToast } from '~/composables/useToast'
+import type { BudgetFormData, BudgetEntry } from '~/types/bill'
+import ProjectBudgetDashboard from '../ProjectBudgetDashboard.vue'
+import ProjectBudgetDialog from '../ProjectBudgetDialog.vue'
+import ProjectBudgetHistory from '../ProjectBudgetHistory.vue'
+import NoteMonthBillsDialog from '../NoteMonthBillsDialog.vue'
+
+const props = defineProps<{
+  budgetYear: number
+}>()
+
+const { success: showSuccess, error: showError } = useToast()
+const { noteOptions, notes } = useNotes()
+const { upsertBudget, budgets, getNoteBudgetEntries } = useBudgets()
+
+// 对话框状态
+const budgetDialogVisible = ref(false)
+const editingBudget = ref<BudgetEntry | undefined>(undefined)
+const budgetDialogRef = ref<InstanceType<typeof ProjectBudgetDialog> | null>(null)
+const currentNoteId = ref<string>('')
+
+// 预算历史对话框状态
+const budgetHistoryVisible = ref(false)
+const historyDialogData = ref({
+  noteId: '',
+  noteName: '',
+  currentBudgetId: '',
+  historyEntries: [] as BudgetEntry[]
+})
+
+// 月份支出列表对话框状态
+const monthBillsDialogVisible = ref(false)
+const monthBillsDialogData = ref({
+  noteId: '',
+  noteName: '',
+  year: new Date().getFullYear(),
+  month: new Date().getMonth() + 1
+})
+
+function getNoteName(noteId: string): string {
+  const note = notes.value.find(n => n.id === noteId)
+  return note?.title || '未知笔记'
+}
+
+function openMonthBillsDialog(payload: { noteId: string; year: number; month: number }) {
+  monthBillsDialogData.value = {
+    noteId: payload.noteId,
+    noteName: getNoteName(payload.noteId),
+    year: payload.year,
+    month: payload.month
+  }
+  monthBillsDialogVisible.value = true
+}
+
+function closeMonthBillsDialog() {
+  monthBillsDialogVisible.value = false
+}
+
+function onNoteClick(payload: { noteId: string; year: number; month: number }) {
+  const { noteId, year, month } = payload
+
+  // 获取该笔记的所有预算配置
+  const noteBudgets = getNoteBudgetEntries(noteId)
+
+  // 找到在指定年月生效的最新配置
+  const targetTime = year * 12 + month
+  const matchedBudget = noteBudgets
+    .filter(b => {
+      const budgetTime = b.effectiveFromYear * 12 + b.effectiveFromMonth
+      return budgetTime <= targetTime
+    })
+    .sort((a, b) => {
+      const aTime = a.effectiveFromYear * 12 + a.effectiveFromMonth
+      const bTime = b.effectiveFromYear * 12 + b.effectiveFromMonth
+      return bTime - aTime // 降序，取最新的
+    })[0]
+
+  // 打开预算对话框
+  if (matchedBudget) {
+    // 编辑现有预算
+    editingBudget.value = matchedBudget
+  } else {
+    // 新增预算
+    editingBudget.value = undefined
+  }
+
+  // 临时保存 noteId
+  currentNoteId.value = noteId
+
+  // 设置默认值并打开对话框
+  budgetDialogVisible.value = true
+
+  // 等待对话框挂载后设置默认值
+  nextTick(() => {
+    if (budgetDialogRef.value) {
+      budgetDialogRef.value.setNoteId(noteId)
+    }
+  })
+}
+
+function closeBudgetDialog() {
+  budgetDialogVisible.value = false
+  editingBudget.value = undefined
+  currentNoteId.value = ''
+}
+
+function openBudgetHistory(noteId: string) {
+  if (!noteId) return
+
+  // 获取该笔记的所有预算历史
+  const historyEntries = getNoteBudgetEntries(noteId)
+
+  // 如果正在编辑预算，使用当前预算的 ID 作为 currentBudgetId
+  const currentBudgetId = editingBudget.value?.id || ''
+
+  historyDialogData.value = {
+    noteId,
+    noteName: getNoteName(noteId),
+    currentBudgetId,
+    historyEntries
+  }
+  budgetHistoryVisible.value = true
+}
+
+function closeBudgetHistory() {
+  budgetHistoryVisible.value = false
+}
+
+async function handleBudgetConfirm(data: BudgetFormData) {
+  try {
+    if (!data.noteId) {
+      showError('请选择笔记')
+      return
+    }
+    if (data.amount <= 0) {
+      showError('预算金额必须大于 0')
+      return
+    }
+    // 项目预算使用 note: 前缀
+    const budgetData = {
+      ...data,
+      categoryId: `note:${data.noteId}`
+    }
+    await upsertBudget(budgetData)
+    showSuccess('预算已保存')
+    closeBudgetDialog()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function openNoteContextMenu(payload: { node: any; x: number; y: number }) {
+  // TODO: 实现笔记上下文菜单（可选）
+}
+</script>
+
+<style scoped>
+.tab-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+</style>

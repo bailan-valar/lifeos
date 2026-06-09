@@ -34,7 +34,12 @@
 
       <!-- 预算Tab -->
       <div v-show="activeTab === 'budgets'" class="tab-panel-wrapper">
-        <BudgetsTabPanel
+        <CategoryBudgetsTabPanel
+          v-if="activeBudgetSubTab === 'category'"
+          :budget-year="budgetYear"
+        />
+        <ProjectBudgetsTabPanel
+          v-else-if="activeBudgetSubTab === 'project'"
           :budget-year="budgetYear"
         />
       </div>
@@ -82,7 +87,8 @@ import BillingMobileTabbar from './components/layout/BillingMobileTabbar.vue'
 import BillsTabPanel from './components/panels/BillsTabPanel.vue'
 import AccountsTabPanel from './components/panels/AccountsTabPanel.vue'
 import CategoriesTabPanel from './components/panels/CategoriesTabPanel.vue'
-import BudgetsTabPanel from './components/panels/BudgetsTabPanel.vue'
+import CategoryBudgetsTabPanel from './components/panels/CategoryBudgetsTabPanel.vue'
+import ProjectBudgetsTabPanel from './components/panels/ProjectBudgetsTabPanel.vue'
 import RulesTabPanel from './components/panels/RulesTabPanel.vue'
 
 
@@ -100,7 +106,7 @@ const route = useRoute()
 
 // 导航与筛选
 const store = useBillingStore()
-const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, currentBudgetMonth, viewMode, sidebarCollapsed } = storeToRefs(store)
+const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, currentBudgetMonth, viewMode, sidebarCollapsed, activeBudgetSubTab } = storeToRefs(store)
 
 // 根据路由查询参数计算当前活跃的Tab
 const activeTab = computed(() => {

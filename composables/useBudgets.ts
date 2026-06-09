@@ -15,6 +15,7 @@ interface BudgetsStore {
   getYearCycleType: (categoryId: string, year: number, noteId?: string) => BudgetCycleType | 'mixed' | null
   getMonthlyEquivalent: (categoryId: string, year: number, month: number, noteId?: string) => number
   getCategoryBudgetEntries: (categoryId: string, noteId?: string) => BudgetEntry[]
+  getNoteBudgetEntries: (noteId: string) => BudgetEntry[]
   startWatching: () => void
   stopWatching: () => void
 }
@@ -212,6 +213,18 @@ function createStore(): BudgetsStore {
       })
   }
 
+  function getNoteBudgetEntries(noteId: string): BudgetEntry[] {
+    // 项目预算使用 note: 前缀存储在 categoryId 字段
+    const noteCategoryId = `note:${noteId}`
+    return budgets.value
+      .filter(b => b.categoryId === noteCategoryId)
+      .sort((a, b) => {
+        const aTime = a.effectiveFromYear * 12 + a.effectiveFromMonth
+        const bTime = b.effectiveFromYear * 12 + b.effectiveFromMonth
+        return aTime - bTime
+      })
+  }
+
   return {
     budgets,
     loading,
@@ -224,6 +237,7 @@ function createStore(): BudgetsStore {
     getYearCycleType,
     getMonthlyEquivalent,
     getCategoryBudgetEntries,
+    getNoteBudgetEntries,
     startWatching,
     stopWatching
   }

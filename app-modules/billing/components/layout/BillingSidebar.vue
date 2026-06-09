@@ -86,7 +86,43 @@
         </div>
       </template>
 
-      <!-- 其他Tab（账单、预算、规则） -->
+      <!-- 预算Tab -->
+      <template v-else-if="tab.id === 'budgets'">
+        <button
+          type="button"
+          class="sidebar-btn"
+          :class="{ active: activeTab === 'budgets' }"
+          :title="store.sidebarCollapsed ? tab.name : ''"
+          @click="handleBudgetsClick"
+        >
+          <Icon :name="tab.icon" size="18" />
+          <span class="sidebar-btn-text">{{ tab.name }}</span>
+          <Icon
+            v-if="!store.sidebarCollapsed"
+            name="solar:alt-arrow-down-linear"
+            size="14"
+            class="submenu-chevron"
+            :class="{ expanded: store.budgetMenuExpanded }"
+          />
+        </button>
+        <div
+          v-if="!store.sidebarCollapsed && store.budgetMenuExpanded"
+          class="sidebar-submenu"
+        >
+          <button
+            v-for="sub in store.budgetSubTabs"
+            :key="sub.type"
+            type="button"
+            class="sidebar-submenu-btn"
+            :class="{ active: activeTab === 'budgets' && store.activeBudgetSubTab === sub.type }"
+            @click="handleBudgetSubTabClick(sub.type)"
+          >
+            {{ sub.label }}
+          </button>
+        </div>
+      </template>
+
+      <!-- 其他Tab（账单、规则） -->
       <button
         v-else
         type="button"
@@ -105,7 +141,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useBillingStore, type BillingAccountType, type BillingCategoryType } from '~/stores/billing'
+import { useBillingStore, type BillingAccountType, type BillingCategoryType, type BillingBudgetType } from '~/stores/billing'
 
 const router = useRouter()
 const route = useRoute()
@@ -153,6 +189,22 @@ function handleAccountSubTabClick(type: BillingAccountType) {
 function handleCategorySubTabClick(type: BillingCategoryType) {
   navigateToTab('categories')
   store.activeCategorySubTab = type
+}
+
+// 处理预算Tab点击
+function handleBudgetsClick() {
+  if (activeTab.value === 'budgets') {
+    store.budgetMenuExpanded = !store.budgetMenuExpanded
+  } else {
+    navigateToTab('budgets')
+    store.budgetMenuExpanded = true
+  }
+}
+
+// 处理预算子Tab点击
+function handleBudgetSubTabClick(type: BillingBudgetType) {
+  navigateToTab('budgets')
+  store.activeBudgetSubTab = type
 }
 </script>
 
