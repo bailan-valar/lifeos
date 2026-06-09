@@ -101,7 +101,7 @@ import type {
   ImportRecordItem,
   ImportRecordStatus
 } from '~/types/bill'
-import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, dedupeKey } from '~/services/csvImport'
+import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactFingerprint, buildLooseFingerprint, dedupeKey } from '~/services/csvImport'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { generateId, now } from '~/services/db'
@@ -195,8 +195,13 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   }
 
   const debtSubtype = inferDebtSubtype(direction)
-  const fingerprint = dedupeKey(parsed.date, parsed.amount, parsed.counterparty)
-  const isDuplicate = props.existingFingerprints.has(fingerprint)
+  // 使用精确指纹（包含来源和时间），避免跨来源误判
+  const exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, parsed.counterparty)
+  // 宽松指纹用于疑似重复检测（仅日期+金额+对方）
+  const looseFingerprint = buildLooseFingerprint(parsed.date, parsed.amount, parsed.counterparty)
+
+  // 检查是否重复：精确匹配表示完全相同
+  const isDuplicate = props.existingFingerprints.has(exactFingerprint)
 
   const suggestion = suggestAccountIds(counterpartyAccount, myAccount, direction, billType)
 
@@ -214,7 +219,7 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
     description: parsed.description,
     amount: parsed.amount,
     direction,
-    fingerprint,
+    fingerprint: exactFingerprint,
     status: 'pending',
     selected: !isDuplicate && !skipped,
     duplicate: isDuplicate,

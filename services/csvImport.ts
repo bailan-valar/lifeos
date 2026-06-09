@@ -411,8 +411,48 @@ export async function parseCmbCreditPdf(buffer: ArrayBuffer): Promise<CsvParsedR
 }
 
 /**
+ * 去重指纹类型
+ */
+type ImportSource = 'alipay' | 'wechat' | 'cmb' | 'cmb_credit'
+
+/**
+ * 是否具有精确时间（支付宝、微信有精确到秒的时间）
+ */
+function hasPreciseTime(source: ImportSource): boolean {
+  return source === 'alipay' || source === 'wechat'
+}
+
+/**
+ * 精确去重指纹：用于完全匹配，防止同一文件重复导入
+ * 包含来源 + 精确时间（精确到分钟）+ 金额 + 对方
+ */
+export function buildExactFingerprint(
+  source: ImportSource,
+  date: string,
+  amount: number,
+  counterparty: string
+): string {
+  // 对于有精确时间的来源，保留到分钟；银行卡/信用卡只保留日期
+  const dateKey = hasPreciseTime(source) ? date.slice(0, 16) : date.slice(0, 10)
+  return `${source}|${dateKey}|${amount.toFixed(2)}|${counterparty.trim()}`
+}
+
+/**
+ * 宽松去重指纹：用于跨来源疑似重复检测
+ * 只包含日期 + 金额 + 对方，忽略来源和精确时间
+ */
+export function buildLooseFingerprint(
+  date: string,
+  amount: number,
+  counterparty: string
+): string {
+  return `${date.slice(0, 10)}|${amount.toFixed(2)}|${counterparty.trim()}`
+}
+
+/**
+ * @deprecated 使用 buildExactFingerprint 替代
  * 去重指纹:同一日期 + 金额 + 对方 视为重复
  */
 export function dedupeKey(date: string, amount: number, counterparty: string): string {
-  return `${date.slice(0, 10)}|${amount.toFixed(2)}|${counterparty.trim()}`
+  return buildLooseFingerprint(date, amount, counterparty)
 }

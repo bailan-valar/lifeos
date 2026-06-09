@@ -161,7 +161,7 @@ import { useImportRecords } from '~/composables/useImportRecords'
 import { useImportRules } from '~/composables/useImportRules'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
-import { dedupeKey } from '~/services/csvImport'
+import { dedupeKey, buildExactFingerprint } from '~/services/csvImport'
 import { storeToRefs } from 'pinia'
 import BillDialog from '../BillDialog.vue'
 import BillBatchEditDialog from '../BillBatchEditDialog.vue'
@@ -245,10 +245,32 @@ const selectedBills = computed(() => props.bills.filter(b => props.selectedIds.i
 // 现有指纹（用于导入去重）
 const existingFingerprints = computed(() => {
   const set = new Set<string>()
+
+  // 1. 从现有账单生成指纹
   for (const b of props.bills) {
+    // 优先使用已保存的精确指纹
+    if (b.importFingerprint) {
+      set.add(b.importFingerprint)
+      continue
+    }
+    // 如果有来源信息，生成精确指纹
+    if (b.importSource) {
+      const exactFp = buildExactFingerprint(
+        b.importSource,
+        b.date,
+        b.amount,
+        b.counterpartyRaw || b.description || ''
+      )
+      set.add(exactFp)
+      continue
+    }
+    // 后备：使用宽松指纹（兼容旧数据）
     set.add(dedupeKey(b.date, b.amount, b.counterpartyRaw || b.description || ''))
   }
+
+  // 2. 从导入记录中的指纹补充
   for (const fp of fingerprintsAcrossRecords.value) set.add(fp)
+
   return set
 })
 
