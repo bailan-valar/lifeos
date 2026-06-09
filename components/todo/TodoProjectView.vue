@@ -553,7 +553,7 @@ async function handleToggleTask(task: CellTask): Promise<void> {
         if (index !== -1) {
           data.todos[index].completed = !data.todos[index].completed
           await doc.patch({ data: { todos: data.todos } })
-          await loadData()
+          // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
           break
         }
       }
@@ -721,7 +721,7 @@ async function handleMenuDeleteNote(note: Note) {
       }
     }
 
-    await loadData()
+    // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
   } catch (err) {
     console.error('删除笔记失败:', err)
   }
@@ -796,7 +796,7 @@ async function handleTaskMenuAddChild(task: { id: string; noteId: string }) {
 
       todos.push(newTask)
       await doc.patch({ data: { todos } })
-      await loadData()
+      // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
     }
   } catch (err) {
     console.error('添加子任务失败:', err)
@@ -830,12 +830,12 @@ async function handleTaskMenuDelete(task: { id: string; text: string; completed:
 
 // 笔记编辑完成
 async function handleNoteSaved(note: Note) {
-  await loadData()
+  // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
 }
 
 // 笔记创建完成
 async function handleNoteCreated(note: Note) {
-  await loadData()
+  // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
 }
 
 // 保存任务
@@ -853,7 +853,7 @@ async function handleSaveTask(todo: TodoItem): Promise<void> {
         if (index !== -1) {
           data.todos[index] = todo
           await doc.patch({ data: { todos: data.todos } })
-          await loadData()
+          // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
           break
         }
       }
@@ -900,8 +900,8 @@ async function handleCreateTask(todo: TodoItem): Promise<void> {
       })
     }
 
-    await loadData()
     showEditDialog.value = false
+    // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
   } catch (err) {
     console.error('创建任务失败:', err)
   }
@@ -922,7 +922,7 @@ async function handleDeleteTask(todo: TodoItem): Promise<void> {
         if (index !== -1) {
           data.todos.splice(index, 1)
           await doc.patch({ data: { todos: data.todos } })
-          await loadData()
+          // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
           break
         }
       }

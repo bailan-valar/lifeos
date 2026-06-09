@@ -528,18 +528,26 @@ async function handleTaskMenuEdit(task) {
 
 ### 保存操作的数据刷新
 
-保存后有两种刷新策略：
+**重要**：保存后**不要手动调用** `loadData()`。
 
-1. **通过 `onCollectionChange` 自动刷新**（推荐）
 ```ts
-// 保存后不需要手动调用 loadData
+// ✅ 正确：保存后让 onCollectionChange 自动刷新
 await doc.patch({ data: { todos: data.todos } })
-// onCollectionChange 会自动触发 loadData(true)
+// 不需要调用 loadData()，onCollectionChange 会自动触发 loadData(true)
+
+// ❌ 错误：手动调用 loadData 会显示不必要的 loading
+await doc.patch({ data: { todos: data.todos } })
+await loadData()  // 会导致 loading 闪烁，且与 onCollectionChange 重复刷新
 ```
 
-2. **手动调用 `loadData()`**（必要时）
+**原理**：`subscribeChanges()` 已订阅所有相关集合的变更：
 ```ts
-// 仅在自动刷新不足以更新视图时使用
-await doc.patch({ data: { todos: data.todos } })
-await loadData()  // 这会显示 loading
+function subscribeChanges(): void {
+  onCollectionChange('notes', () => loadData(true))
+  onCollectionChange('module_data', () => loadData(true))      // 待办数据变更
+  onCollectionChange('classes', () => loadData(true))
+  onCollectionChange('noteClassBindings', () => loadData(true))
+}
 ```
+
+任何对数据库的修改都会自动触发**静默刷新**，无需手动干预。
