@@ -1718,14 +1718,28 @@ onUnmounted(() => {
   border-left-width: 2px;
 }
 
-/* 子任务指示符 */
+/* 子任务指示符和连线 */
 .task-chip.has-parent {
   padding-left: 6px;
+  position: relative;
+  border-left: 2px solid rgba(60, 60, 67, 0.2);
+  margin-left: 4px;
+}
+
+.task-chip.has-parent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: rgba(60, 60, 67, 0.2);
+  transform: translateY(-50%);
 }
 
 .parent-indicator {
   flex-shrink: 0;
-  color: rgba(60, 60, 67, 0.35);
+  color: rgba(60, 60, 67, 0.4);
   margin-left: 2px;
   transform: rotate(-90deg);
 }
@@ -2096,7 +2110,15 @@ onUnmounted(() => {
   }
 
   .parent-indicator {
-    color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .task-chip.has-parent {
+    border-left-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .task-chip.has-parent::before {
+    background: rgba(255, 255, 255, 0.2);
   }
 }
 
