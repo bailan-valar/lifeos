@@ -58,17 +58,19 @@ export const useTodoStore = defineStore('todo', () => {
 
       switch (viewMode.value) {
         case 'today':
-          if (task.completed) return false
+          // 今日视图：显示截止日期为今天或之前，且未完成的任务
+          // 未完成包括：completed=false 且状态不是完成状态
+          if (task.completed || task.statusIsCompleted) return false
           const dueDate = task.dueDate || task.createdAt.slice(0, 10)
           return dueDate <= today
 
         case 'overdue':
-          if (task.completed) return false
+          if (task.completed || task.statusIsCompleted) return false
           const due = task.dueDate || task.createdAt.slice(0, 10)
           return due < today
 
         case 'important':
-          if (task.completed) return false
+          if (task.completed || task.statusIsCompleted) return false
           return task.priority === 'high'
 
         default:
@@ -230,26 +232,28 @@ export const useTodoStore = defineStore('todo', () => {
   // 统计信息
   const stats = computed(() => {
     const today = getTodayString()
+    const isTaskCompleted = (t: TodoWithMeta) => t.completed || t.statusIsCompleted
+
     const todayTasks = allTasks.value.filter(t => {
-      if (t.parentId || t.completed) return false
+      if (t.parentId || isTaskCompleted(t)) return false
       const due = t.dueDate || t.createdAt.slice(0, 10)
       return due <= today
     })
 
     const overdueTasks = allTasks.value.filter(t => {
-      if (t.parentId || t.completed) return false
+      if (t.parentId || isTaskCompleted(t)) return false
       const due = t.dueDate || t.createdAt.slice(0, 10)
       return due < today
     })
 
     const importantTasks = allTasks.value.filter(t => {
-      if (t.parentId || t.completed) return false
+      if (t.parentId || isTaskCompleted(t)) return false
       return t.priority === 'high'
     })
 
     // 计算本周任务数量
     const weekTasks = allTasks.value.filter(t => {
-      if (t.parentId || t.completed) return false
+      if (t.parentId || isTaskCompleted(t)) return false
       const due = t.dueDate || t.createdAt.slice(0, 10)
       const taskDate = new Date(due)
       const todayDate = new Date(today)
@@ -267,7 +271,7 @@ export const useTodoStore = defineStore('todo', () => {
       week: weekTasks.length,
       overdue: overdueTasks.length,
       important: importantTasks.length,
-      completed: allTasks.value.filter(t => !t.parentId && t.completed).length
+      completed: allTasks.value.filter(t => !t.parentId && isTaskCompleted(t)).length
     }
   })
 
@@ -290,16 +294,20 @@ export const useTodoStore = defineStore('todo', () => {
       if (result.types.length > 0) types.value = result.types
 
       // 更新任务列表
-      allTasks.value = result.tasks.map(task => ({
-        ...task,
-        noteTitle: notesCache.value.get(task.noteId),
-        statusName: task.statusId ? statuses.value.find(s => s.id === task.statusId)?.name : undefined,
-        statusColor: task.statusId ? statuses.value.find(s => s.id === task.statusId)?.color : undefined,
-        statusIcon: (task.statusId ? statuses.value.find(s => s.id === task.statusId)?.icon : undefined) ?? ICONS.round,
-        typeName: task.typeId ? types.value.find(t => t.id === task.typeId)?.name : undefined,
-        typeColor: task.typeId ? types.value.find(t => t.id === task.typeId)?.color : undefined,
-        typeIcon: task.typeId ? types.value.find(t => t.id === task.typeId)?.icon : undefined
-      }))
+      allTasks.value = result.tasks.map(task => {
+        const status = task.statusId ? statuses.value.find(s => s.id === task.statusId) : undefined
+        return {
+          ...task,
+          noteTitle: notesCache.value.get(task.noteId),
+          statusName: status?.name,
+          statusColor: status?.color,
+          statusIcon: status?.icon ?? ICONS.round,
+          statusIsCompleted: status?.isCompleted,
+          typeName: task.typeId ? types.value.find(t => t.id === task.typeId)?.name : undefined,
+          typeColor: task.typeId ? types.value.find(t => t.id === task.typeId)?.color : undefined,
+          typeIcon: task.typeId ? types.value.find(t => t.id === task.typeId)?.icon : undefined
+        }
+      })
     } catch (err) {
       console.error('加载待办任务失败:', err)
       error.value = '加载待办任务失败'
@@ -318,6 +326,7 @@ export const useTodoStore = defineStore('todo', () => {
   }) {
     // 乐观更新：先创建本地对象
     const { generateId, now } = await import('~/services/db')
+    const status = options?.statusId ? statuses.value.find(s => s.id === options.statusId) : undefined
     const tempTask: TodoWithMeta = {
       id: generateId(),
       text,
@@ -331,9 +340,10 @@ export const useTodoStore = defineStore('todo', () => {
       typeName: options?.typeId ? types.value.find(t => t.id === options.typeId)?.name : undefined,
       typeColor: options?.typeId ? types.value.find(t => t.id === options.typeId)?.color : undefined,
       typeIcon: options?.typeId ? types.value.find(t => t.id === options.typeId)?.icon : undefined,
-      statusName: options?.statusId ? statuses.value.find(s => s.id === options.statusId)?.name : undefined,
-      statusColor: options?.statusId ? statuses.value.find(s => s.id === options.statusId)?.color : undefined,
-      statusIcon: (options?.statusId ? statuses.value.find(s => s.id === options.statusId)?.icon : undefined) ?? ICONS.round
+      statusName: status?.name,
+      statusColor: status?.color,
+      statusIcon: status?.icon ?? ICONS.round,
+      statusIsCompleted: status?.isCompleted
     }
 
     // 立即更新 UI
@@ -346,13 +356,15 @@ export const useTodoStore = defineStore('todo', () => {
       // 用数据库返回的真实数据替换临时数据
       const index = allTasks.value.findIndex(t => t.id === tempTask.id)
       if (index !== -1 && result) {
+        const resultStatus = result.statusId ? statuses.value.find(s => s.id === result.statusId) : undefined
         allTasks.value[index] = {
           ...result,
           noteId: result.noteId,
           noteTitle: notesCache.value.get(result.noteId),
-          statusName: result.statusId ? statuses.value.find(s => s.id === result.statusId)?.name : undefined,
-          statusColor: result.statusId ? statuses.value.find(s => s.id === result.statusId)?.color : undefined,
-          statusIcon: (result.statusId ? statuses.value.find(s => s.id === result.statusId)?.icon : undefined) ?? ICONS.round,
+          statusName: resultStatus?.name,
+          statusColor: resultStatus?.color,
+          statusIcon: resultStatus?.icon ?? ICONS.round,
+          statusIsCompleted: resultStatus?.isCompleted,
           typeName: result.typeId ? types.value.find(t => t.id === result.typeId)?.name : undefined,
           typeColor: result.typeId ? types.value.find(t => t.id === result.typeId)?.color : undefined,
           typeIcon: result.typeId ? types.value.find(t => t.id === result.typeId)?.icon : undefined
