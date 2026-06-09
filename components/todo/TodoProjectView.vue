@@ -239,6 +239,7 @@
       :todo="editingTask"
       :is-creating="isCreating"
       :initial-data="initialTaskData"
+      :available-parent-todos="availableParentTodos"
       @save="handleSaveTask"
       @create="handleCreateTask"
       @delete="handleDeleteTask"
@@ -402,6 +403,20 @@ const showNoteEditDialog = ref(false)
 const noteToEdit = ref<Note | null>(null)
 const isNoteCreating = ref(false)
 const parentNoteId = ref<string | undefined>(undefined)
+
+// 可用父任务列表（从当前加载的任务中获取）
+const availableParentTodos = computed(() => {
+  // 返回所有可以作为父任务的任务列表
+  // 排除已完成的任务（可选，根据需求决定）
+  return tasks.value
+    .filter(t => !t.completed && !t.statusIsCompleted)
+    .map(t => ({
+      id: t.id,
+      text: t.text,
+      parentId: t.parentId,
+      completed: t.completed
+    }))
+})
 
 // 周范围标签
 const weekRangeLabel = computed(() => {

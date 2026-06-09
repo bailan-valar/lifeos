@@ -119,15 +119,22 @@
           </div>
         </div>
 
-        <!-- 父任务选择（仅在创建子任务时显示） -->
-        <div v-if="showParentSelector" class="form-group">
-          <label class="form-label">父任务</label>
+        <!-- 父任务选择 -->
+        <div v-if="showParentSelector" class="form-group full-width">
+          <label class="form-label">
+            <Icon :name="SOLAR_ICONS.layer.layers || 'solar:layers-linear'" :size="14" />
+            父任务
+          </label>
           <SelectPicker
             v-model="form.parentId"
             :options="parentTodoOptions"
-            placeholder="选择父任务（可选）"
+            :placeholder="isEditMode && props.todo?.parentId ? '更改父任务' : '选择父任务（可选）'"
             clearable
+            searchable
           />
+          <p v-if="isEditMode && props.todo?.parentId && form.parentId !== props.todo.parentId" class="form-hint">
+            清除选择后将移除父任务关系
+          </p>
         </div>
       </div>
     </div>
@@ -232,8 +239,37 @@ const form = reactive<{
 
 const isEditMode = computed(() => !!props.todo)
 
+// 计算当前任务的祖先ID（包括自己），用于禁用会形成循环引用的任务
+const ancestorIds = computed(() => {
+  if (!props.todo?.parentId) return new Set([props.todo?.id].filter(Boolean))
+
+  const ancestors = new Set<string>()
+  const currentTodo = props.availableParentTodos.find(t => t.id === props.todo?.id)
+  if (currentTodo) {
+    ancestors.add(currentTodo.id)
+  }
+
+  // 向上遍历父任务链
+  let currentId = props.todo?.parentId
+  while (currentId) {
+    ancestors.add(currentId)
+    const parent = props.availableParentTodos.find(t => t.id === currentId)
+    currentId = parent?.parentId || ''
+  }
+
+  return ancestors
+})
+
 const showParentSelector = computed(() => {
-  return !props.parentId && props.availableParentTodos.length > 0
+  // 创建模式：有可用的父任务时显示
+  // 编辑模式：始终显示（允许更改父任务）
+  if (isEditMode.value) {
+    return props.availableParentTodos.length > 0
+  }
+  // 新建且有预定义父任务时显示（如通过"添加子任务"创建）
+  if (props.parentId) return true
+  // 新建且有可选父任务时显示
+  return props.availableParentTodos.length > 0
 })
 
 // 优先级选项
@@ -261,7 +297,12 @@ const parentTodoOptions = computed(() => {
   return props.availableParentTodos.map(todo => ({
     value: todo.id,
     label: todo.text,
-    disabled: todo.id === props.todo?.id
+    // 禁用：自己、自己的祖先（会形成循环引用）、自己的子任务
+    disabled: ancestorIds.value.has(todo.id) ||
+             // 编辑模式下，还要禁用当前任务的直接子任务（避免反向循环）
+             (isEditMode.value && props.availableParentTodos.some(t =>
+               t.id === todo.id && t.parentId === props.todo?.id
+             ))
   }))
 })
 
@@ -507,6 +548,23 @@ watch(() => props.visible, async (visible) => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 全宽表单组 */
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-hint {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  .form-hint {
+    color: rgba(255, 255, 255, 0.5);
+  }
 }
 
 /* 响应式设计 */

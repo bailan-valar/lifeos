@@ -37,7 +37,6 @@
 
           <!-- 添加子任务 -->
           <button
-            v-if="!todo?.parentId"
             type="button"
             class="menu-item"
             @click="handleAddChild"
