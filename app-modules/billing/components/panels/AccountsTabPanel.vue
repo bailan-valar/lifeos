@@ -45,7 +45,7 @@
         @view-statements="openStatementList"
         @adjust-balance="openBalanceAdjustDialog"
         @installment="openInstallmentDialog"
-        @view-detail="openAccountDialog($event)"
+        @view-detail="navigateTo('/billing/accounts/' + $event.id)"
       />
     </div>
 
