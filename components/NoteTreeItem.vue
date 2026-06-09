@@ -30,13 +30,13 @@
 
       <div class="note-item-body">
         <div class="note-title">{{ note.title || '无标题' }}</div>
-        <Icon
+        <span
           v-if="noteClass"
-          :name="noteClass.icon"
-          :style="{ color: noteClass.color }"
-          class="note-class-icon"
-          size="12"
-        />
+          class="note-class-badge"
+          :style="{ backgroundColor: noteClass.color + '20', color: noteClass.color }"
+        >
+          {{ noteClass.name }}
+        </span>
       </div>
 
       <div class="note-item-actions">
@@ -302,9 +302,13 @@ function useNoteTreeContext() {
   flex: 1;
 }
 
-.note-class-icon {
+.note-class-badge {
   flex-shrink: 0;
-  opacity: 0.7;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .note-item-actions {
