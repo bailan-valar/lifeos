@@ -34,6 +34,7 @@ export interface CellTask {
   createdAt?: string
   noteId: string
   parentId?: string  // 父任务ID，用于显示父子关系
+  hasChildren?: boolean  // 是否有子任务
   isUndated?: boolean  // 是否为无日期待办
 }
 
@@ -144,14 +145,19 @@ function isTaskInRange(task: TodoWithMeta, targetDate: string): boolean {
  * 计算任务在本周视图中的布局信息
  * @param task - 待办任务
  * @param weekDates - 本周的日期数组
+ * @param allTasks - 所有任务列表，用于检查是否有子任务
  * @returns 任务布局信息，如果任务不在本周显示则返回 null
  */
 function calculateTaskLayout(
   task: TodoWithMeta,
-  weekDates: WeekDate[]
+  weekDates: WeekDate[],
+  allTasks?: TodoWithMeta[]
 ): TaskLayout | null {
   const dueDate = parseTaskDate(task.dueDate)
   const startDate = parseTaskDate(task.startDate)
+
+  // 检查是否有子任务
+  const hasChildren = allTasks ? allTasks.some(t => t.parentId === task.id) : false
 
   // 如果没有截止日期，放在无日期列（索引 7）
   if (!dueDate) {
@@ -172,6 +178,7 @@ function calculateTaskLayout(
         createdAt: task.createdAt,
         noteId: task.noteId,
         parentId: task.parentId,
+        hasChildren,
         isUndated: true
       },
       colIndex: 7,  // 无日期列在最后
@@ -224,6 +231,7 @@ function calculateTaskLayout(
       createdAt: task.createdAt,
       noteId: task.noteId,
       parentId: task.parentId,
+      hasChildren,
       isUndated: false
     },
     colIndex: startIdx,
@@ -414,7 +422,7 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
 
       // 处理未完成的任务（已按父子关系排序）
       for (const task of sortedPendingTasks) {
-        const layout = calculateTaskLayout(task, weekDates.value)
+        const layout = calculateTaskLayout(task, weekDates.value, noteTasks)
         if (layout) {
           // 计算该任务应该在的行位置
           // 检查任务跨越的所有列，找出最大行数
@@ -441,7 +449,7 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
 
       // 处理已完成的任务（已按父子关系排序）
       for (const task of sortedCompletedTasks) {
-        const layout = calculateTaskLayout(task, weekDates.value)
+        const layout = calculateTaskLayout(task, weekDates.value, noteTasks)
         if (layout) {
           // 计算该任务应该在的行位置
           // 检查任务跨越的所有列，找出最大行数

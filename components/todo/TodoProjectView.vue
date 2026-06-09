@@ -208,6 +208,7 @@
                   medium: layout.task.priority === 'medium',
                   'multi-day': layout.isMultiDay,
                   'has-parent': layout.task.parentId,
+                  'has-children': layout.task.hasChildren,
                   'dragging': isDragging && dragType === 'task' && (dragDrop.dragState.value.dragData as any)?.id === layout.task.id
                 }"
                 :style="getTaskStyle(layout.task)"
@@ -224,6 +225,10 @@
                 />
                 <!-- 子任务指示符 -->
                 <Icon v-if="layout.task.parentId" :name="SOLAR_ICONS.nav.right" :size="10" class="parent-indicator" title="子任务" />
+                <!-- 父任务有子任务的标记 -->
+                <span v-if="layout.task.hasChildren" class="has-children-badge" title="有子任务">
+                  <Icon :name="SOLAR_ICONS.layer.layers" :size="11" />
+                </span>
                 <span class="task-text">{{ layout.task.text }}</span>
                 <span v-if="layout.isMultiDay" class="task-duration">
                   {{ formatTaskDuration(layout) }}
@@ -1723,40 +1728,60 @@ onUnmounted(() => {
 /* 子任务指示符和连线 */
 .task-chip.has-parent {
   position: relative;
-  padding-left: 10px;
+  padding-left: 14px;
 }
 
 .task-chip.has-parent::before {
   content: '';
   position: absolute;
-  left: 0;
+  left: 6px;
   top: 0;
-  bottom: 0;
-  width: 3px;
-  background: rgba(60, 60, 67, 0.25);
-  border-radius: 2px 0 0 2px;
+  bottom: -6px;
+  width: 2px;
+  background: rgba(60, 60, 67, 0.2);
 }
 
 .task-chip.has-parent::after {
   content: '';
   position: absolute;
-  left: 0;
+  left: 2px;
   top: 50%;
-  width: 10px;
+  width: 6px;
   height: 2px;
-  background: rgba(60, 60, 67, 0.25);
-  transform: translateY(-50%);
+  background: rgba(60, 60, 67, 0.2);
 }
 
 .parent-indicator {
   flex-shrink: 0;
-  color: rgba(60, 60, 67, 0.4);
-  margin-left: 2px;
+  color: rgba(60, 60, 67, 0.3);
+  margin-right: 2px;
   transform: rotate(-90deg);
 }
 
+/* 父任务有子任务的标记 */
+.task-chip.has-children {
+  position: relative;
+}
+
+.task-chip.has-children .has-children-badge {
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+  color: rgba(60, 60, 67, 0.4);
+}
+
+.task-chip.has-children::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  bottom: -6px;
+  width: 2px;
+  height: 6px;
+  background: rgba(60, 60, 67, 0.2);
+}
+
 .task-chip.has-parent .task-text {
-  margin-left: 2px;
+  margin-left: 0;
 }
 
 .task-text {
@@ -2125,8 +2150,17 @@ onUnmounted(() => {
   }
 
   .task-chip.has-parent::before,
-  .task-chip.has-parent::after {
-    background: rgba(255, 255, 255, 0.3);
+  .task-chip.has-parent::after,
+  .task-chip.has-children::after {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  .task-chip.has-children .has-children-badge {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .parent-indicator {
+    color: rgba(255, 255, 255, 0.35);
   }
 }
 
