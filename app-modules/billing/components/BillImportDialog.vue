@@ -39,11 +39,22 @@
             type="button"
             class="type-btn"
             :class="{ active: source === s.value }"
-            @click="source = s.value"
+            @click="onSourceChange(s.value)"
           >
             {{ s.label }}
           </button>
         </div>
+      </div>
+
+      <div v-if="source === 'cmb' || source === 'cmb_credit'" class="form-group">
+        <label class="form-label">默认账户</label>
+        <AccountPicker
+          v-model="defaultAccountId"
+          :accounts="props.accounts"
+          placeholder="不设置（逐条匹配）"
+          clearable
+        />
+        <div class="form-hint">设置后，未匹配规则的交易将统一使用此账户</div>
       </div>
 
       <div class="form-group">
@@ -113,6 +124,7 @@ import {
   inferDebtSubtype,
   suggestAccountIds
 } from '~/composables/useAccountMatcher'
+import AccountPicker from './AccountPicker.vue'
 
 const props = defineProps<{
   noteId: string
@@ -143,10 +155,24 @@ const source = ref<ImportSource>('alipay')
 const parseError = ref('')
 const parsing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const defaultAccountId = ref('')
 
 const fileAccept = computed(() => {
   if (source.value === 'cmb' || source.value === 'cmb_credit') return '.pdf'
   return '.csv,.xlsx'
+})
+
+// 根据来源筛选默认账户的可选账户类型
+const defaultAccountSubtypes = computed(() => {
+  if (source.value === 'cmb') return ['debit_card']
+  if (source.value === 'cmb_credit') return ['credit_card']
+  return undefined
+})
+
+// 可用于默认账户的账户列表
+const eligibleDefaultAccounts = computed(() => {
+  if (!defaultAccountSubtypes.value) return []
+  return props.accounts.filter(a => a.type === 'personal' && defaultAccountSubtypes.value?.includes(a.subtype || 'cash'))
 })
 
 function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
@@ -169,6 +195,12 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   if (paymentMethodRule?.accountId) {
     const ruleAccount = props.accounts.find(a => a.id === paymentMethodRule.accountId)
     if (ruleAccount) myAccount = ruleAccount
+  }
+
+  // 默认账户 → 我的账户（仅在未通过规则匹配时使用）
+  if (!myAccount && defaultAccountId.value) {
+    const defaultAccount = props.accounts.find(a => a.id === defaultAccountId.value)
+    if (defaultAccount) myAccount = defaultAccount
   }
 
   // 商品说明匹配到的规则 → 也映射为对方账户（若未设置则不影响）
@@ -323,6 +355,12 @@ function setTab(tab: 'import' | 'history') {
   emit('tab-change', tab)
 }
 
+function onSourceChange(newSource: ImportSource) {
+  source.value = newSource
+  // 切换来源时重置默认账户
+  defaultAccountId.value = ''
+}
+
 function formatDateTime(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -368,6 +406,7 @@ function reset() {
   parseError.value = ''
   parsing.value = false
   activeTab.value = 'import'
+  defaultAccountId.value = ''
   if (fileInput.value) fileInput.value.value = ''
 }
 
