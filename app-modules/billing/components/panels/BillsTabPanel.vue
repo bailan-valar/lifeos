@@ -149,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRefs } from 'vue'
+import { computed, ref, toRefs, onMounted } from 'vue'
 import type { Bill, BillFormData, ImportRecord, ImportRule, ImportRuleFormData, BillSplitItem, BillAllocateItem, RefundFormData } from '~/types/bill'
 import { useBillingStore } from '~/stores/billing'
 import { useBills } from '~/composables/useBills'
@@ -208,7 +208,7 @@ const { accounts } = useAccounts()
 const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
 const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore, splitBill, allocatePeriod, createRefundBill } = useBills()
-const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords } = useImportRecords()
+const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords, loadAllBillFingerprints } = useImportRecords()
 const { rules: importRules, createImportRule, updateImportRule } = useImportRules()
 
 // 对话框状态（使用单例与 BillingView 同步）
@@ -242,36 +242,27 @@ const netBalance = computed(() => sub(totalIncome.value, totalExpense.value))
 
 const selectedBills = computed(() => props.bills.filter(b => props.selectedIds.includes(b.id)))
 
+// 从数据库加载的所有账单指纹（异步加载）
+const allBillFingerprints = ref<Set<string>>(new Set())
+
 // 现有指纹（用于导入去重）
 const existingFingerprints = computed(() => {
-  const set = new Set<string>()
+  const set = new Set<string>(allBillFingerprints.value)
 
-  // 1. 从现有账单生成指纹
-  for (const b of props.bills) {
-    // 优先使用已保存的精确指纹
-    if (b.importFingerprint) {
-      set.add(b.importFingerprint)
-      continue
-    }
-    // 如果有来源信息，生成精确指纹
-    if (b.importSource) {
-      const exactFp = buildExactFingerprint(
-        b.importSource,
-        b.date,
-        b.amount,
-        b.counterpartyRaw || b.description || ''
-      )
-      set.add(exactFp)
-      continue
-    }
-    // 后备：使用宽松指纹（兼容旧数据）
-    set.add(dedupeKey(b.date, b.amount, b.counterpartyRaw || b.description || ''))
-  }
-
-  // 2. 从导入记录中的指纹补充
+  // 从导入记录中的指纹补充
   for (const fp of fingerprintsAcrossRecords.value) set.add(fp)
 
   return set
+})
+
+// 加载所有账单指纹
+async function refreshBillFingerprints() {
+  allBillFingerprints.value = await loadAllBillFingerprints(props.noteId)
+}
+
+// 组件挂载时加载指纹
+onMounted(() => {
+  refreshBillFingerprints()
 })
 
 // 事件处理

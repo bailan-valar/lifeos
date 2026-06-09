@@ -38,6 +38,7 @@ interface ImportRecordsStore {
   rollback: (id: string) => Promise<{ rolledBack: number; missing: number }>
   getById: (id: string) => ImportRecord | null
   fingerprintsAcrossRecords: ComputedRef<Set<string>>
+  loadAllBillFingerprints: (noteId?: string) => Promise<Set<string>>
 }
 
 function createStore(): ImportRecordsStore {
@@ -151,6 +152,36 @@ function createStore(): ImportRecordsStore {
     return records.value.find(r => r.id === id) ?? null
   }
 
+  /**
+   * 从数据库加载所有账单的指纹（用于去重判断）
+   * 只查询 importFingerprint 字段，不加载完整账单数据
+   */
+  async function loadAllBillFingerprints(noteId?: string): Promise<Set<string>> {
+    try {
+      const db = await getDB()
+      const selector: Record<string, unknown> = noteId ? { noteId } : {}
+      // 只查询有 importFingerprint 的账单
+      const result = await db.bills.find({
+        selector: {
+          ...selector,
+          importFingerprint: { $exists: true }
+        },
+        // 只返回指纹字段，减少数据传输
+        fields: ['importFingerprint']
+      }).exec()
+
+      const set = new Set<string>()
+      for (const doc of result) {
+        const fp = doc.get('importFingerprint') as string
+        if (fp) set.add(fp)
+      }
+      return set
+    } catch (e) {
+      console.error('Failed to load bill fingerprints:', e)
+      return new Set<string>()
+    }
+  }
+
   const fingerprintsAcrossRecords = computed(() => {
     const set = new Set<string>()
     for (const record of records.value) {
@@ -173,7 +204,8 @@ function createStore(): ImportRecordsStore {
     deleteImportRecord,
     rollback,
     getById,
-    fingerprintsAcrossRecords
+    fingerprintsAcrossRecords,
+    loadAllBillFingerprints
   }
 }
 
