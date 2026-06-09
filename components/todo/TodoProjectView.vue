@@ -1735,7 +1735,7 @@ onUnmounted(() => {
 .task-chip.has-parent::before {
   content: '';
   position: absolute;
-  left: 5px;
+  left: 6px;
   top: 0;
   bottom: 0;
   width: 2px;
@@ -1746,7 +1746,7 @@ onUnmounted(() => {
 .task-chip.has-parent::after {
   content: '';
   position: absolute;
-  left: 5px;
+  left: 6px;
   top: 50%;
   width: 8px;
   height: 2px;
@@ -1764,6 +1764,7 @@ onUnmounted(() => {
 /* 父任务有子任务的标记 */
 .task-chip.has-children {
   position: relative;
+  margin-bottom: 4px;
 }
 
 .task-chip.has-children .has-children-badge {
@@ -1771,6 +1772,17 @@ onUnmounted(() => {
   align-items: center;
   margin-left: 4px;
   color: rgba(60, 60, 67, 0.4);
+}
+
+/* 父任务底部向下延伸的竖线 */
+.task-chip.has-children::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  bottom: -8px;
+  width: 2px;
+  height: 8px;
+  background: rgba(60, 60, 67, 0.2);
 }
 
 .task-chip.has-parent .task-text {
@@ -2143,7 +2155,8 @@ onUnmounted(() => {
   }
 
   .task-chip.has-parent::before,
-  .task-chip.has-parent::after {
+  .task-chip.has-parent::after,
+  .task-chip.has-children::after {
     background: rgba(255, 255, 255, 0.25);
   }
 
