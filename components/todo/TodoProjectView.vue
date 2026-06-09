@@ -203,7 +203,7 @@
               <div
                 class="task-chip"
                 :class="{
-                  completed: layout.task.completed,
+                  completed: layout.task.completed || layout.task.statusIsCompleted,
                   high: layout.task.priority === 'high',
                   medium: layout.task.priority === 'medium',
                   'multi-day': layout.isMultiDay,
@@ -215,7 +215,7 @@
                 @click="handleTaskClick(layout.task)"
               >
                 <Icon
-                  :name="layout.task.completed ? ICONS.checkCircle : ICONS.round"
+                  :name="(layout.task.completed || layout.task.statusIsCompleted) ? ICONS.checkCircle : ICONS.round"
                   :size="12"
                   :color="layout.task.statusColor"
                   @click.stop="handleToggleTask(layout.task)"
@@ -224,6 +224,7 @@
                 <span v-if="layout.isMultiDay" class="task-duration">
                   {{ formatTaskDuration(layout) }}
                 </span>
+                <span v-if="layout.task.completed || layout.task.statusIsCompleted" class="task-completed-tag">已完成</span>
               </div>
             </div>
           </div>
@@ -1479,11 +1480,24 @@ onUnmounted(() => {
 }
 
 .task-chip.completed {
-  opacity: 0.6;
+  opacity: 0.7;
+  background: rgba(60, 60, 67, 0.06);
 }
 
 .task-chip.completed .task-text {
   text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: rgba(60, 60, 67, 0.4);
+}
+
+.task-completed-tag {
+  font-size: 10px;
+  color: rgb(52, 199, 89);
+  font-weight: 500;
+  padding: 2px 6px;
+  background: rgba(52, 199, 89, 0.1);
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 /* 跨天任务样式 */
@@ -1807,8 +1821,21 @@ onUnmounted(() => {
     border-color: rgba(0, 122, 255, 0.4);
   }
 
+  .task-chip.completed {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .task-chip.completed .task-text {
+    text-decoration-color: rgba(255, 255, 255, 0.3);
+  }
+
   .task-text {
     color: rgba(255, 255, 255, 0.8);
+  }
+
+  .task-completed-tag {
+    color: rgb(52, 199, 89);
+    background: rgba(52, 199, 89, 0.15);
   }
 
   .add-task-btn {
