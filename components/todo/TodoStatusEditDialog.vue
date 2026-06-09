@@ -1,126 +1,127 @@
 <template>
-  <div v-if="visible" class="todo-status-edit-dialog-overlay" @click.self="close">
-    <div class="todo-status-edit-dialog">
-      <div class="dialog-header">
-        <h3>{{ isEditMode ? '编辑状态' : '新建状态' }}</h3>
-        <button class="close-btn" type="button" @click="close">
-          <Icon name="solar:close-circle-linear" size="24" />
-        </button>
+  <BaseDialog
+    v-model:visible="internalVisible"
+    :title="isEditMode ? '编辑状态' : '新建状态'"
+    size="medium"
+    @opened="onOpened"
+  >
+    <form @submit.prevent="handleSubmit">
+      <div class="form-group">
+        <label class="form-label">状态名称</label>
+        <input
+          v-model="formData.name"
+          type="text"
+          class="liquid-glass-input"
+          placeholder="例如：待办、进行中、已完成"
+          required
+        />
       </div>
 
-      <div class="dialog-body">
-        <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label class="form-label">状态名称</label>
-            <input
-              v-model="formData.name"
-              type="text"
-              class="form-input"
-              placeholder="例如：待办、进行中、已完成"
-              required
-            />
-          </div>
+      <div class="form-group">
+        <label class="form-label">状态描述</label>
+        <textarea
+          v-model="formData.description"
+          class="liquid-glass-input"
+          placeholder="简单描述此状态的含义"
+          rows="2"
+        />
+      </div>
 
-          <div class="form-group">
-            <label class="form-label">状态描述</label>
-            <textarea
-              v-model="formData.description"
-              class="form-textarea"
-              placeholder="简单描述此状态的含义"
-              rows="2"
-            />
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">图标</label>
-              <div class="icon-selector">
-                <button
-                  v-for="icon in availableIcons"
-                  :key="icon"
-                  type="button"
-                  class="icon-option"
-                  :class="{ active: formData.icon === icon }"
-                  @click="formData.icon = icon"
-                >
-                  <Icon :name="icon || 'solar:info-circle-linear'" size="20" />
-                </button>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">颜色</label>
-              <div class="color-selector">
-                <button
-                  v-for="color in availableColors"
-                  :key="color"
-                  type="button"
-                  class="color-option"
-                  :class="{ active: formData.color === color }"
-                  :style="{ backgroundColor: color }"
-                  @click="formData.color = color"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-checkbox">
-              <input
-                v-model="formData.isDefault"
-                type="checkbox"
-                class="checkbox-input"
-              />
-              <span>设为默认状态</span>
-            </label>
-            <p class="form-hint">
-              默认状态将用于新建待办时的初始状态
-            </p>
-          </div>
-
-          <div class="form-group">
-            <label class="form-checkbox">
-              <input
-                v-model="formData.isCompleted"
-                type="checkbox"
-                class="checkbox-input"
-              />
-              <span>标记为完成状态</span>
-            </label>
-            <p class="form-hint">
-              标记为完成状态的任务将计入完成统计
-            </p>
-          </div>
-
-          <div class="preview-section">
-            <label class="form-label">预览</label>
-            <div 
-              class="status-preview"
-              :style="{ 
-                backgroundColor: `${formData.color}20`, 
-                color: formData.color 
-              }"
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">图标</label>
+          <div class="icon-selector">
+            <button
+              v-for="icon in availableIcons"
+              :key="icon"
+              type="button"
+              class="icon-option"
+              :class="{ active: formData.icon === icon }"
+              @click="formData.icon = icon"
             >
-              <Icon :name="formData.icon || 'solar:info-circle-linear'" size="16" />
-              <span class="preview-text">{{ formData.name || '状态名称' }}</span>
-            </div>
+              <Icon :name="icon || 'solar:info-circle-linear'" size="20" />
+            </button>
           </div>
-        </form>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">颜色</label>
+          <div class="color-selector">
+            <button
+              v-for="color in availableColors"
+              :key="color"
+              type="button"
+              class="color-option"
+              :class="{ active: formData.color === color }"
+              :style="{ backgroundColor: color }"
+              @click="formData.color = color"
+            />
+          </div>
+        </div>
       </div>
 
-      <div class="dialog-footer">
-        <button class="cancel-btn" type="button" @click="close">
-          取消
-        </button>
-        <button class="save-btn" type="button" @click="handleSubmit" :disabled="!isValid">
-          {{ isEditMode ? '保存' : '创建' }}
-        </button>
+      <div class="form-group">
+        <label class="form-checkbox">
+          <input
+            v-model="formData.isDefault"
+            type="checkbox"
+            class="checkbox-input"
+          />
+          <span>设为默认状态</span>
+        </label>
+        <p class="form-hint">
+          默认状态将用于新建待办时的初始状态
+        </p>
       </div>
-    </div>
-  </div>
+
+      <div class="form-group">
+        <label class="form-checkbox">
+          <input
+            v-model="formData.isCompleted"
+            type="checkbox"
+            class="checkbox-input"
+          />
+          <span>标记为完成状态</span>
+        </label>
+        <p class="form-hint">
+          标记为完成状态的任务将计入完成统计
+        </p>
+      </div>
+
+      <div class="preview-section">
+        <label class="form-label">预览</label>
+        <div
+          class="status-preview"
+          :style="{
+            backgroundColor: `${formData.color}20`,
+            color: formData.color
+          }"
+        >
+          <Icon :name="formData.icon || 'solar:info-circle-linear'" size="16" />
+          <span class="preview-text">{{ formData.name || '状态名称' }}</span>
+        </div>
+      </div>
+    </form>
+
+    <template #footer>
+      <button class="liquid-glass-button" type="button" @click="close">
+        取消
+      </button>
+      <button
+        class="liquid-glass-button liquid-glass-button-primary"
+        type="button"
+        :disabled="!isValid"
+        @click="handleSubmit"
+      >
+        {{ isEditMode ? '保存' : '创建' }}
+      </button>
+    </template>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import BaseDialog from '~/components/ui/BaseDialog.vue'
 import { ICONS } from '~/composables/useIcons'
 import { useTodoStatus } from '~/composables/useTodoStatus'
 import { useToast } from '~/composables/useToast'
@@ -141,6 +142,12 @@ const emit = defineEmits<{
 }>()
 
 const { createStatus, updateStatus } = useTodoStatus()
+
+// 内部 visible 状态，用于 v-model 绑定
+const internalVisible = computed({
+  get: () => props.visible,
+  set: (val) => emit('update:visible', val)
+})
 
 const formData = ref<TodoStatusFormData>({
   name: '',
@@ -204,7 +211,11 @@ watch(() => props.visible, (newVal) => {
 })
 
 function close() {
-  emit('update:visible', false)
+  internalVisible.value = false
+}
+
+function onOpened() {
+  // 弹框打开后的回调
 }
 
 async function handleSubmit() {
@@ -226,74 +237,6 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-.todo-status-edit-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1100;
-  padding: 20px;
-}
-
-.todo-status-edit-dialog {
-  background: var(--liquid-bg, rgba(255, 255, 255, 0.8));
-  backdrop-filter: blur(var(--liquid-blur, 20px)) saturate(var(--liquid-saturate, 180%));
-  border-radius: var(--liquid-radius, 20px);
-  width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  border: 0.5px solid rgba(255, 255, 255, 0.2);
-}
-
-.dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
-}
-
-.dialog-header h3 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 600;
-  color: rgba(60, 60, 67, 0.9);
-}
-
-.close-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.5);
-  cursor: pointer;
-  border-radius: var(--liquid-radius-button, 14px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.close-btn:hover {
-  background: rgba(60, 60, 67, 0.08);
-  color: rgba(60, 60, 67, 0.8);
-}
-
-.dialog-body {
-  flex: 1;
-  padding: 24px;
-  overflow-y: auto;
-}
-
 .form-group {
   margin-bottom: 20px;
 }
@@ -304,31 +247,6 @@ async function handleSubmit() {
   font-weight: 600;
   color: rgba(60, 60, 67, 0.8);
   margin-bottom: 8px;
-}
-
-.form-input,
-.form-textarea {
-  width: 100%;
-  padding: 10px 14px;
-  border: 0.5px solid rgba(60, 60, 67, 0.15);
-  border-radius: var(--liquid-radius-button, 14px);
-  font-size: 14px;
-  color: rgba(60, 60, 67, 0.9);
-  transition: all 0.15s ease;
-  font-family: inherit;
-  background: var(--liquid-bg-thin, rgba(255, 255, 255, 0.5));
-}
-
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: rgb(0, 122, 255);
-  background: var(--liquid-bg, rgba(255, 255, 255, 0.7));
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 60px;
 }
 
 .form-row {
@@ -429,108 +347,10 @@ async function handleSubmit() {
   line-height: 1;
 }
 
-.dialog-footer {
-  display: flex;
-  gap: 12px;
-  padding: 20px 24px;
-  border-top: 0.5px solid rgba(60, 60, 67, 0.1);
-}
-
-.cancel-btn,
-.save-btn {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  border-radius: var(--liquid-radius-button, 14px);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.cancel-btn {
-  background: var(--liquid-bg-thin, rgba(255, 255, 255, 0.5));
-  color: rgba(60, 60, 67, 0.8);
-  border: 0.5px solid rgba(60, 60, 67, 0.15);
-}
-
-.cancel-btn:hover {
-  background: var(--liquid-bg, rgba(255, 255, 255, 0.7));
-}
-
-.save-btn {
-  background: rgb(0, 122, 255);
-  color: white;
-}
-
-.save-btn:hover:not(:disabled) {
-  background: rgb(0, 102, 220);
-  transform: translateY(-1px);
-}
-
-.save-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 滚动条样式 */
-.dialog-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-.dialog-body::-webkit-scrollbar-track {
-  background: rgba(60, 60, 67, 0.05);
-  border-radius: 3px;
-}
-
-.dialog-body::-webkit-scrollbar-thumb {
-  background: rgba(60, 60, 67, 0.2);
-  border-radius: 3px;
-}
-
-.dialog-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(60, 60, 67, 0.3);
-}
-
 /* 深色模式 */
 @media (prefers-color-scheme: dark) {
-  .todo-status-edit-dialog {
-    background: var(--liquid-bg, rgba(255, 255, 255, 0.05));
-    border-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .dialog-header {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .dialog-header h3 {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .close-btn {
-    color: rgba(255, 255, 255, 0.6);
-  }
-
-  .close-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
-  }
-
   .form-label {
     color: rgba(255, 255, 255, 0.8);
-  }
-
-  .form-input,
-  .form-textarea {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .form-input:focus,
-  .form-textarea:focus {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgb(0, 122, 255);
   }
 
   .icon-option {
@@ -559,20 +379,6 @@ async function handleSubmit() {
 
   .preview-section {
     border-top-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .dialog-footer {
-    border-top-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .cancel-btn {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
-    border-color: rgba(255, 255, 255, 0.15);
-  }
-
-  .cancel-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
   }
 }
 </style>
