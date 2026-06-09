@@ -55,6 +55,7 @@
       :todo="editingTask"
       :initial-data="initialTaskData"
       :is-creating="isCreating"
+      :available-parent-todos="availableParentTodos"
       @save="handleSaveTask"
       @create="handleCreateTask"
       @delete="handleDeleteTask"
@@ -92,6 +93,24 @@ const emit = defineEmits<{
 }>()
 
 const showSettings = ref(false)
+
+// 可用父任务列表（从当前加载的任务中获取）
+const availableParentTodos = computed(() => {
+  const allTasks: GridTask[] = []
+  // 从 weekColumns 中收集所有任务
+  for (const col of weekColumns.value) {
+    allTasks.push(...col.allDayTasks, ...col.timedTasks)
+  }
+  // 排除已完成的任务，返回可用的父任务列表
+  return allTasks
+    .filter(t => !t.completed && !t.statusIsCompleted)
+    .map(t => ({
+      id: t.id,
+      text: t.text,
+      parentId: t.parentId,
+      completed: t.completed
+    }))
+})
 const showEditDialog = ref(false)
 const editingTask = ref<TodoItem | null>(null)
 const isCreating = ref(false)

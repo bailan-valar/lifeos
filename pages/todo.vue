@@ -77,6 +77,7 @@
     <TodoEditDialog
       v-model:visible="showEditDialog"
       :todo="editingTodo"
+      :available-parent-todos="availableParentTodos"
       @save="saveEdit"
       @delete="deleteEdit"
     />
@@ -143,6 +144,20 @@ const emptyMessage = computed(() => {
         ? '没有找到匹配的任务'
         : '暂无待办任务，点击上方添加'
   }
+})
+
+// 可用父任务列表（从当前加载的任务中获取）
+const availableParentTodos = computed(() => {
+  // 返回所有可以作为父任务的任务列表
+  // 排除已完成的任务
+  return todoStore.allTasks
+    .filter(t => !t.completed && !t.statusIsCompleted)
+    .map(t => ({
+      id: t.id,
+      text: t.text,
+      parentId: t.parentId,
+      completed: t.completed
+    }))
 })
 
 // 切换状态筛选

@@ -64,6 +64,7 @@
     <TodoEditDialog
       v-model:visible="showEditDialog"
       :todo="editingTodo"
+      :available-parent-todos="availableParentTodos"
       @save="saveEdit"
       @delete="deleteEdit"
     />
@@ -141,6 +142,20 @@ const sortedTodosWithProgress = computed(() => {
 
 const completedCount = computed(() => todos.value.filter((t) => t.completed).length)
 const totalCount = computed(() => todos.value.length)
+
+// 可用父任务列表（从当前笔记的任务中获取）
+const availableParentTodos = computed(() => {
+  // 返回所有可以作为父任务的任务列表
+  // 排除已完成的任务
+  return todos.value
+    .filter(t => !t.completed)
+    .map(t => ({
+      id: t.id,
+      text: t.text,
+      parentId: t.parentId,
+      completed: t.completed
+    }))
+})
 
 const loadTodos = () => {
   try {
