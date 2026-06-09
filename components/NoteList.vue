@@ -57,11 +57,12 @@
       </template>
 
       <template v-else>
-        <NoteTreeNode
+        <NoteTreeItem
           v-for="root in rootNotes"
           :key="root.id"
           :note="root"
           :depth="0"
+          :children="childrenMap[root.id] || []"
         />
       </template>
 
@@ -98,6 +99,7 @@
 
 <script setup lang="ts">
 import type { Note } from '~/types/block'
+import NoteTreeItem from '~/components/NoteTreeItem.vue'
 
 interface Props {
   notes: Note[]
