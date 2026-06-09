@@ -67,7 +67,7 @@
               <VirtualList
                 v-else
                 :items="filteredItems"
-                :item-height="isMobile ? 130 : 100"
+                :item-height="isMobile ? 130 : 130"
                 :container-height="400"
                 :buffer="5"
                 :gap="4"

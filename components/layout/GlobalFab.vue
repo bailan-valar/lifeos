@@ -261,13 +261,13 @@ function onDocumentClick(e: MouseEvent) {
 
 onMounted(() => {
   if (import.meta.client) {
-    document.addEventListener('click', onDocumentClick)
+    document.addEventListener('click', onDocumentClick, true)
   }
 })
 
 onBeforeUnmount(() => {
   if (import.meta.client) {
-    document.removeEventListener('click', onDocumentClick)
+    document.removeEventListener('click', onDocumentClick, true)
   }
 })
 </script>

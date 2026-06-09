@@ -87,15 +87,17 @@
           @update:model-value="updateField('categoryId', $event)"
         />
 
-        <SelectPicker
-          v-if="showDebtSubtype"
-          :model-value="row.debtSubtype ?? null"
-          :options="debtSubtypeOptions"
-          placeholder="借贷类型"
+        <NotePicker
+          :model-value="row.noteId || ''"
+          :options="noteOptions"
+          placeholder="绑定笔记"
+          clearable
           class="compact-picker"
-          @update:model-value="updateField('debtSubtype', $event as DebtSubtype)"
+          @update:model-value="updateField('noteId', $event)"
         />
+      </div>
 
+      <div class="controls-row">
         <AccountPicker
           v-if="showFrom"
           :model-value="row.fromAccountId || ''"
@@ -115,13 +117,14 @@
           class="compact-picker"
           @update:model-value="updateField('toAccountId', $event)"
         />
-        <NotePicker
-          :model-value="row.noteId || ''"
-          :options="noteOptions"
-          placeholder="绑定笔记"
-          clearable
+
+        <SelectPicker
+          v-if="showDebtSubtype"
+          :model-value="row.debtSubtype ?? null"
+          :options="debtSubtypeOptions"
+          placeholder="借贷类型"
           class="compact-picker"
-          @update:model-value="updateField('noteId', $event)"
+          @update:model-value="updateField('debtSubtype', $event as DebtSubtype)"
         />
       </div>
     </template>
@@ -342,11 +345,11 @@ function formatAmount(n: number): string {
 .preview-row {
   display: grid;
   grid-template-columns: 32px minmax(160px, 1fr) 100px auto;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto auto;
   align-items: center;
   gap: 6px 10px;
   padding: 10px 12px;
-  min-height: 100px;
+  min-height: 130px;
   background: rgba(255, 255, 255, 0.5);
   border: 0.5px solid rgba(60, 60, 67, 0.12);
   border-radius: 8px;
@@ -374,7 +377,7 @@ function formatAmount(n: number): string {
 }
 .select-cell {
   grid-column: 1;
-  grid-row: 1 / 3;
+  grid-row: 1 / 4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -492,6 +495,9 @@ function formatAmount(n: number): string {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+.controls-row:nth-child(2) {
+  grid-row: 3;
 }
 .type-picker {
   flex: 0 0 90px;

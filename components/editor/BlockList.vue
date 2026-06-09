@@ -344,12 +344,12 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
 }
 
 onMounted(() => {
-  document.addEventListener('click', onGlobalClick)
+  document.addEventListener('click', onGlobalClick, true)
   document.addEventListener('keydown', onGlobalKeydown)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', onGlobalClick)
+  document.removeEventListener('click', onGlobalClick, true)
   document.removeEventListener('keydown', onGlobalKeydown)
 })
 
