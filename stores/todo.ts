@@ -388,7 +388,26 @@ export const useTodoStore = defineStore('todo', () => {
     if (taskIndex === -1) return false
 
     // 乐观更新本地状态
-    allTasks.value[taskIndex] = { ...allTasks.value[taskIndex], ...updates }
+    const updatedTask = { ...allTasks.value[taskIndex], ...updates }
+
+    // 如果更新了 statusId，同步更新派生字段
+    if (updates.statusId !== undefined) {
+      const status = updates.statusId ? statuses.value.find(s => s.id === updates.statusId) : undefined
+      updatedTask.statusName = status?.name
+      updatedTask.statusColor = status?.color
+      updatedTask.statusIcon = status?.icon ?? ICONS.round
+      updatedTask.statusIsCompleted = status?.isCompleted
+    }
+
+    // 如果更新了 typeId，同步更新派生字段
+    if (updates.typeId !== undefined) {
+      const type = updates.typeId ? types.value.find(t => t.id === updates.typeId) : undefined
+      updatedTask.typeName = type?.name
+      updatedTask.typeColor = type?.color
+      updatedTask.typeIcon = type?.icon
+    }
+
+    allTasks.value[taskIndex] = updatedTask
 
     try {
       const success = await todoDB.updateTask(taskId, updates)
