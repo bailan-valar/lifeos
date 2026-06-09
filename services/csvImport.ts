@@ -423,18 +423,38 @@ function hasPreciseTime(source: ImportSource): boolean {
 }
 
 /**
- * 精确去重指纹：用于完全匹配，防止同一文件重复导入
- * 包含来源 + 精确时间（精确到分钟）+ 金额 + 对方
+ * 基础指纹：来源 + 日期 + 金额 + 对方
+ * 用于分组同日内相同条件的交易
  */
-export function buildExactFingerprint(
+function buildBaseFingerprint(
   source: ImportSource,
   date: string,
   amount: number,
   counterparty: string
 ): string {
-  // 对于有精确时间的来源，保留到分钟；银行卡/信用卡只保留日期
   const dateKey = hasPreciseTime(source) ? date.slice(0, 16) : date.slice(0, 10)
   return `${source}|${dateKey}|${amount.toFixed(2)}|${counterparty.trim()}`
+}
+
+/**
+ * 精确去重指纹：包含序号，处理同日多笔相同金额的场景
+ * 格式：来源|时间|金额|对方|序号
+ * 序号从0开始，同日内相同基础指纹的交易递增
+ */
+export function buildExactFingerprint(
+  source: ImportSource,
+  date: string,
+  amount: number,
+  counterparty: string,
+  index: number = 0
+): string {
+  const base = buildBaseFingerprint(source, date, amount, counterparty)
+  // 对于有精确时间的来源，序号通常为0（时间已区分）
+  // 对于只有日期的来源，序号用于区分同日多笔
+  if (hasPreciseTime(source) && index === 0) {
+    return base
+  }
+  return `${base}|${index}`
 }
 
 /**
@@ -447,6 +467,25 @@ export function buildLooseFingerprint(
   counterparty: string
 ): string {
   return `${date.slice(0, 10)}|${amount.toFixed(2)}|${counterparty.trim()}`
+}
+
+/**
+ * 计算导入数据的序号（用于处理同日多笔相同金额）
+ * 对相同基础指纹的行进行分组，每组的序号递增
+ */
+export function calculateIndexes(rows: Array<{ source: ImportSource; date: string; amount: number; counterparty: string }>): Map<number, number> {
+  const indexMap = new Map<number, number>()
+  const groupCount = new Map<string, number>()
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const base = buildBaseFingerprint(row.source, row.date, row.amount, row.counterparty)
+    const count = groupCount.get(base) || 0
+    indexMap.set(i, count)
+    groupCount.set(base, count + 1)
+  }
+
+  return indexMap
 }
 
 /**

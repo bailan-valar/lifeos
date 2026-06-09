@@ -112,7 +112,7 @@ import type {
   ImportRecordItem,
   ImportRecordStatus
 } from '~/types/bill'
-import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactFingerprint, buildLooseFingerprint, dedupeKey } from '~/services/csvImport'
+import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactFingerprint, buildLooseFingerprint, dedupeKey, calculateIndexes } from '~/services/csvImport'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { generateId, now } from '~/services/db'
@@ -175,7 +175,7 @@ const eligibleDefaultAccounts = computed(() => {
   return props.accounts.filter(a => a.type === 'personal' && defaultAccountSubtypes.value?.includes(a.subtype || 'cash'))
 })
 
-function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
+function buildImportRecordItem(parsed: CsvParsedRow, index: number = 0): ImportRecordItem {
   const result = applyRules(parsed, source.value)
   const counterpartyRule = result?.counterpartyRule ?? null
   const paymentMethodRule = result?.paymentMethodRule ?? null
@@ -227,8 +227,8 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
   }
 
   const debtSubtype = inferDebtSubtype(direction)
-  // 使用精确指纹（包含来源和时间），避免跨来源误判
-  const exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, parsed.counterparty)
+  // 使用精确指纹（包含来源、时间、序号），避免跨来源误判，处理同日多笔相同金额
+  const exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, parsed.counterparty, index)
   // 宽松指纹用于疑似重复检测（仅日期+金额+对方）
   const looseFingerprint = buildLooseFingerprint(parsed.date, parsed.amount, parsed.counterparty)
 
@@ -310,7 +310,18 @@ async function onFileChange(event: Event) {
       parsedRows = source.value === 'alipay' ? parseAlipayCsv(text) : parseWechatCsv(text)
     }
 
-    const items = parsedRows.map(buildImportRecordItem)
+    // 计算序号，处理同日多笔相同金额的情况
+    const indexMap = calculateIndexes(
+      parsedRows.map(r => ({
+        source: source.value,
+        date: r.date,
+        amount: r.amount,
+        counterparty: r.counterparty
+      }))
+    )
+
+    // 生成导入记录项，传入序号
+    const items = parsedRows.map((row, idx) => buildImportRecordItem(row, indexMap.get(idx) || 0))
 
     const dates = items.map(i => i.date).filter(Boolean).sort()
     const billStartDate = dates[0] || ''

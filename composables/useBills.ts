@@ -350,6 +350,30 @@ export function useBills() {
         continue
       }
 
+      // 精确重复检查：检查数据库中是否有完全相同的账单
+      // 包含：日期、金额、对方、账户、类型
+      const existingDuplicate = await db.bills.findOne({
+        selector: {
+          noteId,
+          date: { $gte: `${item.date.slice(0, 10)}T00:00:00.000Z`, $lt: `${item.date.slice(0, 10)}T23:59:59.999Z` },
+          amount: item.amount,
+          counterpartyRaw: item.counterparty,
+          fromAccountId: item.fromAccountId || '',
+          toAccountId: item.toAccountId || '',
+          type: item.type || 'expense'
+        }
+      }).exec()
+
+      if (existingDuplicate) {
+        skippedCount++
+        items.push({
+          ...base,
+          status: 'skipped_duplicate' as ImportRecordItemStatus,
+          errorMessage: '与已有账单重复'
+        })
+        continue
+      }
+
       try {
         if (item.amount <= 0) throw new Error('金额必须大于 0')
         const billId = generateId()
