@@ -64,12 +64,15 @@ import { SOLAR_ICONS } from '~/composables/useIcons'
 import type { Note } from '~/types/block'
 import { getNextZIndex } from '~/composables/useZIndex'
 import NoteTreeNode from '~/components/NoteTreeNode.vue'
+import { useNoteClasses } from '~/composables/useNoteClasses'
 
 interface TreeNode {
   id: string
   title: string
   level: number
   children: TreeNode[]
+  className?: string
+  classColor?: string
 }
 
 interface Props {
@@ -103,6 +106,20 @@ const searchRef = ref<HTMLInputElement>()
 const panelRef = ref<HTMLElement>()
 const panelStyle = ref<Record<string, string>>({})
 
+const { classes, noteBindings } = useNoteClasses()
+
+// 笔记 ID 到类的映射
+const noteClassMap = computed(() => {
+  const map = new Map<string, { name: string; color: string }>()
+  for (const binding of noteBindings.value) {
+    const cls = classes.value.find(c => c.id === binding.classId)
+    if (cls) {
+      map.set(binding.noteId, { name: cls.name, color: cls.color })
+    }
+  }
+  return map
+})
+
 // 构建树形结构
 const noteTree = computed(() => {
   const map = new Map<string, TreeNode>()
@@ -110,11 +127,14 @@ const noteTree = computed(() => {
 
   // 先创建所有节点
   for (const note of props.notes) {
+    const classInfo = noteClassMap.value.get(note.id)
     map.set(note.id, {
       id: note.id,
       title: note.title || '无标题',
       level: 0,
-      children: []
+      children: [],
+      className: classInfo?.name,
+      classColor: classInfo?.color
     })
   }
 

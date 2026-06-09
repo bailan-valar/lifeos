@@ -16,6 +16,13 @@
       </button>
       <span v-else class="expand-spacer" />
       <span class="node-label">{{ node.title }}</span>
+      <span
+        v-if="node.className"
+        class="node-class-badge"
+        :style="{ backgroundColor: node.classColor + '20', color: node.classColor }"
+      >
+        {{ node.className }}
+      </span>
     </div>
     <div v-if="expanded && hasChildren" class="tree-children">
       <NoteTreeNode
@@ -40,6 +47,8 @@ interface TreeNode {
   title: string
   level: number
   children: TreeNode[]
+  className?: string
+  classColor?: string
 }
 
 interface Props {
@@ -129,6 +138,15 @@ function handleToggle(e: MouseEvent) {
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-class-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 4px;
   white-space: nowrap;
 }
 
