@@ -115,6 +115,14 @@
           class="compact-picker"
           @update:model-value="updateField('toAccountId', $event)"
         />
+        <NotePicker
+          :model-value="row.noteId || ''"
+          :options="noteOptions"
+          placeholder="绑定笔记"
+          clearable
+          class="compact-picker"
+          @update:model-value="updateField('noteId', $event)"
+        />
       </div>
     </template>
 
@@ -165,8 +173,10 @@ import type {
   ImportRule
 } from '~/types/bill'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
+import { useNotes } from '~/composables/useNotes'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
+import NotePicker from './NotePicker.vue'
 import BillTypePicker from './BillTypePicker.vue'
 
 const props = defineProps<{
@@ -188,6 +198,7 @@ const emit = defineEmits<{
 }>()
 
 const { isMobile } = useDevice()
+const { noteOptions } = useNotes()
 
 function onRowClick() {
   if (isMobile.value) {
