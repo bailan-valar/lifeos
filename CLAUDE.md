@@ -462,3 +462,84 @@ if (!ok) return
 # 直接调用 skill
 /changelog-from-git
 ```
+
+## Loading 状态使用规范
+
+**核心原则**：loading 状态应该只在**用户感知的数据加载等待**时显示，避免不必要的闪烁。
+
+### 需要显示 loading 的场景
+
+| 场景 | 是否显示 loading | 说明 |
+|------|------------------|------|
+| 页面初始加载 | **是** | 首次进入页面，数据未加载 |
+| 切换时间范围 | **是** | 用户主动触发（如切换周、月） |
+| 切换工作空间 | **是** | 完整的数据重新加载 |
+| 刷新/重置操作 | **是** | 用户主动点击刷新按钮 |
+| 远程数据请求 | **是** | 网络请求，有感知延迟 |
+
+### 不需要显示 loading 的场景（使用静默模式）
+
+| 场景 | 是否显示 loading | 说明 |
+|------|------------------|------|
+| 本地 CRUD 后刷新 | **否** | 增删改后通过 `onCollectionChange` 自动刷新 |
+| 拖拽操作后刷新 | **否** | 拖拽是即时交互，不应有 loading 闪烁 |
+| 右键菜单打开 | **否** | 数据已存在于内存，直接使用 |
+| 编辑对话框打开 | **否** | 从已有数据构造，无需额外查询 |
+| 数据库变更订阅 | **否** | 通过 `loadData(true)` 静默模式 |
+
+### 实现模式
+
+**静默加载**：composable 提供 `silent` 参数
+```ts
+// useTodoProjectView.ts
+async function loadData(silent = false): Promise<void> {
+  if (!silent) {
+    loading.value = true  // 只在非静默模式显示 loading
+  }
+  // ... 数据加载
+  loading.value = false
+}
+
+// 订阅变更时使用静默模式
+function subscribeChanges(): void {
+  onCollectionChange('module_data', () => loadData(true))
+}
+```
+
+**编辑对话框数据来源**：直接从已加载数据获取
+```ts
+// ✅ 正确：从内存数据获取
+function handleTaskMenuEdit(task) {
+  editingTask.value = {
+    id: task.id,
+    text: task.text,
+    // ... 直接使用已有数据
+  }
+  showEditDialog.value = true
+}
+
+// ❌ 错误：重新查询数据库
+async function handleTaskMenuEdit(task) {
+  const db = await getDB()
+  const taskDoc = await db.module_data.findOne(task.id).exec()
+  // ... 这样会导致不必要的 loading
+}
+```
+
+### 保存操作的数据刷新
+
+保存后有两种刷新策略：
+
+1. **通过 `onCollectionChange` 自动刷新**（推荐）
+```ts
+// 保存后不需要手动调用 loadData
+await doc.patch({ data: { todos: data.todos } })
+// onCollectionChange 会自动触发 loadData(true)
+```
+
+2. **手动调用 `loadData()`**（必要时）
+```ts
+// 仅在自动刷新不足以更新视图时使用
+await doc.patch({ data: { todos: data.todos } })
+await loadData()  // 这会显示 loading
+```
