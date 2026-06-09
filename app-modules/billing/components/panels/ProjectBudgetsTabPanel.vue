@@ -84,6 +84,7 @@ const monthBillsDialogData = ref({
 })
 
 function getNoteName(noteId: string): string {
+  if (noteId === '__none__') return '无关联'
   const note = notes.value.find(n => n.id === noteId)
   return note?.title || '未知笔记'
 }
@@ -183,6 +184,7 @@ async function handleBudgetConfirm(data: BudgetFormData) {
       return
     }
     // 项目预算使用 note: 前缀
+    // 如果是"无关联"，noteId 为 __none__
     const budgetData = {
       ...data,
       categoryId: `note:${data.noteId}`

@@ -72,24 +72,26 @@
         </div>
 
         <template v-for="row in visibleRows" :key="row.node.id">
-          <div class="table-row" :class="{ 'yearly-row': row.cycleType === 'yearly' }">
+          <div class="table-row" :class="{ 'yearly-row': row.cycleType === 'yearly', 'unlinked-row': row.isUnlinked }">
             <div
               class="col-note"
-              :style="{ paddingLeft: `${row.level * 16 + 8}px` }"
+              :style="{ paddingLeft: `${row.isUnlinked ? 8 : row.level * 16 + 8}px` }"
               @contextmenu.prevent="onNoteContextMenu($event, row.node)"
             >
-              <button
-                v-if="row.node.children.length > 0"
-                class="expand-btn"
-                @click.stop="toggleExpand(row.node.id)"
-              >
-                <Icon
-                  :name="expandedIds.has(row.node.id) ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right"
-                  size="14"
-                />
-              </button>
-              <span v-else class="expand-placeholder"></span>
-              <span class="note-name" @click.stop="onNoteClick(row.node.id)">{{ row.node.title }}</span>
+              <template v-if="!row.isUnlinked">
+                <button
+                  v-if="row.node.children.length > 0"
+                  class="expand-btn"
+                  @click.stop="toggleExpand(row.node.id)"
+                >
+                  <Icon
+                    :name="expandedIds.has(row.node.id) ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right"
+                    size="14"
+                  />
+                </button>
+                <span v-else class="expand-placeholder"></span>
+              </template>
+              <span class="note-name" :class="{ 'unlinked-name': row.isUnlinked }" @click.stop="onNoteClick(row.node.id)">{{ row.node.title }}</span>
             </div>
             <div class="col-year-budget">
               <div v-if="row.hasOwnBudget" class="budget-num">{{ row.yearBudget.toFixed(0) }}</div>
@@ -282,6 +284,97 @@ function getDirectActual(noteId: string, year: number, month: number): number {
   return expenses - refunds
 }
 
+// 获取无关联账单的实际支出
+function getUnlinkedActual(year: number, month: number): number {
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+
+  // 1. 统计无关联的支出账单
+  const expenses = scopedBills.value
+    .filter(b => {
+      // 只统计叶子节点账单
+      if (b.hasChildren) return false
+      // 只统计支出类型
+      if (b.type !== 'expense') return false
+      // 无关联：noteId 为空字符串
+      if (b.noteId !== '') return false
+
+      // 如果有分摊月份，按分摊月份统计；否则按账单日期统计
+      if (b.allocatedMonth) {
+        return b.allocatedMonth === prefix
+      }
+      return b.date.startsWith(prefix)
+    })
+    .reduce((sum, b) => sum + b.amount, 0)
+
+  // 2. 统计无关联的退款账单
+  const refunds = scopedBills.value
+    .filter(b => {
+      // 退款账单类型为收入
+      if (b.type !== 'income') return false
+      // 必须是退款标记
+      if (!b.isRefund) return false
+      // 无关联：noteId 为空字符串
+      if (b.noteId !== '') return false
+
+      // 按账单日期统计
+      return b.date.startsWith(prefix)
+    })
+    .reduce((sum, b) => sum + b.amount, 0)
+
+  // 3. 实际支出 = 支出 - 退款
+  return expenses - refunds
+}
+
+// 创建"无关联"行
+function createUnlinkedRow(year: number): TableRow {
+  const NONE_ID = '__none__'
+  const ownMonthly: { budget: number; actual: number; config: ReturnType<typeof resolveBudget> }[] = []
+
+  for (let month = 1; month <= 12; month++) {
+    const config = resolveBudget(`note:${NONE_ID}`, year, month, selectedNoteId.value)
+    const budget = config ? getMonthlyEquivalent(`note:${NONE_ID}`, year, month, selectedNoteId.value) : 0
+    const actual = getUnlinkedActual(year, month)
+    ownMonthly.push({ budget, actual, config })
+  }
+
+  const hasOwnBudget = ownMonthly.some(m => m.budget > 0)
+  const yearActual = ownMonthly.reduce((sum, m) => sum + m.actual, 0)
+  const yearBudget = ownMonthly.reduce((sum, m) => sum + m.budget, 0)
+  const yearPercentage = yearBudget > 0 ? yearActual / yearBudget : 0
+
+  const janConfig = resolveBudget(`note:${NONE_ID}`, year, 1, selectedNoteId.value)
+  const cycleType = janConfig?.cycleType || null
+
+  const monthly: MonthlyCell[] = Array.from({ length: 12 }, (_, m) => {
+    return {
+      budget: ownMonthly[m].budget,
+      actual: ownMonthly[m].actual,
+      percentage: ownMonthly[m].budget > 0 ? ownMonthly[m].actual / ownMonthly[m].budget : 0,
+      cycleType: ownMonthly[m].config?.cycleType || null
+    }
+  })
+
+  const unlinkedNode: UnlinkedNode = {
+    id: NONE_ID,
+    title: '无关联',
+    children: [],
+    isUnlinked: true
+  }
+
+  return {
+    node: unlinkedNode,
+    level: 0,
+    yearBudget,
+    yearActual,
+    yearPercentage,
+    monthly,
+    hasOwnBudget,
+    childrenBudgetSum: 0,
+    cycleType,
+    isUnlinked: true
+  }
+}
+
 interface MonthlyCell {
   budget: number
   actual: number
@@ -290,7 +383,7 @@ interface MonthlyCell {
 }
 
 interface TableRow {
-  node: NoteTreeNode
+  node: NoteTreeNode | UnlinkedNode
   level: number
   yearBudget: number
   yearActual: number
@@ -299,6 +392,14 @@ interface TableRow {
   hasOwnBudget: boolean
   childrenBudgetSum: number
   cycleType: BudgetCycleType | null
+  isUnlinked?: boolean
+}
+
+interface UnlinkedNode {
+  id: string
+  title: string
+  children: UnlinkedNode[]
+  isUnlinked: true
 }
 
 interface TreeRow {
@@ -526,7 +627,11 @@ function flattenVisible(treeRows: TreeRow[], expandedIds: Set<string>): TableRow
 }
 
 const treeData = computed(() => calcTree(noteTree.value, currentYear.value))
-const visibleRows = computed(() => flattenVisible(treeData.value, expandedIds.value))
+const visibleRows = computed(() => {
+  const unlinkedRow = createUnlinkedRow(currentYear.value)
+  const noteRows = flattenVisible(treeData.value, expandedIds.value)
+  return [unlinkedRow, ...noteRows]
+})
 
 // 计算合计行
 const totalsRow = computed(() => {
@@ -773,6 +878,19 @@ function onNoteClick(noteId: string) {
 
 .note-name:hover {
   color: rgb(0, 122, 255);
+}
+
+.note-name.unlinked-name {
+  color: rgba(60, 60, 67, 0.6);
+  font-style: italic;
+}
+
+.note-name.unlinked-name:hover {
+  color: rgba(60, 60, 67, 0.85);
+}
+
+.unlinked-row {
+  background: rgba(60, 60, 67, 0.02);
 }
 
 .budget-num {

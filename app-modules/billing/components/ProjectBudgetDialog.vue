@@ -23,7 +23,7 @@
             <label>笔记</label>
             <NotePicker
               v-model="form.noteId"
-              :options="noteOptions"
+              :options="extendedNoteOptions"
               placeholder="选择笔记"
             />
           </div>
@@ -104,6 +104,14 @@ const props = defineProps<{
   defaultMonth?: number
 }>()
 const overlayZIndex = useZIndexOnOpen(() => props.visible)
+
+// 扩展笔记选项，添加"无关联"选项
+const extendedNoteOptions = computed(() => {
+  return [
+    { id: '__none__', title: '无关联', level: 0 },
+    ...props.noteOptions
+  ]
+})
 
 const emit = defineEmits<{
   confirm: [data: BudgetFormData]
