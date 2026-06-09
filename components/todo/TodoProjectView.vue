@@ -613,7 +613,8 @@ function handleTaskClick(task: CellTask): void {
     typeId: task.typeId,
     statusId: task.statusId,
     priority: task.priority,
-    noteId: task.noteId
+    noteId: task.noteId,
+    parentId: task.parentId
   }
   showDetailDialog.value = true
 }
@@ -796,7 +797,8 @@ function handleTaskMenuEdit(task: { id: string; text: string; completed: boolean
     typeId: fullTask.typeId,
     statusId: fullTask.statusId,
     priority: fullTask.priority,
-    noteId: fullTask.noteId
+    noteId: fullTask.noteId,
+    parentId: fullTask.parentId
   }
   isCreating.value = false
   initialTaskData.value = null

@@ -294,7 +294,7 @@ const statusOptions = computed(() => {
 
 // 父任务选项
 const parentTodoOptions = computed(() => {
-  return props.availableParentTodos.map(todo => ({
+  const options = props.availableParentTodos.map(todo => ({
     value: todo.id,
     label: todo.text,
     // 禁用：自己、自己的祖先（会形成循环引用）、自己的子任务
@@ -304,6 +304,22 @@ const parentTodoOptions = computed(() => {
                t.id === todo.id && t.parentId === props.todo?.id
              ))
   }))
+
+  // 编辑模式下，确保当前任务的父任务在选项列表中
+  // 即使父任务不在 availableParentTodos 中（例如已完成被过滤）
+  if (isEditMode.value && props.todo?.parentId) {
+    const parentId = props.todo.parentId
+    if (!options.some(opt => opt.value === parentId)) {
+      // 父任务不在列表中，添加占位选项
+      options.unshift({
+        value: parentId,
+        label: `(父任务: ${parentId.slice(0, 6)}...)`,
+        disabled: false
+      })
+    }
+  }
+
+  return options
 })
 
 // 初始化表单
