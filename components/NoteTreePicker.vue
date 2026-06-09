@@ -47,6 +47,7 @@
                 :node="node"
                 :selected-id="modelValue"
                 :expanded="expandedSet.has(node.id)"
+                :expanded-set="expandedSet"
                 :level="0"
                 @select="selectNote"
                 @toggle="toggleExpand"

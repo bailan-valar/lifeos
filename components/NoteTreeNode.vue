@@ -30,7 +30,8 @@
         :key="child.id"
         :node="child"
         :selected-id="selectedId"
-        :expanded="false"
+        :expanded="expandedSet?.has(child.id)"
+        :expanded-set="expandedSet"
         :level="level + 1"
         @select="$emit('select', $event)"
         @toggle="$emit('toggle', $event)"
@@ -56,6 +57,7 @@ interface Props {
   selectedId?: string
   expanded?: boolean
   level?: number
+  expandedSet?: Set<string>
 }
 
 const props = withDefaults(defineProps<Props>(), {
