@@ -41,7 +41,7 @@
                   :key="task.id"
                   :todo="task"
                   mode="compact"
-                  draggable="false"
+                  :draggable="false"
                   @toggle="(id) => $emit('toggle', id)"
                   @update="(id, text) => $emit('update', id, text)"
                   @delete="(id) => $emit('delete', id)"
