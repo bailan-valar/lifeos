@@ -70,7 +70,7 @@
                 :item-height="isMobile ? 130 : 130"
                 :container-height="400"
                 :buffer="5"
-                :gap="4"
+                :gap="10"
                 class="preview-list"
               >
                 <template #default="{ item }">
