@@ -1,7 +1,12 @@
 <template>
   <Teleport to="body">
     <Transition name="record-modal">
-      <div v-if="visible" ref="overlayRef" class="record-modal-overlay" :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined">
+      <div
+        v-if="visible"
+        ref="overlayRef"
+        class="record-modal-overlay"
+        :style="overlayZIndex ? { zIndex: overlayZIndex } : undefined"
+      >
         <div class="record-modal-card" @click.stop>
           <div class="record-modal-header">
             <div class="header-left">
