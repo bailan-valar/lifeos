@@ -472,17 +472,11 @@ function getTaskStyle(task: CellTask): Record<string, string> {
 
 // 获取任务容器样式 (使用 grid-column 和 grid-row 定位)
 function getTaskWrapperStyle(layout: TaskLayout): Record<string, string> {
-  // grid-column 从 1 开始，所以 colIndex + 1
-  // 使用 span colSpan 来跨越多列
-  // grid-row 使用计算出的 rowIndex
   const style = {
     gridColumn: `${layout.colIndex + 1} / span ${layout.colSpan}`,
     gridRow: `${layout.rowIndex}`,
-    // 添加调试样式
     minWidth: `${layout.colSpan * 140}px`
   }
-  // 调试：输出布局信息
-  console.log('Task layout:', layout.task.text, 'colIndex:', layout.colIndex, 'colSpan:', layout.colSpan, 'gridColumn:', style.gridColumn, 'minWidth:', style.minWidth)
   return style
 }
 

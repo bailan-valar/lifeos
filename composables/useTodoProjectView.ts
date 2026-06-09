@@ -205,17 +205,6 @@ function calculateTaskLayout(
   // 计算跨越的列数
   const colSpan = endIdx - startIdx + 1
 
-  // 调试：输出布局信息
-  console.log('calculateTaskLayout:', {
-    taskText: task.text,
-    startDate,
-    dueDate,
-    startIdx,
-    endIdx,
-    colSpan,
-    gridColumn: `${startIdx + 1} / span ${colSpan}`
-  })
-
   return {
     task: {
       id: task.id,
@@ -364,7 +353,47 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
       // 记录每列当前已使用的最大行数（用于堆叠同一列的多个任务）
       const columnRowCounts = new Map<string, number>()
 
+      // 先处理未完成的任务，再处理已完成的任务（确保已完成任务排在每列最后）
+      const pendingTasks: TodoWithMeta[] = []
+      const completedTasks: TodoWithMeta[] = []
+
       for (const task of noteTasks) {
+        if (task.completed || task.statusIsCompleted) {
+          completedTasks.push(task)
+        } else {
+          pendingTasks.push(task)
+        }
+      }
+
+      // 处理未完成的任务
+      for (const task of pendingTasks) {
+        const layout = calculateTaskLayout(task, weekDates.value)
+        if (layout) {
+          // 计算该任务应该在的行位置
+          // 检查任务跨越的所有列，找出最大行数
+          let maxRowCount = 0
+          for (let i = layout.colIndex; i < layout.colIndex + layout.colSpan; i++) {
+            const key = `col-${i}`
+            const count = columnRowCounts.get(key) || 0
+            maxRowCount = Math.max(maxRowCount, count)
+          }
+
+          // 行索引 = 最大行数 + 1（Grid 行从 1 开始）
+          const rowIndex = maxRowCount + 1
+          layout.rowIndex = rowIndex
+
+          // 更新所有跨越列的行数
+          for (let i = layout.colIndex; i < layout.colIndex + layout.colSpan; i++) {
+            const key = `col-${i}`
+            columnRowCounts.set(key, rowIndex)
+          }
+
+          taskLayouts.push(layout)
+        }
+      }
+
+      // 处理已完成的任务（会排在每列最后）
+      for (const task of completedTasks) {
         const layout = calculateTaskLayout(task, weekDates.value)
         if (layout) {
           // 计算该任务应该在的行位置
