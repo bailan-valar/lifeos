@@ -1720,20 +1720,29 @@ onUnmounted(() => {
 
 /* 子任务指示符和连线 */
 .task-chip.has-parent {
-  padding-left: 6px;
   position: relative;
-  border-left: 2px solid rgba(60, 60, 67, 0.2);
-  margin-left: 4px;
+  padding-left: 10px;
 }
 
 .task-chip.has-parent::before {
   content: '';
   position: absolute;
   left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: rgba(60, 60, 67, 0.25);
+  border-radius: 2px 0 0 2px;
+}
+
+.task-chip.has-parent::after {
+  content: '';
+  position: absolute;
+  left: 0;
   top: 50%;
-  width: 8px;
-  height: 1px;
-  background: rgba(60, 60, 67, 0.2);
+  width: 10px;
+  height: 2px;
+  background: rgba(60, 60, 67, 0.25);
   transform: translateY(-50%);
 }
 
@@ -2113,12 +2122,9 @@ onUnmounted(() => {
     color: rgba(255, 255, 255, 0.4);
   }
 
-  .task-chip.has-parent {
-    border-left-color: rgba(255, 255, 255, 0.2);
-  }
-
-  .task-chip.has-parent::before {
-    background: rgba(255, 255, 255, 0.2);
+  .task-chip.has-parent::before,
+  .task-chip.has-parent::after {
+    background: rgba(255, 255, 255, 0.3);
   }
 }
 

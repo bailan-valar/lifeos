@@ -368,8 +368,52 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
         }
       }
 
-      // 处理未完成的任务
-      for (const task of pendingTasks) {
+      // 对任务进行父子关系排序，确保子任务在父任务下方
+      function sortTasksByParentRelation(tasks: TodoWithMeta[]): TodoWithMeta[] {
+        const taskMap = new Map(tasks.map(t => [t.id, t]))
+        const sorted: TodoWithMeta[] = []
+        const visited = new Set<string>()
+
+        // 递归访问任务及其子任务
+        function visit(taskId: string | undefined): void {
+          if (!taskId) return
+          if (visited.has(taskId)) return
+
+          visited.add(taskId)
+          const task = taskMap.get(taskId)
+          if (task) {
+            sorted.push(task)
+            // 查找该任务的子任务
+            for (const t of tasks) {
+              if (t.parentId === taskId && !visited.has(t.id)) {
+                visit(t.id)
+              }
+            }
+          }
+        }
+
+        // 遍历所有任务，从根任务（没有父任务的任务）开始
+        for (const task of tasks) {
+          if (!task.parentId) {
+            visit(task.id)
+          }
+        }
+
+        // 处理可能存在的循环引用或孤立任务
+        for (const task of tasks) {
+          if (!visited.has(task.id)) {
+            visit(task.id)
+          }
+        }
+
+        return sorted
+      }
+
+      const sortedPendingTasks = sortTasksByParentRelation(pendingTasks)
+      const sortedCompletedTasks = sortTasksByParentRelation(completedTasks)
+
+      // 处理未完成的任务（已按父子关系排序）
+      for (const task of sortedPendingTasks) {
         const layout = calculateTaskLayout(task, weekDates.value)
         if (layout) {
           // 计算该任务应该在的行位置
@@ -395,8 +439,8 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
         }
       }
 
-      // 处理已完成的任务（会排在每列最后）
-      for (const task of completedTasks) {
+      // 处理已完成的任务（已按父子关系排序）
+      for (const task of sortedCompletedTasks) {
         const layout = calculateTaskLayout(task, weekDates.value)
         if (layout) {
           // 计算该任务应该在的行位置
