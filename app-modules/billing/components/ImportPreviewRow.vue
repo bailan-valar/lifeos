@@ -69,7 +69,7 @@
         </button>
       </div>
 
-      <div class="controls-row">
+      <div class="controls-row controls-row-1">
         <BillTypePicker
           :model-value="row.type"
           class="type-picker"
@@ -97,7 +97,7 @@
         />
       </div>
 
-      <div class="controls-row">
+      <div class="controls-row controls-row-2">
         <AccountPicker
           v-if="showFrom"
           :model-value="row.fromAccountId || ''"
@@ -491,13 +491,15 @@ function formatAmount(n: number): string {
 }
 .controls-row {
   grid-column: 2 / 5;
-  grid-row: 2;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 8px 12px;
   align-items: center;
 }
-.controls-row:nth-child(2) {
+.controls-row-1 {
+  grid-row: 2;
+}
+.controls-row-2 {
   grid-row: 3;
 }
 .type-picker {
