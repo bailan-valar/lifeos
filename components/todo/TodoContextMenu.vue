@@ -5,6 +5,7 @@
         v-if="visible"
         class="context-menu-overlay"
         @click="close"
+        @contextmenu="handleReposition"
       >
         <div
           class="context-menu"
@@ -58,7 +59,7 @@
             >
               <Icon :name="ICONS.calendar" size="16" />
               <span>设置日期</span>
-              <Icon :name="SOLAR_ICONS.nav.up" :class="{ 'rotate-180': dateMenuOpen }" size="14" class="ml-auto" />
+              <Icon :name="SOLAR_ICONS.nav.right" size="14" class="ml-auto submenu-arrow" />
             </button>
             <Transition name="submenu-slide">
               <div
@@ -67,7 +68,8 @@
                 @mouseenter="handleSubmenuEnter"
                 @mouseleave="handleSubmenuLeave"
               >
-                <button
+                <div class="submenu-inner">
+                  <button
                   type="button"
                   class="menu-item submenu-item"
                   @click="handleSetDate('today')"
@@ -116,6 +118,7 @@
                 >
                   <span>清除日期</span>
                 </button>
+                </div>
               </div>
             </Transition>
           </div>
@@ -170,12 +173,23 @@ const emit = defineEmits<{
   'add-child': [todo: BaseTask]
   delete: [todo: BaseTask]
   'set-date': [todo: BaseTask, date: string | null]
+  reposition: [x: number, y: number]
 }>()
 
 const { isMobile } = useDevice()
 
 function close() {
   emit('update:visible', false)
+}
+
+// 在其他地方右键重新定位菜单
+function handleReposition(event: MouseEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  clearDateMenuTimer()
+  dateMenuOpen.value = false
+  showDatePicker.value = false
+  emit('reposition', event.clientX, event.clientY)
 }
 
 function handleToggleComplete() {
@@ -453,34 +467,50 @@ function adjustPosition() {
   color: rgb(0, 122, 255);
 }
 
-.rotate-180 {
-  transform: rotate(180deg);
-}
-
 .ml-auto {
   margin-left: auto;
+}
+
+.submenu-arrow {
+  opacity: 0.5;
+  transition: transform 0.15s ease;
+}
+
+.menu-item:hover .submenu-arrow {
+  opacity: 1;
 }
 
 .submenu {
   position: absolute;
   left: 100%;
-  top: -6px;
-  margin-left: 4px;
+  top: 0;
+  bottom: 0;
+  margin: 0 0 0 -4px;
+  padding: 0 0 0 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.submenu-inner {
   width: 160px;
   padding: 6px;
-  background: var(--liquid-bg, rgba(255, 255, 255, 0.92));
-  backdrop-filter: blur(var(--liquid-blur, 20px)) saturate(var(--liquid-saturate, 180%));
-  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  background: rgba(245, 245, 247, 0.95);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.6);
   border-radius: var(--liquid-radius-button, 14px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  z-index: 1;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
 }
 
 .context-menu.mobile .submenu {
   position: static;
-  margin-left: 0;
-  margin-top: 4px;
+  margin: 4px 0 0 0;
+  padding: 0;
+}
+
+.context-menu.mobile .submenu-inner {
   width: 100%;
+  margin-top: 4px;
 }
 
 .submenu-item {
@@ -567,8 +597,16 @@ function adjustPosition() {
   }
 
   .submenu {
-    background: var(--liquid-bg, rgba(255, 255, 255, 0.08));
-    border-color: rgba(255, 255, 255, 0.15);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .submenu-inner {
+    background: rgba(60, 60, 67, 0.85);
+    backdrop-filter: blur(30px) saturate(180%);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 
   .date-picker {

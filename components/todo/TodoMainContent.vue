@@ -67,6 +67,7 @@
       @view-detail="handleMenuViewDetail"
       @delete="handleMenuDelete"
       @set-date="handleMenuSetDate"
+      @reposition="handleMenuReposition"
     />
   </main>
 </template>
@@ -154,6 +155,12 @@ const handleMenuDelete = (todo: { id: string }) => {
 // 右键菜单 - 设置日期
 const handleMenuSetDate = (todo: { id: string }, date: string | null) => {
   emit('set-date', todo.id, date)
+}
+
+// 右键菜单 - 重新定位
+const handleMenuReposition = (x: number, y: number) => {
+  contextMenuX.value = x
+  contextMenuY.value = y
 }
 </script>
 

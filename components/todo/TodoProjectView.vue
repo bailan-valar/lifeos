@@ -264,6 +264,7 @@
       @view-detail="handleTaskMenuViewDetail"
       @delete="handleTaskMenuDelete"
       @set-date="handleTaskMenuSetDate"
+      @reposition="handleTaskMenuReposition"
     />
 
     <!-- 笔记右键菜单 -->
@@ -864,6 +865,12 @@ async function handleTaskMenuSetDate(task: { id: string; noteId: string }, date:
   } catch (err) {
     console.error('设置任务日期失败:', err)
   }
+}
+
+// 任务右键菜单 - 重新定位
+function handleTaskMenuReposition(x: number, y: number) {
+  taskContextMenuX.value = x
+  taskContextMenuY.value = y
 }
 
 // 笔记编辑完成
