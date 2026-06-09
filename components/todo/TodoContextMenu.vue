@@ -174,6 +174,7 @@ const emit = defineEmits<{
   delete: [todo: BaseTask]
   'set-date': [todo: BaseTask, date: string | null]
   reposition: [x: number, y: number]
+  'view-detail': [todo: BaseTask]
 }>()
 
 const { isMobile } = useDevice()
