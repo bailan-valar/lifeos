@@ -677,6 +677,7 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
     weekDates,
     notesWithLevel,
     weekRows,
+    tasks,
     expandedNotes,
     focusedNoteId,
     focusBreadcrumbs,

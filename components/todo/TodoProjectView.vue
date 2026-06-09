@@ -351,6 +351,7 @@ const {
   weekDates,
   notesWithLevel,
   weekRows,
+  tasks,
   loadData,
   toggleNote,
   expandAll,
