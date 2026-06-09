@@ -347,11 +347,13 @@ const initForm = () => {
     // 新建模式
     form.text = ''
     form.typeId = null
-    form.priority = 'none'
+    // 使用 initialData 中的优先级，否则默认为 'none'
+    form.priority = props.initialData?.priority || 'none'
     // 使用 initialData 预填充日期和时间
     form.startDate = props.initialData?.startDate ? toPickerFormat(props.initialData.startDate) : null
     form.dueDate = props.initialData?.dueDate ? toPickerFormat(props.initialData.dueDate) : null
-    form.statusId = getDefaultStatus()?.id || null
+    // 使用 initialData 中的状态ID，否则使用默认状态
+    form.statusId = props.initialData?.statusId || getDefaultStatus()?.id || null
     form.noteId = props.initialData?.noteId || null
     form.parentId = props.parentId || null
   }

@@ -53,24 +53,11 @@
                 </div>
                 <!-- 快速添加区域 -->
                 <div class="cell-quick-add">
-                  <div v-if="getQuickAddState(statusRow.statusId, quadrant.id)" class="quick-add-input-wrapper">
-                    <input
-                      :ref="el => setQuickAddRef(el, statusRow.statusId, quadrant.id)"
-                      v-model="quickAddInputs[`${statusRow.statusId}-${quadrant.id}`]"
-                      type="text"
-                      class="liquid-glass-input quick-add-input"
-                      placeholder="输入任务名称..."
-                      @keydown.enter="handleQuickAddEnter(statusRow.statusId, quadrant.id)"
-                      @keydown.escape="cancelQuickAdd(statusRow.statusId, quadrant.id)"
-                      @blur="handleQuickAddBlur(statusRow.statusId, quadrant.id)"
-                    />
-                  </div>
                   <button
-                    v-else
                     type="button"
                     class="quick-add-btn liquid-glass-button"
                     :title="`在${statusRow.name}-${quadrant.label}中添加任务`"
-                    @click="startQuickAdd(statusRow.statusId, quadrant.id)"
+                    @click="handleQuickAddClick(statusRow.statusId, quadrant.id)"
                   >
                     <Icon :name="SOLAR_ICONS.action.add" size="14" />
                   </button>
@@ -129,7 +116,6 @@ interface Props {
 }
 
 interface QuickAddOptions {
-  text: string
   statusId?: string
   dueDate?: string
   priority?: TodoItemType['priority']
@@ -141,7 +127,7 @@ interface Emits {
   (e: 'update', id: string, text: string): void
   (e: 'edit', id: string): void
   (e: 'set-date', id: string, date: string | null): void
-  (e: 'quick-add', options: QuickAddOptions): void
+  (e: 'open-create', options: QuickAddOptions): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -272,59 +258,8 @@ const handleMenuReposition = (x: number, y: number) => {
   contextMenuY.value = y
 }
 
-// 快速添加功能
-type QuickAddInputKey = `${string}-${string}`
-const quickAddInputs = ref<Record<QuickAddInputKey, string>>({})
-const activeQuickAddCells = ref<Set<QuickAddInputKey>>(new Set())
-const quickAddRefs = ref<Record<QuickAddInputKey, HTMLElement>>({})
-
-// 设置快速添加输入框的 ref
-const setQuickAddRef = (el: any, statusId: string, quadrantId: string) => {
-  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
-  if (el && el instanceof HTMLElement) {
-    quickAddRefs.value[key] = el
-  } else {
-    delete quickAddRefs.value[key]
-  }
-}
-
-// 获取快速添加状态
-const getQuickAddState = (statusId: string, quadrantId: string): boolean => {
-  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
-  return activeQuickAddCells.value.has(key)
-}
-
-// 开始快速添加
-const startQuickAdd = (statusId: string, quadrantId: string) => {
-  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
-  activeQuickAddCells.value.add(key)
-  quickAddInputs.value[key] = ''
-
-  // 聚焦输入框
-  nextTick(() => {
-    const ref = quickAddRefs.value[key]
-    if (ref) {
-      ref.focus()
-    }
-  })
-}
-
-// 取消快速添加
-const cancelQuickAdd = (statusId: string, quadrantId: string) => {
-  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
-  activeQuickAddCells.value.delete(key)
-  delete quickAddInputs.value[key]
-}
-
-// 处理回车确认
-const handleQuickAddEnter = (statusId: string, quadrantId: string) => {
-  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
-  const text = quickAddInputs.value[key]?.trim()
-  if (!text) {
-    cancelQuickAdd(statusId, quadrantId)
-    return
-  }
-
+// 快速添加功能：点击按钮打开创建弹框
+const handleQuickAddClick = (statusId: string, quadrantId: string) => {
   // 根据象限确定优先级和截止日期
   const today = new Date().toISOString().slice(0, 10)
   let dueDate: string | undefined
@@ -348,23 +283,11 @@ const handleQuickAddEnter = (statusId: string, quadrantId: string) => {
       break
   }
 
-  emit('quick-add', {
-    text,
+  emit('open-create', {
     statusId: statusId || undefined,
-    dueDate,
+    dueDate: dueDate || undefined,
     priority
   })
-
-  cancelQuickAdd(statusId, quadrantId)
-}
-
-// 处理失焦（延迟执行，避免与点击冲突）
-let blurTimer: ReturnType<typeof setTimeout> | null = null
-const handleQuickAddBlur = (statusId: string, quadrantId: string) => {
-  if (blurTimer) clearTimeout(blurTimer)
-  blurTimer = setTimeout(() => {
-    cancelQuickAdd(statusId, quadrantId)
-  }, 200)
 }
 </script>
 
@@ -541,18 +464,6 @@ const handleQuickAddBlur = (statusId: string, quadrantId: string) => {
 .quick-add-btn:hover {
   background: rgba(60, 60, 67, 0.08);
   color: rgba(60, 60, 67, 0.7);
-}
-
-.quick-add-input-wrapper {
-  width: 100%;
-}
-
-.quick-add-input {
-  width: 100%;
-  height: 32px;
-  padding: 0 10px;
-  font-size: 13px;
-  border-radius: 8px;
 }
 
 /* 状态徽章 */

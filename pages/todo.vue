@@ -46,7 +46,7 @@
           @update="handleUpdate"
           @edit="openEditDialog"
           @set-date="handleSetDate"
-          @quick-add="handleMatrixQuickAdd"
+          @open-create="handleMatrixQuickAdd"
         />
 
         <!-- 周视图 -->
@@ -92,8 +92,11 @@
       v-model:visible="showEditDialog"
       :todo="editingTodo"
       :available-parent-todos="availableParentTodos"
+      :initial-data="quickAddInitialData"
+      :is-creating="isCreatingTodo"
       @save="saveEdit"
       @delete="deleteEdit"
+      @create="handleCreateTodo"
     />
   </div>
 </template>
@@ -136,6 +139,8 @@ const showStatusManage = ref(false)
 const showTypeManage = ref(false)
 const showEditDialog = ref(false)
 const editingTodo = ref<TodoItem | null>(null)
+const quickAddInitialData = ref<Partial<TodoItem> | null>(null)
+const isCreatingTodo = ref(false)
 
 const quickAddRef = ref()
 
@@ -233,21 +238,39 @@ const handleQuickAdd = async (
   }
 }
 
-// 四象限视图快速添加任务
-const handleMatrixQuickAdd = async (options: {
-  text: string
+// 四象限视图快速添加任务 - 打开创建弹框
+const handleMatrixQuickAdd = (options: {
   statusId?: string
   dueDate?: string
   priority?: TodoItem['priority']
 }) => {
+  // 设置初始数据
+  quickAddInitialData.value = {
+    dueDate: options.dueDate,
+    priority: options.priority,
+    statusId: options.statusId
+  }
+  editingTodo.value = null
+  isCreatingTodo.value = true
+  showEditDialog.value = true
+}
+
+// 处理创建待办
+const handleCreateTodo = async (todo: TodoItem) => {
   try {
-    await todoStore.quickAdd(options.text, {
-      dueDate: options.dueDate,
-      priority: options.priority,
-      statusId: options.statusId
+    // 使用 quickAdd 创建任务（只传递支持的参数）
+    await todoStore.quickAdd(todo.text, {
+      dueDate: todo.dueDate,
+      priority: todo.priority,
+      typeId: todo.typeId,
+      statusId: todo.statusId
     })
+    showEditDialog.value = false
+    editingTodo.value = null
+    quickAddInitialData.value = null
+    isCreatingTodo.value = false
   } catch (err) {
-    console.error('快速添加任务失败:', err)
+    console.error('创建任务失败:', err)
   }
 }
 
