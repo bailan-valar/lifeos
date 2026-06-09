@@ -53,6 +53,7 @@
                 <div class="status-name">
                   {{ status.name }}
                   <span v-if="status.isDefault" class="default-badge">默认</span>
+                  <span v-if="status.isCompleted" class="completed-badge">完成</span>
                 </div>
                 <div v-if="status.description" class="status-description">
                   {{ status.description }}
@@ -269,7 +270,8 @@ watch(() => props.visible, (newVal) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -278,14 +280,16 @@ watch(() => props.visible, (newVal) => {
 }
 
 .todo-status-manage-dialog {
-  background: white;
-  border-radius: 16px;
+  background: var(--liquid-bg, rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(var(--liquid-blur, 20px)) saturate(var(--liquid-saturate, 180%));
+  border-radius: var(--liquid-radius, 20px);
   width: 100%;
   max-width: 600px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border: 0.5px solid rgba(255, 255, 255, 0.2);
 }
 
 .dialog-header {
@@ -468,6 +472,16 @@ watch(() => props.visible, (newVal) => {
   border-radius: 4px;
 }
 
+.completed-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
 .status-actions {
   display: flex;
   gap: 8px;
@@ -587,7 +601,8 @@ watch(() => props.visible, (newVal) => {
 /* 深色模式 */
 @media (prefers-color-scheme: dark) {
   .todo-status-manage-dialog {
-    background: rgba(30, 30, 30, 0.95);
+    background: var(--liquid-bg, rgba(255, 255, 255, 0.05));
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .dialog-header {
@@ -595,7 +610,7 @@ watch(() => props.visible, (newVal) => {
   }
 
   .dialog-header h3 {
-    color: rgba(255, 255, 255, 0.92);
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .close-btn {
@@ -637,11 +652,21 @@ watch(() => props.visible, (newVal) => {
   }
 
   .status-name {
-    color: rgba(255, 255, 255, 0.92);
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .status-description {
     color: rgba(255, 255, 255, 0.6);
+  }
+
+  .default-badge {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+  }
+
+  .completed-badge {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
   }
 
   .action-btn {
@@ -660,6 +685,14 @@ watch(() => props.visible, (newVal) => {
 
   .dialog-actions {
     border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .create-btn {
+    background: rgb(0, 122, 255);
+  }
+
+  .create-btn:hover {
+    background: rgb(0, 102, 220);
   }
 
   .reset-btn {

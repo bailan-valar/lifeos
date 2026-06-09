@@ -28,6 +28,7 @@ export interface CellTask {
   statusName?: string
   statusColor?: string
   statusIcon?: string
+  statusIsCompleted?: boolean  // 状态是否标记为完成状态
   startDate?: string
   dueDate?: string
   createdAt?: string
@@ -164,6 +165,7 @@ function calculateTaskLayout(
         statusName: task.statusName,
         statusColor: task.statusColor,
         statusIcon: task.statusIcon,
+        statusIsCompleted: task.statusIsCompleted,
         startDate: task.startDate,
         dueDate: task.dueDate,
         createdAt: task.createdAt,
@@ -225,6 +227,7 @@ function calculateTaskLayout(
       statusName: task.statusName,
       statusColor: task.statusColor,
       statusIcon: task.statusIcon,
+      statusIsCompleted: task.statusIsCompleted,
       startDate: task.startDate,
       dueDate: task.dueDate,
       createdAt: task.createdAt,
@@ -487,7 +490,8 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
               noteId: doc.noteId,
               statusName: todo.statusId ? statuses.find(s => s.id === todo.statusId)?.name : undefined,
               statusColor: todo.statusId ? statuses.find(s => s.id === todo.statusId)?.color : undefined,
-              statusIcon: (todo.statusId ? statuses.find(s => s.id === todo.statusId)?.icon : undefined) ?? ICONS.round
+              statusIcon: (todo.statusId ? statuses.find(s => s.id === todo.statusId)?.icon : undefined) ?? ICONS.round,
+              statusIsCompleted: todo.statusId ? statuses.find(s => s.id === todo.statusId)?.isCompleted : undefined
             })
           }
         }

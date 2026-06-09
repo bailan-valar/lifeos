@@ -17,6 +17,7 @@ export interface TodoStatus {
   description?: string
   order: number
   isDefault: boolean
+  isCompleted: boolean // 标记此状态是否表示完成
   createdAt: string
   updatedAt: string
 }
@@ -48,6 +49,7 @@ export interface TodoStatusFormData {
   color: string
   description?: string
   isDefault?: boolean
+  isCompleted?: boolean
 }
 
 export interface TodoTypeFormData {
@@ -69,6 +71,7 @@ export interface TodoWithMeta extends TodoItem {
   statusName?: string
   statusColor?: string
   statusIcon?: string
+  statusIsCompleted?: boolean  // 状态是否标记为完成状态
   typeName?: string
   typeColor?: string
   typeIcon?: string

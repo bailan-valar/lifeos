@@ -486,6 +486,7 @@ export const useTodoStore = defineStore('todo', () => {
       description: data.description || '',
       order: statuses.value.length,
       isDefault: data.isDefault || false,
+      isCompleted: data.isCompleted || false,
       createdAt: now(),
       updatedAt: now()
     }
@@ -666,6 +667,7 @@ export const useTodoStore = defineStore('todo', () => {
         description: '已完成的任务',
         order: 3,
         isDefault: false,
+        isCompleted: true,
         createdAt: now(),
         updatedAt: now()
       }

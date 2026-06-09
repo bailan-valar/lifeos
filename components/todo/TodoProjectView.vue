@@ -407,9 +407,12 @@ const dailyStats = computed(() => {
   for (const row of weekRows.value) {
     // 统计该行自己的任务
     for (const layout of row.taskLayouts) {
+      // 判断任务是否完成：completed 字段为 true 或状态的 isCompleted 为 true
+      const isTaskCompleted = layout.task.completed || layout.task.statusIsCompleted || false
+
       // 处理无日期任务
       if (layout.task.isUndated) {
-        if (layout.task.completed) {
+        if (isTaskCompleted) {
           stats['undated'].completed++
         } else {
           stats['undated'].pending++
@@ -424,7 +427,7 @@ const dailyStats = computed(() => {
           if (stats[dateStr]) {
             // 每个任务只在起始日计一次（避免重复计数）
             if (i === layout.colIndex) {
-              if (layout.task.completed) {
+              if (isTaskCompleted) {
                 stats[dateStr].completed++
               } else {
                 stats[dateStr].pending++

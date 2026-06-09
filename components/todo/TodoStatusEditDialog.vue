@@ -78,6 +78,20 @@
             </p>
           </div>
 
+          <div class="form-group">
+            <label class="form-checkbox">
+              <input
+                v-model="formData.isCompleted"
+                type="checkbox"
+                class="checkbox-input"
+              />
+              <span>标记为完成状态</span>
+            </label>
+            <p class="form-hint">
+              标记为完成状态的任务将计入完成统计
+            </p>
+          </div>
+
           <div class="preview-section">
             <label class="form-label">预览</label>
             <div 
@@ -133,7 +147,8 @@ const formData = ref<TodoStatusFormData>({
   icon: ICONS.round,
   color: '#3b82f6',
   description: '',
-  isDefault: false
+  isDefault: false,
+  isCompleted: false
 })
 
 const availableIcons = [
@@ -172,7 +187,8 @@ watch(() => props.visible, (newVal) => {
       icon: props.status.icon,
       color: props.status.color,
       description: props.status.description || '',
-      isDefault: props.status.isDefault
+      isDefault: props.status.isDefault,
+      isCompleted: props.status.isCompleted || false
     }
   } else if (newVal && !props.status) {
     // 新建模式：重置为默认值
@@ -181,7 +197,8 @@ watch(() => props.visible, (newVal) => {
       icon: ICONS.round,
       color: '#3b82f6',
       description: '',
-      isDefault: false
+      isDefault: false,
+      isCompleted: false
     }
   }
 })
@@ -215,7 +232,8 @@ async function handleSubmit() {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -224,14 +242,16 @@ async function handleSubmit() {
 }
 
 .todo-status-edit-dialog {
-  background: white;
-  border-radius: 16px;
+  background: var(--liquid-bg, rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(var(--liquid-blur, 20px)) saturate(var(--liquid-saturate, 180%));
+  border-radius: var(--liquid-radius, 20px);
   width: 100%;
   max-width: 500px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border: 0.5px solid rgba(255, 255, 255, 0.2);
 }
 
 .dialog-header {
@@ -239,14 +259,14 @@ async function handleSubmit() {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(60, 60, 67, 0.12);
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
 }
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.92);
+  color: rgba(60, 60, 67, 0.9);
 }
 
 .close-btn {
@@ -254,17 +274,17 @@ async function handleSubmit() {
   height: 32px;
   border: none;
   background: transparent;
-  color: rgba(60, 60, 67, 0.6);
+  color: rgba(60, 60, 67, 0.5);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--liquid-radius-button, 14px);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .close-btn:hover {
-  background: rgba(60, 60, 67, 0.1);
+  background: rgba(60, 60, 67, 0.08);
   color: rgba(60, 60, 67, 0.8);
 }
 
@@ -280,29 +300,30 @@ async function handleSubmit() {
 
 .form-label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.92);
+  color: rgba(60, 60, 67, 0.8);
   margin-bottom: 8px;
 }
 
 .form-input,
 .form-textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid rgba(60, 60, 67, 0.2);
-  border-radius: 8px;
+  padding: 10px 14px;
+  border: 0.5px solid rgba(60, 60, 67, 0.15);
+  border-radius: var(--liquid-radius-button, 14px);
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.92);
-  transition: all 0.2s;
+  color: rgba(60, 60, 67, 0.9);
+  transition: all 0.15s ease;
   font-family: inherit;
+  background: var(--liquid-bg-thin, rgba(255, 255, 255, 0.5));
 }
 
 .form-input:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: rgb(0, 122, 255);
+  background: var(--liquid-bg, rgba(255, 255, 255, 0.7));
 }
 
 .form-textarea {
@@ -326,35 +347,36 @@ async function handleSubmit() {
 .icon-option {
   width: 36px;
   height: 36px;
-  border: 2px solid rgba(60, 60, 67, 0.2);
-  border-radius: 8px;
-  background: white;
-  color: rgba(60, 60, 67, 0.6);
+  border: 1px solid rgba(60, 60, 67, 0.15);
+  border-radius: 10px;
+  background: var(--liquid-bg-thin, rgba(255, 255, 255, 0.5));
+  color: rgba(60, 60, 67, 0.5);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .icon-option:hover {
-  border-color: rgba(59, 130, 246, 0.4);
-  color: #3b82f6;
+  border-color: rgba(0, 122, 255, 0.3);
+  color: rgb(0, 122, 255);
+  background: var(--liquid-bg, rgba(255, 255, 255, 0.7));
 }
 
 .icon-option.active {
-  border-color: #3b82f6;
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  border-color: rgb(0, 122, 255);
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
 }
 
 .color-option {
   width: 32px;
   height: 32px;
   border: 2px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   position: relative;
 }
 
@@ -363,14 +385,14 @@ async function handleSubmit() {
 }
 
 .color-option.active {
-  border-color: rgba(60, 60, 67, 0.4);
-  box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(60, 60, 67, 0.4);
+  border-color: rgba(60, 60, 67, 0.3);
+  box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(60, 60, 67, 0.3);
 }
 
 .form-checkbox {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
 }
 
@@ -378,18 +400,19 @@ async function handleSubmit() {
   width: 18px;
   height: 18px;
   cursor: pointer;
+  accent-color: rgb(0, 122, 255);
 }
 
 .form-hint {
   font-size: 12px;
-  color: rgba(60, 60, 67, 0.6);
-  margin: 8px 0 0 0;
+  color: rgba(60, 60, 67, 0.5);
+  margin: 6px 0 0 24px;
 }
 
 .preview-section {
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid rgba(60, 60, 67, 0.12);
+  border-top: 0.5px solid rgba(60, 60, 67, 0.1);
 }
 
 .status-preview {
@@ -410,7 +433,7 @@ async function handleSubmit() {
   display: flex;
   gap: 12px;
   padding: 20px 24px;
-  border-top: 1px solid rgba(60, 60, 67, 0.12);
+  border-top: 0.5px solid rgba(60, 60, 67, 0.1);
 }
 
 .cancel-btn,
@@ -418,29 +441,30 @@ async function handleSubmit() {
   flex: 1;
   padding: 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--liquid-radius-button, 14px);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .cancel-btn {
-  background: rgba(60, 60, 67, 0.1);
+  background: var(--liquid-bg-thin, rgba(255, 255, 255, 0.5));
   color: rgba(60, 60, 67, 0.8);
+  border: 0.5px solid rgba(60, 60, 67, 0.15);
 }
 
 .cancel-btn:hover {
-  background: rgba(60, 60, 67, 0.15);
+  background: var(--liquid-bg, rgba(255, 255, 255, 0.7));
 }
 
 .save-btn {
-  background: #3b82f6;
+  background: rgb(0, 122, 255);
   color: white;
 }
 
 .save-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: rgb(0, 102, 220);
   transform: translateY(-1px);
 }
 
@@ -466,5 +490,89 @@ async function handleSubmit() {
 
 .dialog-body::-webkit-scrollbar-thumb:hover {
   background: rgba(60, 60, 67, 0.3);
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  .todo-status-edit-dialog {
+    background: var(--liquid-bg, rgba(255, 255, 255, 0.05));
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .dialog-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .dialog-header h3 {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .close-btn {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .form-label {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .form-input,
+  .form-textarea {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .form-input:focus,
+  .form-textarea:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgb(0, 122, 255);
+  }
+
+  .icon-option {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .icon-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgb(0, 122, 255);
+  }
+
+  .icon-option.active {
+    background: rgba(0, 122, 255, 0.15);
+    color: rgb(0, 122, 255);
+  }
+
+  .color-option.active {
+    box-shadow: 0 0 0 2px rgba(30, 30, 30, 1), 0 0 0 4px rgba(255, 255, 255, 0.3);
+  }
+
+  .form-hint {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .preview-section {
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .dialog-footer {
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .cancel-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
 }
 </style>
