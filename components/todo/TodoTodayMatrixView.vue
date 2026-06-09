@@ -30,25 +30,51 @@
           <tr v-for="statusRow in statusRows" :key="statusRow.statusId">
             <td class="row-header">
               <div class="status-badge" :style="{ background: statusRow.color }">
-                <Icon :name="statusRow.icon || SOLAR_ICONS.status.default" size="14" />
+                <Icon :name="statusRow.icon || ICONS.round" size="14" />
                 <span>{{ statusRow.name }}</span>
               </div>
             </td>
             <td v-for="quadrant in quadrants" :key="quadrant.id" class="quadrant-cell">
-              <div class="cell-tasks">
-                <TodoItem
-                  v-for="task in getTasksInCell(statusRow.statusId, quadrant.id)"
-                  :key="task.id"
-                  :todo="task"
-                  mode="compact"
-                  :draggable="false"
-                  @toggle="(id) => $emit('toggle', id)"
-                  @update="(id, text) => $emit('update', id, text)"
-                  @delete="(id) => $emit('delete', id)"
-                  @edit="(id) => $emit('edit', id)"
-                  @contextmenu="handleContextMenu"
-                />
-                <div v-if="getTasksInCell(statusRow.statusId, quadrant.id).length === 0" class="cell-empty" />
+              <div class="cell-content">
+                <div class="cell-tasks">
+                  <TodoItem
+                    v-for="task in getTasksInCell(statusRow.statusId, quadrant.id)"
+                    :key="task.id"
+                    :todo="task"
+                    mode="compact"
+                    :draggable="false"
+                    @toggle="(id) => $emit('toggle', id)"
+                    @update="(id, text) => $emit('update', id, text)"
+                    @delete="(id) => $emit('delete', id)"
+                    @edit="(id) => $emit('edit', id)"
+                    @contextmenu="handleContextMenu"
+                  />
+                  <div v-if="getTasksInCell(statusRow.statusId, quadrant.id).length === 0" class="cell-empty" />
+                </div>
+                <!-- 快速添加区域 -->
+                <div class="cell-quick-add">
+                  <div v-if="getQuickAddState(statusRow.statusId, quadrant.id)" class="quick-add-input-wrapper">
+                    <input
+                      :ref="el => setQuickAddRef(el, statusRow.statusId, quadrant.id)"
+                      v-model="quickAddInputs[`${statusRow.statusId}-${quadrant.id}`]"
+                      type="text"
+                      class="liquid-glass-input quick-add-input"
+                      placeholder="输入任务名称..."
+                      @keydown.enter="handleQuickAddEnter(statusRow.statusId, quadrant.id)"
+                      @keydown.escape="cancelQuickAdd(statusRow.statusId, quadrant.id)"
+                      @blur="handleQuickAddBlur(statusRow.statusId, quadrant.id)"
+                    />
+                  </div>
+                  <button
+                    v-else
+                    type="button"
+                    class="quick-add-btn liquid-glass-button"
+                    :title="`在${statusRow.name}-${quadrant.label}中添加任务`"
+                    @click="startQuickAdd(statusRow.statusId, quadrant.id)"
+                  >
+                    <Icon :name="SOLAR_ICONS.action.add" size="14" />
+                  </button>
+                </div>
               </div>
             </td>
           </tr>
@@ -79,6 +105,7 @@ import TodoItem from './TodoItem.vue'
 import TodoContextMenu from './TodoContextMenu.vue'
 import type { TodoWithMeta } from '~/types/todo'
 import type { TodoStatus } from '~/types/todo'
+import type { TodoItem as TodoItemType } from '~/types/todo'
 
 // 四象限定义
 interface Quadrant {
@@ -101,12 +128,20 @@ interface Props {
   statuses?: TodoStatus[]
 }
 
+interface QuickAddOptions {
+  text: string
+  statusId?: string
+  dueDate?: string
+  priority?: TodoItemType['priority']
+}
+
 interface Emits {
   (e: 'toggle', id: string): void
   (e: 'delete', id: string): void
   (e: 'update', id: string, text: string): void
   (e: 'edit', id: string): void
   (e: 'set-date', id: string, date: string | null): void
+  (e: 'quick-add', options: QuickAddOptions): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -236,6 +271,101 @@ const handleMenuReposition = (x: number, y: number) => {
   contextMenuX.value = x
   contextMenuY.value = y
 }
+
+// 快速添加功能
+type QuickAddInputKey = `${string}-${string}`
+const quickAddInputs = ref<Record<QuickAddInputKey, string>>({})
+const activeQuickAddCells = ref<Set<QuickAddInputKey>>(new Set())
+const quickAddRefs = ref<Record<QuickAddInputKey, HTMLElement>>({})
+
+// 设置快速添加输入框的 ref
+const setQuickAddRef = (el: any, statusId: string, quadrantId: string) => {
+  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
+  if (el && el instanceof HTMLElement) {
+    quickAddRefs.value[key] = el
+  } else {
+    delete quickAddRefs.value[key]
+  }
+}
+
+// 获取快速添加状态
+const getQuickAddState = (statusId: string, quadrantId: string): boolean => {
+  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
+  return activeQuickAddCells.value.has(key)
+}
+
+// 开始快速添加
+const startQuickAdd = (statusId: string, quadrantId: string) => {
+  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
+  activeQuickAddCells.value.add(key)
+  quickAddInputs.value[key] = ''
+
+  // 聚焦输入框
+  nextTick(() => {
+    const ref = quickAddRefs.value[key]
+    if (ref) {
+      ref.focus()
+    }
+  })
+}
+
+// 取消快速添加
+const cancelQuickAdd = (statusId: string, quadrantId: string) => {
+  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
+  activeQuickAddCells.value.delete(key)
+  delete quickAddInputs.value[key]
+}
+
+// 处理回车确认
+const handleQuickAddEnter = (statusId: string, quadrantId: string) => {
+  const key: QuickAddInputKey = `${statusId}-${quadrantId}`
+  const text = quickAddInputs.value[key]?.trim()
+  if (!text) {
+    cancelQuickAdd(statusId, quadrantId)
+    return
+  }
+
+  // 根据象限确定优先级和截止日期
+  const today = new Date().toISOString().slice(0, 10)
+  let dueDate: string | undefined
+  let priority: TodoItemType['priority'] = 'none'
+
+  switch (quadrantId) {
+    case 'urgent-important':
+      dueDate = today
+      priority = 'high'
+      break
+    case 'urgent-not-important':
+      dueDate = today
+      priority = 'low'
+      break
+    case 'important-not-urgent':
+      // 重要但不紧急，不设置截止日期或设置为稍后
+      priority = 'high'
+      break
+    case 'not-urgent-not-important':
+      priority = 'low'
+      break
+  }
+
+  emit('quick-add', {
+    text,
+    statusId: statusId || undefined,
+    dueDate,
+    priority
+  })
+
+  cancelQuickAdd(statusId, quadrantId)
+}
+
+// 处理失焦（延迟执行，避免与点击冲突）
+let blurTimer: ReturnType<typeof setTimeout> | null = null
+const handleQuickAddBlur = (statusId: string, quadrantId: string) => {
+  if (blurTimer) clearTimeout(blurTimer)
+  blurTimer = setTimeout(() => {
+    cancelQuickAdd(statusId, quadrantId)
+  }, 200)
+}
 </script>
 
 <style scoped>
@@ -357,8 +487,21 @@ const handleMenuReposition = (x: number, y: number) => {
   border-bottom: 1px solid rgba(60, 60, 67, 0.08);
 }
 
+/* 单元格内容容器 */
+.cell-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 60px;
+  max-height: 360px;
+  overflow: hidden;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(60, 60, 67, 0.03);
+}
+
 /* 单元格任务容器 */
 .cell-tasks {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -366,12 +509,50 @@ const handleMenuReposition = (x: number, y: number) => {
   max-height: 300px;
   overflow-y: auto;
   padding: 4px;
-  border-radius: 12px;
-  background: rgba(60, 60, 67, 0.03);
 }
 
 .cell-empty {
   min-height: 32px;
+}
+
+/* 快速添加区域 */
+.cell-quick-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin-top: 2px;
+  border-top: 1px solid rgba(60, 60, 67, 0.06);
+}
+
+.quick-add-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: rgba(60, 60, 67, 0.5);
+  background: transparent;
+  transition: all 0.15s ease;
+}
+
+.quick-add-btn:hover {
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(60, 60, 67, 0.7);
+}
+
+.quick-add-input-wrapper {
+  width: 100%;
+}
+
+.quick-add-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: 8px;
 }
 
 /* 状态徽章 */
@@ -447,6 +628,23 @@ const handleMenuReposition = (x: number, y: number) => {
 
   .cell-tasks {
     background: rgba(255, 255, 255, 0.05);
+  }
+
+  .cell-content {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .quick-add-btn {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .quick-add-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .cell-quick-add {
+    border-top-color: rgba(255, 255, 255, 0.06);
   }
 
   .matrix-table-container::-webkit-scrollbar-thumb {

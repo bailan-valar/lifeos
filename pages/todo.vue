@@ -46,6 +46,7 @@
           @update="handleUpdate"
           @edit="openEditDialog"
           @set-date="handleSetDate"
+          @quick-add="handleMatrixQuickAdd"
         />
 
         <!-- 周视图 -->
@@ -229,6 +230,24 @@ const handleQuickAdd = async (
     await todoStore.quickAdd(text, options)
   } catch (err) {
     console.error('添加任务失败:', err)
+  }
+}
+
+// 四象限视图快速添加任务
+const handleMatrixQuickAdd = async (options: {
+  text: string
+  statusId?: string
+  dueDate?: string
+  priority?: TodoItem['priority']
+}) => {
+  try {
+    await todoStore.quickAdd(options.text, {
+      dueDate: options.dueDate,
+      priority: options.priority,
+      statusId: options.statusId
+    })
+  } catch (err) {
+    console.error('快速添加任务失败:', err)
   }
 }
 
