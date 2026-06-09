@@ -110,20 +110,12 @@
               <Icon :name="SOLAR_ICONS.doc.notebook || 'solar:notebook-linear'" :size="14" />
               绑定笔记
             </label>
-            <SelectPicker
+            <NoteTreePicker
               v-model="form.noteId"
-              :options="noteOptions"
+              :notes="notes"
               placeholder="选择笔记（可选）"
               clearable
-              searchable
-            >
-              <template #default="{ option }">
-                <div class="note-option" :style="{ paddingLeft: `${(option.level || 0) * 16 + 8}px` }">
-                  <span class="note-icon">{{ '　'.repeat(option.level || 0) }}</span>
-                  <span>{{ option.label }}</span>
-                </div>
-              </template>
-            </SelectPicker>
+            />
           </div>
         </div>
 
@@ -172,6 +164,7 @@
 import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import SelectPicker from '~/components/SelectPicker.vue'
+import NoteTreePicker from '~/components/NoteTreePicker.vue'
 import TodoTypePicker from '~/components/todo/TodoTypePicker.vue'
 import DateTimePicker from '~/app-modules/billing/components/DateTimePicker.vue'
 import { useNotes } from '~/composables/useNotes'
@@ -207,17 +200,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const { confirm } = useConfirm()
-const { noteOptions: rawNoteOptions, loadNotes } = useNotes()
+const { notes, loadNotes } = useNotes()
 const { statuses, loadStatuses, getDefaultStatus } = useTodoStatus()
-
-// 转换笔记选项格式以适配 SelectPicker
-const noteOptions = computed(() => {
-  return rawNoteOptions.value.map(note => ({
-    value: note.id,
-    label: note.title,
-    level: note.level
-  }))
-})
 
 const internalVisible = computed({
   get: () => props.visible,
@@ -523,16 +507,6 @@ watch(() => props.visible, async (visible) => {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.note-option {
-  display: flex;
-  align-items: center;
-}
-
-.note-icon {
-  display: inline-block;
-  width: 16px;
 }
 
 /* 响应式设计 */
