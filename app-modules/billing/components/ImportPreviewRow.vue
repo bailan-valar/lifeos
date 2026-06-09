@@ -492,19 +492,19 @@ function formatAmount(n: number): string {
 .controls-row {
   grid-column: 2 / 5;
   grid-row: 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px 12px;
+  align-items: center;
 }
 .controls-row:nth-child(2) {
   grid-row: 3;
 }
 .type-picker {
-  flex: 0 0 90px;
   min-width: 90px;
 }
 :deep(.type-picker .picker-trigger) {
-  padding: 6px 8px;
+  padding: 6px 10px;
   font-size: 12px;
   border-radius: 6px;
 }
@@ -512,12 +512,10 @@ function formatAmount(n: number): string {
   width: 120px !important;
 }
 .compact-picker {
-  flex: 1;
   min-width: 110px;
-  max-width: 180px;
 }
 :deep(.compact-picker .picker-trigger) {
-  padding: 6px 8px;
+  padding: 6px 10px;
   font-size: 12px;
   border-radius: 6px;
 }
