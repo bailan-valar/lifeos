@@ -46,19 +46,27 @@
           </button>
 
           <!-- 设置日期 -->
-          <div class="menu-item-wrapper">
+          <div
+            class="menu-item-wrapper"
+            @mouseenter="handleDateMenuEnter"
+            @mouseleave="handleDateMenuLeave"
+          >
             <button
               type="button"
               class="menu-item"
               :class="{ active: dateMenuOpen }"
-              @click="toggleDateMenu"
             >
               <Icon :name="ICONS.calendar" size="16" />
               <span>设置日期</span>
               <Icon :name="SOLAR_ICONS.nav.up" :class="{ 'rotate-180': dateMenuOpen }" size="14" class="ml-auto" />
             </button>
             <Transition name="submenu-slide">
-              <div v-if="dateMenuOpen" class="submenu">
+              <div
+                v-if="dateMenuOpen"
+                class="submenu"
+                @mouseenter="handleSubmenuEnter"
+                @mouseleave="handleSubmenuLeave"
+              >
                 <button
                   type="button"
                   class="menu-item submenu-item"
@@ -203,6 +211,7 @@ const dateMenuOpen = ref(false)
 const showDatePicker = ref(false)
 const customDateValue = ref('')
 const datePickerRef = ref<HTMLInputElement | null>(null)
+let dateMenuTimer: ReturnType<typeof setTimeout> | null = null
 
 // 计算日期提示
 const dateHints = computed(() => {
@@ -227,9 +236,41 @@ const dateHints = computed(() => {
   }
 })
 
-function toggleDateMenu() {
-  dateMenuOpen.value = !dateMenuOpen.value
-  showDatePicker.value = false
+// 清除定时器
+function clearDateMenuTimer() {
+  if (dateMenuTimer) {
+    clearTimeout(dateMenuTimer)
+    dateMenuTimer = null
+  }
+}
+
+// 主菜单项 hover 进入
+function handleDateMenuEnter() {
+  clearDateMenuTimer()
+  dateMenuOpen.value = true
+}
+
+// 主菜单项 hover 离开
+function handleDateMenuLeave() {
+  clearDateMenuTimer()
+  dateMenuTimer = setTimeout(() => {
+    dateMenuOpen.value = false
+    showDatePicker.value = false
+  }, 150)
+}
+
+// 子菜单 hover 进入
+function handleSubmenuEnter() {
+  clearDateMenuTimer()
+}
+
+// 子菜单 hover 离开
+function handleSubmenuLeave() {
+  clearDateMenuTimer()
+  dateMenuTimer = setTimeout(() => {
+    dateMenuOpen.value = false
+    showDatePicker.value = false
+  }, 150)
 }
 
 function handleSetDate(type: 'today' | 'tomorrow' | 'nextWeek') {
@@ -286,6 +327,7 @@ function handleClearDate() {
 // 关闭日期菜单当主菜单关闭时
 watch(() => props.visible, (visible) => {
   if (!visible) {
+    clearDateMenuTimer()
     dateMenuOpen.value = false
     showDatePicker.value = false
   }
@@ -296,6 +338,11 @@ watch(() => props.visible, (visible) => {
 
 // ESC 关闭
 onKeyStroke('Escape', close)
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  clearDateMenuTimer()
+})
 
 function adjustPosition() {
   const menu = document.querySelector('.todo-context-menu .context-menu') as HTMLElement
