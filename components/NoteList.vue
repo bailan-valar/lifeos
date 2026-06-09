@@ -110,9 +110,10 @@
 </template>
 
 <script setup lang="ts">
-import type { Note } from '~/types/block'
+import type { Note, Class } from '~/types/block'
 import NoteTreeItem from '~/components/NoteTreeItem.vue'
 import NoteContextMenu from '~/components/NoteContextMenu.vue'
+import { useNoteClasses } from '~/composables/useNoteClasses'
 
 interface Props {
   notes: Note[]
@@ -228,6 +229,7 @@ provide('noteTreeContext', {
   isExpanded,
   dropPosition: () => dropTarget.value?.position ?? null,
   getChildren: (parentId: string) => childrenMap.value[parentId] || [],
+  getClass: (noteId: string) => noteClassMap.value[noteId] || null,
   onSelect: (id: string) => emit('select', id),
   onCreateChild: (parentId: string) => {
     const next = new Set(expandedSet.value)
@@ -357,6 +359,24 @@ const handleContextMenuDelete = () => {
 }
 
 const { isMobile } = useDevice()
+
+const { classes, noteBindings, loadBindings, loadClasses } = useNoteClasses()
+
+onMounted(async () => {
+  await Promise.all([loadClasses(), loadBindings()])
+})
+
+// 创建笔记 ID 到类的映射
+const noteClassMap = computed<Record<string, Class>>(() => {
+  const map: Record<string, Class> = {}
+  for (const binding of noteBindings.value) {
+    const cls = classes.value.find(c => c.id === binding.classId)
+    if (cls) {
+      map[binding.noteId] = cls
+    }
+  }
+  return map
+})
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)

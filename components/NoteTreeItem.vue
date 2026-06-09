@@ -30,6 +30,13 @@
 
       <div class="note-item-body">
         <div class="note-title">{{ note.title || '无标题' }}</div>
+        <Icon
+          v-if="noteClass"
+          :name="noteClass.icon"
+          :style="{ color: noteClass.color }"
+          class="note-class-icon"
+          size="12"
+        />
       </div>
 
       <div class="note-item-actions">
@@ -68,7 +75,7 @@
 
 <script setup lang="ts">
 import { SOLAR_ICONS } from '~/composables/useIcons'
-import type { Note } from '~/types/block'
+import type { Note, Class } from '~/types/block'
 
 const { isMobile } = useDevice()
 
@@ -90,6 +97,7 @@ const isDropTarget = computed(() => noteTreeContext?.isDropTarget(props.note.id)
 const dropPosition = computed(() => noteTreeContext?.dropPosition() ?? null)
 const expanded = computed(() => noteTreeContext?.isExpanded(props.note.id) ?? false)
 const hasChildren = computed(() => props.children.length > 0)
+const noteClass = computed(() => noteTreeContext?.getClass(props.note.id))
 
 const itemClasses = computed(() => ({
   active: isActive.value,
@@ -174,6 +182,7 @@ function useNoteTreeContext() {
     isExpanded: (id: string) => false,
     dropPosition: () => null,
     getChildren: (parentId: string) => [],
+    getClass: (_noteId: string) => null,
     onSelect: (id: string) => {},
     onCreateChild: (parentId: string) => {},
     onToggleExpand: (id: string) => {},
@@ -278,6 +287,9 @@ function useNoteTreeContext() {
 .note-item-body {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .note-title {
@@ -287,6 +299,12 @@ function useNoteTreeContext() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+}
+
+.note-class-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .note-item-actions {
