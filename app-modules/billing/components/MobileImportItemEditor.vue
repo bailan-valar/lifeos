@@ -151,6 +151,17 @@
               </div>
 
               <div class="edit-row">
+                <span class="edit-label">绑定笔记</span>
+                <NotePicker
+                  :model-value="editableItem.noteId || ''"
+                  :options="noteOptions"
+                  placeholder="未选择"
+                  clearable
+                  class="edit-picker"
+                  @update:model-value="updateField('noteId', $event)"
+                />
+              </div>
+              <div class="edit-row">
                 <span class="edit-label">备注</span>
                 <textarea
                   v-model="remarkText"
@@ -228,12 +239,14 @@ import type {
 } from '~/types/bill'
 import { computed, ref, watch } from 'vue'
 import { suggestAccountIds } from '~/composables/useAccountMatcher'
+import { useNotes } from '~/composables/useNotes'
 import { ICONS } from '~/composables/useIcons'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
 import BillTypePicker from './BillTypePicker.vue'
 import SelectPicker from '~/components/SelectPicker.vue'
+import NotePicker from './NotePicker.vue'
 
 const props = defineProps<{
   visible: boolean
@@ -261,6 +274,7 @@ const emit = defineEmits<{
 
 const editableItem = ref<ImportRecordItem>({ ...props.item })
 const remarkText = ref('')
+const { noteOptions } = useNotes()
 
 watch(() => props.item, (newItem) => {
   editableItem.value = { ...newItem }

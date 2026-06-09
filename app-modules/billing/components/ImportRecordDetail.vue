@@ -42,6 +42,15 @@
                 </span>
               </div>
             </div>
+              <div v-if="isPending" class="meta-row">
+                <span class="meta-label">绑定笔记</span>
+                <NotePicker
+                  v-model="boundNoteId"
+                  :options="noteOptions"
+                  placeholder="未选择"
+                  clearable
+                />
+              </div>
 
             <!-- Pending 编辑态 -->
             <template v-if="isPending">
@@ -255,6 +264,7 @@ import type {
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
+import { useNotes } from '~/composables/useNotes'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
@@ -263,6 +273,7 @@ import { now } from '~/services/db'
 import ImportPreviewRow from './ImportPreviewRow.vue'
 import MobileImportItemEditor from './MobileImportItemEditor.vue'
 import VirtualList from './VirtualList.vue'
+import NotePicker from './NotePicker.vue'
 
 const { isMobile } = useDevice()
 const { success: showSuccess, error: showError } = useToast()
@@ -315,10 +326,24 @@ onUnmounted(() => {
 
 const { rules: importRules, applyRules } = useImportRules()
 const { updateRecord, updateRecordItems } = useImportRecords()
+const { noteOptions } = useNotes()
 const { confirm } = useConfirm()
 
 const importing = ref(false)
 const filter = ref<'all' | 'unmatched' | 'matched' | 'duplicate'>('all')
+
+// 绑定笔记
+const boundNoteId = ref(props.record.noteId || '')
+
+watch(boundNoteId, (newNoteId) => {
+  if (isPending.value && localItems.value.length > 0) {
+    localItems.value = localItems.value.map(item => ({
+      ...item,
+      noteId: newNoteId || undefined
+    }))
+    scheduleSave()
+  }
+})
 
 // 应用规则确认弹框（保存规则后）
 const applyRuleConfirm = ref<{

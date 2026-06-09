@@ -232,7 +232,8 @@ function buildImportRecordItem(parsed: CsvParsedRow): ImportRecordItem {
     fromAccountId: suggestion.fromAccountId || '',
     toAccountId: suggestion.toAccountId || '',
     paymentMethod: parsed.paymentMethod,
-    rawType: parsed.rawType
+    rawType: parsed.rawType,
+    noteId: props.noteId
   }
 }
 
