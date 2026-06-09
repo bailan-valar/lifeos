@@ -101,8 +101,8 @@ const availableParentTodos = computed(() => {
   for (const col of weekColumns.value) {
     allTasks.push(...col.allDayTasks, ...col.timedTasks)
   }
-  // 排除已完成的任务，返回可用的父任务列表
-  return allTasks
+  // 基础列表：排除已完成的任务
+  const baseList = allTasks
     .filter(t => !t.completed && !t.statusIsCompleted)
     .map(t => ({
       id: t.id,
@@ -110,6 +110,24 @@ const availableParentTodos = computed(() => {
       parentId: t.parentId,
       completed: t.completed
     }))
+
+  // 如果正在编辑任务，确保其父任务在列表中（即使已完成）
+  if (editingTask.value?.parentId) {
+    const parentId = editingTask.value.parentId
+    if (!baseList.some(t => t.id === parentId)) {
+      const parentTask = allTasks.find(t => t.id === parentId)
+      if (parentTask) {
+        baseList.push({
+          id: parentTask.id,
+          text: parentTask.text,
+          parentId: parentTask.parentId,
+          completed: parentTask.completed
+        })
+      }
+    }
+  }
+
+  return baseList
 })
 const showEditDialog = ref(false)
 const editingTask = ref<TodoItem | null>(null)

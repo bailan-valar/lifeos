@@ -411,9 +411,8 @@ const parentNoteId = ref<string | undefined>(undefined)
 
 // 可用父任务列表（从当前加载的任务中获取）
 const availableParentTodos = computed(() => {
-  // 返回所有可以作为父任务的任务列表
-  // 排除已完成的任务（可选，根据需求决定）
-  return tasks.value
+  // 基础列表：排除已完成的任务
+  const baseList = tasks.value
     .filter(t => !t.completed && !t.statusIsCompleted)
     .map(t => ({
       id: t.id,
@@ -421,6 +420,24 @@ const availableParentTodos = computed(() => {
       parentId: t.parentId,
       completed: t.completed
     }))
+
+  // 如果正在编辑任务，确保其父任务在列表中（即使已完成）
+  if (editingTask.value?.parentId) {
+    const parentId = editingTask.value.parentId
+    if (!baseList.some(t => t.id === parentId)) {
+      const parentTask = tasks.value.find(t => t.id === parentId)
+      if (parentTask) {
+        baseList.push({
+          id: parentTask.id,
+          text: parentTask.text,
+          parentId: parentTask.parentId,
+          completed: parentTask.completed
+        })
+      }
+    }
+  }
+
+  return baseList
 })
 
 // 周范围标签
