@@ -35,6 +35,19 @@
           @update:week-start="projectWeekStart = $event"
         />
 
+        <!-- 今日四象限视图 -->
+        <TodoTodayMatrixView
+          v-if="todoStore.viewMode === 'today'"
+          :loading="todoStore.loading"
+          :today-tasks="todoStore.viewTasks"
+          :statuses="todoStore.statuses"
+          @toggle="handleToggle"
+          @delete="handleDelete"
+          @update="handleUpdate"
+          @edit="openEditDialog"
+          @set-date="handleSetDate"
+        />
+
         <!-- 周视图 -->
         <TodoWeekView
           v-else-if="todoStore.viewMode === 'week'"
@@ -92,6 +105,7 @@ import { useTodoTypes } from '~/composables/useTodoTypes'
 import type { TodoItem } from '~/types/todo'
 import TodoWeekView from '~/components/todo/TodoWeekView.vue'
 import TodoProjectView from '~/components/todo/TodoProjectView.vue'
+import TodoTodayMatrixView from '~/components/todo/TodoTodayMatrixView.vue'
 import TodoTypeManager from '~/components/todo/TodoTypeManager.vue'
 import TodoEditDialog from '~/components/todo/TodoEditDialog.vue'
 
