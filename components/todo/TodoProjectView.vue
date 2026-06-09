@@ -1728,15 +1728,15 @@ onUnmounted(() => {
 /* 子任务指示符和连线 */
 .task-chip.has-parent {
   position: relative;
-  padding-left: 14px;
+  padding-left: 12px;
 }
 
 .task-chip.has-parent::before {
   content: '';
   position: absolute;
-  left: 6px;
-  top: 0;
-  bottom: -6px;
+  left: 9px;
+  top: -6px;
+  bottom: 0;
   width: 2px;
   background: rgba(60, 60, 67, 0.2);
 }
@@ -1744,9 +1744,9 @@ onUnmounted(() => {
 .task-chip.has-parent::after {
   content: '';
   position: absolute;
-  left: 2px;
-  top: 50%;
-  width: 6px;
+  left: 9px;
+  top: 0;
+  width: 5px;
   height: 2px;
   background: rgba(60, 60, 67, 0.2);
 }
@@ -1761,6 +1761,7 @@ onUnmounted(() => {
 /* 父任务有子任务的标记 */
 .task-chip.has-children {
   position: relative;
+  margin-bottom: 2px;
 }
 
 .task-chip.has-children .has-children-badge {
@@ -1773,10 +1774,10 @@ onUnmounted(() => {
 .task-chip.has-children::after {
   content: '';
   position: absolute;
-  left: 8px;
-  bottom: -6px;
+  left: 9px;
+  bottom: -10px;
   width: 2px;
-  height: 6px;
+  height: 10px;
   background: rgba(60, 60, 67, 0.2);
 }
 
