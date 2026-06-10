@@ -102,6 +102,15 @@ async function loadBills() {
     // noteId 为 '__none__' 时查询无关联账单（noteId 为空字符串）
     const isUnlinked = props.noteId === '__none__'
 
+    // 调试信息
+    console.log('[NoteMonthBillsDialog] 查询参数:', {
+      noteId: props.noteId,
+      isUnlinked,
+      prefix,
+      year: props.year,
+      month: props.month
+    })
+
     // 先按日期范围查询，分摊月份的账单也可能在范围内
     const selector: Record<string, unknown> = {
       date: { $gte: `${prefix}-01`, $lte: `${prefix}-31` }
@@ -113,43 +122,92 @@ async function loadBills() {
     }
     // 注意：无关联账单不在 selector 中过滤，在内存中过滤
 
+    console.log('[NoteMonthBillsDialog] 查询选择器:', selector)
+
     // 查询账单
     const result = await db.bills.find({
       selector,
       sort: [{ date: 'desc' }]
     }).exec()
 
+    console.log('[NoteMonthBillsDialog] 查询结果数量:', result.length)
+
     // 在内存中精确过滤
-    bills.value = result
-      .map((doc: any) => doc.toJSON())
-      .filter((bill: Bill) => {
-        // 验证 noteId 匹配
-        if (isUnlinked) {
-          // 无关联：noteId 必须是空字符串
-          if (bill.noteId !== '') return false
-        } else {
-          // 有关联：noteId 必须匹配
-          if (bill.noteId !== props.noteId) return false
+    const allBills = result.map((doc: any) => doc.toJSON())
+    const filteredBills: Bill[] = []
+    const rejectedReasons: Record<string, number> = {}
+
+    for (const bill of allBills) {
+      let rejected = false
+      let reason = ''
+
+      // 验证 noteId 匹配
+      if (isUnlinked) {
+        // 无关联：noteId 必须是空字符串
+        if (bill.noteId !== '') {
+          rejected = true
+          reason = 'noteId不匹配(无关联)'
         }
+      } else {
+        // 有关联：noteId 必须匹配
+        if (bill.noteId !== props.noteId) {
+          rejected = true
+          reason = 'noteId不匹配'
+        }
+      }
 
-        // 排除有子账单的父账单（只显示叶子节点）
-        if (bill.hasChildren) return false
+      // 排除有子账单的父账单（只显示叶子节点）
+      if (!rejected && bill.hasChildren) {
+        rejected = true
+        reason = '有子账单'
+      }
 
-        // 检查账单是否属于该月份
-        // 如果有分摊月份，按分摊月份；否则按账单日期
-        const matchAllocated = bill.allocatedMonth === prefix
-        const matchDate = bill.date.startsWith(prefix)
+      // 检查账单是否属于该月份
+      // 如果有分摊月份，按分摊月份；否则按账单日期
+      const matchAllocated = bill.allocatedMonth === prefix
+      const matchDate = bill.date.startsWith(prefix)
 
-        if (!matchAllocated && !matchDate) return false
+      if (!rejected && !matchAllocated && !matchDate) {
+        rejected = true
+        reason = '月份不匹配'
+      }
 
-        // 显示支出账单和退款账单
-        if (bill.type === 'expense') return true
-        if (bill.type === 'income' && bill.isRefund) return true
+      // 显示支出账单和退款账单
+      if (!rejected) {
+        if (bill.type === 'expense') {
+          // 通过
+        } else if (bill.type === 'income' && bill.isRefund) {
+          // 通过
+        } else {
+          rejected = true
+          reason = '非支出/退款'
+        }
+      }
 
-        return false
-      })
+      if (rejected) {
+        rejectedReasons[reason] = (rejectedReasons[reason] || 0) + 1
+        console.log('[NoteMonthBillsDialog] 过滤掉账单:', {
+          id: bill.id,
+          noteId: bill.noteId,
+          date: bill.date,
+          allocatedMonth: bill.allocatedMonth,
+          type: bill.type,
+          isRefund: bill.isRefund,
+          hasChildren: bill.hasChildren,
+          reason
+        })
+      } else {
+        filteredBills.push(bill)
+      }
+    }
+
+    console.log('[NoteMonthBillsDialog] 过滤后数量:', filteredBills.length)
+    console.log('[NoteMonthBillsDialog] 过滤原因统计:', rejectedReasons)
+    console.log('[NoteMonthBillsDialog] 最终账单列表:', filteredBills)
+
+    bills.value = filteredBills
   } catch (e) {
-    console.error('Failed to load bills:', e)
+    console.error('[NoteMonthBillsDialog] Failed to load bills:', e)
     bills.value = []
   } finally {
     loading.value = false
