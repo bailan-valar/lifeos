@@ -155,6 +155,7 @@ function createStore(): ImportRecordsStore {
 
   /**
    * 从数据库加载所有账单的指纹（用于去重判断）
+   * 重新计算指纹为基于账户的格式，确保不同来源的账单能正确匹配
    */
   async function loadAllBillFingerprints(noteId?: string): Promise<Set<string>> {
     try {
@@ -170,8 +171,41 @@ function createStore(): ImportRecordsStore {
 
       const set = new Set<string>()
       for (const doc of result) {
-        const fp = doc.get('importFingerprint') as string
-        if (fp) set.add(fp)
+        const oldFingerprint = doc.get('importFingerprint') as string
+        if (!oldFingerprint) continue
+
+        // 获取账单信息
+        const date = doc.get('date') as string
+        const amount = doc.get('amount') as number
+        const fromAccountId = doc.get('fromAccountId') as string
+        const toAccountId = doc.get('toAccountId') as string
+
+        if (!date || amount == null) {
+          // 没有日期或金额，使用旧指纹
+          set.add(oldFingerprint)
+          continue
+        }
+
+        // 优先使用出账账户，其次使用入账账户
+        const accountId = fromAccountId || toAccountId
+
+        if (!accountId) {
+          // 没有账户，使用旧指纹
+          set.add(oldFingerprint)
+          continue
+        }
+
+        // 重新计算基于账户的精确指纹
+        // 从旧指纹中提取序号（如果有的话）
+        const parts = oldFingerprint.split('|')
+        const index = parts.length >= 4 ? parseInt(parts[3], 10) : 0
+
+        // date 格式可能是 "2024-01-01T12:00:00.000Z"，需要只取日期部分
+        const datePart = date.slice(0, 10)
+
+        // 生成新的精确指纹：accountId|date|amount|index
+        const newFingerprint = `${accountId}|${datePart}|${amount.toFixed(2)}|${index}`
+        set.add(newFingerprint)
       }
       return set
     } catch (e) {
@@ -184,11 +218,15 @@ function createStore(): ImportRecordsStore {
    * 从数据库加载按账户统计的指纹数量（用于招商信用卡去重）
    * 返回 Map<baseFingerprint, count>
    * baseFingerprint 格式：accountId|date|amount
+   *
+   * 注意：这里需要重新计算指纹，因为旧账单的指纹可能是基于来源的
+   * 新逻辑要求所有账单都使用基于账户的指纹
    */
   async function loadAllBillFingerprintCounts(noteId?: string): Promise<Map<string, number>> {
     try {
       const db = await getDB()
       const selector: Record<string, unknown> = noteId ? { noteId } : {}
+      // 查询所有有 importFingerprint 的账单
       const result = await db.bills.find({
         selector: {
           ...selector,
@@ -201,15 +239,35 @@ function createStore(): ImportRecordsStore {
         const fp = doc.get('importFingerprint') as string
         if (!fp) continue
 
-        // 解析指纹，提取基础部分（去掉序号）
-        // 格式：accountId|date|amount|index 或 source|date|amount|index
-        const parts = fp.split('|')
-        if (parts.length >= 3) {
-          // 基础指纹是前3部分：accountId|date|amount 或 source|date|amount
-          const baseFingerprint = parts.slice(0, 3).join('|')
-          const count = countMap.get(baseFingerprint) || 0
-          countMap.set(baseFingerprint, count + 1)
+        // 获取账单信息
+        const date = doc.get('date') as string
+        const amount = doc.get('amount') as number
+        const fromAccountId = doc.get('fromAccountId') as string
+        const toAccountId = doc.get('toAccountId') as string
+
+        if (!date || amount == null) continue
+
+        // 优先使用出账账户，其次使用入账账户
+        const accountId = fromAccountId || toAccountId
+
+        if (!accountId) {
+          // 没有账户，使用旧指纹格式
+          const parts = fp.split('|')
+          if (parts.length >= 3) {
+            const baseFingerprint = parts.slice(0, 3).join('|')
+            const count = countMap.get(baseFingerprint) || 0
+            countMap.set(baseFingerprint, count + 1)
+          }
+          continue
         }
+
+        // 重新计算基于账户的基础指纹：accountId|date|amount
+        // date 格式可能是 "2024-01-01T12:00:00.000Z"，需要只取日期部分
+        const datePart = date.slice(0, 10)
+        const baseFingerprint = `${accountId}|${datePart}|${amount.toFixed(2)}`
+
+        const count = countMap.get(baseFingerprint) || 0
+        countMap.set(baseFingerprint, count + 1)
       }
       return countMap
     } catch (e) {

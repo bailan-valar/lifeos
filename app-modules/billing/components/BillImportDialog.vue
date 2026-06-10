@@ -264,24 +264,49 @@ function buildImportRecordItem(
 
   const debtSubtype = inferDebtSubtype(direction)
 
-  // 招商信用卡使用基于账户的指纹（需要出账账户）
+  // 使用基于账户的指纹判断重复（只要有匹配到账户）
+  // 优先使用出账账户(myAccount)，如果没有则使用入账账户(counterpartyAccount)
   let exactFingerprint: string
   let isDuplicate = false
+  const accountForFingerprint = myAccount || counterpartyAccount
 
-  if (source.value === 'cmb_credit' && myAccount) {
+  if (accountForFingerprint) {
     // 基于账户的指纹：accountId|date|amount|index
-    const baseFingerprint = buildAccountBaseFingerprint(myAccount.id, parsed.date, parsed.amount)
+    const baseFingerprint = buildAccountBaseFingerprint(accountForFingerprint.id, parsed.date, parsed.amount)
     // 计算该基础指纹的完整序号 = 已存在数量 + 当前序号
     const existingCount = props.existingFingerprintCounts.get(baseFingerprint) || 0
     const fullIndex = existingCount + fingerprintIndex
-    exactFingerprint = buildAccountExactFingerprint(myAccount.id, parsed.date, parsed.amount, fullIndex)
+    exactFingerprint = buildAccountExactFingerprint(accountForFingerprint.id, parsed.date, parsed.amount, fullIndex)
 
     // 检查是否重复（与现有的精确指纹比较）
     isDuplicate = props.existingFingerprints.has(exactFingerprint)
+
+    // 调试信息
+    console.log('[导入重复判断]', {
+      日期: parsed.date,
+      金额: parsed.amount,
+      账户: accountForFingerprint.name,
+      账户ID: accountForFingerprint.id,
+      基础指纹: baseFingerprint,
+      已存在数量: existingCount,
+      当前序号: fingerprintIndex,
+      完整序号: fullIndex,
+      精确指纹: exactFingerprint,
+      是否重复: isDuplicate
+    })
   } else {
-    // 其他来源使用基于来源的指纹
+    // 没有匹配到账户，使用基于来源的指纹
     exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, fingerprintIndex)
     isDuplicate = props.existingFingerprints.has(exactFingerprint)
+
+    // 调试信息
+    console.log('[导入重复判断-无账户]', {
+      来源: source.value,
+      日期: parsed.date,
+      金额: parsed.amount,
+      精确指纹: exactFingerprint,
+      是否重复: isDuplicate
+    })
   }
 
   const suggestion = suggestAccountIds(counterpartyAccount, myAccount, direction, billType)
@@ -361,50 +386,37 @@ async function onFileChange(event: Event) {
 
     let items: ImportRecordItem[]
 
-    if (source.value === 'cmb_credit') {
-      // 招商信用卡：按账户分组统计基础指纹数量
-      const matchResults = parsedRows.map(row => matchAccount(row))
+    // 所有来源：按账户分组统计基础指纹数量
+    const matchResults = parsedRows.map(row => matchAccount(row))
 
-      // 按账户分组统计每个基础指纹的数量
-      const accountGroupCount = new Map<string, number>()
-      const fingerprintCountMap = new Map<number, number>() // 记录每行的序号
+    // 按账户分组统计每个基础指纹的数量
+    const accountGroupCount = new Map<string, number>()
+    const fingerprintCountMap = new Map<number, number>() // 记录每行的序号
 
-      for (let i = 0; i < matchResults.length; i++) {
-        const matchResult = matchResults[i]
-        const parsed = parsedRows[i]
+    for (let i = 0; i < matchResults.length; i++) {
+      const matchResult = matchResults[i]
+      const parsed = parsedRows[i]
 
-        if (matchResult.myAccount) {
-          const baseFingerprint = buildAccountBaseFingerprint(matchResult.myAccount.id, parsed.date, parsed.amount)
-          const count = accountGroupCount.get(baseFingerprint) || 0
-          fingerprintCountMap.set(i, count)
-          accountGroupCount.set(baseFingerprint, count + 1)
-        } else {
-          // 没有匹配到账户，使用基于来源的指纹
-          fingerprintCountMap.set(i, 0)
-        }
+      // 优先使用出账账户，其次使用入账账户
+      const accountForFingerprint = matchResult.myAccount || matchResult.counterpartyAccount
+
+      if (accountForFingerprint) {
+        const baseFingerprint = buildAccountBaseFingerprint(accountForFingerprint.id, parsed.date, parsed.amount)
+        const count = accountGroupCount.get(baseFingerprint) || 0
+        fingerprintCountMap.set(i, count)
+        accountGroupCount.set(baseFingerprint, count + 1)
+      } else {
+        // 没有匹配到账户，使用基于来源的指纹
+        fingerprintCountMap.set(i, 0)
       }
-
-      // 生成导入记录项
-      items = parsedRows.map((row, idx) => {
-        const matchResult = matchResults[idx]
-        const fingerprintIndex = fingerprintCountMap.get(idx) || 0
-        return buildImportRecordItem(row, matchResult, fingerprintIndex)
-      })
-    } else {
-      // 其他来源：使用原有的基于来源的指纹
-      const indexMap = calculateIndexes(
-        parsedRows.map(r => ({
-          source: source.value,
-          date: r.date,
-          amount: r.amount
-        }))
-      )
-
-      items = parsedRows.map((row, idx) => {
-        const matchResult = matchAccount(row)
-        return buildImportRecordItem(row, matchResult, indexMap.get(idx) || 0)
-      })
     }
+
+    // 生成导入记录项
+    items = parsedRows.map((row, idx) => {
+      const matchResult = matchResults[idx]
+      const fingerprintIndex = fingerprintCountMap.get(idx) || 0
+      return buildImportRecordItem(row, matchResult, fingerprintIndex)
+    })
 
     const dates = items.map(i => i.date).filter(Boolean).sort()
     const billStartDate = dates[0] || ''
