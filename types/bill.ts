@@ -74,6 +74,7 @@ export interface BillCategory {
   icon?: string
   color?: string
   order: number
+  defaultNoteId?: string  // 绑定的默认笔记ID
   createdAt: string
   updatedAt: string
 }
@@ -185,6 +186,7 @@ export interface CategoryFormData {
   parentId: string
   icon: string
   color: string
+  defaultNoteId?: string  // 绑定的默认笔记ID
 }
 
 /**

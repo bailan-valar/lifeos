@@ -6,6 +6,7 @@ export interface ExportedCategory {
   type: CategoryType
   icon?: string
   color?: string
+  defaultNoteId?: string
   children?: ExportedCategory[]
 }
 
@@ -68,6 +69,7 @@ export async function initDefaultBillCategories(): Promise<boolean> {
         parentId,
         icon: item.icon || '',
         color: item.color || '',
+        defaultNoteId: item.defaultNoteId || undefined,
         order: i,
         createdAt: ts,
         updatedAt: ts,
@@ -161,6 +163,7 @@ function createStore(): BillCategoriesStore {
       type: data.type,
       icon: data.icon || '',
       color: data.color || '',
+      defaultNoteId: data.defaultNoteId,
       order: siblings.length,
       createdAt: now(),
       updatedAt: now(),
@@ -212,6 +215,7 @@ function createStore(): BillCategoriesStore {
         type: n.type,
         icon: n.icon || undefined,
         color: n.color || undefined,
+        defaultNoteId: n.defaultNoteId || undefined,
         children: n.children.length > 0 ? walk(n.children) : undefined,
       }))
     }
@@ -267,6 +271,7 @@ function createStore(): BillCategoriesStore {
           parentId,
           icon: item.icon || '',
           color: item.color || '',
+          defaultNoteId: item.defaultNoteId || undefined,
           order: i,
           createdAt: ts,
           updatedAt: ts,
@@ -338,6 +343,7 @@ function createStore(): BillCategoriesStore {
           parentId,
           icon: item.icon || '',
           color: item.color || '',
+          defaultNoteId: item.defaultNoteId || undefined,
           order: i,
           createdAt: ts,
           updatedAt: ts,

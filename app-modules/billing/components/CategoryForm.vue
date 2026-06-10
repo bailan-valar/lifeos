@@ -32,6 +32,16 @@
     </div>
 
     <div class="form-group">
+      <label class="form-label">绑定默认笔记</label>
+      <NotePicker
+        v-model="form.defaultNoteId"
+        :options="noteOptions"
+        placeholder="选择笔记后，新增该分类账单时自动关联"
+        clearable
+      />
+    </div>
+
+    <div class="form-group">
       <IconPicker v-model="form.icon" :icons="PRESET_ICON_SETS.billing" label="图标" />
     </div>
 
@@ -55,6 +65,7 @@
 <script setup lang="ts">
 import type { CategoryFormData, CategoryType, BillCategory } from '~/types/bill'
 import CategoryPicker from './CategoryPicker.vue'
+import NotePicker from './NotePicker.vue'
 import { PRESET_ICON_SETS } from '~/composables/useIcons'
 import IconPicker from '~/components/IconPicker.vue'
 
@@ -62,6 +73,7 @@ const props = defineProps<{
   modelValue: CategoryFormData
   categories: BillCategory[]
   excludeId?: string
+  noteOptions: { id: string; title: string; level: number }[]
 }>()
 
 const emit = defineEmits<{

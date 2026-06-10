@@ -67,6 +67,7 @@
     :default-type="categoryFormDefaults?.type"
     :default-parent-id="categoryFormDefaults?.defaultParentId"
     :default-name="categoryFormDefaults?.defaultName"
+    :note-options="noteOptions"
     @confirm="handleCategoryConfirm"
     @cancel="closeCategoryDialog"
   />
@@ -86,6 +87,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useBillingStore } from '~/stores/billing'
 import { useBillCategories } from '~/composables/useBillCategories'
+import { useNotes } from '~/composables/useNotes'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
 import { useDevice } from '~/composables/useDevice'
@@ -111,6 +113,7 @@ const { confirm } = useConfirm()
 const { success: showSuccess, error: showError } = useToast()
 
 const { categories, createCategory, updateCategory, deleteCategory, syncDefaultCategories, exportCategories, importCategories } = useBillCategories()
+const { noteOptions } = useNotes()
 
 // 对话框状态
 const categoryDialogVisible = ref(false)

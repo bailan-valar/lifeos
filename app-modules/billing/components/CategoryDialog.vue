@@ -13,6 +13,7 @@
             v-model="form"
             :categories="categories"
             :exclude-id="excludeId"
+            :note-options="noteOptions"
           />
         </div>
         <div class="dialog-footer">
@@ -41,6 +42,7 @@ const props = defineProps<{
   defaultType?: CategoryType
   defaultParentId?: string
   defaultName?: string
+  noteOptions: { id: string; title: string; level: number }[]
 }>()
 const overlayZIndex = useZIndexOnOpen(() => props.visible)
 
@@ -49,7 +51,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const form = ref<CategoryFormData>({ name: '', type: 'expense', parentId: '', icon: '', color: '' })
+const form = ref<CategoryFormData>({ name: '', type: 'expense', parentId: '', icon: '', color: '', defaultNoteId: '' })
 
 const isEditing = computed(() => !!props.category)
 
@@ -61,7 +63,8 @@ watch(() => props.visible, (v) => {
       type: props.category.type,
       parentId: props.category.parentId,
       icon: props.category.icon || '',
-      color: props.category.color || ''
+      color: props.category.color || '',
+      defaultNoteId: props.category.defaultNoteId || ''
     }
   } else {
     form.value = {
@@ -69,7 +72,8 @@ watch(() => props.visible, (v) => {
       type: props.defaultType || 'expense',
       parentId: props.defaultParentId || '',
       icon: '',
-      color: ''
+      color: '',
+      defaultNoteId: ''
     }
   }
 }, { immediate: true })

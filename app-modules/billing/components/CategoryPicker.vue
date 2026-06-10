@@ -28,6 +28,7 @@
       :default-type="type"
       :default-name="dialogDefaultName"
       :default-parent-id="dialogDefaultParentId"
+      :note-options="noteOptions"
       @confirm="handleCreateCategory"
       @cancel="showCategoryDialog = false"
     />
@@ -120,6 +121,7 @@ import type { BillCategory, CategoryType, CategoryFormData } from '~/types/bill'
 import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
 import { useBillCategories } from '~/composables/useBillCategories'
+import { useNotes } from '~/composables/useNotes'
 import CategoryDialog from './CategoryDialog.vue'
 
 interface TreeItem {
@@ -146,6 +148,7 @@ const emit = defineEmits<{
 }>()
 
 const { createCategory } = useBillCategories()
+const { noteOptions } = useNotes()
 const effectiveFrequencyMap = computed(() => props.frequencyMap)
 
 const placeholder = computed(() => props.placeholder || '请选择分类')

@@ -327,6 +327,38 @@ watch(() => form.value.type, (newType, oldType) => {
   }
 })
 
+/* ---------- 分类切换时自动更新绑定笔记 ---------- */
+// 用于区分初始化和用户主动修改
+let isInitializing = ref(true)
+let initializedCategoryId = ''
+
+watch(() => props.visible, (v) => {
+  if (v) {
+    // 对话框打开时，标记为初始化状态
+    isInitializing.value = true
+    initializedCategoryId = form.value.categoryId
+    // 延迟重置初始化标记，确保初始化完成
+    nextTick(() => {
+      isInitializing.value = false
+    })
+  }
+})
+
+watch(() => form.value.categoryId, (newCategoryId, oldCategoryId) => {
+  // 跳过初始化阶段的变化
+  if (isInitializing.value) return
+  // 跳过从空到空的变化
+  if (!oldCategoryId && !newCategoryId) return
+
+  // 用户主动修改分类（从初始值变化或从旧值变化）
+  if (newCategoryId && newCategoryId !== initializedCategoryId && newCategoryId !== oldCategoryId) {
+    const newCategory = props.categories.find(c => c.id === newCategoryId)
+    if (newCategory?.defaultNoteId) {
+      form.value = { ...form.value, noteId: newCategory.defaultNoteId }
+    }
+  }
+})
+
 function onConfirm() {
   if (form.value.amount <= 0) {
     showWarning('金额必须大于 0')
