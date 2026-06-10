@@ -140,7 +140,7 @@ function onContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   font-size: 12px;
   color: rgba(60, 60, 67, 0.55);
   font-weight: 400;
-  margin-left: 6px;
+  margin-left: 2px;
 }
 .node-actions {
   display: flex;
