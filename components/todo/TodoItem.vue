@@ -347,7 +347,7 @@ const handleDragEnd = () => {
 // 拖拽经过
 const handleDragOver = (event: DragEvent) => {
   event.preventDefault()
-  if (props.draggable && isDragging.value) {
+  if (props.draggable) {
     isDragOver.value = true
   }
 }

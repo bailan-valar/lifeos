@@ -9,7 +9,7 @@
     >
       <div class="dialog" :class="{ mobile: isMobile }" tabindex="-1" @click.stop @keydown="onKeyDown">
         <div class="dialog-header">
-          <h3>{{ noteName }} - {{ year }}年{{ month }}月账单</h3>
+          <h3>{{ displayNoteName }} - {{ year }}年{{ month }}月账单</h3>
           <button type="button" class="close-btn" @click="onCancel">
             <Icon :name="SOLAR_ICONS.action.close" size="20" />
           </button>
@@ -84,9 +84,12 @@ const totalAmount = computed(() => {
   }, 0)
 })
 
-async function loadBills() {
-  if (!props.noteId) return
+const displayNoteName = computed(() => {
+  // 当 noteId 是 '__none__' 时，显示"无关联"而不是传入的 noteName
+  return props.noteId === '__none__' ? '无关联' : props.noteName
+})
 
+async function loadBills() {
   loading.value = true
   try {
     const prefix = `${props.year}-${String(props.month).padStart(2, '0')}`
@@ -95,16 +98,44 @@ async function loadBills() {
       return getDB()
     })()
 
-    // 查询该笔记在指定月份的所有账单
+    // 构建查询条件
+    // noteId 为 '__none__' 时查询无关联账单（noteId 为空字符串）
+    const noteIdFilter = props.noteId === '__none__' ? '' : props.noteId
+
+    // 查询该笔记在指定年月的所有账单（按账单日期或分摊月份）
     const result = await db.bills.find({
       selector: {
-        noteId: props.noteId,
-        date: { $gte: `${prefix}-01`, $lt: `${prefix}-31` }
+        noteId: noteIdFilter,
+        $or: [
+          // 账单日期在该月份
+          { date: { $gte: `${prefix}-01`, $lte: `${prefix}-31` } },
+          // 分摊月份等于该月份
+          { allocatedMonth: prefix }
+        ]
       },
       sort: [{ date: 'desc' }]
     }).exec()
 
-    bills.value = result.map((doc: any) => doc.toJSON())
+    // 过滤并转换账单
+    bills.value = result
+      .map((doc: any) => doc.toJSON())
+      .filter((bill: Bill) => {
+        // 排除有子账单的父账单（只显示叶子节点）
+        if (bill.hasChildren) return false
+
+        // 进一步验证账单确实属于该月份
+        // 如果有分摊月份，按分摊月份；否则按账单日期
+        const matchAllocated = bill.allocatedMonth === prefix
+        const matchDate = bill.date.startsWith(prefix)
+
+        if (!matchAllocated && !matchDate) return false
+
+        // 显示支出账单和退款账单
+        if (bill.type === 'expense') return true
+        if (bill.type === 'income' && bill.isRefund) return true
+
+        return false
+      })
   } catch (e) {
     console.error('Failed to load bills:', e)
     bills.value = []

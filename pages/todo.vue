@@ -47,6 +47,7 @@
           @edit="openEditDialog"
           @set-date="handleSetDate"
           @open-create="handleMatrixQuickAdd"
+          @move-task="handleMoveTask"
         />
 
         <!-- 周视图 -->
@@ -377,6 +378,15 @@ const handleSetDate = async (taskId: string, date: string | null) => {
     await todoStore.updateTask(taskId, { dueDate: date || undefined })
   } catch (err) {
     console.error('设置任务日期失败:', err)
+  }
+}
+
+// 拖拽移动任务（今日四象限视图）
+const handleMoveTask = async (taskId: string, updates: Partial<TodoItem>) => {
+  try {
+    await todoStore.updateTask(taskId, updates)
+  } catch (err) {
+    console.error('移动任务失败:', err)
   }
 }
 

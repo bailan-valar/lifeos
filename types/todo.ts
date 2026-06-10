@@ -34,6 +34,7 @@ export interface TodoItem {
   priority?: 'none' | 'low' | 'medium' | 'high'
   parentId?: string // 父任务ID，用于支持父子任务
   noteId?: string // 绑定笔记ID
+  order?: number // 拖拽排序顺序，值越小越靠前
 }
 
 // 树形节点类型，用于UI展示
