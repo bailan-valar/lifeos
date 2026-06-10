@@ -620,9 +620,7 @@ function calcTree(nodes: NoteTreeNode[], year: number, level = 0): TreeRow[] {
         }, 0)
 
     // 计算年度实际支出（包含所有子笔记，包括年预算子笔记）
-    const yearActual = hasOwnBudget
-      ? ownYearActual + childTree.reduce((sum, ct) => sum + ct.data.yearActual, 0)
-      : childTree.reduce((sum, ct) => sum + ct.data.yearActual, 0)
+    const yearActual = ownYearActual + childTree.reduce((sum, ct) => sum + ct.data.yearActual, 0)
 
     const yearPercentage = yearBudget > 0 ? yearActual / yearBudget : 0
 
