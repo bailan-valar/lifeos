@@ -14,6 +14,8 @@ function startWatchingNotes() {
   _unsub = onCollectionChange('notes', () => {
     if (_store) _store.loadNotes()
   })
+  // 初始加载数据
+  if (_store) _store.loadNotes()
 }
 
 function stopWatchingNotes() {

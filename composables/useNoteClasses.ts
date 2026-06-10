@@ -18,6 +18,11 @@ function startWatchingNoteClasses() {
   unsubClasses = onCollectionChange('classes', loadClasses)
   unsubFields = onCollectionChange('classFields', loadAllFields)
   unsubBindings = onCollectionChange('noteClassBindings', loadBindings)
+
+  // 初始加载数据
+  loadClasses()
+  loadBindings()
+  loadAllFields()
 }
 
 function stopWatchingNoteClasses() {
