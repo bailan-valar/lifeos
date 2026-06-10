@@ -124,19 +124,24 @@
                 </div>
               </div>
               <div v-else class="year-budget-cell">
-                <div v-if="row.childrenBudgetSum > 0 || row.yearActual > 0" class="cell-content">
+                <div v-if="row.childrenBudgetSum > 0" class="cell-content">
                   <div class="cell-budget">{{ row.childrenBudgetSum.toFixed(0) }}</div>
                   <div class="cell-divider"></div>
-                  <div class="cell-actual" :class="{ over: row.childrenBudgetSum > 0 && row.yearActual > row.childrenBudgetSum }">
+                  <div class="cell-actual" :class="{ over: row.yearActual > row.childrenBudgetSum }">
+                    {{ row.yearActual.toFixed(0) }}
+                  </div>
+                </div>
+                <div v-else-if="row.yearActual > 0" class="cell-content">
+                  <div class="cell-actual" :class="{ over: true }">
                     {{ row.yearActual.toFixed(0) }}
                   </div>
                 </div>
                 <div
                   v-if="row.childrenBudgetSum > 0"
                   class="cell-percentage-badge"
-                  :class="{ over: row.childrenBudgetSum > 0 && row.yearActual > row.childrenBudgetSum }"
+                  :class="{ over: row.yearActual > row.childrenBudgetSum }"
                 >
-                  {{ (row.childrenBudgetSum > 0 ? (row.yearActual / row.childrenBudgetSum * 100) : 0).toFixed(0) }}%
+                  {{ (row.yearActual / row.childrenBudgetSum * 100).toFixed(0) }}%
                 </div>
               </div>
             </div>
