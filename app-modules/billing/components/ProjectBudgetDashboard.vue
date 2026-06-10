@@ -693,6 +693,7 @@ function getCellBg(percentage: number, hasBudget: boolean): string {
 }
 
 function onCellClick(noteId: string, month: number) {
+  console.log('[ProjectBudgetDashboard] onCellClick 被调用:', { noteId, month, year: currentYear.value })
   emit('edit-cell', {
     noteId,
     year: currentYear.value,

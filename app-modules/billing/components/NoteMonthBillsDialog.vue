@@ -90,6 +90,13 @@ const displayNoteName = computed(() => {
 })
 
 async function loadBills() {
+  console.log('[NoteMonthBillsDialog] loadBills 被调用!', {
+    visible: props.visible,
+    noteId: props.noteId,
+    year: props.year,
+    month: props.month
+  })
+
   loading.value = true
   try {
     const prefix = `${props.year}-${String(props.month).padStart(2, '0')}`
@@ -215,6 +222,7 @@ async function loadBills() {
 }
 
 watch(() => props.visible, (v) => {
+  console.log('[NoteMonthBillsDialog] visible 变化:', v, { noteId: props.noteId })
   if (v) {
     loadBills()
   }

@@ -108,6 +108,7 @@ function getNoteName(noteId: string): string {
 }
 
 function openMonthBillsDialog(payload: { noteId: string; year: number; month: number }) {
+  console.log('[ProjectBudgetsTabPanel] openMonthBillsDialog 被调用:', payload)
   monthBillsDialogData.value = {
     noteId: payload.noteId,
     noteName: getNoteName(payload.noteId),
@@ -115,6 +116,7 @@ function openMonthBillsDialog(payload: { noteId: string; year: number; month: nu
     month: payload.month
   }
   monthBillsDialogVisible.value = true
+  console.log('[ProjectBudgetsTabPanel] monthBillsDialogVisible 设置为 true')
 }
 
 function closeMonthBillsDialog() {
