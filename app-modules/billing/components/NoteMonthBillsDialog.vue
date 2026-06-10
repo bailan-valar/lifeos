@@ -100,30 +100,42 @@ async function loadBills() {
 
     // 构建查询条件
     // noteId 为 '__none__' 时查询无关联账单（noteId 为空字符串）
-    const noteIdFilter = props.noteId === '__none__' ? '' : props.noteId
+    const isUnlinked = props.noteId === '__none__'
 
-    // 查询该笔记在指定年月的所有账单（按账单日期或分摊月份）
+    // 先按日期范围查询，分摊月份的账单也可能在范围内
+    const selector: Record<string, unknown> = {
+      date: { $gte: `${prefix}-01`, $lte: `${prefix}-31` }
+    }
+
+    // 对于有关联的笔记，添加 noteId 条件
+    if (!isUnlinked && props.noteId) {
+      selector.noteId = props.noteId
+    }
+    // 注意：无关联账单不在 selector 中过滤，在内存中过滤
+
+    // 查询账单
     const result = await db.bills.find({
-      selector: {
-        noteId: noteIdFilter,
-        $or: [
-          // 账单日期在该月份
-          { date: { $gte: `${prefix}-01`, $lte: `${prefix}-31` } },
-          // 分摊月份等于该月份
-          { allocatedMonth: prefix }
-        ]
-      },
+      selector,
       sort: [{ date: 'desc' }]
     }).exec()
 
-    // 过滤并转换账单
+    // 在内存中精确过滤
     bills.value = result
       .map((doc: any) => doc.toJSON())
       .filter((bill: Bill) => {
+        // 验证 noteId 匹配
+        if (isUnlinked) {
+          // 无关联：noteId 必须是空字符串
+          if (bill.noteId !== '') return false
+        } else {
+          // 有关联：noteId 必须匹配
+          if (bill.noteId !== props.noteId) return false
+        }
+
         // 排除有子账单的父账单（只显示叶子节点）
         if (bill.hasChildren) return false
 
-        // 进一步验证账单确实属于该月份
+        // 检查账单是否属于该月份
         // 如果有分摊月份，按分摊月份；否则按账单日期
         const matchAllocated = bill.allocatedMonth === prefix
         const matchDate = bill.date.startsWith(prefix)
