@@ -23,6 +23,7 @@
         </button>
         <span v-else class="expand-placeholder" />
         <span class="node-name" @click="$emit('view-detail', node)">{{ node.name }}</span>
+        <span v-if="node.defaultNoteId && getNoteTitle(node.defaultNoteId)" class="note-tag">{{ getNoteTitle(node.defaultNoteId) }}</span>
         <div class="node-actions">
           <button type="button" class="node-action" title="新增子分类" @click="$emit('add-child', node)">
             <Icon :name="SOLAR_ICONS.action.add" size="14" />
@@ -52,9 +53,17 @@
 import type { CategoryTreeNode } from '~/types/bill'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 
-defineProps<{
+const props = defineProps<{
   nodes: CategoryTreeNode[]
+  noteOptions?: { id: string; title: string; level: number }[]
 }>()
+
+// 根据 noteId 查找笔记标题
+function getNoteTitle(noteId: string): string | undefined {
+  if (!props.noteOptions) return undefined
+  const note = props.noteOptions.find(n => n.id === noteId)
+  return note?.title
+}
 
 const emit = defineEmits<{
   (e: 'edit', node: CategoryTreeNode): void
@@ -126,6 +135,12 @@ function onContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   color: rgb(0, 122, 255);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.note-tag {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.55);
+  font-weight: 400;
+  margin-left: 6px;
 }
 .node-actions {
   display: flex;

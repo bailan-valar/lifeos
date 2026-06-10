@@ -38,6 +38,7 @@
         <div class="category-subtitle">收入分类</div>
         <CategoryTree
           :nodes="incomeTree"
+          :note-options="noteOptions"
           @edit="openCategoryDialog"
           @delete="handleDeleteCategory"
           @add-child="openAddChildCategoryDialog"
@@ -49,6 +50,7 @@
         <div class="category-subtitle">支出分类</div>
         <CategoryTree
           :nodes="expenseTree"
+          :note-options="noteOptions"
           @edit="openCategoryDialog"
           @delete="handleDeleteCategory"
           @add-child="openAddChildCategoryDialog"
