@@ -130,6 +130,13 @@ watch(() => props.visible, (visible) => {
   }
 })
 
+// 监听坐标变化，更新菜单位置（支持菜单显示时右键其他地方）
+watch([() => props.x, () => props.y], () => {
+  if (props.visible) {
+    nextTick(adjustPosition)
+  }
+})
+
 function adjustPosition() {
   const menu = document.querySelector('.context-menu') as HTMLElement
   if (!menu) return
