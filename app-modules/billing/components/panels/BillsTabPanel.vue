@@ -209,7 +209,7 @@ const { accounts } = useAccounts()
 const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
 const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore, splitBill, allocatePeriod, createRefundBill } = useBills()
-const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords, loadAllBillFingerprints, loadAllBillFingerprintCounts } = useImportRecords()
+const { records: importRecords, getById, rollback, deleteImportRecord, fingerprintsAcrossRecords, loadAllBillFingerprints, loadAllBillFingerprintCounts } = useImportRecords()
 const { rules: importRules, createImportRule, updateImportRule } = useImportRules()
 
 // 对话框状态（使用单例与 BillingView 同步）
@@ -264,7 +264,7 @@ const existingFingerprintCounts = computed(() => {
   const map = new Map<string, number>(allBillFingerprintCounts.value)
 
   // 从导入记录中的指纹补充统计
-  for (const record of records.value) {
+  for (const record of importRecords.value) {
     if (record.status === 'rolled_back') continue
     for (const item of record.items) {
       if (!item.fingerprint) continue
