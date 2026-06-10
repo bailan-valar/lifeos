@@ -471,6 +471,33 @@ export function calculateIndexes(rows: Array<{ source: ImportSource; date: strin
 }
 
 /**
+ * 基于账户的基础指纹：账户 + 日期 + 金额
+ * 用于招商信用卡等需要按账户去重的场景
+ */
+export function buildAccountBaseFingerprint(
+  accountId: string,
+  date: string,
+  amount: number
+): string {
+  const dateKey = date.slice(0, 10)
+  return `${accountId}|${dateKey}|${amount.toFixed(2)}`
+}
+
+/**
+ * 基于账户的精确指纹：账户 + 日期 + 金额 + 序号
+ * 处理同一天多笔相同金额的情况
+ */
+export function buildAccountExactFingerprint(
+  accountId: string,
+  date: string,
+  amount: number,
+  index: number = 0
+): string {
+  const base = buildAccountBaseFingerprint(accountId, date, amount)
+  return `${base}|${index}`
+}
+
+/**
  * @deprecated 使用 buildExactFingerprint 替代
  * 去重指纹:同一日期 + 金额 + 对方 视为重复
  */

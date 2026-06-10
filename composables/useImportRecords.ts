@@ -39,6 +39,7 @@ interface ImportRecordsStore {
   getById: (id: string) => ImportRecord | null
   fingerprintsAcrossRecords: ComputedRef<Set<string>>
   loadAllBillFingerprints: (noteId?: string) => Promise<Set<string>>
+  loadAllBillFingerprintCounts: (noteId?: string) => Promise<Map<string, number>>
 }
 
 function createStore(): ImportRecordsStore {
@@ -154,7 +155,6 @@ function createStore(): ImportRecordsStore {
 
   /**
    * 从数据库加载所有账单的指纹（用于去重判断）
-   * 只查询 importFingerprint 字段，不加载完整账单数据
    */
   async function loadAllBillFingerprints(noteId?: string): Promise<Set<string>> {
     try {
@@ -165,9 +165,7 @@ function createStore(): ImportRecordsStore {
         selector: {
           ...selector,
           importFingerprint: { $exists: true }
-        },
-        // 只返回指纹字段，减少数据传输
-        fields: ['importFingerprint']
+        }
       }).exec()
 
       const set = new Set<string>()
@@ -179,6 +177,44 @@ function createStore(): ImportRecordsStore {
     } catch (e) {
       console.error('Failed to load bill fingerprints:', e)
       return new Set<string>()
+    }
+  }
+
+  /**
+   * 从数据库加载按账户统计的指纹数量（用于招商信用卡去重）
+   * 返回 Map<baseFingerprint, count>
+   * baseFingerprint 格式：accountId|date|amount
+   */
+  async function loadAllBillFingerprintCounts(noteId?: string): Promise<Map<string, number>> {
+    try {
+      const db = await getDB()
+      const selector: Record<string, unknown> = noteId ? { noteId } : {}
+      const result = await db.bills.find({
+        selector: {
+          ...selector,
+          importFingerprint: { $exists: true }
+        }
+      }).exec()
+
+      const countMap = new Map<string, number>()
+      for (const doc of result) {
+        const fp = doc.get('importFingerprint') as string
+        if (!fp) continue
+
+        // 解析指纹，提取基础部分（去掉序号）
+        // 格式：accountId|date|amount|index 或 source|date|amount|index
+        const parts = fp.split('|')
+        if (parts.length >= 3) {
+          // 基础指纹是前3部分：accountId|date|amount 或 source|date|amount
+          const baseFingerprint = parts.slice(0, 3).join('|')
+          const count = countMap.get(baseFingerprint) || 0
+          countMap.set(baseFingerprint, count + 1)
+        }
+      }
+      return countMap
+    } catch (e) {
+      console.error('Failed to load bill fingerprint counts:', e)
+      return new Map<string, number>()
     }
   }
 
@@ -205,7 +241,8 @@ function createStore(): ImportRecordsStore {
     rollback,
     getById,
     fingerprintsAcrossRecords,
-    loadAllBillFingerprints
+    loadAllBillFingerprints,
+    loadAllBillFingerprintCounts
   }
 }
 

@@ -15,6 +15,7 @@
             :accounts="accounts"
             :categories="categories"
             :existing-fingerprints="existingFingerprints"
+            :existing-fingerprint-counts="existingFingerprintCounts"
             @record-created="emit('record-created', $event)"
             @view-record="emit('view-record', $event)"
             @tab-change="emit('tab-change', $event)"
@@ -39,6 +40,7 @@ const props = defineProps<{
   accounts: Account[]
   categories: BillCategory[]
   existingFingerprints: Set<string>
+  existingFingerprintCounts: Map<string, number>
 }>()
 const overlayZIndex = useZIndexOnOpen(() => props.visible)
 

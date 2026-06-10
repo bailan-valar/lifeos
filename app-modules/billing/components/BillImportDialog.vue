@@ -112,7 +112,7 @@ import type {
   ImportRecordItem,
   ImportRecordStatus
 } from '~/types/bill'
-import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactFingerprint, buildLooseFingerprint, dedupeKey, calculateIndexes } from '~/services/csvImport'
+import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactFingerprint, buildLooseFingerprint, dedupeKey, calculateIndexes, buildAccountBaseFingerprint, buildAccountExactFingerprint } from '~/services/csvImport'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { generateId, now } from '~/services/db'
@@ -126,11 +126,28 @@ import {
 } from '~/composables/useAccountMatcher'
 import AccountPicker from './AccountPicker.vue'
 
+/**
+ * 中间数据：账户匹配结果
+ */
+interface AccountMatchResult {
+  counterpartyAccount: Account | null
+  myAccount: Account | null
+  counterpartyRule: ImportRule | null
+  paymentMethodRule: ImportRule | null
+  descriptionRule: ImportRule | null
+  rawTypeRule: ImportRule | null
+}
+
 const props = defineProps<{
   noteId: string
   accounts: Account[]
   categories: BillCategory[]
   existingFingerprints: Set<string>
+  /**
+   * 按账户统计的指纹数量
+   * key: "accountId|date|amount", value: 已存在数量
+   */
+  existingFingerprintCounts: Map<string, number>
 }>()
 
 const emit = defineEmits<{
@@ -175,7 +192,10 @@ const eligibleDefaultAccounts = computed(() => {
   return props.accounts.filter(a => a.type === 'personal' && defaultAccountSubtypes.value?.includes(a.subtype || 'cash'))
 })
 
-function buildImportRecordItem(parsed: CsvParsedRow, index: number = 0): ImportRecordItem {
+/**
+ * 匹配账户和规则（不生成导入项）
+ */
+function matchAccount(parsed: CsvParsedRow): AccountMatchResult {
   const result = applyRules(parsed, source.value)
   const counterpartyRule = result?.counterpartyRule ?? null
   const paymentMethodRule = result?.paymentMethodRule ?? null
@@ -209,6 +229,22 @@ function buildImportRecordItem(parsed: CsvParsedRow, index: number = 0): ImportR
     if (ruleAccount && !counterpartyAccount) counterpartyAccount = ruleAccount
   }
 
+  return { counterpartyAccount, myAccount, counterpartyRule, paymentMethodRule, descriptionRule, rawTypeRule }
+}
+
+/**
+ * 构建导入记录项
+ * @param parsed 解析后的行
+ * @param matchResult 账户匹配结果
+ * @param fingerprintIndex 指纹序号（用于同日多笔相同金额）
+ */
+function buildImportRecordItem(
+  parsed: CsvParsedRow,
+  matchResult: AccountMatchResult,
+  fingerprintIndex: number = 0
+): ImportRecordItem {
+  const { counterpartyAccount, myAccount, counterpartyRule, paymentMethodRule, descriptionRule, rawTypeRule } = matchResult
+
   let billType: BillType
   let direction = parsed.direction
   let skipped = false
@@ -227,12 +263,26 @@ function buildImportRecordItem(parsed: CsvParsedRow, index: number = 0): ImportR
   }
 
   const debtSubtype = inferDebtSubtype(direction)
-  // 使用精确指纹（包含来源、时间、序号），避免跨来源误判，处理同日多笔相同金额
-  // 不包含对方字段，因为用户不可能每次都设置对方
-  const exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, index)
 
-  // 检查是否重复：精确匹配表示完全相同
-  const isDuplicate = props.existingFingerprints.has(exactFingerprint)
+  // 招商信用卡使用基于账户的指纹（需要出账账户）
+  let exactFingerprint: string
+  let isDuplicate = false
+
+  if (source.value === 'cmb_credit' && myAccount) {
+    // 基于账户的指纹：accountId|date|amount|index
+    const baseFingerprint = buildAccountBaseFingerprint(myAccount.id, parsed.date, parsed.amount)
+    // 计算该基础指纹的完整序号 = 已存在数量 + 当前序号
+    const existingCount = props.existingFingerprintCounts.get(baseFingerprint) || 0
+    const fullIndex = existingCount + fingerprintIndex
+    exactFingerprint = buildAccountExactFingerprint(myAccount.id, parsed.date, parsed.amount, fullIndex)
+
+    // 检查是否重复（与现有的精确指纹比较）
+    isDuplicate = props.existingFingerprints.has(exactFingerprint)
+  } else {
+    // 其他来源使用基于来源的指纹
+    exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, fingerprintIndex)
+    isDuplicate = props.existingFingerprints.has(exactFingerprint)
+  }
 
   const suggestion = suggestAccountIds(counterpartyAccount, myAccount, direction, billType)
 
@@ -309,17 +359,52 @@ async function onFileChange(event: Event) {
       parsedRows = source.value === 'alipay' ? parseAlipayCsv(text) : parseWechatCsv(text)
     }
 
-    // 计算序号，处理同日多笔相同金额的情况
-    const indexMap = calculateIndexes(
-      parsedRows.map(r => ({
-        source: source.value,
-        date: r.date,
-        amount: r.amount
-      }))
-    )
+    let items: ImportRecordItem[]
 
-    // 生成导入记录项，传入序号
-    const items = parsedRows.map((row, idx) => buildImportRecordItem(row, indexMap.get(idx) || 0))
+    if (source.value === 'cmb_credit') {
+      // 招商信用卡：按账户分组统计基础指纹数量
+      const matchResults = parsedRows.map(row => matchAccount(row))
+
+      // 按账户分组统计每个基础指纹的数量
+      const accountGroupCount = new Map<string, number>()
+      const fingerprintCountMap = new Map<number, number>() // 记录每行的序号
+
+      for (let i = 0; i < matchResults.length; i++) {
+        const matchResult = matchResults[i]
+        const parsed = parsedRows[i]
+
+        if (matchResult.myAccount) {
+          const baseFingerprint = buildAccountBaseFingerprint(matchResult.myAccount.id, parsed.date, parsed.amount)
+          const count = accountGroupCount.get(baseFingerprint) || 0
+          fingerprintCountMap.set(i, count)
+          accountGroupCount.set(baseFingerprint, count + 1)
+        } else {
+          // 没有匹配到账户，使用基于来源的指纹
+          fingerprintCountMap.set(i, 0)
+        }
+      }
+
+      // 生成导入记录项
+      items = parsedRows.map((row, idx) => {
+        const matchResult = matchResults[idx]
+        const fingerprintIndex = fingerprintCountMap.get(idx) || 0
+        return buildImportRecordItem(row, matchResult, fingerprintIndex)
+      })
+    } else {
+      // 其他来源：使用原有的基于来源的指纹
+      const indexMap = calculateIndexes(
+        parsedRows.map(r => ({
+          source: source.value,
+          date: r.date,
+          amount: r.amount
+        }))
+      )
+
+      items = parsedRows.map((row, idx) => {
+        const matchResult = matchAccount(row)
+        return buildImportRecordItem(row, matchResult, indexMap.get(idx) || 0)
+      })
+    }
 
     const dates = items.map(i => i.date).filter(Boolean).sort()
     const billStartDate = dates[0] || ''

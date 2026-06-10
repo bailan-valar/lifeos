@@ -98,6 +98,7 @@
       :accounts="accounts"
       :categories="categories"
       :existing-fingerprints="existingFingerprints"
+      :existing-fingerprint-counts="existingFingerprintCounts"
       @cancel="importDialogVisible = false"
       @record-created="handleRecordCreated"
       @view-record="handleViewRecord"
@@ -208,7 +209,7 @@ const { accounts } = useAccounts()
 const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
 const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore, splitBill, allocatePeriod, createRefundBill } = useBills()
-const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords, loadAllBillFingerprints } = useImportRecords()
+const { getById, rollback, deleteImportRecord, fingerprintsAcrossRecords, loadAllBillFingerprints, loadAllBillFingerprintCounts } = useImportRecords()
 const { rules: importRules, createImportRule, updateImportRule } = useImportRules()
 
 // 对话框状态（使用单例与 BillingView 同步）
@@ -245,6 +246,9 @@ const selectedBills = computed(() => props.bills.filter(b => props.selectedIds.i
 // 从数据库加载的所有账单指纹（异步加载）
 const allBillFingerprints = ref<Set<string>>(new Set())
 
+// 按账户统计的指纹数量（用于招商信用卡去重）
+const allBillFingerprintCounts = ref<Map<string, number>>(new Map())
+
 // 现有指纹（用于导入去重）
 const existingFingerprints = computed(() => {
   const set = new Set<string>(allBillFingerprints.value)
@@ -255,9 +259,32 @@ const existingFingerprints = computed(() => {
   return set
 })
 
+// 按账户统计的指纹数量（用于招商信用卡去重）
+const existingFingerprintCounts = computed(() => {
+  const map = new Map<string, number>(allBillFingerprintCounts.value)
+
+  // 从导入记录中的指纹补充统计
+  for (const record of records.value) {
+    if (record.status === 'rolled_back') continue
+    for (const item of record.items) {
+      if (!item.fingerprint) continue
+      // 解析指纹，提取基础部分
+      const parts = item.fingerprint.split('|')
+      if (parts.length >= 3) {
+        const baseFingerprint = parts.slice(0, 3).join('|')
+        const count = map.get(baseFingerprint) || 0
+        map.set(baseFingerprint, count + 1)
+      }
+    }
+  }
+
+  return map
+})
+
 // 加载所有账单指纹
 async function refreshBillFingerprints() {
   allBillFingerprints.value = await loadAllBillFingerprints(props.noteId)
+  allBillFingerprintCounts.value = await loadAllBillFingerprintCounts(props.noteId)
 }
 
 // 组件挂载时加载指纹
