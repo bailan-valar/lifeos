@@ -125,7 +125,13 @@
                   {{ (row.yearPercentage * 100).toFixed(0) }}%
                 </div>
               </div>
-              <div v-else class="sub-sum">子: {{ row.childrenBudgetSum.toFixed(0) }}</div>
+              <div v-else class="year-budget-cell year-budget-cell-no-budget">
+                <div v-if="row.childrenBudgetSum > 0 || row.yearActual > 0" class="cell-content">
+                  <div class="cell-sub-sum">子: {{ row.childrenBudgetSum.toFixed(0) }}</div>
+                  <div class="cell-divider"></div>
+                  <div class="cell-actual">{{ row.yearActual.toFixed(0) }}</div>
+                </div>
+              </div>
             </div>
             <template v-if="row.cycleType === 'yearly'">
               <div
@@ -946,6 +952,16 @@ function onNoteClick(noteId: string) {
   font-size: 11px;
   color: rgba(60, 60, 67, 0.45);
   text-align: center;
+}
+
+.cell-sub-sum {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.55);
+}
+
+.year-budget-cell-no-budget {
+  justify-content: center;
 }
 
 .cell {
