@@ -123,7 +123,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import SelectPicker from '~/components/ui/SelectPicker.vue'
+import SelectPicker from '~/components/SelectPicker.vue'
 import type { EmailConfig, Email } from '~/types/email'
 import { fetchEmails, downloadAttachment, detectImportSourceFromFilename } from '~/services/emailService'
 import { useEmailConfigs } from '~/composables/useEmailConfigs'
