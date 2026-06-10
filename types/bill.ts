@@ -271,7 +271,7 @@ export interface StatementFormData {
 /**
  * 导入来源
  */
-export type ImportSource = 'alipay' | 'wechat' | 'cmb' | 'cmb_credit'
+export type ImportSource = 'alipay' | 'wechat' | 'cmb' | 'cmb_credit' | 'email'
 
 /**
  * 规则匹配模式

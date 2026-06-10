@@ -57,7 +57,14 @@
         <div class="form-hint">设置后，未匹配规则的交易将统一使用此账户</div>
       </div>
 
-      <div class="form-group">
+      <div v-if="source === 'email'" class="email-import-wrapper">
+        <EmailImportPanel
+          :note-id="props.noteId"
+          @file-loaded="handleEmailFileLoaded"
+        />
+      </div>
+
+      <div v-else class="form-group">
         <label class="form-label">账单文件</label>
         <input ref="fileInput" type="file" :accept="fileAccept" class="file-input" @change="onFileChange" />
         <div v-if="parsing" class="form-hint">解析中...</div>
@@ -125,6 +132,7 @@ import {
   suggestAccountIds
 } from '~/composables/useAccountMatcher'
 import AccountPicker from './AccountPicker.vue'
+import EmailImportPanel from './EmailImportPanel.vue'
 
 /**
  * 中间数据：账户匹配结果
@@ -164,7 +172,8 @@ const sourceOptions: { value: ImportSource; label: string }[] = [
   { value: 'alipay', label: '支付宝' },
   { value: 'wechat', label: '微信' },
   { value: 'cmb', label: '招商银行储蓄卡' },
-  { value: 'cmb_credit', label: '招商信用卡' }
+  { value: 'cmb_credit', label: '招商信用卡' },
+  { value: 'email', label: '邮件' }
 ]
 
 const activeTab = ref<'import' | 'history'>('import')
@@ -455,6 +464,89 @@ async function onFileChange(event: Event) {
   }
 }
 
+async function handleEmailFileLoaded(data: { name: string; content: ArrayBuffer; source: 'alipay' | 'wechat' | 'cmb' | 'cmb_credit' }) {
+  parseError.value = ''
+  parsing.value = true
+
+  try {
+    const { name, content, source: fileSource } = data
+
+    let parsedRows: CsvParsedRow[]
+
+    if (fileSource === 'cmb') {
+      parsedRows = await parseCmbPdf(content)
+    } else if (fileSource === 'cmb_credit') {
+      parsedRows = await parseCmbCreditPdf(content)
+    } else if (name.toLowerCase().endsWith('.xlsx')) {
+      parsedRows = parseWechatXlsx(content)
+    } else {
+      const decoder = new TextDecoder('utf-8')
+      const text = decoder.decode(content)
+      parsedRows = fileSource === 'alipay' ? parseAlipayCsv(text) : parseWechatCsv(text)
+    }
+
+    let items: ImportRecordItem[]
+
+    const matchResults = parsedRows.map(row => matchAccount(row))
+    const accountGroupCount = new Map<string, number>()
+    const fingerprintCountMap = new Map<number, number>()
+
+    for (let i = 0; i < matchResults.length; i++) {
+      const matchResult = matchResults[i]
+      const parsed = parsedRows[i]
+      const accountForFingerprint = matchResult.myAccount || matchResult.counterpartyAccount
+
+      if (accountForFingerprint) {
+        const baseFingerprint = buildAccountBaseFingerprint(accountForFingerprint.id, parsed.date, parsed.amount)
+        const count = accountGroupCount.get(baseFingerprint) || 0
+        fingerprintCountMap.set(i, count)
+        accountGroupCount.set(baseFingerprint, count + 1)
+      } else {
+        fingerprintCountMap.set(i, 0)
+      }
+    }
+
+    items = parsedRows.map((row, idx) => {
+      const matchResult = matchResults[idx]
+      const fingerprintIndex = fingerprintCountMap.get(idx) || 0
+      return buildImportRecordItem(row, matchResult, fingerprintIndex)
+    })
+
+    const dates = items.map(i => i.date).filter(Boolean).sort()
+    const billStartDate = dates[0] || ''
+    const billEndDate = dates[dates.length - 1] || ''
+
+    const record: ImportRecord = {
+      id: generateId(),
+      noteId: props.noteId,
+      source: fileSource,
+      fileName: name,
+      fileSize: content.byteLength,
+      totalParsed: items.length,
+      selectedCount: items.filter(i => i.selected && !i.skipped && !i.duplicate).length,
+      successCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+      status: 'pending',
+      billIds: [],
+      items,
+      billStartDate,
+      billEndDate,
+      startedAt: now(),
+      finishedAt: '',
+      createdAt: now(),
+      updatedAt: now(),
+    }
+
+    await insertRecord(record)
+    emit('record-created', record)
+  } catch (e) {
+    parseError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    parsing.value = false
+  }
+}
+
 function setTab(tab: 'import' | 'history') {
   if (activeTab.value === tab) return
   activeTab.value = tab
@@ -482,7 +574,7 @@ function formatDateRange(start: string, end: string): string {
 }
 
 function sourceLabel(s: ImportSource): string {
-  return s === 'alipay' ? '支付宝' : s === 'wechat' ? '微信' : s === 'cmb' ? '招商银行储蓄卡' : s === 'cmb_credit' ? '招商信用卡' : s
+  return s === 'alipay' ? '支付宝' : s === 'wechat' ? '微信' : s === 'cmb' ? '招商银行储蓄卡' : s === 'cmb_credit' ? '招商信用卡' : s === 'email' ? '邮件' : s
 }
 
 function formatDuration(ms: number): string {
@@ -622,6 +714,11 @@ defineExpose({
 }
 .file-input {
   padding: 8px;
+}
+
+.email-import-wrapper {
+  padding: 4px 0;
+}
   font-size: 13px;
 }
 .form-hint {

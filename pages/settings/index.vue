@@ -82,6 +82,13 @@ const quickItems = [
     bg: 'linear-gradient(135deg, rgba(0,122,255,0.12), rgba(0,122,255,0.04))',
   },
   {
+    id: 'email',
+    label: '邮箱',
+    desc: '邮件配置、账单导入',
+    icon: 'solar:letter-linear',
+    bg: 'linear-gradient(135deg, rgba(175,82,222,0.12), rgba(175,82,222,0.04))',
+  },
+  {
     id: 'account',
     label: '账户',
     desc: '信息、安全、API Token',

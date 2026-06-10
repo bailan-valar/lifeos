@@ -123,7 +123,9 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   learning_goals: [['createdAt'], ['status'], ['dimension']],
   learning_stages: [['goalId'], ['goalId', 'order']],
   learning_sessions: [['stageId'], ['stageId', 'order'], ['goalId']],
-  learning_progress: [['sessionId'], ['goalId'], ['stageId']]
+  learning_progress: [['sessionId'], ['goalId'], ['stageId']],
+  // 邮箱配置集合
+  emailConfigs: [['createdAt']]
 }
 
 export const COLLECTION_NAMES = Object.keys(COLLECTION_INDEXES)

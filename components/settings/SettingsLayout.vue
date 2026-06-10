@@ -41,6 +41,7 @@ const route = useRoute()
 
 const navItems = [
   { id: 'general', label: '通用', icon: 'solar:settings-linear' },
+  { id: 'email', label: '邮箱', icon: 'solar:letter-linear' },
   { id: 'account', label: '账户', icon: 'solar:user-linear' },
   { id: 'feedback', label: '反馈', icon: 'solar:chat-square-linear' },
 ]
