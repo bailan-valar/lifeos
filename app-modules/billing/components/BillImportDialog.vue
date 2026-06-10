@@ -719,8 +719,6 @@ defineExpose({
 .email-import-wrapper {
   padding: 4px 0;
 }
-  font-size: 13px;
-}
 .form-hint {
   font-size: 12px;
   color: rgba(60, 60, 67, 0.6);
