@@ -7,6 +7,17 @@
       @note-click="onNoteClick"
     />
   </div>
+  <NoteContextMenu
+    v-model:visible="contextMenuVisible"
+    :note="contextMenuNote"
+    :x="contextMenuPosition.x"
+    :y="contextMenuPosition.y"
+    @focus="handleContextMenuFocus"
+    @view="handleContextMenuView"
+    @edit="handleContextMenuEdit"
+    @add-child="handleContextMenuAddChild"
+    @delete="handleContextMenuDelete"
+  />
   <ProjectBudgetDialog
     ref="budgetDialogRef"
     v-if="budgetDialogVisible"
@@ -50,6 +61,8 @@ import ProjectBudgetDashboard from '../ProjectBudgetDashboard.vue'
 import ProjectBudgetDialog from '../ProjectBudgetDialog.vue'
 import ProjectBudgetHistory from '../ProjectBudgetHistory.vue'
 import NoteMonthBillsDialog from '../NoteMonthBillsDialog.vue'
+import NoteContextMenu from '~/components/NoteContextMenu.vue'
+import type { Note } from '~/types/block'
 
 const props = defineProps<{
   budgetYear: number
@@ -58,6 +71,11 @@ const props = defineProps<{
 const { success: showSuccess, error: showError } = useToast()
 const { noteOptions, notes } = useNotes()
 const { upsertBudget, budgets, getNoteBudgetEntries } = useBudgets()
+
+// 右键菜单状态
+const contextMenuVisible = ref(false)
+const contextMenuNote = ref<Note | null>(null)
+const contextMenuPosition = ref({ x: 0, y: 0 })
 
 // 对话框状态
 const budgetDialogVisible = ref(false)
@@ -198,7 +216,66 @@ async function handleBudgetConfirm(data: BudgetFormData) {
 }
 
 function openNoteContextMenu(payload: { node: any; x: number; y: number }) {
-  // TODO: 实现笔记上下文菜单（可选）
+  const { node, x, y } = payload
+  // 排除"无关联"行
+  if (node.isUnlinked) return
+
+  const note = notes.value.find(n => n.id === node.id)
+  if (!note) return
+
+  contextMenuNote.value = note
+  contextMenuPosition.value = { x, y }
+  contextMenuVisible.value = true
+}
+
+function handleContextMenuFocus() {
+  if (!contextMenuNote.value) return
+  // 聚焦笔记 - 在项目预算中不需要特殊处理
+  contextMenuVisible.value = false
+}
+
+function handleContextMenuView() {
+  if (!contextMenuNote.value) return
+  // 查看笔记 - 打开预算对话框
+  const noteId = contextMenuNote.value.id
+  contextMenuVisible.value = false
+
+  // 触发点击逻辑
+  onNoteClick({
+    noteId,
+    year: budgetYear,
+    month: new Date().getMonth() + 1
+  })
+}
+
+function handleContextMenuEdit() {
+  if (!contextMenuNote.value) return
+  // 编辑笔记 - 导航到笔记页面
+  const noteId = contextMenuNote.value.id
+  contextMenuVisible.value = false
+
+  const router = useRouter()
+  router.push(`/notes?id=${noteId}`)
+}
+
+function handleContextMenuAddChild() {
+  if (!contextMenuNote.value) return
+  // 新建子笔记 - 导航到笔记页面并创建子笔记
+  const parentId = contextMenuNote.value.id
+  contextMenuVisible.value = false
+
+  const router = useRouter()
+  router.push(`/notes?createChild=${parentId}`)
+}
+
+function handleContextMenuDelete() {
+  if (!contextMenuNote.value) return
+  // 删除笔记 - 导航到笔记页面
+  const noteId = contextMenuNote.value.id
+  contextMenuVisible.value = false
+
+  const router = useRouter()
+  router.push(`/notes?id=${noteId}`)
 }
 </script>
 
