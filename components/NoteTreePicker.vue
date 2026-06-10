@@ -215,11 +215,11 @@ const selectedNote = computed(() => {
   return props.notes.find(n => n.id === props.modelValue) || null
 })
 
-// 选中项的标签（包含路径）
+// 选中项的标签（包含路径和类名）
 const selectedLabel = computed(() => {
   if (!selectedNote.value) return ''
 
-  // 构建路径
+  // 构建路径（不含类名）
   const path: string[] = []
   let current = selectedNote.value
   while (current) {
@@ -228,7 +228,11 @@ const selectedLabel = computed(() => {
     current = props.notes.find(n => n.id === parentId) || null as any
   }
 
-  return path.join(' / ')
+  const pathLabel = path.join(' / ')
+
+  // 添加类名到当前选中项
+  const classInfo = noteClassMap.value.get(props.modelValue!)
+  return classInfo ? `${pathLabel} · ${classInfo.name}` : pathLabel
 })
 
 // 切换展开状态
