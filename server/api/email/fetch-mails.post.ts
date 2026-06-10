@@ -1,4 +1,4 @@
-import Imap from 'imap'
+import Imap from 'node-imap'
 import type { Email, EmailAttachment } from '~/types/email'
 import { simpleParser, ParsedMail } from 'mailparser'
 

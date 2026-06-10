@@ -1,4 +1,4 @@
-import Imap from 'imap'
+import Imap from 'node-imap'
 
 interface DownloadAttachmentBody {
   configId: string
