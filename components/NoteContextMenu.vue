@@ -4,7 +4,6 @@
       <div
         v-if="visible"
         class="context-menu-overlay"
-        @click="close"
       >
         <div
           class="context-menu"
@@ -123,6 +122,28 @@ function handleDelete() {
 // ESC 关闭
 onKeyStroke('Escape', close)
 
+// 全局点击检测关闭菜单
+function handleGlobalClick(e: MouseEvent) {
+  const menu = document.querySelector('.context-menu') as HTMLElement
+  if (menu && !menu.contains(e.target as Node)) {
+    close()
+  }
+}
+
+watch(() => props.visible, (visible) => {
+  if (visible) {
+    nextTick(() => {
+      document.addEventListener('click', handleGlobalClick)
+    })
+  } else {
+    document.removeEventListener('click', handleGlobalClick)
+  }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleGlobalClick)
+})
+
 // 监听可见性变化，调整位置防止溢出
 watch(() => props.visible, (visible) => {
   if (visible) {
@@ -178,6 +199,7 @@ function adjustPosition() {
   position: fixed;
   inset: 0;
   z-index: 9999;
+  pointer-events: none;
 }
 
 .context-menu {
