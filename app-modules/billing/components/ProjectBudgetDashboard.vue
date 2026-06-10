@@ -24,7 +24,7 @@
       <div class="budget-table">
         <div class="table-header">
           <div class="col-note">项目</div>
-          <div class="col-year-budget">年预算</div>
+          <div class="col-year-budget">年预算/实际</div>
           <div
             v-for="m in 12"
             :key="m"
@@ -41,7 +41,22 @@
             <span class="total-label">合计</span>
           </div>
           <div class="col-year-budget">
-            <div class="budget-num">{{ totalsRow.yearBudget.toFixed(0) }}</div>
+            <div class="year-budget-cell">
+              <div v-if="totalsRow.yearBudget > 0 || totalsRow.yearActual > 0" class="cell-content">
+                <div class="cell-budget">{{ totalsRow.yearBudget.toFixed(0) }}</div>
+                <div class="cell-divider"></div>
+                <div class="cell-actual" :class="{ over: totalsRow.yearPercentage > 1 }">
+                  {{ totalsRow.yearActual.toFixed(0) }}
+                </div>
+              </div>
+              <div
+                v-if="totalsRow.yearBudget > 0"
+                class="cell-percentage-badge"
+                :class="{ over: totalsRow.yearPercentage > 1 }"
+              >
+                {{ (totalsRow.yearPercentage * 100).toFixed(0) }}%
+              </div>
+            </div>
           </div>
           <div
             v-for="(cell, idx) in totalsRow.monthly"
@@ -94,7 +109,22 @@
               <span class="note-name" :class="{ 'unlinked-name': row.isUnlinked }" @click.stop="onNoteClick(row.node.id)">{{ row.node.title }}</span>
             </div>
             <div class="col-year-budget">
-              <div v-if="row.hasOwnBudget" class="budget-num">{{ row.yearBudget.toFixed(0) }}</div>
+              <div v-if="row.hasOwnBudget" class="year-budget-cell">
+                <div v-if="row.yearBudget > 0 || row.yearActual > 0" class="cell-content">
+                  <div class="cell-budget">{{ row.yearBudget.toFixed(0) }}</div>
+                  <div class="cell-divider"></div>
+                  <div class="cell-actual" :class="{ over: row.yearPercentage > 1 }">
+                    {{ row.yearActual.toFixed(0) }}
+                  </div>
+                </div>
+                <div
+                  v-if="row.yearBudget > 0"
+                  class="cell-percentage-badge"
+                  :class="{ over: row.yearPercentage > 1 }"
+                >
+                  {{ (row.yearPercentage * 100).toFixed(0) }}%
+                </div>
+              </div>
               <div v-else class="sub-sum">子: {{ row.childrenBudgetSum.toFixed(0) }}</div>
             </div>
             <template v-if="row.cycleType === 'yearly'">
@@ -800,15 +830,15 @@ function onNoteClick(noteId: string) {
 }
 
 .col-year-budget {
-  width: 72px;
+  width: 82px;
   flex-shrink: 0;
   position: sticky;
   left: 160px;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 6px 4px;
   background: rgba(255, 255, 255, 0.95);
   border-right: 0.5px solid rgba(60, 60, 67, 0.08);
   z-index: 1;
@@ -897,9 +927,25 @@ function onNoteClick(noteId: string) {
   font-weight: 500;
 }
 
+.year-budget-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.year-budget-cell .cell-percentage-badge {
+  top: 1px;
+  right: 1px;
+}
+
 .sub-sum {
   font-size: 11px;
   color: rgba(60, 60, 67, 0.45);
+  text-align: center;
 }
 
 .cell {
