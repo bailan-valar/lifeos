@@ -151,12 +151,29 @@ function createStore(): StatementsStore {
     const start = period.billingStartDate
     const end = period.billingEndDate
 
-    const periodBills = allBills.filter(b =>
-      b.fromAccountId === account.id &&
-      b.type === 'expense' &&
-      b.date.slice(0, 10) >= start &&
-      b.date.slice(0, 10) <= end
-    )
+    // 当未传入账单数据时，从数据库直接查询
+    let periodBills: Bill[]
+    if (allBills.length === 0) {
+      const db = await getDB()
+      const result = await db.bills.find({
+        selector: {
+          fromAccountId: account.id,
+          type: 'expense'
+        }
+      }).exec()
+      const allDocs = result.map((doc: any) => doc.toJSON() as Bill)
+      periodBills = allDocs.filter(b =>
+        b.date.slice(0, 10) >= start &&
+        b.date.slice(0, 10) <= end
+      )
+    } else {
+      periodBills = allBills.filter(b =>
+        b.fromAccountId === account.id &&
+        b.type === 'expense' &&
+        b.date.slice(0, 10) >= start &&
+        b.date.slice(0, 10) <= end
+      )
+    }
     const stmtAmount = sum(periodBills.map(b => b.amount))
     const minPayment = round(mul(stmtAmount, 0.1), 2)
 
