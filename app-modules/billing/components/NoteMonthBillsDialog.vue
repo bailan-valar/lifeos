@@ -54,7 +54,6 @@
       @update:visible="billDialogVisible = $event"
       @confirm="handleBillConfirm"
       @cancel="billDialogVisible = false"
-      @action-completed="loadBills"
     />
 
     <!-- 拆分对话框 -->
@@ -96,6 +95,7 @@ import { useAccounts } from '~/composables/useAccounts'
 import { useBills } from '~/composables/useBills'
 import { useToast } from '~/composables/useToast'
 import { useConfirm } from '~/composables/useConfirm'
+import { onCollectionChange } from '~/services/db'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import BillListItem from './BillListItem.vue'
 import BillDialog from './BillDialog.vue'
@@ -179,8 +179,8 @@ function getNoteNameById(noteId: string): string {
   return note?.title || ''
 }
 
-async function loadBills() {
-  loading.value = true
+async function loadBills(silent = false) {
+  if (!silent) loading.value = true
   try {
     const prefix = `${props.year}-${String(props.month).padStart(2, '0')}`
     const { getDB } = await import('~/services/db')
@@ -259,8 +259,26 @@ async function loadBills() {
   }
 }
 
+// 订阅管理：弹框打开时订阅 bills 变更，关闭时取消
+const unsubscribers: (() => void)[] = []
+
 watch(() => props.visible, (v) => {
-  if (v) loadBills()
+  if (v) {
+    loadBills()
+    if (unsubscribers.length === 0) {
+      unsubscribers.push(
+        onCollectionChange('bills', () => loadBills(true))
+      )
+    }
+  } else {
+    unsubscribers.forEach(unsub => unsub())
+    unsubscribers.length = 0
+  }
+})
+
+onUnmounted(() => {
+  unsubscribers.forEach(unsub => unsub())
+  unsubscribers.length = 0
 })
 
 function openEditDialog(bill: BillWithNoteTag) {
@@ -273,7 +291,6 @@ async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: st
     if (isEditing && id) {
       await updateBill(id, data)
       showSuccess('账单已更新')
-      await loadBills()
     }
     billDialogVisible.value = false
   } catch (e) {
@@ -318,7 +335,6 @@ async function handleSplitConfirm(splitItems: any[]) {
     showSuccess('账单已拆分')
     splitDialogVisible.value = false
     selectedBill.value = undefined
-    await loadBills()
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
@@ -331,7 +347,6 @@ async function handleAllocateConfirm(allocateItems: any[]) {
     showSuccess('账单已分摊')
     allocateDialogVisible.value = false
     selectedBill.value = undefined
-    await loadBills()
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
@@ -344,7 +359,6 @@ async function handleRefundConfirm(refundData: any) {
     showSuccess('退款已创建')
     refundDialogVisible.value = false
     selectedBill.value = undefined
-    await loadBills()
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
@@ -360,7 +374,6 @@ async function handleDelete(bill: Bill) {
   try {
     await deleteBill(bill.id)
     showSuccess('账单已删除')
-    await loadBills()
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
