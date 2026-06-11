@@ -16,7 +16,9 @@
 
     <div v-else class="bills-list">
       <div v-for="bill in bills" :key="bill.id" class="bill-item">
-        <div class="bill-icon">{{ getCategoryIcon(bill.categoryId) }}</div>
+        <div class="bill-icon" :style="getCategoryIconStyle(bill.categoryId)">
+          <Icon :name="getCategoryIcon(bill.categoryId)" size="18" />
+        </div>
         <div class="bill-info">
           <div class="bill-category">{{ getCategoryName(bill.categoryId) }}</div>
           <div class="bill-meta">
@@ -182,7 +184,20 @@ function getCategoryName(categoryId: string): string {
 
 function getCategoryIcon(categoryId: string): string {
   const category = categories.value.find(c => c.id === categoryId)
-  return category?.icon || '📁'
+  return category?.icon || 'solar:folder-linear'
+}
+
+function getCategoryColor(categoryId: string): string {
+  const category = categories.value.find(c => c.id === categoryId)
+  return category?.color || 'rgb(0,122,255)'
+}
+
+function getCategoryIconStyle(categoryId: string): Record<string, string> {
+  const color = getCategoryColor(categoryId)
+  return {
+    background: `${color}15`,
+    color
+  }
 }
 
 function formatDate(date: string): string {
@@ -259,8 +274,6 @@ function formatDate(date: string): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  background: rgba(0, 0, 0, 0.05);
   border-radius: 8px;
   flex-shrink: 0;
 }
