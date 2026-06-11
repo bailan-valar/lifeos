@@ -87,6 +87,13 @@
       <label class="form-label">备注</label>
       <textarea v-model="form.description" class="form-textarea" rows="2" placeholder="可选" />
     </div>
+
+    <div v-if="form.type === 'expense'" class="form-group form-group-row">
+      <label class="form-checkbox-label">
+        <input type="checkbox" :checked="form.isSavable" @change="onSavableChange" />
+        <span>可节省</span>
+      </label>
+    </div>
   </div>
 </template>
 
@@ -147,6 +154,11 @@ function swapAccounts() {
     fromAccountId: to,
     toAccountId: from
   }
+}
+
+function onSavableChange(e: Event) {
+  const checked = (e.target as HTMLInputElement).checked
+  form.value = { ...form.value, isSavable: checked }
 }
 </script>
 
@@ -232,5 +244,23 @@ function swapAccounts() {
 }
 .form-hint.warn {
   color: rgb(255, 59, 48);
+}
+.form-group-row {
+  flex-direction: row;
+  align-items: center;
+}
+.form-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.86);
+  cursor: pointer;
+}
+.form-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: rgb(0, 122, 255);
 }
 </style>

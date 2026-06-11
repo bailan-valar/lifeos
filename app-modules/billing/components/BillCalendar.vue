@@ -50,6 +50,7 @@
           class="day-bill-row"
           :class="`type-${bill.type}`"
           @click="$emit('edit', bill)"
+          @contextmenu.prevent="$emit('contextmenu', { bill, x: $event.clientX, y: $event.clientY })"
         >
           <div class="day-bill-left">
             <div class="day-bill-type" :class="bill.type">{{ typeLabel(bill.type) }}</div>
@@ -90,6 +91,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'edit', bill: Bill): void
+  (e: 'contextmenu', payload: { bill: Bill; x: number; y: number }): void
 }>()
 
 const store = useBillingStore()

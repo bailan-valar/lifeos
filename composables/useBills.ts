@@ -309,6 +309,7 @@ export function useBills() {
       debtSubtype: data.debtSubtype || '',
       relatedPersonId: data.relatedPersonId || '',
       settledAmount: 0,
+      isSavable: data.isSavable || false,
       createdAt: now(),
       updatedAt: now(),
     }
@@ -448,6 +449,7 @@ export function useBills() {
           importSource: record.source,
           importFingerprint: fingerprint,
           counterpartyRaw: item.counterparty,
+          isSavable: item.isSavable || false,
           createdAt: now(),
           updatedAt: now(),
         }

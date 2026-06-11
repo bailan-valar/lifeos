@@ -171,6 +171,12 @@
                   @blur="updateField('remark', remarkText.trim() || undefined)"
                 />
               </div>
+              <div v-if="editableItem.type === 'expense'" class="edit-row edit-row-check">
+                <label class="edit-checkbox-label">
+                  <input type="checkbox" :checked="editableItem.isSavable" @change="onSavableChange" />
+                  <span>可节省</span>
+                </label>
+              </div>
             </div>
 
             <!-- 操作按钮 -->
@@ -362,6 +368,11 @@ function isIncomplete(row: ImportRecordItem): boolean {
   if (row.type === 'income' && !row.toAccountId) return true
   if ((row.type === 'transfer' || row.type === 'debt') && (!row.fromAccountId || !row.toAccountId)) return true
   return false
+}
+
+function onSavableChange(e: Event) {
+  const checked = (e.target as HTMLInputElement).checked
+  updateField('isSavable', checked)
 }
 
 function onClose() {
@@ -611,6 +622,27 @@ const canNextIncomplete = computed(() => props.hasNextIncomplete)
 
 .edit-textarea:focus {
   border-color: rgb(0, 122, 255);
+}
+
+.edit-row-check {
+  flex-direction: row;
+  align-items: center;
+}
+
+.edit-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.86);
+  cursor: pointer;
+}
+
+.edit-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: rgb(0, 122, 255);
 }
 
 .action-section {

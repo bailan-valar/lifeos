@@ -126,6 +126,15 @@
           class="compact-picker"
           @update:model-value="updateField('debtSubtype', $event as DebtSubtype)"
         />
+
+        <label v-if="row.type === 'expense'" class="savable-check" @click.stop>
+          <input
+            type="checkbox"
+            :checked="row.isSavable"
+            @change="updateField('isSavable', ($event.target as HTMLInputElement).checked)"
+          />
+          <span>可节省</span>
+        </label>
       </div>
     </template>
 
@@ -154,6 +163,7 @@
           <span class="mobile-type-tag" :class="row.type">{{ typeLabel }}</span>
           <span v-if="categoryName" class="mobile-category-tag">{{ categoryName }}</span>
           <span v-if="debtSubtypeLabel" class="mobile-subtype-tag">{{ debtSubtypeLabel }}</span>
+          <span v-if="row.isSavable && row.type === 'expense'" class="mobile-savable-tag">可节省</span>
         </div>
 
         <div v-if="fromAccountName || toAccountName" class="mobile-line mobile-line-accounts">
@@ -516,6 +526,21 @@ function formatAmount(n: number): string {
 .compact-picker {
   min-width: 110px;
 }
+.savable-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.86);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.savable-check input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: rgb(0, 122, 255);
+}
 :deep(.compact-picker .picker-trigger) {
   padding: 6px 10px;
   font-size: 12px;
@@ -707,6 +732,14 @@ function formatAmount(n: number): string {
   border-radius: 4px;
   background: rgba(0, 122, 255, 0.08);
   color: rgb(0, 122, 255);
+}
+.mobile-savable-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 149, 0, 0.12);
+  color: rgb(255, 149, 0);
 }
 
 .mobile-line-accounts {

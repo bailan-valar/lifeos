@@ -34,6 +34,7 @@
         :bills="bills"
         :loading="loading"
         @edit="(bill) => billDialogs.openBillDialog(bill)"
+        @contextmenu="openBillContextMenu"
       />
       <BillSkeleton v-else-if="loading && bills.length === 0" />
       <BillList

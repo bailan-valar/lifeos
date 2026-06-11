@@ -291,7 +291,8 @@ watch(() => props.visible, (v) => {
       description: props.bill.description,
       date: props.bill.date?.slice(0, 16) || new Date().toISOString().slice(0, 16),
       debtSubtype: props.bill.debtSubtype || 'lend',
-      relatedPersonId: props.bill.relatedPersonId
+      relatedPersonId: props.bill.relatedPersonId,
+      isSavable: props.bill.isSavable || false
     }
   } else {
     const defaults = props.defaultFormValues || {}
@@ -306,7 +307,8 @@ watch(() => props.visible, (v) => {
       description: '',
       date: new Date().toISOString().slice(0, 16),
       debtSubtype: 'lend',
-      relatedPersonId: ''
+      relatedPersonId: '',
+      isSavable: false
     }
   }
 }, { immediate: true })
