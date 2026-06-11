@@ -125,7 +125,7 @@ function onContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   width: 20px;
 }
 .node-name {
-  flex: 1;
+  flex: 0 1 auto;
   font-size: 14px;
   color: rgba(0, 0, 0, 0.92);
   cursor: pointer;
