@@ -202,6 +202,7 @@
 
 <script setup lang="ts">
 import type { Bill, BudgetCycleType, CategoryTreeNode } from '~/types/bill'
+import { getDB } from '~/services/db'
 import { div } from '~/utils/decimal'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import NotePicker from './NotePicker.vue'
@@ -231,27 +232,21 @@ function onCategoryContextMenu(event: MouseEvent, node: CategoryTreeNode) {
 }
 
 async function refreshData() {
-  await loadBudgets(selectedNoteId.value)
+  const dbPromise = getDB()
+  const [, db] = await Promise.all([loadBudgets(selectedNoteId.value), dbPromise])
+
   if (selectedNoteId.value) {
     const noteIds = getDescendantNoteIds(selectedNoteId.value)
-    const db = await (async () => {
-      const { getDB } = await import('~/services/db')
-      return getDB()
-    })()
     const selector: Record<string, unknown> = noteIds.length === 1
       ? { noteId: noteIds[0] }
       : { noteId: { $in: noteIds } }
-    const result = await (await db).bills.find({
+    const result = await db.bills.find({
       selector,
       sort: [{ date: 'desc' }]
     }).exec()
     scopedBills.value = result.map((doc: any) => doc.toJSON())
   } else {
-    const db = await (async () => {
-      const { getDB } = await import('~/services/db')
-      return getDB()
-    })()
-    const result = await (await db).bills.find({
+    const result = await db.bills.find({
       sort: [{ date: 'desc' }]
     }).exec()
     scopedBills.value = result.map((doc: any) => doc.toJSON())
@@ -536,10 +531,8 @@ function calcTree(nodes: CategoryTreeNode[], year: number, level = 0): TreeRow[]
           }
         }, 0)
 
-    // 计算年度实际支出（包含所有子分类，包括年预算子分类）
-    const yearActual = hasOwnBudget
-      ? ownYearActual + childTree.reduce((sum, ct) => sum + ct.data.yearActual, 0)
-      : childTree.reduce((sum, ct) => sum + ct.data.yearActual, 0)
+    // 计算年度实际支出（包含自身和所有子分类）
+    const yearActual = ownYearActual + childTree.reduce((sum, ct) => sum + ct.data.yearActual, 0)
 
     const yearPercentage = yearBudget > 0 ? yearActual / yearBudget : 0
 
