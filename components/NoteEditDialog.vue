@@ -158,8 +158,8 @@ const emit = defineEmits<{
 }>()
 
 // Composables
-const { notes, loadNotes: loadNotesOptions } = useNotes()
-const { classes, classFields, loadClasses, bindClass, updateBindingValues, getClassForNote } = useNoteClasses()
+const { notes } = useNotes()
+const { classes, classFields, bindClass, updateBindingValues, getClassForNote } = useNoteClasses()
 
 // 表单数据
 interface FormData {
@@ -224,11 +224,6 @@ const selectedClassFields = computed(() => {
 // 加载数据
 watch(() => props.visible, async (v) => {
   if (v) {
-    // 加载笔记列表
-    await loadNotesOptions()
-    // 加载类列表
-    await loadClasses()
-
     if (props.isCreating) {
       formData.value = {
         title: '',
@@ -238,6 +233,7 @@ watch(() => props.visible, async (v) => {
         classValues: {}
       }
     } else if (props.note) {
+      // 同步填充基本字段，用户立即看到标题等信息
       formData.value = {
         title: props.note.title || '',
         content: '',
@@ -245,10 +241,11 @@ watch(() => props.visible, async (v) => {
         classId: null,
         classValues: {}
       }
-      // 加载笔记内容
-      await loadNoteContent(props.note.id)
-      // 加载笔记类
-      await loadNoteClass(props.note.id)
+      // 并行加载笔记内容和类绑定
+      await Promise.all([
+        loadNoteContent(props.note.id),
+        loadNoteClass(props.note.id)
+      ])
     }
     nextTick(() => titleInput.value?.focus())
   }
