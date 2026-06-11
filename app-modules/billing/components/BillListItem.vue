@@ -7,8 +7,7 @@
         { 'is-child': bill.parentId },
         { 'is-refund': bill.isRefund },
         { 'has-children': bill.hasChildren && !bill.parentId },
-        { 'is-selected': selected },
-        { 'is-compact': compact }
+        { 'is-selected': selected }
       ]"
       @click="$emit('click', bill)"
       @contextmenu.prevent="onContextMenu"
@@ -56,20 +55,14 @@
           </span>
           <span v-else class="bill-category-empty">未分类</span>
         </div>
-        <!-- 完整二级信息行 -->
-        <div v-if="!compact" class="bill-secondary-row">
+        <!-- 二级信息行 -->
+        <div class="bill-secondary-row">
           <span v-if="noteTag" class="bill-note-tag">{{ noteTag }}</span>
           <span class="bill-datetime">{{ formatDateTime(bill.date) }}</span>
           <span class="bill-sep">·</span>
           <span class="bill-account">{{ accountName }}</span>
           <span class="bill-sep">·</span>
           <span class="bill-description">{{ bill.description || '-' }}</span>
-        </div>
-        <!-- 紧凑二级信息行（日历模式） -->
-        <div v-else class="bill-secondary-row">
-          <span class="bill-description">{{ bill.description || '-' }}</span>
-          <span class="bill-sep">·</span>
-          <span class="bill-datetime">{{ formatTime(bill.date) }}</span>
         </div>
       </div>
       <div class="bill-right">
@@ -87,8 +80,8 @@
         <div v-if="runningBalance != null" class="bill-balance" :class="{ negative: runningBalance < 0 }">
           余额 {{ runningBalance.toFixed(2) }}
         </div>
-        <!-- 操作按钮（紧凑模式隐藏） -->
-        <div v-if="showActions && !compact" class="bill-actions">
+        <!-- 操作按钮 -->
+        <div v-if="showActions" class="bill-actions">
           <!-- 父账单操作 -->
           <template v-if="!bill.parentId && !bill.isRefund">
             <button
@@ -211,15 +204,12 @@ const props = withDefaults(defineProps<{
   showChildren?: boolean
   // 右键菜单
   contextMenuEnabled?: boolean
-  // 紧凑模式（日历视图）
-  compact?: boolean
 }>(), {
   selectable: false,
   selected: false,
   showActions: true,
   showChildren: true,
   contextMenuEnabled: false,
-  compact: false,
   refundBadge: 'auto'
 })
 
@@ -315,11 +305,6 @@ function formatDateTime(dateStr: string) {
   return `${month}/${day} ${hours}:${minutes}`
 }
 
-function formatTime(dateStr: string) {
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-}
-
 function onContextMenu(event: MouseEvent) {
   if (!props.contextMenuEnabled) return
   emit('contextmenu', { bill: props.bill, x: event.clientX, y: event.clientY })
@@ -391,12 +376,6 @@ const displayAmount = computed(() => {
 .bill-item.is-selected {
   background: rgba(0, 122, 255, 0.08);
   border-color: rgba(0, 122, 255, 0.25);
-}
-
-/* 紧凑模式 */
-.bill-item.is-compact {
-  padding: 8px 12px;
-  border-radius: 8px;
 }
 
 /* 选择框 */

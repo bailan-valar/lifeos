@@ -51,7 +51,6 @@
           :category-name="getCategoryName(bill.categoryId)"
           :account-name="getAccountName(bill)"
           :show-actions="false"
-          compact
           @click="$emit('edit', bill)"
           @contextmenu="$emit('contextmenu', $event)"
         />
