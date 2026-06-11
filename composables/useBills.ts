@@ -375,6 +375,9 @@ export function useBills() {
       let existingDuplicate: any = null
       for (const billDoc of candidateBills) {
         const bill = billDoc.toJSON() as any
+
+        // 类型不同则不是重复（支出 vs 收入/退款 vs 转账方向完全相反）
+        if (item.type && bill.type && item.type !== bill.type) continue
         const billFromAccount = bill.fromAccountId ? await db.accounts.findOne(bill.fromAccountId).exec() : null
         const billToAccount = bill.toAccountId ? await db.accounts.findOne(bill.toAccountId).exec() : null
         const billFromType = billFromAccount?.get('type') as string | undefined
