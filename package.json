@@ -64,6 +64,7 @@
     "papaparse": "^5.4.1",
     "pdfjs-dist": "^5.7.284",
     "pinia": "^2.2.6",
+    "pinyin-pro": "^3.28.1",
     "pouchdb-browser": "^9.0.0",
     "pouchdb-find": "^9.0.0",
     "pouchdb-replication": "^9.0.0",

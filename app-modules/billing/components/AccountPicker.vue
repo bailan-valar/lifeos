@@ -89,6 +89,7 @@
 import type { Account, AccountType, BillCategory, AccountFormData } from '~/types/bill'
 import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
+import { fuzzyMatch } from '~/utils/pinyin'
 import { useAccounts } from '~/composables/useAccounts'
 import AccountDialog from './AccountDialog.vue'
 
@@ -136,11 +137,11 @@ const filteredAccounts = computed(() => {
   if (props.allowedTypes && props.allowedTypes.length > 0) {
     list = list.filter(a => props.allowedTypes!.includes(a.type))
   }
-  const q = searchQuery.value.trim().toLowerCase()
+  const q = searchQuery.value.trim()
   if (!q) return list
   return list.filter(a => {
-    if (a.name.toLowerCase().includes(q)) return true
-    if (a.aliases?.some(alias => alias.toLowerCase().includes(q))) return true
+    if (fuzzyMatch(a.name, q)) return true
+    if (a.aliases?.some(alias => fuzzyMatch(alias, q))) return true
     return false
   })
 })

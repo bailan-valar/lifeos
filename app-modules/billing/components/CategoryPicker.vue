@@ -120,6 +120,7 @@
 import type { BillCategory, CategoryType, CategoryFormData } from '~/types/bill'
 import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { getNextZIndex } from '~/composables/useZIndex'
+import { fuzzyMatch } from '~/utils/pinyin'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useNotes } from '~/composables/useNotes'
 import CategoryDialog from './CategoryDialog.vue'
@@ -250,7 +251,7 @@ const displayItems = computed(() => {
   const allItems = treeItems.value
   const parentIdMap = parentMap.value
   const matchedIds = new Set(
-    allItems.filter(i => i.name.toLowerCase().includes(q)).map(i => i.id)
+    allItems.filter(i => fuzzyMatch(i.name, searchQuery.value.trim())).map(i => i.id)
   )
 
   const visibleIds = new Set<string>()

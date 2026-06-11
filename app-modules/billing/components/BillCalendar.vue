@@ -195,7 +195,8 @@ function buildCells(): CalendarCell[] {
 
 const displayedCells = computed(() => buildCells())
 
-// 监听外部状态变化
+// 监听月份切换：更新显示状态 + 重置选中日期
+// 注意：只在用户主动切换月份时触发，静默数据刷新（新增/编辑账单后）不会改变 filter，因此不会重置日期
 watch([billYearFilter, billMonthFilter], async () => {
   const newYear = billYearFilter.value ?? fallbackDate.getFullYear()
   const newMonth = billMonthFilter.value ?? fallbackDate.getMonth() + 1
@@ -206,23 +207,20 @@ watch([billYearFilter, billMonthFilter], async () => {
   // 等待所有 props 更新完成（包括 loading）
   await nextTick()
 
-  // 现在更新显示状态，此时 loading prop 应该已经是最新的
+  // 更新显示状态
   displayYear.value = newYear
   displayMonth.value = newMonth
-  pendingYearMonthUpdate.value = false
-})
 
-// 数据加载完成后重置选中日期
-watch([() => props.bills, () => props.loading], () => {
-  if (!props.loading) {
-    const now = new Date()
-    if (displayYear.value === now.getFullYear() && displayMonth.value === now.getMonth() + 1) {
-      selectedDate.value = now.toISOString().slice(0, 10)
-    } else {
-      selectedDate.value = null
-    }
+  // 月份切换时重置选中日期
+  const now = new Date()
+  if (newYear === now.getFullYear() && newMonth === now.getMonth() + 1) {
+    selectedDate.value = now.toISOString().slice(0, 10)
+  } else {
+    selectedDate.value = null
   }
-})
+
+  pendingYearMonthUpdate.value = false
+}, { immediate: true })
 
 // loading 或等待更新期间禁用点击
 function onCellClick(cell: CalendarCell) {

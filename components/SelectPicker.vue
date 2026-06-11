@@ -82,6 +82,7 @@
 
 <script setup lang="ts">
 import { getNextZIndex } from '~/composables/useZIndex'
+import { fuzzyMatch } from '~/utils/pinyin'
 
 export interface SelectOption {
   label: string
@@ -157,10 +158,10 @@ const filteredOptions = computed(() => {
   if (!props.searchable || !searchQuery.value.trim()) {
     return props.options
   }
-  const query = searchQuery.value.trim().toLowerCase()
+  const query = searchQuery.value.trim()
   return props.options.filter(opt => {
     const label = getOptionLabel(opt)
-    return label.toLowerCase().includes(query)
+    return fuzzyMatch(label, query)
   })
 })
 

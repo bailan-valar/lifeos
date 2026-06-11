@@ -83,6 +83,7 @@
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import type { Note } from '~/types/block'
 import { getNextZIndex } from '~/composables/useZIndex'
+import { fuzzyMatch } from '~/utils/pinyin'
 import NoteTreeNode from '~/components/NoteTreeNode.vue'
 import NoteEditDialog from '~/components/NoteEditDialog.vue'
 import { useNoteClasses } from '~/composables/useNoteClasses'
@@ -188,12 +189,12 @@ const filteredTree = computed(() => {
     return noteTree.value
   }
 
-  const query = searchQuery.value.toLowerCase()
+  const query = searchQuery.value.trim()
   const matched = new Set<string>()
 
   function search(nodes: TreeNode[]) {
     for (const node of nodes) {
-      const titleMatch = node.title.toLowerCase().includes(query)
+      const titleMatch = fuzzyMatch(node.title, query)
       let childMatch = false
 
       if (node.children.length > 0) {
