@@ -126,6 +126,7 @@
           :bills="filteredBills"
           @edit="openBillDialog"
           @delete="handleDeleteBill"
+          @contextmenu="openBillContextMenu"
         />
       </div>
     </template>
@@ -152,15 +153,33 @@
       @confirm="onAccountDialogConfirm"
       @cancel="accountDialogVisible = false"
     />
+
+    <!-- 右键菜单 -->
+    <BillContextMenu
+      v-model:visible="ctxMenuVisible"
+      :bill="ctxMenuBill"
+      :x="ctxMenuX"
+      :y="ctxMenuY"
+      @reposition="ctxMenuX = $event; ctxMenuY = $event"
+      @copy="handleCopyBill"
+      @edit="openBillDialog"
+      @split="handleSplitBill"
+      @allocate="handleAllocateBill"
+      @refund="handleRefundBill"
+      @delete="handleContextMenuDelete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Account, Bill, BillCategory, BillFormData } from '~/types/bill'
 import { sum, sub, div } from '~/utils/decimal'
+import { useToast } from '~/composables/useToast'
+import { useConfirm } from '~/composables/useConfirm'
 import BillList from './BillList.vue'
 import BillDialog from './BillDialog.vue'
 import AccountDialog from './AccountDialog.vue'
+import BillContextMenu from './BillContextMenu.vue'
 
 const props = defineProps<{
   accountId: string
@@ -177,7 +196,7 @@ const router = useRouter()
 
 // 数据 store
 const { accounts, loadAccounts, updateAccount } = useAccounts()
-const { bills, loadBillsByAccount, createBill, updateBill, deleteBill } = useBills()
+const { bills, loadBillsByAccount, createBill, updateBill, deleteBill, splitBill, allocatePeriod, createRefundBill } = useBills()
 const { categories, loadCategories } = useBillCategories()
 const { loadNotes, noteOptions } = useNotes()
 
@@ -185,6 +204,12 @@ const pageLoading = ref(true)
 const editingBill = ref<Bill | null>(null)
 const billDialogVisible = ref(false)
 const accountDialogVisible = ref(false)
+
+// 右键菜单状态
+const ctxMenuVisible = ref(false)
+const ctxMenuBill = ref<Bill | null>(null)
+const ctxMenuX = ref(0)
+const ctxMenuY = ref(0)
 
 // 筛选
 const yearFilter = ref<number | null>(null)
@@ -274,6 +299,66 @@ async function refreshBills() {
 
 function onFilterChange() {
   refreshBills()
+}
+
+const { success: showSuccess, error: showError } = useToast()
+const { confirm } = useConfirm()
+
+// 右键菜单处理
+function openBillContextMenu(payload: { bill: Bill; x: number; y: number }) {
+  ctxMenuBill.value = payload.bill
+  ctxMenuX.value = payload.x
+  ctxMenuY.value = payload.y
+  ctxMenuVisible.value = true
+}
+
+async function handleCopyBill(bill: Bill) {
+  try {
+    const formData: BillFormData = {
+      noteId: bill.noteId,
+      type: bill.type,
+      amount: bill.amount,
+      currency: bill.currency,
+      fromAccountId: bill.fromAccountId,
+      toAccountId: bill.toAccountId,
+      categoryId: bill.categoryId,
+      description: bill.description ? `${bill.description} (复制)` : '(复制)',
+      date: new Date().toISOString().slice(0, 16),
+      debtSubtype: bill.debtSubtype || 'lend',
+      relatedPersonId: bill.relatedPersonId
+    }
+    await createBill(formData)
+    showSuccess('账单已复制')
+    await refreshBills()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleSplitBill(bill: Bill) {
+  // 复用 BillDialog 的拆分流程
+  openBillDialog(bill)
+}
+
+async function handleAllocateBill(bill: Bill) {
+  openBillDialog(bill)
+}
+
+async function handleRefundBill(bill: Bill) {
+  openBillDialog(bill)
+}
+
+async function handleContextMenuDelete(bill: Bill) {
+  const ok = await confirm({
+    title: '删除账单',
+    message: '确定要删除这条账单吗？此操作不可恢复。',
+    confirmText: '删除',
+    danger: true
+  })
+  if (!ok) return
+  await deleteBill(bill.id)
+  await refreshBills()
+  await loadAccounts()
 }
 
 function goBack() {
