@@ -784,9 +784,17 @@ function openRuleOverlay(item: ImportRecordItem) {
 
 function openCounterpartyRule(item: ImportRecordItem) {
   const counterparty = (item.counterparty || '').trim()
-  const existingRule = item.matchedRuleId
-    ? ruleById(item.matchedRuleId)
-    : findMatchingRule('account', counterparty, item.direction)
+  // matchedRuleId 可能指向付款方式/描述/原始分类规则（级联回退），需验证是否真正匹配交易对方
+  let existingRule: ImportRule | null = null
+  if (item.matchedRuleId) {
+    const rule = ruleById(item.matchedRuleId)
+    if (rule && (rule.matchField ?? 'account') === 'account' && counterparty && matchOne(rule, counterparty)) {
+      existingRule = rule
+    }
+  }
+  if (!existingRule) {
+    existingRule = findMatchingRule('account', counterparty, item.direction)
+  }
   emit('open-rule-dialog', {
     source: props.record.source,
     matchField: 'account',
