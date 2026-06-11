@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
 import type { Account, BalanceAdjustment } from '~/types/bill'
+import { toLocalISO } from '~/services/db'
 import { useZIndexOnOpen } from '~/composables/useZIndex'
 import DateTimePicker from './DateTimePicker.vue'
 import BalanceAdjustHistory from './BalanceAdjustHistory.vue'
@@ -66,7 +67,7 @@ const emit = defineEmits<{
 }>()
 
 const form = ref({
-  date: new Date().toISOString().slice(0, 16),
+  date: toLocalISO(),
   balance: 0,
   note: ''
 })
@@ -76,7 +77,7 @@ const currentBalance = computed(() => props.account?.balance ?? 0)
 watch(() => props.visible, (v) => {
   if (!v) return
   form.value = {
-    date: new Date().toISOString().slice(0, 16),
+    date: toLocalISO(),
     balance: currentBalance.value,
     note: ''
   }

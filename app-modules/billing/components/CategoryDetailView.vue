@@ -154,6 +154,7 @@
 
 <script setup lang="ts">
 import type { Bill, BillCategory, BillFormData } from '~/types/bill'
+import { toLocalISO } from '~/services/db'
 import { sum, div, mul } from '~/utils/decimal'
 import { useToast } from '~/composables/useToast'
 import { useConfirm } from '~/composables/useConfirm'
@@ -333,7 +334,7 @@ async function handleCopyBill(bill: Bill) {
       toAccountId: bill.toAccountId,
       categoryId: bill.categoryId,
       description: bill.description ? `${bill.description} (复制)` : '(复制)',
-      date: new Date().toISOString().slice(0, 16),
+      date: toLocalISO(),
       debtSubtype: bill.debtSubtype || 'lend',
       relatedPersonId: bill.relatedPersonId
     }

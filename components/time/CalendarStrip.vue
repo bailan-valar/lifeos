@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import type { Bill } from '~/types/bill'
+import { toLocalISO, formatDateLocal } from '~/services/db'
 import { add } from '~/utils/decimal'
 
 const props = defineProps<{
@@ -106,7 +107,7 @@ const calendarCells = computed(() => {
   if (startWeekday === 0) startWeekday = 7
 
   const cells: CalendarCell[] = []
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = toLocalISO('date')
 
   // 上月补位
   const prevMonthLastDay = new Date(year, month - 1, 0).getDate()
@@ -165,13 +166,13 @@ const weekDays = computed(() => {
   monday.setDate(selected.getDate() - diff)
 
   const names = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = toLocalISO('date')
   const result = []
 
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    const dateStr = d.toISOString().slice(0, 10)
+    const dateStr = formatDateLocal(d, 'date')
     const data = billsByDate.value.get(dateStr)
     result.push({
       dateStr,

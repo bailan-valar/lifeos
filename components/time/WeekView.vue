@@ -167,7 +167,7 @@
 
 <script setup lang="ts">
 import { ICONS } from '~/composables/useIcons'
-import { getDB, generateId, now } from '~/services/db'
+import { getDB, generateId, now, toLocalISO, formatDateLocal } from '~/services/db'
 
 interface TodoItem {
   id: string
@@ -226,7 +226,7 @@ const priorityLabels = {
 
 // 计算属性
 const todayStr = computed(() => {
-  return new Date().toISOString().slice(0, 10)
+  return toLocalISO('date')
 })
 
 const weekDays = computed(() => {
@@ -237,7 +237,7 @@ const weekDays = computed(() => {
     const date = new Date(props.weekStart)
     date.setDate(date.getDate() + i)
 
-    const dateStr = date.toISOString().slice(0, 10)
+    const dateStr = formatDateLocal(date, 'date')
     const isToday = dateStr === todayStr.value
 
     days.push({
@@ -534,8 +534,8 @@ async function loadWeekTasks() {
     const endDate = new Date(props.weekStart)
     endDate.setDate(endDate.getDate() + 7) // 扩展一天确保包含所有时区的任务
 
-    const startIso = startDate.toISOString().slice(0, 10)
-    const endIso = endDate.toISOString().slice(0, 10)
+    const startIso = formatDateLocal(startDate, 'date')
+    const endIso = formatDateLocal(endDate, 'date')
 
     // 加载所有待办任务
     const moduleDataList = await db.module_data.find({

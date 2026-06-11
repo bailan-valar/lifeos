@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { toLocalISO } from '~/services/db'
 import TimeHeader from '~/components/time/TimeHeader.vue'
 import YearView from '~/components/time/YearView.vue'
 import MonthView from '~/components/time/MonthView.vue'
@@ -63,7 +64,7 @@ const views = [
 
 const currentView = ref<TimeView>('month')
 const currentDate = ref(new Date())
-const selectedDate = ref(new Date().toISOString().slice(0, 10))
+const selectedDate = ref(toLocalISO('date'))
 const calendarExpanded = ref(false)
 
 const weekStart = computed(() => {

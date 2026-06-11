@@ -102,6 +102,7 @@ import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 import TodoItem from './TodoItem.vue'
 import TodoContextMenu from './TodoContextMenu.vue'
 import type { TodoWithMeta } from '~/types/todo'
+import { toLocalISO } from '~/services/db'
 import type { TodoStatus } from '~/types/todo'
 import type { TodoItem as TodoItemType } from '~/types/todo'
 
@@ -182,7 +183,7 @@ const statusRows = computed(() => {
 
 // 判断任务属于哪个象限
 const getQuadrantForTask = (task: TodoWithMeta): string => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalISO('date')
   const dueDate = task.dueDate || task.createdAt.slice(0, 10)
 
   const isUrgent = dueDate <= today
@@ -285,7 +286,7 @@ const handleMenuReposition = (x: number, y: number) => {
 // 快速添加功能：点击按钮打开创建弹框
 const handleQuickAddClick = (statusId: string, quadrantId: string) => {
   // 根据象限确定优先级和截止日期
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalISO('date')
   let dueDate: string | undefined
   let priority: TodoItemType['priority'] = 'none'
 
@@ -322,7 +323,7 @@ const dragOverCell = ref<string | null>(null) // 格式: "statusId|quadrantId"
 
 // 根据象限ID计算对应的优先级和截止日期
 const getQuadrantUpdates = (quadrantId: string): { priority: TodoItemType['priority']; dueDate?: string } => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalISO('date')
   switch (quadrantId) {
     case 'urgent-important':
       return { priority: 'high', dueDate: today }

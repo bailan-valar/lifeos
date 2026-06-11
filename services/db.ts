@@ -487,6 +487,31 @@ export function now(): string {
   return new Date().toISOString()
 }
 
+/**
+ * 返回本地时间的 ISO 格式字符串（不含时区后缀）。
+ * 用于日期选择器等需要本地时间的场景，避免 toISOString() 的 UTC 偏移问题。
+ *
+ * @param precision 'datetime' → YYYY-MM-DDTHH:mm（默认）
+ *                  'date'     → YYYY-MM-DD
+ */
+export function toLocalISO(precision: 'datetime' | 'date' = 'datetime'): string {
+  return formatDateLocal(new Date(), precision)
+}
+
+/**
+ * 将 Date 对象转为本地时间的 ISO 格式字符串。
+ * 避免 date.toISOString() 的 UTC 偏移问题。
+ */
+export function formatDateLocal(date: Date, precision: 'datetime' | 'date' = 'datetime'): string {
+  const Y = date.getFullYear()
+  const M = String(date.getMonth() + 1).padStart(2, '0')
+  const D = String(date.getDate()).padStart(2, '0')
+  if (precision === 'date') return `${Y}-${M}-${D}`
+  const h = String(date.getHours()).padStart(2, '0')
+  const m = String(date.getMinutes()).padStart(2, '0')
+  return `${Y}-${M}-${D}T${h}:${m}`
+}
+
 export function onCollectionChange(
   collection: string,
   callback: ChangeListener,

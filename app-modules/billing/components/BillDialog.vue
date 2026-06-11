@@ -128,6 +128,7 @@
 
 <script setup lang="ts">
 import type { Bill, BillFormData, Account, BillCategory, ImportRecordItem, BillSplitItem, BillAllocateItem } from '~/types/bill'
+import { toLocalISO } from '~/services/db'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useToast } from '~/composables/useToast'
 import { useBills } from '~/composables/useBills'
@@ -172,7 +173,7 @@ const refundDialogVisible = ref(false)
 const form = ref<BillFormData>({
   noteId: '', type: 'expense', amount: 0, currency: 'CNY',
   fromAccountId: '', toAccountId: '', categoryId: '',
-  description: '', date: new Date().toISOString().slice(0, 16),
+  description: '', date: toLocalISO(),
   debtSubtype: 'lend', relatedPersonId: ''
 })
 
@@ -289,7 +290,7 @@ watch(() => props.visible, (v) => {
       toAccountId: props.bill.toAccountId,
       categoryId: props.bill.categoryId,
       description: props.bill.description,
-      date: props.bill.date?.slice(0, 16) || new Date().toISOString().slice(0, 16),
+      date: props.bill.date?.slice(0, 16) || toLocalISO(),
       debtSubtype: props.bill.debtSubtype || 'lend',
       relatedPersonId: props.bill.relatedPersonId,
       isSavable: props.bill.isSavable || false
@@ -305,7 +306,7 @@ watch(() => props.visible, (v) => {
       toAccountId: defaults.toAccountId || '',
       categoryId: defaults.categoryId || '',
       description: '',
-      date: new Date().toISOString().slice(0, 16),
+      date: toLocalISO(),
       debtSubtype: 'lend',
       relatedPersonId: '',
       isSavable: false

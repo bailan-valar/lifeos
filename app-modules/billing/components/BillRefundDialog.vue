@@ -100,6 +100,7 @@
 
 <script setup lang="ts">
 import type { Bill, Account } from '~/types/bill'
+import { toLocalISO } from '~/services/db'
 import { useToast } from '~/composables/useToast'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import DateTimePicker from './DateTimePicker.vue'
@@ -171,7 +172,7 @@ watch(() => props.visible, (visible) => {
     refundMode.value = 'full'
     refundAmount.value = 0
     refundReason.value = ''
-    refundDate.value = new Date().toISOString().slice(0, 16)
+    refundDate.value = toLocalISO()
     refundAccountId.value = getDefaultAccountId(props.bill)
   }
 }, { immediate: true })

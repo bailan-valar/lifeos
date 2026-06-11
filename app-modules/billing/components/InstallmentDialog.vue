@@ -147,6 +147,7 @@
 
 <script setup lang="ts">
 import type { Account, InstallmentItem, InstallmentFormData } from '~/types/bill'
+import { formatDateLocal } from '~/services/db'
 import { useToast } from '~/composables/useToast'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import AccountPicker from './AccountPicker.vue'
@@ -283,7 +284,7 @@ watch(() => props.visible, (visible) => {
     // 默认首期还款日为下个月同一天
     const now = new Date()
     now.setMonth(now.getMonth() + 1)
-    form.value.firstDate = now.toISOString().slice(0, 10)
+    form.value.firstDate = formatDateLocal(now, 'date')
     form.value.fromAccountId = ''
   }
 })

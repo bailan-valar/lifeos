@@ -198,6 +198,7 @@
 <script setup lang="ts">
 import { computed, ref, toRefs, onMounted } from 'vue'
 import type { Bill, BillFormData, ImportRecord, ImportRule, ImportRuleFormData, BillSplitItem, BillAllocateItem, RefundFormData } from '~/types/bill'
+import { toLocalISO } from '~/services/db'
 import { useBillingStore } from '~/stores/billing'
 import { useBills } from '~/composables/useBills'
 import { useAccounts } from '~/composables/useAccounts'
@@ -664,7 +665,7 @@ async function handleCopyBill(bill: Bill) {
       toAccountId: bill.toAccountId,
       categoryId: bill.categoryId,
       description: bill.description ? `${bill.description} (复制)` : '(复制)',
-      date: new Date().toISOString().slice(0, 16),
+      date: toLocalISO(),
       debtSubtype: bill.debtSubtype || 'lend',
       relatedPersonId: bill.relatedPersonId
     }

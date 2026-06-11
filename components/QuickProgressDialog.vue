@@ -92,6 +92,7 @@
 
 <script setup lang="ts">
 import type { Goal } from '~/types/goal'
+import { toLocalISO } from '~/services/db'
 import { useGoalProgress } from '~/composables/useGoalProgress'
 import DateTimePicker from '~/app-modules/billing/components/DateTimePicker.vue'
 
@@ -111,7 +112,7 @@ const amountInput = ref<HTMLInputElement>()
 
 const form = reactive({
   amount: '',
-  date: new Date().toISOString().slice(0, 16),
+  date: toLocalISO(),
   notes: ''
 })
 
@@ -135,7 +136,7 @@ watch(() => props.visible, (visible) => {
   if (visible) {
     // 重置表单
     form.amount = ''
-    form.date = new Date().toISOString().slice(0, 16)
+    form.date = toLocalISO()
     form.notes = ''
 
     // 自动聚焦输入框

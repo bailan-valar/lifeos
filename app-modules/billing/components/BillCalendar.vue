@@ -69,6 +69,7 @@
 
 <script setup lang="ts">
 import type { Bill } from '~/types/bill'
+import { toLocalISO } from '~/services/db'
 import { computed, ref, watch, nextTick } from 'vue'
 import { useBillingStore } from '~/stores/billing'
 import { sum, add } from '~/utils/decimal'
@@ -158,7 +159,7 @@ function buildCells(): CalendarCell[] {
   if (startWeekday === 0) startWeekday = 7
 
   const cells: CalendarCell[] = []
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = toLocalISO('date')
 
   // 上月补位
   const prevMonthLastDay = new Date(year, month - 1, 0).getDate()
@@ -229,7 +230,7 @@ watch([billYearFilter, billMonthFilter], async () => {
   // 月份切换时重置选中日期
   const now = new Date()
   if (newYear === now.getFullYear() && newMonth === now.getMonth() + 1) {
-    selectedDate.value = now.toISOString().slice(0, 10)
+    selectedDate.value = toLocalISO('date')
   } else {
     selectedDate.value = null
   }

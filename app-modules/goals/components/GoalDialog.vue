@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 import type { Goal, GoalFormData } from '~/types/goal'
+import { toLocalISO } from '~/services/db'
 import { useToast } from '~/composables/useToast'
 import GoalForm from './GoalForm.vue'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
@@ -45,8 +46,8 @@ const defaultForm = (): GoalFormData => ({
   target: 0,
   currentProgress: 0,
   unit: '',
-  startDate: new Date().toISOString().slice(0, 10),
-  endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  startDate: toLocalISO('date'),
+  endDate: (() => { const d = new Date(); d.setDate(d.getDate() + 30); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })(),
   status: 'pending',
   type: 'short_term',
   priority: 'medium',

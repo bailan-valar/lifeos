@@ -14,7 +14,7 @@ import type {
   ViewFilters
 } from '~/types/todo'
 import { todoDB } from '~/composables/useTodoDB'
-import { getDB, generateId, now, onCollectionChange } from '~/services/db'
+import { getDB, generateId, now, onCollectionChange, toLocalISO, formatDateLocal } from '~/services/db'
 import { ICONS } from '~/composables/useIcons'
 
 export const useTodoStore = defineStore('todo', () => {
@@ -48,7 +48,7 @@ export const useTodoStore = defineStore('todo', () => {
 
   // ==================== 计算属性 ====================
 
-  const getTodayString = () => new Date().toISOString().slice(0, 10)
+  const getTodayString = () => toLocalISO('date')
 
   // 视图筛选
   const viewTasks = computed(() => {
@@ -159,10 +159,10 @@ export const useTodoStore = defineStore('todo', () => {
           } else if (date < today) {
             groupKey = 'overdue'
             groupTitle = '📅 逾期'
-          } else if (date === new Date(Date.now() + 86400000).toISOString().slice(0, 10)) {
+          } else if (date === (() => { const d = new Date(); d.setDate(d.getDate() + 1); return formatDateLocal(d, 'date') })()) {
             groupKey = 'tomorrow'
             groupTitle = '📅 明天'
-          } else if (date <= new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10)) {
+          } else if (date <= (() => { const d = new Date(); d.setDate(d.getDate() + 7); return formatDateLocal(d, 'date') })()) {
             groupKey = 'week'
             groupTitle = '📅 本周'
           } else {
