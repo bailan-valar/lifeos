@@ -117,13 +117,17 @@
             <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
           </select>
         </div>
-        <span class="filter-result">共 {{ filteredBills.length }} 笔</span>
+        <span class="filter-result">共 {{ filteredBills.length }} 笔{{ filteredAdjustments.length > 0 ? ` · ${filteredAdjustments.length} 次调整` : '' }}</span>
       </div>
 
       <!-- 账单列表 -->
       <div class="list-wrapper">
         <BillList
           :bills="filteredBills"
+          :adjustments="filteredAdjustments"
+          :account-id="accountId"
+          :current-balance="account?.balance"
+          :show-running-balance="true"
           @edit="openBillDialog"
           @delete="handleDeleteBill"
           @contextmenu="openBillContextMenu"
@@ -172,10 +176,11 @@
 </template>
 
 <script setup lang="ts">
-import type { Account, Bill, BillCategory, BillFormData } from '~/types/bill'
+import type { Account, Bill, BillCategory, BillFormData, BalanceAdjustment } from '~/types/bill'
 import { sum, sub, div } from '~/utils/decimal'
 import { useToast } from '~/composables/useToast'
 import { useConfirm } from '~/composables/useConfirm'
+import { loadBalanceAdjustments } from '~/composables/useBalanceAdjustments'
 import BillList from './BillList.vue'
 import BillDialog from './BillDialog.vue'
 import AccountDialog from './AccountDialog.vue'
@@ -201,6 +206,7 @@ const { categories, loadCategories } = useBillCategories()
 const { loadNotes, noteOptions } = useNotes()
 
 const pageLoading = ref(true)
+const adjustments = ref<BalanceAdjustment[]>([])
 const editingBill = ref<Bill | null>(null)
 const billDialogVisible = ref(false)
 const accountDialogVisible = ref(false)
@@ -237,6 +243,18 @@ const filteredBills = computed(() => {
   }
   if (monthFilter.value !== null) {
     list = list.filter(b => new Date(b.date).getMonth() + 1 === monthFilter.value)
+  }
+  return list
+})
+
+// 过滤后的余额调整
+const filteredAdjustments = computed(() => {
+  let list = adjustments.value
+  if (yearFilter.value !== null) {
+    list = list.filter(a => new Date(a.date).getFullYear() === yearFilter.value)
+  }
+  if (monthFilter.value !== null) {
+    list = list.filter(a => new Date(a.date).getMonth() + 1 === monthFilter.value)
   }
   return list
 })
@@ -281,24 +299,15 @@ async function loadData() {
 }
 
 async function refreshBills() {
-  let startDate: string | undefined
-  let endDate: string | undefined
-  if (yearFilter.value !== null) {
-    if (monthFilter.value !== null) {
-      const m = String(monthFilter.value).padStart(2, '0')
-      startDate = `${yearFilter.value}-${m}-01`
-      const lastDay = new Date(yearFilter.value, monthFilter.value, 0).getDate()
-      endDate = `${yearFilter.value}-${m}-${String(lastDay).padStart(2, '0')}`
-    } else {
-      startDate = `${yearFilter.value}-01-01`
-      endDate = `${yearFilter.value}-12-31`
-    }
-  }
-  await loadBillsByAccount(props.accountId, startDate, endDate)
+  // 始终加载全部账单（运行余额计算需要完整数据），筛选由 filteredBills 客户端处理
+  await Promise.all([
+    loadBillsByAccount(props.accountId),
+    loadBalanceAdjustments(props.accountId).then(result => { adjustments.value = result })
+  ])
 }
 
 function onFilterChange() {
-  refreshBills()
+  // 筛选由客户端 computed 处理，无需重新加载
 }
 
 const { success: showSuccess, error: showError } = useToast()

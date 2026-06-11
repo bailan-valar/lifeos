@@ -1,79 +1,114 @@
 <template>
   <div class="bill-list">
-    <template v-for="bill in flatBills" :key="bill.id">
+    <template v-for="entry in timelineEntries" :key="entry.id">
+      <!-- 余额调整行 -->
       <div
+        v-if="entry.kind === 'adjustment'"
+        class="adjustment-row"
+      >
+        <div class="bill-left">
+          <div class="bill-primary-row">
+            <span class="bill-type-badge adjustment">调整</span>
+            <span class="adjustment-label">余额调整</span>
+          </div>
+          <div class="bill-secondary-row">
+            <span class="bill-datetime">{{ formatDate(entry.adjustment.date) }}</span>
+            <span class="bill-sep">·</span>
+            <span class="adjustment-detail">
+              调整前 {{ entry.adjustment.balanceBefore.toFixed(2) }} → 调整后 {{ entry.adjustment.balanceAfter.toFixed(2) }}
+            </span>
+            <template v-if="entry.adjustment.note">
+              <span class="bill-sep">·</span>
+              <span class="adjustment-note">{{ entry.adjustment.note }}</span>
+            </template>
+          </div>
+        </div>
+        <div class="bill-right">
+          <div class="bill-amount-row">
+            <span class="bill-amount neutral">{{ entry.adjustment.balanceAfter.toFixed(2) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 账单行 -->
+      <div
+        v-else
         class="bill-row"
         :class="[
-          `type-${bill.type}`,
-          { selected: selectable && selectedIds?.includes(bill.id) },
-          { 'is-child': bill.parentId },
-          { 'has-children': bill.hasChildren && !bill.parentId },
-          { 'is-refund': bill.isRefund }
+          `type-${entry.bill.type}`,
+          { selected: selectable && selectedIds?.includes(entry.bill.id) },
+          { 'is-child': entry.bill.parentId },
+          { 'has-children': entry.bill.hasChildren && !entry.bill.parentId },
+          { 'is-refund': entry.bill.isRefund }
         ]"
-        :style="{ paddingLeft: bill.parentId ? '32px' : '16px' }"
-        @contextmenu.prevent="emit('contextmenu', { bill, x: $event.clientX, y: $event.clientY })"
+        :style="{ paddingLeft: entry.bill.parentId ? '32px' : '16px' }"
+        @contextmenu.prevent="emit('contextmenu', { bill: entry.bill, x: $event.clientX, y: $event.clientY })"
       >
         <div v-if="selectable" class="bill-checkbox">
           <input
             type="checkbox"
-            :checked="selectedIds?.includes(bill.id)"
-            @change="toggleSelect(bill.id)"
+            :checked="selectedIds?.includes(entry.bill.id)"
+            @change="toggleSelect(entry.bill.id)"
           />
         </div>
 
         <!-- 展开/收起按钮 -->
         <button
-          v-if="bill.hasChildren && !bill.parentId && !bill.isRefund"
+          v-if="entry.bill.hasChildren && !entry.bill.parentId && !entry.bill.isRefund"
           type="button"
           class="expand-btn"
-          @click="toggleExpand(bill.id)"
+          @click="toggleExpand(entry.bill.id)"
         >
           <Icon
-            :name="expandedIds.has(bill.id) ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right"
+            :name="expandedIds.has(entry.bill.id) ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right"
             size="14"
           />
         </button>
-        <div v-else-if="bill.parentId" class="child-placeholder"></div>
+        <div v-else-if="entry.bill.parentId" class="child-placeholder"></div>
         <div v-else class="expand-placeholder"></div>
 
         <div class="bill-left">
           <div class="bill-primary-row">
-            <span class="bill-type-badge" :class="bill.type">{{ typeLabel(bill.type) }}</span>
-            <span v-if="!bill.isRefund && refundBillsMap.has(bill.id)" class="refund-badge">已退款</span>
-            <span v-if="bill.isRefund" class="refund-badge">退款</span>
-            <span v-if="bill.allocatedMonth && bill.parentId" class="allocate-badge">
-              {{ bill.allocatedMonth }}
+            <span class="bill-type-badge" :class="entry.bill.type">{{ typeLabel(entry.bill.type) }}</span>
+            <span v-if="!entry.bill.isRefund && refundBillsMap.has(entry.bill.id)" class="refund-badge">已退款</span>
+            <span v-if="entry.bill.isRefund" class="refund-badge">退款</span>
+            <span v-if="entry.bill.allocatedMonth && entry.bill.parentId" class="allocate-badge">
+              {{ entry.bill.allocatedMonth }}
             </span>
-            <span v-if="bill.categoryId && getCategoryName(bill.categoryId)" class="bill-category-primary">
-              {{ getCategoryName(bill.categoryId) }}
+            <span v-if="entry.bill.categoryId && getCategoryName(entry.bill.categoryId)" class="bill-category-primary">
+              {{ getCategoryName(entry.bill.categoryId) }}
             </span>
-            <span v-else-if="!bill.parentId" class="bill-category-empty">未分类</span>
+            <span v-else-if="!entry.bill.parentId" class="bill-category-empty">未分类</span>
           </div>
           <div class="bill-secondary-row">
-            <span class="bill-datetime">{{ formatDateTime(bill.date) }}</span>
+            <span class="bill-datetime">{{ formatDateTime(entry.bill.date) }}</span>
             <span class="bill-sep">·</span>
-            <span class="bill-account">{{ getAccountName(bill) }}</span>
+            <span class="bill-account">{{ getAccountName(entry.bill) }}</span>
             <span class="bill-sep">·</span>
-            <span class="bill-description">{{ bill.description || '-' }}</span>
+            <span class="bill-description">{{ entry.bill.description || '-' }}</span>
           </div>
         </div>
         <div class="bill-right">
           <div class="bill-amount-row">
-            <span class="bill-amount" :class="amountClass(bill)">
-              {{ amountPrefix(bill) }}{{ displayAmount(bill).toFixed(2) }}
+            <span class="bill-amount" :class="amountClass(entry.bill)">
+              {{ amountPrefix(entry.bill) }}{{ displayAmount(entry.bill).toFixed(2) }}
             </span>
-            <span class="bill-currency">{{ bill.currency }}</span>
+            <span class="bill-currency">{{ entry.bill.currency }}</span>
           </div>
-          <div v-if="!bill.isRefund && refundTotalMap.has(bill.id)" class="bill-amount-sub">
-            ({{ amountPrefix(bill) }}{{ bill.amount.toFixed(2) }}-{{ refundTotalMap.get(bill.id)!.toFixed(2) }})
+          <div v-if="!entry.bill.isRefund && refundTotalMap.has(entry.bill.id)" class="bill-amount-sub">
+            ({{ amountPrefix(entry.bill) }}{{ entry.bill.amount.toFixed(2) }}-{{ refundTotalMap.get(entry.bill.id)!.toFixed(2) }})
           </div>
-          <div v-if="!selectable && !bill.parentId" class="bill-actions">
+          <!-- 运行余额显示 -->
+          <div v-if="showRunningBalance && entry.balance != null" class="bill-balance" :class="{ negative: entry.balance < 0 }">
+            余额 {{ entry.balance.toFixed(2) }}
+          </div>
+          <div v-if="!selectable && !entry.bill.parentId" class="bill-actions">
             <button
               type="button"
               class="action-btn"
               title="拆分账单"
-              :disabled="bill.hasChildren"
-              @click="$emit('split', bill)"
+              :disabled="entry.bill.hasChildren"
+              @click="$emit('split', entry.bill)"
             >
               <Icon :name="SOLAR_ICONS.action.split" size="14" />
             </button>
@@ -81,8 +116,8 @@
               type="button"
               class="action-btn"
               title="分摊到月份"
-              :disabled="bill.hasChildren"
-              @click="$emit('allocate', bill)"
+              :disabled="entry.bill.hasChildren"
+              @click="$emit('allocate', entry.bill)"
             >
               <Icon :name="SOLAR_ICONS.billing.calendar" size="14" />
             </button>
@@ -90,7 +125,7 @@
               type="button"
               class="action-btn refund"
               title="退款"
-              @click="$emit('refund', bill)"
+              @click="$emit('refund', entry.bill)"
             >
               <Icon :name="SOLAR_ICONS.action.refresh" size="14" />
             </button>
@@ -98,7 +133,7 @@
               type="button"
               class="action-btn"
               title="编辑"
-              @click="$emit('edit', bill)"
+              @click="$emit('edit', entry.bill)"
             >
               <Icon :name="SOLAR_ICONS.action.edit" size="14" />
             </button>
@@ -106,17 +141,17 @@
               type="button"
               class="action-btn danger"
               title="删除"
-              @click="$emit('delete', bill.id)"
+              @click="$emit('delete', entry.bill.id)"
             >
               <Icon :name="ICONS.trashBinMinimalistic" size="14" />
             </button>
           </div>
-          <div v-else-if="!selectable && bill.parentId" class="bill-actions">
+          <div v-else-if="!selectable && entry.bill.parentId" class="bill-actions">
             <button
               type="button"
               class="action-btn"
               title="编辑"
-              @click="$emit('edit', bill)"
+              @click="$emit('edit', entry.bill)"
             >
               <Icon :name="SOLAR_ICONS.action.edit" size="14" />
             </button>
@@ -124,7 +159,7 @@
               type="button"
               class="action-btn danger"
               title="删除"
-              @click="$emit('delete', bill.id)"
+              @click="$emit('delete', entry.bill.id)"
             >
               <Icon :name="ICONS.trashBinMinimalistic" size="14" />
             </button>
@@ -133,7 +168,7 @@
       </div>
     </template>
 
-    <div v-if="flatBills.length === 0" class="empty">
+    <div v-if="flatBills.length === 0 && (!adjustments || adjustments.length === 0)" class="empty">
       <Icon :name="SOLAR_ICONS.billing.wallet" size="32" />
       <span>暂无账单记录</span>
     </div>
@@ -141,16 +176,24 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, BillType } from '~/types/bill'
+import type { Bill, BillType, BalanceAdjustment } from '~/types/bill'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useAccounts } from '~/composables/useAccounts'
-import { sum, sub, max } from '~/utils/decimal'
+import { sum, sub, add, max } from '~/utils/decimal'
 import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
+
+type TimelineEntry =
+  | { kind: 'bill'; id: string; bill: Bill; balance?: number }
+  | { kind: 'adjustment'; id: string; adjustment: BalanceAdjustment }
 
 const props = defineProps<{
   bills: Bill[]
   selectable?: boolean
   selectedIds?: string[]
+  adjustments?: BalanceAdjustment[]
+  accountId?: string
+  currentBalance?: number
+  showRunningBalance?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -248,6 +291,106 @@ const flatBills = computed(() => {
   }
 
   return result
+})
+
+/**
+ * 计算每笔账单对账户的余额变化量（正向：余额增加）
+ */
+function getBillDelta(bill: Bill, accountId: string): number {
+  if (bill.type === 'debt') return 0
+  let delta = 0
+  if (bill.fromAccountId === accountId) delta = sub(delta, bill.amount)
+  if (bill.toAccountId === accountId) delta = add(delta, bill.amount)
+  return delta
+}
+
+/**
+ * 运行余额 Map：billId → 该账单处理后的余额
+ * 从 currentBalance 出发，按日期倒序撤销每笔账单的 delta
+ */
+const billBalanceMap = computed(() => {
+  if (!props.showRunningBalance || !props.accountId || props.currentBalance == null) {
+    return new Map<string, number>()
+  }
+
+  const balances = new Map<string, number>()
+  let running = props.currentBalance
+
+  // 所有账单按日期倒序（与显示顺序一致）
+  const sorted = [...props.bills].sort((a, b) => b.date.localeCompare(a.date))
+
+  // 调整按日期倒序索引，用于校准
+  const adjMap = new Map<string, BalanceAdjustment>()
+  if (props.adjustments) {
+    const sortedAdj = [...props.adjustments].sort((a, b) => b.date.localeCompare(a.date))
+    for (const adj of sortedAdj) {
+      const dateKey = adj.date.slice(0, 10)
+      if (!adjMap.has(dateKey)) {
+        adjMap.set(dateKey, adj)
+      }
+    }
+  }
+
+  for (const bill of sorted) {
+    // 如果当天有调整，使用调整的 balanceBefore 校准
+    const dateKey = bill.date.slice(0, 10)
+    const adj = adjMap.get(dateKey)
+    if (adj) {
+      running = adj.balanceBefore
+      adjMap.delete(dateKey)
+    }
+
+    balances.set(bill.id, running)
+    // 撤销该账单的 delta，得到之前的余额
+    running = sub(running, getBillDelta(bill, props.accountId))
+  }
+
+  return balances
+})
+
+/**
+ * 合并时间线：将 flatBills 和 adjustments 按日期倒序合并
+ */
+const timelineEntries = computed((): TimelineEntry[] => {
+  if (!props.showRunningBalance || !props.adjustments || props.adjustments.length === 0) {
+    // 不显示运行余额时，仅返回账单条目（兼容原有行为）
+    return flatBills.value.map(bill => ({
+      kind: 'bill' as const,
+      id: bill.id,
+      bill,
+      balance: undefined
+    }))
+  }
+
+  // 构建账单条目
+  const billEntries: TimelineEntry[] = flatBills.value.map(bill => ({
+    kind: 'bill' as const,
+    id: bill.id,
+    bill,
+    balance: billBalanceMap.value.get(bill.id)
+  }))
+
+  // 构建调整条目
+  const adjEntries: TimelineEntry[] = props.adjustments.map(adj => ({
+    kind: 'adjustment' as const,
+    id: adj.id,
+    adjustment: adj
+  }))
+
+  // 合并并按日期倒序排列
+  const merged = [...billEntries, ...adjEntries]
+  merged.sort((a, b) => {
+    const dateA = a.kind === 'bill' ? a.bill.date : a.adjustment.date
+    const dateB = b.kind === 'bill' ? b.bill.date : b.adjustment.date
+    const cmp = dateB.localeCompare(dateA)
+    if (cmp !== 0) return cmp
+    // 同日期：调整排在账单之后（倒序中调整更早出现）
+    if (a.kind === 'adjustment' && b.kind === 'bill') return 1
+    if (a.kind === 'bill' && b.kind === 'adjustment') return -1
+    return 0
+  })
+
+  return merged
 })
 
 function toggleSelect(id: string) {
@@ -357,6 +500,49 @@ function displayAmount(bill: Bill): number {
 
 .bill-row.is-refund:hover {
   background: rgba(255, 149, 0, 0.08);
+}
+
+/* 余额调整行 */
+.adjustment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(0, 122, 255, 0.04);
+  border: 0.5px solid rgba(0, 122, 255, 0.1);
+  border-left: 3px solid rgba(0, 122, 255, 0.3);
+  border-radius: 8px;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.adjustment-row:hover {
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.adjustment-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.adjustment-detail {
+  color: rgba(60, 60, 67, 0.6);
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+.adjustment-note {
+  color: rgba(60, 60, 67, 0.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 调整 badge */
+.bill-type-badge.adjustment {
+  background: rgba(0, 122, 255, 0.12);
+  color: rgb(0, 122, 255);
 }
 
 .expand-btn,
@@ -543,6 +729,19 @@ function displayAmount(bill: Bill): number {
   font-size: 11px;
   color: rgba(60, 60, 67, 0.4);
   font-weight: 500;
+}
+
+/* 运行余额 */
+.bill-balance {
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.45);
+  font-weight: 500;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+.bill-balance.negative {
+  color: rgb(239, 68, 68);
 }
 
 .bill-actions {
