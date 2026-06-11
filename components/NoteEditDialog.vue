@@ -159,7 +159,7 @@ const emit = defineEmits<{
 
 // Composables
 const { notes } = useNotes()
-const { classes, classFields, bindClass, updateBindingValues, getClassForNote } = useNoteClasses()
+const { classes, classFields, noteBindings, bindClass, updateBindingValues } = useNoteClasses()
 
 // 表单数据
 interface FormData {
@@ -233,19 +233,19 @@ watch(() => props.visible, async (v) => {
         classValues: {}
       }
     } else if (props.note) {
-      // 同步填充基本字段，用户立即看到标题等信息
+      // 类绑定：直接从响应式 store 同步读取（noteBindings/classes 已在内存）
+      const binding = noteBindings.value.find(b => b.noteId === props.note!.id)
+      const cls = binding ? classes.value.find(c => c.id === binding.classId) : undefined
+
       formData.value = {
         title: props.note.title || '',
         content: '',
         parentId: props.note.parentId || null,
-        classId: null,
-        classValues: {}
+        classId: cls?.id ?? null,
+        classValues: binding ? { ...binding.values } : {}
       }
-      // 并行加载笔记内容和类绑定
-      await Promise.all([
-        loadNoteContent(props.note.id),
-        loadNoteClass(props.note.id)
-      ])
+      // 仅笔记内容（blocks）需要异步查询
+      await loadNoteContent(props.note.id)
     }
     nextTick(() => titleInput.value?.focus())
   }
@@ -272,18 +272,6 @@ async function loadNoteContent(noteId: string) {
     }
   } catch (err) {
     console.error('加载笔记内容失败:', err)
-  }
-}
-
-async function loadNoteClass(noteId: string) {
-  try {
-    const classData = await getClassForNote(noteId)
-    if (classData) {
-      formData.value.classId = classData.class.id
-      formData.value.classValues = { ...classData.binding.values }
-    }
-  } catch (err) {
-    console.error('加载笔记类失败:', err)
   }
 }
 
