@@ -314,9 +314,21 @@ async function handleStatementConfirm(data: StatementFormData, id: string) {
 
 async function handleGenerateStatement(year: number, month: number) {
   if (!viewingAccount.value) return
+  const existing = statements.value.find(
+    (s: Statement) => s.accountId === viewingAccount.value!.id && s.year === year && s.month === month
+  )
+  if (existing) {
+    const ok = await confirm({
+      title: '重新生成',
+      message: `${year}年${month}月账单周期已存在，将根据最新账单数据重新计算应还金额。已还金额和手动编辑的状态不会被覆盖。`,
+      confirmText: '重新生成',
+      danger: false
+    })
+    if (!ok) return
+  }
   try {
     await generateForPeriod(viewingAccount.value, [], year, month)
-    showSuccess('账单周期已生成')
+    showSuccess(existing ? '账单周期已重新生成' : '账单周期已生成')
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }

@@ -50,7 +50,10 @@
             <span class="status-badge" :class="`status-${stmt.status}`">{{ statusLabel(stmt.status) }}</span>
           </td>
           <td class="actions">
-            <button type="button" class="action-btn" @click="$emit('edit', stmt)">
+            <button type="button" class="action-btn" title="重新生成" @click="$emit('generate', stmt.year, stmt.month)">
+              <Icon name="solar:refresh-linear" size="14" />
+            </button>
+            <button type="button" class="action-btn" title="编辑" @click="$emit('edit', stmt)">
               <Icon name="solar:pen-linear" size="14" />
             </button>
           </td>
@@ -224,6 +227,10 @@ function statusLabel(s: StatementStatus): string {
 }
 .actions {
   text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
 }
 .action-btn {
   display: inline-flex;
