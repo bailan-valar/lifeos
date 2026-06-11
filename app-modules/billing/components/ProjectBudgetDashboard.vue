@@ -213,6 +213,7 @@
 import type { Bill, BudgetCycleType, NoteTreeNode } from '~/types/block'
 import { div } from '~/utils/decimal'
 import { SOLAR_ICONS } from '~/composables/useIcons'
+import { getDB, onCollectionChange } from '~/services/db'
 import NotePicker from './NotePicker.vue'
 
 const props = defineProps<{ year?: number }>()
@@ -266,9 +267,22 @@ async function refreshData() {
   }
 }
 
+const unsubscribers: (() => void)[] = []
+
 onMounted(async () => {
   await Promise.all([loadNotes()])
   await refreshData()
+
+  // 订阅数据变更，导入账单后自动静默刷新
+  unsubscribers.push(
+    onCollectionChange('bills', () => refreshData()),
+    onCollectionChange('budgets', () => refreshData()),
+    onCollectionChange('notes', () => refreshData())
+  )
+})
+
+onUnmounted(() => {
+  unsubscribers.forEach(unsub => unsub())
 })
 
 watch(selectedNoteId, async () => {
