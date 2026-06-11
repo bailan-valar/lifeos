@@ -10,10 +10,14 @@ import { useRouter } from 'vue-router'
 import BillingView from '~/app-modules/billing/BillingView.vue'
 
 const router = useRouter()
+const route = useRoute()
 
 onMounted(() => {
-  // 强制默认显示budgets（项目预算）
-  router.replace({ path: '/billing', query: { tab: 'budgets', subTab: 'project' } })
+  // 仅在纯 /billing 路径且无 tab 参数时，才设置默认显示项目预算
+  // 避免在导航到 /billing/accounts/:id 时干扰路由
+  if (route.path === '/billing' && !route.query.tab) {
+    router.replace({ path: '/billing', query: { tab: 'budgets', subTab: 'project' } })
+  }
 })
 </script>
 
