@@ -171,7 +171,7 @@ watch(() => props.visible, (visible) => {
     refundMode.value = 'full'
     refundAmount.value = 0
     refundReason.value = ''
-    refundDate.value = props.bill.date.slice(0, 16)
+    refundDate.value = new Date().toISOString().slice(0, 16)
     refundAccountId.value = getDefaultAccountId(props.bill)
   }
 })

@@ -283,11 +283,24 @@ const linkRefundDialogVisible = ref(false)
 const linkRefundSourceBill = ref<Bill | undefined>(undefined)
 const linkRefundMode = ref<'link-refund' | 'link-as-refund'>('link-refund')
 
+// 搜索
+const billSearchQuery = ref('')
+
 // 右键菜单状态
 const billContextMenuVisible = ref(false)
 const billContextMenuBill = ref<Bill | null>(null)
 const billContextMenuX = ref(0)
 const billContextMenuY = ref(0)
+
+// 搜索过滤后的账单
+const displayBills = computed(() => {
+  const q = billSearchQuery.value.trim().toLowerCase()
+  if (!q) return props.bills
+  return props.bills.filter(b =>
+    (b.description || '').toLowerCase().includes(q) ||
+    (b.noteId || '').toLowerCase().includes(q)
+  )
+})
 
 // 计算属性
 const totalIncome = computed(() =>
@@ -299,6 +312,17 @@ const totalExpense = computed(() =>
 )
 
 const netBalance = computed(() => sub(totalIncome.value, totalExpense.value))
+
+// 显示用统计（基于筛选后数据）
+const displayTotalIncome = computed(() =>
+  sum(displayBills.value.filter(b => b.type === 'income' && b.status === 'completed').map(b => b.amount))
+)
+
+const displayTotalExpense = computed(() =>
+  sum(displayBills.value.filter(b => b.type === 'expense' && b.status === 'completed').map(b => b.amount))
+)
+
+const displayNetBalance = computed(() => sub(displayTotalIncome.value, displayTotalExpense.value))
 
 const selectedBills = computed(() => props.bills.filter(b => props.selectedIds.includes(b.id)))
 

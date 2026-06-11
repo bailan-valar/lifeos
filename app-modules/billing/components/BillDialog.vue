@@ -162,7 +162,7 @@ const emit = defineEmits<{
 }>()
 
 const { warning: showWarning, success: showSuccess, error: showError } = useToast()
-const { splitBill, allocatePeriod, createRefund } = useBills()
+const { splitBill, allocatePeriod, createRefundBill } = useBills()
 
 // 功能对话框状态
 const splitDialogVisible = ref(false)
@@ -251,7 +251,7 @@ async function handleAllocateConfirm(items: BillAllocateItem[]) {
 async function handleRefundConfirm(amount: number, reason: string, date: string, accountId: string) {
   if (!props.bill) return
   try {
-    await createRefund(props.bill.id, amount, reason, date, accountId)
+    await createRefundBill({ billId: props.bill.id, amount, reason, date, accountId })
     showSuccess('退款已创建')
     refundDialogVisible.value = false
     emit('action-completed')
