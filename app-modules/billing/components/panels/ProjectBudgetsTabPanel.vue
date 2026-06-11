@@ -49,6 +49,12 @@
     :month="monthBillsDialogData.month"
     @cancel="closeMonthBillsDialog"
   />
+  <NoteEditDialog
+    v-model:visible="noteEditDialogVisible"
+    :note="noteEditDialogNote"
+    :parent-id="noteEditDialogParentId"
+    :is-creating="noteEditDialogIsCreating"
+  />
 </template>
 
 <script setup lang="ts">
@@ -62,6 +68,7 @@ import ProjectBudgetDialog from '../ProjectBudgetDialog.vue'
 import ProjectBudgetHistory from '../ProjectBudgetHistory.vue'
 import NoteMonthBillsDialog from '../NoteMonthBillsDialog.vue'
 import NoteContextMenu from '~/components/NoteContextMenu.vue'
+import NoteEditDialog from '~/components/NoteEditDialog.vue'
 import type { Note } from '~/types/block'
 
 const props = defineProps<{
@@ -91,6 +98,12 @@ const historyDialogData = ref({
   currentBudgetId: '',
   historyEntries: [] as BudgetEntry[]
 })
+
+// 笔记编辑对话框状态
+const noteEditDialogVisible = ref(false)
+const noteEditDialogNote = ref<Note | null>(null)
+const noteEditDialogParentId = ref('')
+const noteEditDialogIsCreating = ref(false)
 
 // 月份支出列表对话框状态
 const monthBillsDialogVisible = ref(false)
@@ -252,22 +265,20 @@ function handleContextMenuView() {
 
 function handleContextMenuEdit() {
   if (!contextMenuNote.value) return
-  // 编辑笔记 - 导航到笔记页面
-  const noteId = contextMenuNote.value.id
   contextMenuVisible.value = false
-
-  const router = useRouter()
-  router.push(`/notes?id=${noteId}`)
+  noteEditDialogNote.value = contextMenuNote.value
+  noteEditDialogParentId.value = ''
+  noteEditDialogIsCreating.value = false
+  noteEditDialogVisible.value = true
 }
 
 function handleContextMenuAddChild() {
   if (!contextMenuNote.value) return
-  // 新建子笔记 - 导航到笔记页面并创建子笔记
-  const parentId = contextMenuNote.value.id
   contextMenuVisible.value = false
-
-  const router = useRouter()
-  router.push(`/notes?createChild=${parentId}`)
+  noteEditDialogNote.value = null
+  noteEditDialogParentId.value = contextMenuNote.value.id
+  noteEditDialogIsCreating.value = true
+  noteEditDialogVisible.value = true
 }
 
 function handleContextMenuDelete() {

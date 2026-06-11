@@ -106,6 +106,13 @@
       @add-child="handleContextMenuAddChild"
       @delete="handleContextMenuDelete"
     />
+
+    <NoteEditDialog
+      v-model:visible="noteEditDialogVisible"
+      :note="noteEditDialogNote"
+      :parent-id="noteEditDialogParentId"
+      :is-creating="noteEditDialogIsCreating"
+    />
   </div>
 </template>
 
@@ -113,6 +120,7 @@
 import type { Note, Class } from '~/types/block'
 import NoteTreeItem from '~/components/NoteTreeItem.vue'
 import NoteContextMenu from '~/components/NoteContextMenu.vue'
+import NoteEditDialog from '~/components/NoteEditDialog.vue'
 import { useNoteClasses } from '~/composables/useNoteClasses'
 
 interface Props {
@@ -122,6 +130,7 @@ interface Props {
 
 interface Emits {
   (e: 'select', id: string): void
+  (e: 'view', id: string): void
   (e: 'create'): void
   (e: 'create-child', parentId: string): void
   (e: 'reorder', payload: { id: string; targetId: string | null; position: 'before' | 'after' | 'child' | 'root-end' }): void
@@ -139,6 +148,10 @@ const searchQuery = ref('')
 const contextMenuVisible = ref(false)
 const contextMenuNote = ref<Note | null>(null)
 const contextMenuPosition = ref({ x: 0, y: 0 })
+const noteEditDialogVisible = ref(false)
+const noteEditDialogNote = ref<Note | null>(null)
+const noteEditDialogParentId = ref('')
+const noteEditDialogIsCreating = ref(false)
 
 const childrenMap = computed<Record<string, Note[]>>(() => {
   const map: Record<string, Note[]> = {}
@@ -333,13 +346,16 @@ const handleContextMenuFocus = () => {
 
 const handleContextMenuView = () => {
   if (contextMenuNote.value) {
-    emit('select', contextMenuNote.value.id)
+    emit('view', contextMenuNote.value.id)
   }
 }
 
 const handleContextMenuEdit = () => {
   if (contextMenuNote.value) {
-    emit('select', contextMenuNote.value.id)
+    noteEditDialogNote.value = contextMenuNote.value
+    noteEditDialogParentId.value = ''
+    noteEditDialogIsCreating.value = false
+    noteEditDialogVisible.value = true
   }
 }
 
@@ -348,7 +364,10 @@ const handleContextMenuAddChild = () => {
     const next = new Set(expandedSet.value)
     next.add(contextMenuNote.value.id)
     expandedSet.value = next
-    emit('create-child', contextMenuNote.value.id)
+    noteEditDialogNote.value = null
+    noteEditDialogParentId.value = contextMenuNote.value.id
+    noteEditDialogIsCreating.value = true
+    noteEditDialogVisible.value = true
   }
 }
 
