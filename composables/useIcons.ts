@@ -149,6 +149,7 @@ export const SOLAR_ICONS = {
     handle: ICONS.handle,
     copy: ICONS.copy,
     circle: ICONS.circle,
+    link: ICONS.link,
   },
 
   // 文档
