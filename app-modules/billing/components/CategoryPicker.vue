@@ -320,15 +320,29 @@ const renderItems = computed(() => {
   return visible
 })
 
-// 性能优化：合并相关 watcher，减少 nextTick 调用
-watch([() => open.value, searchQuery, renderItems], ([isOpen, , items]) => {
+// 关闭面板时重置展开状态，下次打开默认收起
+watch(() => open.value, (isOpen) => {
+  if (!isOpen) {
+    expandedIds.value = new Set<string>()
+    searchQuery.value = ''
+  }
+})
+
+// 打开面板时，只展开选中分类的祖先路径
+watch([() => open.value], ([isOpen]) => {
   if (!isOpen) return
-  if (expandedIds.value.size === 0) {
-    const all = new Set<string>()
-    for (const item of treeItems.value) {
-      if (item.children.length > 0) all.add(item.id)
+  // 展开当前选中分类的祖先路径
+  if (props.modelValue) {
+    const parentIdMap = parentMap.value
+    const ancestors = new Set<string>()
+    let parentId = parentIdMap.get(props.modelValue)
+    while (parentId) {
+      ancestors.add(parentId)
+      parentId = parentIdMap.get(parentId) || undefined
     }
-    expandedIds.value = all
+    if (ancestors.size > 0) {
+      expandedIds.value = new Set([...expandedIds.value, ...ancestors])
+    }
   }
   resetActiveIndex()
 }, { flush: 'post' })
