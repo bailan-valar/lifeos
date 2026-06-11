@@ -196,7 +196,9 @@ function matchModeClass(m: ImportRuleMatchMode): string {
 function sourceLabel(s: ImportSource | 'all'): string {
   if (s === 'alipay') return '支付宝'
   if (s === 'wechat') return '微信'
-  if (s === 'cmb') return '招商银行'
+  if (s === 'cmb') return '招商银行储蓄卡'
+  if (s === 'cmb_credit') return '招商信用卡'
+  if (s === 'email') return '邮件'
   return '全部'
 }
 

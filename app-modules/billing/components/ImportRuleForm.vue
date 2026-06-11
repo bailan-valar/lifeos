@@ -134,7 +134,9 @@ const sourceOptions: { value: SourceValue; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'alipay', label: '支付宝' },
   { value: 'wechat', label: '微信' },
-  { value: 'cmb', label: '招商银行' }
+  { value: 'cmb', label: '招商银行储蓄卡' },
+  { value: 'cmb_credit', label: '招商信用卡' },
+  { value: 'email', label: '邮件' }
 ]
 
 type MatchFieldValue = ImportRuleMatchField
