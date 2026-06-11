@@ -23,6 +23,14 @@
       >
         {{ node.className }}
       </span>
+      <button
+        type="button"
+        class="add-child-btn"
+        title="新建子笔记"
+        @click.stop="handleCreateChild"
+      >
+        <Icon :name="SOLAR_ICONS.action.add" size="12" />
+      </button>
     </div>
     <div v-if="expanded && hasChildren" class="tree-children">
       <NoteTreeNode
@@ -35,6 +43,7 @@
         :level="level + 1"
         @select="$emit('select', $event)"
         @toggle="$emit('toggle', $event)"
+        @create-child="$emit('createChild', $event)"
       />
     </div>
   </div>
@@ -69,6 +78,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   select: [id: string]
   toggle: [id: string]
+  createChild: [parentId: string]
 }>()
 
 const hasChildren = computed(() => props.node.children.length > 0)
@@ -80,6 +90,11 @@ function handleClick() {
 function handleToggle(e: MouseEvent) {
   e.stopPropagation()
   emit('toggle', props.node.id)
+}
+
+function handleCreateChild(e: MouseEvent) {
+  e.stopPropagation()
+  emit('createChild', props.node.id)
 }
 </script>
 
@@ -152,6 +167,30 @@ function handleToggle(e: MouseEvent) {
   white-space: nowrap;
 }
 
+.add-child-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(60, 60, 67, 0.35);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+}
+
+.tree-node-content:hover .add-child-btn {
+  display: flex;
+}
+
+.add-child-btn:hover {
+  background: rgba(0, 122, 255, 0.1);
+  color: rgba(0, 122, 255, 0.8);
+}
+
 .tree-children {
   margin-left: 0;
 }
@@ -173,6 +212,15 @@ function handleToggle(e: MouseEvent) {
   .expand-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.7);
+  }
+
+  .add-child-btn {
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  .add-child-btn:hover {
+    background: rgba(0, 122, 255, 0.15);
+    color: rgba(0, 122, 255, 0.9);
   }
 }
 </style>

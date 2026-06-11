@@ -51,12 +51,31 @@
                 :level="0"
                 @select="selectNote"
                 @toggle="toggleExpand"
+                @create-child="handleCreateChild"
               />
             </template>
           </div>
+
+          <button
+            v-if="allowCreate"
+            type="button"
+            class="picker-create-btn"
+            @click.stop="openCreateDialog('')"
+          >
+            <Icon :name="SOLAR_ICONS.action.add" size="14" />
+            <span>新建笔记</span>
+          </button>
         </div>
       </Transition>
     </Teleport>
+
+    <NoteEditDialog
+      v-model:visible="editDialogVisible"
+      :note="null"
+      :parent-id="editDialogParentId"
+      :is-creating="true"
+      @created="onNoteCreated"
+    />
   </div>
 </template>
 
@@ -65,6 +84,7 @@ import { SOLAR_ICONS } from '~/composables/useIcons'
 import type { Note } from '~/types/block'
 import { getNextZIndex } from '~/composables/useZIndex'
 import NoteTreeNode from '~/components/NoteTreeNode.vue'
+import NoteEditDialog from '~/components/NoteEditDialog.vue'
 import { useNoteClasses } from '~/composables/useNoteClasses'
 
 interface TreeNode {
@@ -84,6 +104,7 @@ interface Props {
   clearable?: boolean
   searchable?: boolean
   disabled?: boolean
+  allowCreate?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -91,12 +112,14 @@ const props = withDefaults(defineProps<Props>(), {
   emptyText: '暂无笔记',
   clearable: true,
   searchable: true,
-  disabled: false
+  disabled: false,
+  allowCreate: true
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | null]
   'change': [note: Note | null]
+  'created': [note: Note]
 }>()
 
 const open = ref(false)
@@ -106,6 +129,10 @@ const triggerRef = ref<HTMLElement>()
 const searchRef = ref<HTMLInputElement>()
 const panelRef = ref<HTMLElement>()
 const panelStyle = ref<Record<string, string>>({})
+
+// 快捷新建相关状态
+const editDialogVisible = ref(false)
+const editDialogParentId = ref('')
 
 const { classes, noteBindings } = useNoteClasses()
 
@@ -261,6 +288,26 @@ function selectNote(noteId: string) {
 function clear() {
   emit('update:modelValue', null)
   emit('change', null)
+}
+
+// 打开新建弹框
+function openCreateDialog(parentId: string) {
+  editDialogParentId.value = parentId
+  editDialogVisible.value = true
+}
+
+// 处理节点"新建子笔记"
+function handleCreateChild(parentId: string) {
+  openCreateDialog(parentId)
+}
+
+// 新建笔记成功回调
+function onNoteCreated(note: Note) {
+  emit('created', note)
+  emit('update:modelValue', note.id)
+  emit('change', note)
+  open.value = false
+  searchQuery.value = ''
 }
 
 // 切换开关
@@ -480,6 +527,28 @@ onUnmounted(() => {
   color: rgba(60, 60, 67, 0.5);
 }
 
+.picker-create-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-top: 0.5px solid rgba(60, 60, 67, 0.1);
+  background: transparent;
+  color: rgba(0, 122, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  flex-shrink: 0;
+}
+
+.picker-create-btn:hover {
+  background: rgba(0, 122, 255, 0.08);
+}
+
 /* 过渡动画 */
 .picker-fade-enter-active,
 .picker-fade-leave-active {
@@ -550,6 +619,15 @@ onUnmounted(() => {
 
   .picker-empty {
     color: rgba(255, 255, 255, 0.5);
+  }
+
+  .picker-create-btn {
+    color: rgba(0, 122, 255, 0.9);
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .picker-create-btn:hover {
+    background: rgba(0, 122, 255, 0.15);
   }
 }
 </style>
