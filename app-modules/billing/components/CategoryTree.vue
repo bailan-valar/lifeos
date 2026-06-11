@@ -130,6 +130,7 @@ function onContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   color: rgba(0, 0, 0, 0.92);
   cursor: pointer;
   transition: color 0.15s ease;
+  align-self: center;
 }
 .node-name:hover {
   color: rgb(0, 122, 255);
@@ -142,6 +143,7 @@ function onContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   font-weight: 400;
   margin-left: 0;
   margin-right: 8px;
+  align-self: center;
 }
 .node-actions {
   display: flex;
