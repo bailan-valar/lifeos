@@ -33,6 +33,7 @@
           >
             {{ m }}月
           </div>
+          <div class="col-year-income">年结余/收入</div>
         </div>
 
         <!-- 固定顶部合计行 -->
@@ -78,6 +79,19 @@
               :class="{ over: cell.percentage > 1 }"
             >
               {{ (cell.percentage * 100).toFixed(0) }}%
+            </div>
+          </div>
+          <div class="col-year-income">
+            <div class="year-income-cell">
+              <div v-if="totalsRow.yearIncome > 0 || totalsRow.yearBalance !== 0" class="cell-content">
+                <div class="cell-balance" :class="{ negative: totalsRow.yearBalance < 0 }">
+                  {{ totalsRow.yearBalance.toFixed(0) }}
+                </div>
+                <div class="cell-divider"></div>
+                <div class="cell-income">
+                  {{ totalsRow.yearIncome.toFixed(0) }}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -180,6 +194,19 @@
                 </div>
               </div>
             </template>
+            <div class="col-year-income">
+              <div v-if="row.yearIncome > 0 || row.yearBalance !== 0" class="year-income-cell">
+                <div class="cell-content">
+                  <div class="cell-balance" :class="{ negative: row.yearBalance < 0 }">
+                    {{ row.yearBalance.toFixed(0) }}
+                  </div>
+                  <div class="cell-divider"></div>
+                  <div class="cell-income">
+                    {{ row.yearIncome.toFixed(0) }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </template>
       </div>
@@ -320,6 +347,28 @@ function getDirectActual(noteId: string, year: number, month: number): number {
   return expenses - refunds
 }
 
+function getDirectIncome(noteId: string, year: number, month: number): number {
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+
+  // 统计该笔记的收入账单（排除退款）
+  const income = scopedBills.value
+    .filter(b => {
+      // 只统计叶子节点账单
+      if (b.hasChildren) return false
+      // 只统计收入类型
+      if (b.type !== 'income') return false
+      // 排除退款（退款不算作正常收入）
+      if (b.isRefund) return false
+      // 笔记匹配
+      if (b.noteId !== noteId) return false
+      // 按账单日期统计
+      return b.date.startsWith(prefix)
+    })
+    .reduce((sum, b) => sum + b.amount, 0)
+
+  return income
+}
+
 // 获取无关联账单的实际支出
 function getUnlinkedActual(year: number, month: number): number {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
@@ -361,31 +410,61 @@ function getUnlinkedActual(year: number, month: number): number {
   return expenses - refunds
 }
 
+// 获取无关联账单的收入
+function getUnlinkedIncome(year: number, month: number): number {
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+
+  // 统计无关联的收入账单（排除退款）
+  const income = scopedBills.value
+    .filter(b => {
+      // 只统计叶子节点账单
+      if (b.hasChildren) return false
+      // 只统计收入类型
+      if (b.type !== 'income') return false
+      // 排除退款
+      if (b.isRefund) return false
+      // 无关联：noteId 为空字符串
+      if (b.noteId !== '') return false
+      // 按账单日期统计
+      return b.date.startsWith(prefix)
+    })
+    .reduce((sum, b) => sum + b.amount, 0)
+
+  return income
+}
+
 // 创建"无关联"行
 function createUnlinkedRow(year: number): TableRow {
   const NONE_ID = '__none__'
-  const ownMonthly: { budget: number; actual: number; config: ReturnType<typeof resolveBudget> }[] = []
+  const ownMonthly: { budget: number; actual: number; income: number; config: ReturnType<typeof resolveBudget> }[] = []
 
   for (let month = 1; month <= 12; month++) {
     const config = resolveBudget(`note:${NONE_ID}`, year, month, selectedNoteId.value)
     const budget = config ? getMonthlyEquivalent(`note:${NONE_ID}`, year, month, selectedNoteId.value) : 0
     const actual = getUnlinkedActual(year, month)
-    ownMonthly.push({ budget, actual, config })
+    const income = getUnlinkedIncome(year, month)
+    ownMonthly.push({ budget, actual, income, config })
   }
 
   const hasOwnBudget = ownMonthly.some(m => m.budget > 0)
   const yearActual = ownMonthly.reduce((sum, m) => sum + m.actual, 0)
   const yearBudget = ownMonthly.reduce((sum, m) => sum + m.budget, 0)
+  const yearIncome = ownMonthly.reduce((sum, m) => sum + m.income, 0)
+  const yearBalance = yearIncome - yearActual
   const yearPercentage = yearBudget > 0 ? yearActual / yearBudget : 0
 
   const janConfig = resolveBudget(`note:${NONE_ID}`, year, 1, selectedNoteId.value)
   const cycleType = janConfig?.cycleType || null
 
   const monthly: MonthlyCell[] = Array.from({ length: 12 }, (_, m) => {
+    const income = ownMonthly[m].income
+    const actual = ownMonthly[m].actual
     return {
       budget: ownMonthly[m].budget,
-      actual: ownMonthly[m].actual,
-      percentage: ownMonthly[m].budget > 0 ? ownMonthly[m].actual / ownMonthly[m].budget : 0,
+      actual,
+      income,
+      balance: income - actual,
+      percentage: ownMonthly[m].budget > 0 ? actual / ownMonthly[m].budget : 0,
       cycleType: ownMonthly[m].config?.cycleType || null
     }
   })
@@ -407,7 +486,9 @@ function createUnlinkedRow(year: number): TableRow {
     hasOwnBudget,
     childrenBudgetSum: 0,
     cycleType,
-    isUnlinked: true
+    isUnlinked: true,
+    yearIncome,
+    yearBalance
   }
 }
 
@@ -416,6 +497,8 @@ interface MonthlyCell {
   actual: number
   percentage: number
   cycleType: BudgetCycleType | null
+  income: number
+  balance: number
 }
 
 interface TableRow {
@@ -429,6 +512,8 @@ interface TableRow {
   childrenBudgetSum: number
   cycleType: BudgetCycleType | null
   isUnlinked?: boolean
+  yearIncome: number
+  yearBalance: number
 }
 
 interface UnlinkedNode {
@@ -548,19 +633,23 @@ function calcTree(nodes: NoteTreeNode[], year: number, level = 0): TreeRow[] {
   return nodes.map(node => {
     const childTree = calcTree(node.children, year, level + 1)
 
-    const ownMonthly: { budget: number; actual: number; config: ReturnType<typeof resolveBudget> }[] = []
+    const ownMonthly: { budget: number; actual: number; income: number; config: ReturnType<typeof resolveBudget> }[] = []
     for (let month = 1; month <= 12; month++) {
       // 项目预算使用 noteId 作为标识
       const config = resolveBudget(`note:${node.id}`, year, month, selectedNoteId.value)
       const budget = config ? getMonthlyEquivalent(`note:${node.id}`, year, month, selectedNoteId.value) : 0
       const actual = getDirectActual(node.id, year, month)
-      ownMonthly.push({ budget, actual, config })
+      const income = getDirectIncome(node.id, year, month)
+      ownMonthly.push({ budget, actual, income, config })
     }
 
     const hasOwnBudget = ownMonthly.some(m => m.budget > 0)
 
     // 计算自己的年度实际支出总和
     const ownYearActual = ownMonthly.reduce((sum, m) => sum + m.actual, 0)
+
+    // 计算自己的年度收入总和
+    const ownYearIncome = ownMonthly.reduce((sum, m) => sum + m.income, 0)
 
     // 判断自己是否为年预算（查看1月的配置）
     const ownConfig = resolveBudget(`note:${node.id}`, year, 1, selectedNoteId.value)
@@ -593,18 +682,44 @@ function calcTree(nodes: NoteTreeNode[], year: number, level = 0): TreeRow[] {
       }, 0)
     )
 
+    // 计算子笔记的月度收入（仅包含月预算子笔记）
+    const childrenMonthlyIncome = Array.from({ length: 12 }, (_, m) =>
+      childTree.reduce((sum, ct) => {
+        if (ct.data.cycleType === 'yearly') {
+          // 年预算子笔记：在月度收入中忽略
+          return sum
+        } else {
+          // 月预算子笔记：使用原始收入
+          return sum + ct.data.monthly[m].income
+        }
+      }, 0)
+    )
+
     // 计算当前节点在父笔记中显示的月实际值
     // 如果是年预算，使用月等效实际（年度总和/12）；如果是月预算，使用原始月实际
     const ownMonthlyForParent = isOwnYearly && hasOwnBudget
       ? Array.from({ length: 12 }, () => div(ownYearActual, 12))
       : ownMonthly.map(m => m.actual)
 
+    // 计算当前节点在父笔记中显示的月收入值
+    const ownIncomeForParent = isOwnYearly && hasOwnBudget
+      ? Array.from({ length: 12 }, () => div(ownYearIncome, 12))
+      : ownMonthly.map(m => m.income)
+
     const monthly: MonthlyCell[] = Array.from({ length: 12 }, (_, m) => {
       const budget = hasOwnBudget ? ownMonthly[m].budget : childrenMonthlyBudget[m]
       // ownMonthlyForParent[m] 已经处理过年预算的分摊逻辑
       const actual = ownMonthlyForParent[m] + childrenMonthlyActual[m]
+      const income = ownIncomeForParent[m] + childrenMonthlyIncome[m]
       const percentage = budget > 0 ? actual / budget : 0
-      return { budget, actual, percentage, cycleType: ownMonthly[m].config?.cycleType || null }
+      return {
+        budget,
+        actual,
+        income,
+        balance: income - actual,
+        percentage,
+        cycleType: ownMonthly[m].config?.cycleType || null
+      }
     })
 
     // 计算年度预算：如果有自己的预算，使用自己的；否则累加子笔记的年度预算
@@ -621,6 +736,12 @@ function calcTree(nodes: NoteTreeNode[], year: number, level = 0): TreeRow[] {
 
     // 计算年度实际支出（包含所有子笔记，包括年预算子笔记）
     const yearActual = ownYearActual + childTree.reduce((sum, ct) => sum + ct.data.yearActual, 0)
+
+    // 计算年度收入（包含所有子笔记，包括年预算子笔记）
+    const yearIncome = ownYearIncome + childTree.reduce((sum, ct) => sum + ct.data.yearIncome, 0)
+
+    // 计算年度结余
+    const yearBalance = yearIncome - yearActual
 
     const yearPercentage = yearBudget > 0 ? yearActual / yearBudget : 0
 
@@ -641,8 +762,17 @@ function calcTree(nodes: NoteTreeNode[], year: number, level = 0): TreeRow[] {
     const cycleType = determineParentCycleType(hasOwnBudget, ownCycleType, childCycleStats)
 
     const data: TableRow = {
-      node, level, yearBudget, yearActual, yearPercentage,
-      monthly, hasOwnBudget, childrenBudgetSum, cycleType
+      node,
+      level,
+      yearBudget,
+      yearActual,
+      yearPercentage,
+      monthly,
+      hasOwnBudget,
+      childrenBudgetSum,
+      cycleType,
+      yearIncome,
+      yearBalance
     }
 
     return { data, children: childTree }
@@ -673,16 +803,26 @@ const totalsRow = computed(() => {
 
   const yearBudget = visibleRows.value.reduce((sum, row) => sum + row.yearBudget, 0)
   const yearActual = visibleRows.value.reduce((sum, row) => sum + row.yearActual, 0)
+  const yearIncome = visibleRows.value.reduce((sum, row) => sum + row.yearIncome, 0)
+  const yearBalance = yearIncome - yearActual
   const yearPercentage = yearBudget > 0 ? yearActual / yearBudget : 0
 
   const monthly = Array.from({ length: 12 }, (_, m) => {
     const budget = visibleRows.value.reduce((sum, row) => sum + row.monthly[m].budget, 0)
     const actual = visibleRows.value.reduce((sum, row) => sum + row.monthly[m].actual, 0)
+    const income = visibleRows.value.reduce((sum, row) => sum + row.monthly[m].income, 0)
     const percentage = budget > 0 ? actual / budget : 0
-    return { budget, actual, percentage, cycleType: null as BudgetCycleType | null }
+    return {
+      budget,
+      actual,
+      income,
+      balance: income - actual,
+      percentage,
+      cycleType: null as BudgetCycleType | null
+    }
   })
 
-  return { yearBudget, yearActual, yearPercentage, monthly }
+  return { yearBudget, yearActual, yearPercentage, monthly, yearIncome, yearBalance }
 })
 
 function getCellBg(percentage: number, hasBudget: boolean): string {
@@ -1059,5 +1199,51 @@ function onNoteClick(noteId: string) {
 .total-label {
   font-weight: 600;
   color: rgba(0, 0, 0, 0.92);
+}
+
+/* 年结余/收入列 */
+.col-year-income {
+  width: 82px;
+  flex-shrink: 0;
+  position: sticky;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border-left: 0.5px solid rgba(60, 60, 67, 0.08);
+  z-index: 1;
+  font-weight: 500;
+}
+
+.table-footer .col-year-income {
+  background: rgba(248, 248, 248, 0.95);
+}
+
+.year-income-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.cell-balance {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(52, 199, 89, 0.9);
+}
+
+.cell-balance.negative {
+  color: rgb(255, 59, 48);
+}
+
+.cell-income {
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.6);
 }
 </style>
