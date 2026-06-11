@@ -49,6 +49,7 @@
         @split="handleSplitBill"
         @allocate="handleAllocateBill"
         @refund="handleRefundBill"
+        @contextmenu="openBillContextMenu"
       />
       <BillTable
         v-else
@@ -62,6 +63,7 @@
         @select="emit('select-bill', $event)"
         @select-all="emit('select-all-bills')"
         @unselect-all="emit('unselect-all-bills')"
+        @contextmenu="openBillContextMenu"
       />
     </div>
 
@@ -146,6 +148,19 @@
       :accounts="accounts"
       @confirm="handleRefundConfirm"
     />
+    <BillContextMenu
+      v-model:visible="billContextMenuVisible"
+      :bill="billContextMenuBill"
+      :x="billContextMenuX"
+      :y="billContextMenuY"
+      @reposition="handleBillContextMenuReposition"
+      @copy="handleCopyBill"
+      @edit="handleContextMenuEdit"
+      @split="handleSplitBill"
+      @allocate="handleAllocateBill"
+      @refund="handleRefundBill"
+      @delete="handleContextMenuDelete"
+    />
   </div>
 </template>
 
@@ -183,6 +198,7 @@ import { useBillDialogs } from '../../composables/useBillDialogs'
 import BillSplitDialog from '../BillSplitDialog.vue'
 import BillAllocateDialog from '../BillAllocateDialog.vue'
 import BillRefundDialog from '../BillRefundDialog.vue'
+import BillContextMenu from '../BillContextMenu.vue'
 
 const props = defineProps<{
   bills: Bill[]
@@ -229,6 +245,12 @@ const allocateDialogVisible = ref(false)
 const allocatingBill = ref<Bill | undefined>(undefined)
 const refundDialogVisible = ref(false)
 const refundingBill = ref<Bill | undefined>(undefined)
+
+// 右键菜单状态
+const billContextMenuVisible = ref(false)
+const billContextMenuBill = ref<Bill | null>(null)
+const billContextMenuX = ref(0)
+const billContextMenuY = ref(0)
 
 // 计算属性
 const totalIncome = computed(() =>
@@ -487,6 +509,50 @@ async function handleRefundConfirm(amount: number, reason: string, date: string,
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
+}
+
+// 右键菜单处理
+function openBillContextMenu(payload: { bill: Bill; x: number; y: number }) {
+  billContextMenuBill.value = payload.bill
+  billContextMenuX.value = payload.x
+  billContextMenuY.value = payload.y
+  billContextMenuVisible.value = true
+}
+
+function handleBillContextMenuReposition(x: number, y: number) {
+  billContextMenuX.value = x
+  billContextMenuY.value = y
+}
+
+async function handleCopyBill(bill: Bill) {
+  try {
+    const formData: BillFormData = {
+      noteId: bill.noteId,
+      type: bill.type,
+      amount: bill.amount,
+      currency: bill.currency,
+      fromAccountId: bill.fromAccountId,
+      toAccountId: bill.toAccountId,
+      categoryId: bill.categoryId,
+      description: bill.description ? `${bill.description} (复制)` : '(复制)',
+      date: new Date().toISOString().slice(0, 16),
+      debtSubtype: bill.debtSubtype || 'lend',
+      relatedPersonId: bill.relatedPersonId
+    }
+    await createBill(formData, props.noteId)
+    showSuccess('账单已复制')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function handleContextMenuEdit(bill: Bill) {
+  billDialogs.openBillDialog(bill)
+}
+
+async function handleContextMenuDelete(bill: Bill) {
+  if (!await confirm('确定删除此账单？')) return
+  await deleteBill(bill.id)
 }
 </script>
 

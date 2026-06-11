@@ -33,6 +33,7 @@ export const ICONS = {
   refreshCircle: 'solar:refresh-linear',
   callSplit: 'solar:transfer-horizontal-linear',
   fileImport: 'solar:file-import-linear',
+  copy: 'solar:copy-linear',
 
   // === 导航/箭头 ===
   altArrowLeft: 'solar:alt-arrow-left-linear',
@@ -146,6 +147,7 @@ export const SOLAR_ICONS = {
     refresh: ICONS.refreshCircle,
     split: ICONS.callSplit,
     handle: ICONS.handle,
+    copy: ICONS.copy,
     circle: ICONS.circle,
   },
 

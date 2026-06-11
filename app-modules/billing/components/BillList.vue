@@ -11,6 +11,7 @@
           { 'is-refund': bill.isRefund }
         ]"
         :style="{ paddingLeft: bill.parentId ? '32px' : '16px' }"
+        @contextmenu.prevent="emit('contextmenu', { bill, x: $event.clientX, y: $event.clientY })"
       >
         <div v-if="selectable" class="bill-checkbox">
           <input
@@ -161,6 +162,7 @@ const emit = defineEmits<{
   (e: 'split', bill: Bill): void
   (e: 'allocate', bill: Bill): void
   (e: 'refund', bill: Bill): void
+  (e: 'contextmenu', payload: { bill: Bill; x: number; y: number }): void
 }>()
 
 const { categories } = useBillCategories()

@@ -26,6 +26,7 @@
           v-for="bill in bills"
           :key="bill.id"
           :class="{ selected: selectable && selectedIds?.includes(bill.id) }"
+          @contextmenu.prevent="$emit('contextmenu', { bill, x: $event.clientX, y: $event.clientY })"
         >
           <td v-if="selectable" class="checkbox-cell">
             <input
@@ -83,6 +84,7 @@ const emit = defineEmits<{
   (e: 'select', id: string): void
   (e: 'select-all'): void
   (e: 'unselect-all'): void
+  (e: 'contextmenu', payload: { bill: Bill; x: number; y: number }): void
 }>()
 
 const selectedSet = computed(() => new Set(props.selectedIds || []))
