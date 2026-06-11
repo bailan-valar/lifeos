@@ -24,6 +24,8 @@
       <div class="budget-table">
         <div class="table-header">
           <div class="col-note">项目</div>
+          <div class="col-summary">结余</div>
+          <div class="col-summary">收入</div>
           <div class="col-year-budget">年预算/实际</div>
           <div
             v-for="m in 12"
@@ -33,13 +35,22 @@
           >
             {{ m }}月
           </div>
-          <div class="col-year-income">年结余/收入</div>
         </div>
 
         <!-- 固定顶部合计行 -->
         <div v-if="totalsRow" class="table-footer">
           <div class="col-note">
             <span class="total-label">合计</span>
+          </div>
+          <div class="col-summary">
+            <span v-if="totalsRow.yearBalance !== 0" class="summary-balance" :class="{ negative: totalsRow.yearBalance < 0 }">
+              {{ totalsRow.yearBalance.toFixed(0) }}
+            </span>
+          </div>
+          <div class="col-summary">
+            <span v-if="totalsRow.yearIncome > 0" class="summary-income">
+              {{ totalsRow.yearIncome.toFixed(0) }}
+            </span>
           </div>
           <div class="col-year-budget">
             <div class="year-budget-cell">
@@ -81,19 +92,6 @@
               {{ (cell.percentage * 100).toFixed(0) }}%
             </div>
           </div>
-          <div class="col-year-income">
-            <div class="year-income-cell">
-              <div v-if="totalsRow.yearIncome > 0 || totalsRow.yearBalance !== 0" class="cell-content">
-                <div class="cell-balance" :class="{ negative: totalsRow.yearBalance < 0 }">
-                  {{ totalsRow.yearBalance.toFixed(0) }}
-                </div>
-                <div class="cell-divider"></div>
-                <div class="cell-income">
-                  {{ totalsRow.yearIncome.toFixed(0) }}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div v-if="visibleRows.length === 0" class="empty-row">
@@ -121,6 +119,16 @@
                 <span v-else class="expand-placeholder"></span>
               </template>
               <span class="note-name" :class="{ 'unlinked-name': row.isUnlinked }" @click.stop="onNoteClick(row.node.id)">{{ row.node.title }}</span>
+            </div>
+            <div class="col-summary">
+              <span v-if="row.yearBalance !== 0" class="summary-balance" :class="{ negative: row.yearBalance < 0 }">
+                {{ row.yearBalance.toFixed(0) }}
+              </span>
+            </div>
+            <div class="col-summary">
+              <span v-if="row.yearIncome > 0" class="summary-income">
+                {{ row.yearIncome.toFixed(0) }}
+              </span>
             </div>
             <div class="col-year-budget">
               <div v-if="row.hasOwnBudget" class="year-budget-cell">
@@ -194,19 +202,6 @@
                 </div>
               </div>
             </template>
-            <div class="col-year-income">
-              <div v-if="row.yearIncome > 0 || row.yearBalance !== 0" class="year-income-cell">
-                <div class="cell-content">
-                  <div class="cell-balance" :class="{ negative: row.yearBalance < 0 }">
-                    {{ row.yearBalance.toFixed(0) }}
-                  </div>
-                  <div class="cell-divider"></div>
-                  <div class="cell-income">
-                    {{ row.yearIncome.toFixed(0) }}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </template>
       </div>
@@ -978,7 +973,7 @@ function onNoteClick(noteId: string) {
   width: 82px;
   flex-shrink: 0;
   position: sticky;
-  left: 160px;
+  left: 276px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1201,49 +1196,50 @@ function onNoteClick(noteId: string) {
   color: rgba(0, 0, 0, 0.92);
 }
 
-/* 年结余/收入列 */
-.col-year-income {
-  width: 82px;
+/* 结余/收入列 - 项目右侧、年预算左侧 */
+.col-summary {
+  width: 58px;
   flex-shrink: 0;
-  position: sticky;
-  right: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 6px 4px;
   background: rgba(255, 255, 255, 0.95);
-  border-left: 0.5px solid rgba(60, 60, 67, 0.08);
+  border-right: 0.5px solid rgba(60, 60, 67, 0.08);
   z-index: 1;
   font-weight: 500;
+  text-align: center;
 }
 
-.table-footer .col-year-income {
+/* 结余列 - sticky left: 160px（紧跟 col-note） */
+.col-note + .col-summary {
+  position: sticky;
+  left: 160px;
+}
+
+/* 收入列 - sticky left: 218px（紧跟结余列） */
+.col-note + .col-summary + .col-summary {
+  position: sticky;
+  left: 218px;
+}
+
+.table-footer .col-summary {
   background: rgba(248, 248, 248, 0.95);
 }
 
-.year-income-cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  padding: 2px;
-  border-radius: 4px;
-}
-
-.cell-balance {
-  font-size: 12px;
+.summary-balance {
+  font-size: 13px;
   font-weight: 500;
   color: rgba(52, 199, 89, 0.9);
 }
 
-.cell-balance.negative {
+.summary-balance.negative {
   color: rgb(255, 59, 48);
 }
 
-.cell-income {
-  font-size: 11px;
+.summary-income {
+  font-size: 13px;
+  font-weight: 500;
   color: rgba(60, 60, 67, 0.6);
 }
 </style>
