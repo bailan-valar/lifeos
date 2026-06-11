@@ -208,6 +208,8 @@ import { useImportRecords } from '~/composables/useImportRecords'
 import { useImportRules } from '~/composables/useImportRules'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
+import { ICONS } from '~/composables/useIcons'
+import { fuzzyMatch } from '~/utils/pinyin'
 import { dedupeKey, buildExactDuplicateFingerprint } from '~/services/csvImport'
 import { storeToRefs } from 'pinia'
 import BillDialog from '../BillDialog.vue'
@@ -250,7 +252,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useBillingStore()
-const { isDateFiltered } = storeToRefs(store)
+const { isDateFiltered, billSearchQuery } = storeToRefs(store)
 const { confirm } = useConfirm()
 const { success: showSuccess, error: showError } = useToast()
 const { accounts } = useAccounts()
@@ -283,23 +285,45 @@ const linkRefundDialogVisible = ref(false)
 const linkRefundSourceBill = ref<Bill | undefined>(undefined)
 const linkRefundMode = ref<'link-refund' | 'link-as-refund'>('link-refund')
 
-// 搜索
-const billSearchQuery = ref('')
-
 // 右键菜单状态
 const billContextMenuVisible = ref(false)
 const billContextMenuBill = ref<Bill | null>(null)
 const billContextMenuX = ref(0)
 const billContextMenuY = ref(0)
 
+// 账单类型中文标签
+const TYPE_LABELS: Record<string, string> = {
+  income: '收入',
+  expense: '支出',
+  transfer: '转账',
+  debt: '借贷'
+}
+
 // 搜索过滤后的账单
 const displayBills = computed(() => {
-  const q = billSearchQuery.value.trim().toLowerCase()
+  const q = billSearchQuery.value.trim()
   if (!q) return props.bills
-  return props.bills.filter(b =>
-    (b.description || '').toLowerCase().includes(q) ||
-    (b.noteId || '').toLowerCase().includes(q)
-  )
+
+  // 预构建 id→name 查找表
+  const categoryMap = new Map(categories.value.map(c => [c.id, c.name]))
+  const accountMap = new Map(accounts.value.map(a => [a.id, a.name]))
+
+  return props.bills.filter(b => {
+    // 描述
+    if (fuzzyMatch(b.description || '', q)) return true
+    // 分类名
+    const catName = b.categoryId ? categoryMap.get(b.categoryId) : ''
+    if (catName && fuzzyMatch(catName, q)) return true
+    // 账户名
+    const fromName = b.fromAccountId ? accountMap.get(b.fromAccountId) : ''
+    if (fromName && fuzzyMatch(fromName, q)) return true
+    const toName = b.toAccountId ? accountMap.get(b.toAccountId) : ''
+    if (toName && fuzzyMatch(toName, q)) return true
+    // 类型标签
+    const typeLabel = TYPE_LABELS[b.type] || ''
+    if (typeLabel && fuzzyMatch(typeLabel, q)) return true
+    return false
+  })
 })
 
 // 计算属性
@@ -697,5 +721,76 @@ async function handleContextMenuDelete(bill: Bill) {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+/* 搜索框 */
+.search-box {
+  position: relative;
+  flex: 1;
+  max-width: 240px;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  font-size: 14px;
+  color: var(--liquid-text-tertiary);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 28px 6px 30px;
+  border: 0.5px solid rgba(60, 60, 67, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.86);
+  outline: none;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.search-input::placeholder {
+  color: var(--liquid-text-tertiary);
+}
+
+.search-input:focus {
+  border-color: rgba(60, 60, 67, 0.32);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.search-clear {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--liquid-text-tertiary);
+  font-size: 14px;
+}
+
+.search-clear:hover {
+  color: var(--liquid-text-secondary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .search-input {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.86);
+  }
+
+  .search-input:focus {
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.14);
+  }
 }
 </style>
