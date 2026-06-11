@@ -188,10 +188,10 @@ function createStore(): ImportRecordsStore {
         const parts = [datePart, amount.toFixed(2)]
 
         // 只添加有效的账户（非商户、非其他、非空）
-        if (fromAccountId && fromAccountType !== 'merchant' && fromAccountType !== 'other') {
+        if (fromAccountId && fromAccountType !== 'merchant' && fromAccountType !== 'other' && fromAccountType !== 'contact') {
           parts.push(fromAccountId)
         }
-        if (toAccountId && toAccountType !== 'merchant' && toAccountType !== 'other') {
+        if (toAccountId && toAccountType !== 'merchant' && toAccountType !== 'other' && toAccountType !== 'contact') {
           parts.push(toAccountId)
         }
 
@@ -245,10 +245,10 @@ function createStore(): ImportRecordsStore {
         const parts = [datePart, amount.toFixed(2)]
 
         // 只添加有效的账户（非商户、非其他、非空）
-        if (fromAccountId && fromAccountType !== 'merchant' && fromAccountType !== 'other') {
+        if (fromAccountId && fromAccountType !== 'merchant' && fromAccountType !== 'other' && fromAccountType !== 'contact') {
           parts.push(fromAccountId)
         }
-        if (toAccountId && toAccountType !== 'merchant' && toAccountType !== 'other') {
+        if (toAccountId && toAccountType !== 'merchant' && toAccountType !== 'other' && toAccountType !== 'contact') {
           parts.push(toAccountId)
         }
 

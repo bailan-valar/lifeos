@@ -119,7 +119,7 @@ import type {
   ImportRecordItem,
   ImportRecordStatus
 } from '~/types/bill'
-import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactDuplicateFingerprint, buildDuplicateFingerprint, dedupeKey } from '~/services/csvImport'
+import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactDuplicateFingerprint, buildDuplicateFingerprint, isAccountTypeValidForDuplicate, dedupeKey } from '~/services/csvImport'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { generateId, now } from '~/services/db'

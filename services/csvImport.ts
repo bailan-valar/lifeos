@@ -415,10 +415,26 @@ export async function parseCmbCreditPdf(buffer: ArrayBuffer): Promise<CsvParsedR
  * 检查账户是否参与重复判断
  * 空账户、商户、其他类型不参与重复判断
  */
+/**
+ * 不参与重复判断的账户类型
+ */
+const NON_DEDUP_ACCOUNT_TYPES = new Set(['merchant', 'other', 'contact'])
+
+/**
+ * 检查账户是否参与重复判断
+ * 只有 personal 类型的账户才参与比较
+ */
 export function isAccountValidForDuplicate(account: { id?: string | null; type?: string } | null | undefined): boolean {
   if (!account || !account.id) return false
-  if (account.type === 'merchant' || account.type === 'other') return false
-  return true
+  return !NON_DEDUP_ACCOUNT_TYPES.has(account.type || '')
+}
+
+/**
+ * 检查账户类型是否参与重复判断
+ */
+export function isAccountTypeValidForDuplicate(accountType: string | undefined): boolean {
+  if (!accountType) return false
+  return !NON_DEDUP_ACCOUNT_TYPES.has(accountType)
 }
 
 /**
@@ -437,11 +453,11 @@ export function buildDuplicateFingerprint(
   const dateKey = date.slice(0, 10)
   const parts = [dateKey, amount.toFixed(2)]
 
-  // 只添加有效的账户 ID
-  if (fromAccountId && fromAccountType !== 'merchant' && fromAccountType !== 'other') {
+  // 只添加有效的账户 ID（非商户、非其他、非人员、非空）
+  if (fromAccountId && !NON_DEDUP_ACCOUNT_TYPES.has(fromAccountType || '')) {
     parts.push(fromAccountId)
   }
-  if (toAccountId && toAccountType !== 'merchant' && toAccountType !== 'other') {
+  if (toAccountId && !NON_DEDUP_ACCOUNT_TYPES.has(toAccountType || '')) {
     parts.push(toAccountId)
   }
 

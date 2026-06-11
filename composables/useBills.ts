@@ -376,25 +376,26 @@ export function useBills() {
         const billFromType = billFromAccount?.get('type') as string | undefined
         const billToType = billToAccount?.get('type') as string | undefined
 
-        // 检查出账账户
+        // 检查出账账户（只有 personal 类型才参与比较）
+        const invalidTypes = new Set(['merchant', 'other', 'contact'])
         let fromMatch = true
-        if (fromAccountType && fromAccountType !== 'merchant' && fromAccountType !== 'other') {
+        if (fromAccountType && !invalidTypes.has(fromAccountType)) {
           // 导入项的出账账户有效，需要比较
-          if (billFromType && billFromType !== 'merchant' && billFromType !== 'other') {
+          if (billFromType && !invalidTypes.has(billFromType)) {
             // 旧账单的出账账户也有效，必须相同
             if (item.fromAccountId !== bill.fromAccountId) {
               fromMatch = false
             }
           }
-          // 如果旧账单的出账账户是商户/其他/空，则不比较
+          // 如果旧账单的出账账户是商户/其他/人员/空，则不比较
         }
-        // 如果导入项的出账账户是商户/其他/空，则不比较
+        // 如果导入项的出账账户是商户/其他/人员/空，则不比较
 
         // 检查入账账户
         let toMatch = true
-        if (toAccountType && toAccountType !== 'merchant' && toAccountType !== 'other') {
+        if (toAccountType && !invalidTypes.has(toAccountType)) {
           // 导入项的入账账户有效，需要比较
-          if (billToType && billToType !== 'merchant' && billToType !== 'other') {
+          if (billToType && !invalidTypes.has(billToType)) {
             // 旧账单的入账账户也有效，必须相同
             if (item.toAccountId !== bill.toAccountId) {
               toMatch = false
