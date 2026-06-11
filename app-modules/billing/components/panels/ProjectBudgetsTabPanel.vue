@@ -41,13 +41,11 @@
     @cancel="closeBudgetHistory"
   />
   <NoteMonthBillsDialog
-    v-if="monthBillsDialogVisible"
-    :visible="monthBillsDialogVisible"
+    v-model:visible="monthBillsDialogVisible"
     :note-id="monthBillsDialogData.noteId"
     :note-name="monthBillsDialogData.noteName"
     :year="monthBillsDialogData.year"
     :month="monthBillsDialogData.month"
-    @cancel="closeMonthBillsDialog"
   />
   <NoteEditDialog
     v-model:visible="noteEditDialogVisible"
@@ -121,7 +119,6 @@ function getNoteName(noteId: string): string {
 }
 
 function openMonthBillsDialog(payload: { noteId: string; year: number; month: number }) {
-  console.log('[ProjectBudgetsTabPanel] openMonthBillsDialog 被调用:', payload)
   monthBillsDialogData.value = {
     noteId: payload.noteId,
     noteName: getNoteName(payload.noteId),
@@ -129,11 +126,6 @@ function openMonthBillsDialog(payload: { noteId: string; year: number; month: nu
     month: payload.month
   }
   monthBillsDialogVisible.value = true
-  console.log('[ProjectBudgetsTabPanel] monthBillsDialogVisible 设置为 true')
-}
-
-function closeMonthBillsDialog() {
-  monthBillsDialogVisible.value = false
 }
 
 function onNoteClick(payload: { noteId: string; year: number; month: number }) {
