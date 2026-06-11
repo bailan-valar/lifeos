@@ -311,6 +311,8 @@ const displayBills = computed(() => {
   return props.bills.filter(b => {
     // 描述
     if (fuzzyMatch(b.description || '', q)) return true
+    // 金额
+    if (String(b.amount).includes(q)) return true
     // 分类名
     const catName = b.categoryId ? categoryMap.get(b.categoryId) : ''
     if (catName && fuzzyMatch(catName, q)) return true
