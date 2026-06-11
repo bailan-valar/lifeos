@@ -15,7 +15,7 @@
     </div>
 
     <div v-else class="bills-list">
-      <div v-for="bill in bills" :key="bill.id" class="bill-item">
+      <div v-for="bill in bills" :key="bill.id" class="bill-item" @click="openEditDialog(bill)">
         <div class="bill-icon" :style="getCategoryIconStyle(bill.categoryId)">
           <Icon :name="getCategoryIcon(bill.categoryId)" size="18" />
         </div>
@@ -42,13 +42,30 @@
       <button class="liquid-glass-button" @click="dialogVisible = false">关闭</button>
     </template>
   </BaseDialog>
+
+  <BillDialog
+    v-if="billDialogVisible"
+    :visible="billDialogVisible"
+    :bill="editingBill"
+    :accounts="accounts"
+    :categories="categories"
+    :note-options="noteOptions"
+    @update:visible="billDialogVisible = $event"
+    @confirm="handleBillConfirm"
+    @cancel="billDialogVisible = false"
+    @action-completed="loadBills"
+  />
 </template>
 
 <script setup lang="ts">
-import type { Bill } from '~/types/bill'
+import type { Bill, BillFormData } from '~/types/bill'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import { useBillCategories } from '~/composables/useBillCategories'
+import { useAccounts } from '~/composables/useAccounts'
+import { useBills } from '~/composables/useBills'
+import { useToast } from '~/composables/useToast'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
+import BillDialog from './BillDialog.vue'
 
 interface BillWithNoteTag extends Bill {
   noteTag?: string
@@ -67,7 +84,14 @@ const emit = defineEmits<{
 }>()
 
 const { categories } = useBillCategories()
-const { getDescendantNoteIds, notes } = useNotes()
+const { accounts } = useAccounts()
+const { updateBill } = useBills()
+const { success: showSuccess, error: showError } = useToast()
+const { getDescendantNoteIds, notes, noteOptions } = useNotes()
+
+// 账单编辑弹框状态
+const billDialogVisible = ref(false)
+const editingBill = ref<Bill | undefined>(undefined)
 
 const dialogVisible = computed({
   get: () => props.visible,
@@ -204,6 +228,24 @@ function formatDate(date: string): string {
   const d = new Date(date)
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
+
+function openEditDialog(bill: BillWithNoteTag) {
+  editingBill.value = bill
+  billDialogVisible.value = true
+}
+
+async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: string) {
+  try {
+    if (isEditing && id) {
+      await updateBill(id, data)
+      showSuccess('账单已更新')
+      await loadBills()
+    }
+    billDialogVisible.value = false
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
 </script>
 
 <style scoped>
@@ -262,10 +304,11 @@ function formatDate(date: string): string {
   background: var(--liquid-bg-thin);
   border-radius: 10px;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .bill-item:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .bill-icon {
