@@ -174,7 +174,7 @@ watch(() => props.visible, (visible) => {
     refundDate.value = new Date().toISOString().slice(0, 16)
     refundAccountId.value = getDefaultAccountId(props.bill)
   }
-})
+}, { immediate: true })
 
 watch(refundMode, (mode) => {
   if (mode === 'full' && props.bill) {
