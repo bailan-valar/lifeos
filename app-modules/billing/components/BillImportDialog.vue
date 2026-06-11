@@ -119,7 +119,7 @@ import type {
   ImportRecordItem,
   ImportRecordStatus
 } from '~/types/bill'
-import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactFingerprint, buildLooseFingerprint, dedupeKey, calculateIndexes, buildAccountBaseFingerprint, buildAccountExactFingerprint } from '~/services/csvImport'
+import { decodeCsvFile, parseAlipayCsv, parseWechatCsv, parseWechatXlsx, parseCmbPdf, parseCmbCreditPdf, buildExactDuplicateFingerprint, buildDuplicateFingerprint, dedupeKey } from '~/services/csvImport'
 import { useImportRules } from '~/composables/useImportRules'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { generateId, now } from '~/services/db'
@@ -152,8 +152,8 @@ const props = defineProps<{
   categories: BillCategory[]
   existingFingerprints: Set<string>
   /**
-   * 按账户统计的指纹数量
-   * key: "accountId|date|amount", value: 已存在数量
+   * 按基础指纹统计的数量（用于计算序号）
+   * key: "date|amount|fromId?|toId?", value: 已存在数量
    */
   existingFingerprintCounts: Map<string, number>
 }>()
@@ -273,52 +273,41 @@ function buildImportRecordItem(
 
   const debtSubtype = inferDebtSubtype(direction)
 
-  // 使用基于账户的指纹判断重复（只要有匹配到账户）
-  // 优先使用出账账户(myAccount)，如果没有则使用入账账户(counterpartyAccount)
-  let exactFingerprint: string
-  let isDuplicate = false
-  const accountForFingerprint = myAccount || counterpartyAccount
-
-  if (accountForFingerprint) {
-    // 基于账户的指纹：accountId|date|amount|index
-    const baseFingerprint = buildAccountBaseFingerprint(accountForFingerprint.id, parsed.date, parsed.amount)
-    // 计算该基础指纹的完整序号 = 已存在数量 + 当前序号
-    const existingCount = props.existingFingerprintCounts.get(baseFingerprint) || 0
-    const fullIndex = existingCount + fingerprintIndex
-    exactFingerprint = buildAccountExactFingerprint(accountForFingerprint.id, parsed.date, parsed.amount, fullIndex)
-
-    // 检查是否重复（与现有的精确指纹比较）
-    isDuplicate = props.existingFingerprints.has(exactFingerprint)
-
-    // 调试信息
-    console.log('[导入重复判断]', {
-      日期: parsed.date,
-      金额: parsed.amount,
-      账户: accountForFingerprint.name,
-      账户ID: accountForFingerprint.id,
-      基础指纹: baseFingerprint,
-      已存在数量: existingCount,
-      当前序号: fingerprintIndex,
-      完整序号: fullIndex,
-      精确指纹: exactFingerprint,
-      是否重复: isDuplicate
-    })
-  } else {
-    // 没有匹配到账户，使用基于来源的指纹
-    exactFingerprint = buildExactFingerprint(source.value, parsed.date, parsed.amount, fingerprintIndex)
-    isDuplicate = props.existingFingerprints.has(exactFingerprint)
-
-    // 调试信息
-    console.log('[导入重复判断-无账户]', {
-      来源: source.value,
-      日期: parsed.date,
-      金额: parsed.amount,
-      精确指纹: exactFingerprint,
-      是否重复: isDuplicate
-    })
-  }
-
+  // 获取建议的账户 ID
   const suggestion = suggestAccountIds(counterpartyAccount, myAccount, direction, billType)
+
+  // 构建指纹：日期|金额|出账账户|入账账户（商户/其他/空账户不参与）
+  const fromAccountId = suggestion.fromAccountId || null
+  const toAccountId = suggestion.toAccountId || null
+  const fromAccountType = fromAccountId ? props.accounts.find(a => a.id === fromAccountId)?.type : undefined
+  const toAccountType = toAccountId ? props.accounts.find(a => a.id === toAccountId)?.type : undefined
+
+  // 生成精确指纹
+  const exactFingerprint = buildExactDuplicateFingerprint(
+    parsed.date,
+    parsed.amount,
+    fromAccountId,
+    toAccountId,
+    fromAccountType,
+    toAccountType,
+    fingerprintIndex
+  )
+
+  // 检查是否重复
+  const isDuplicate = props.existingFingerprints.has(exactFingerprint)
+
+  // 调试信息
+  console.log('[导入重复判断]', {
+    日期: parsed.date,
+    金额: parsed.amount,
+    出账账户: fromAccountId,
+    出账账户类型: fromAccountType,
+    入账账户: toAccountId,
+    入账账户类型: toAccountType,
+    序号: fingerprintIndex,
+    精确指纹: exactFingerprint,
+    是否重复: isDuplicate
+  })
 
   const categoryId = counterpartyRule?.categoryId
     || paymentMethodRule?.categoryId
@@ -398,26 +387,39 @@ async function onFileChange(event: Event) {
     // 所有来源：按账户分组统计基础指纹数量
     const matchResults = parsedRows.map(row => matchAccount(row))
 
-    // 按账户分组统计每个基础指纹的数量
-    const accountGroupCount = new Map<string, number>()
+    // 按基础指纹统计数量（用于计算序号）
+    const baseFingerprintCount = new Map<string, number>()
     const fingerprintCountMap = new Map<number, number>() // 记录每行的序号
 
     for (let i = 0; i < matchResults.length; i++) {
       const matchResult = matchResults[i]
       const parsed = parsedRows[i]
 
-      // 优先使用出账账户，其次使用入账账户
-      const accountForFingerprint = matchResult.myAccount || matchResult.counterpartyAccount
+      // 获取建议的账户 ID（用于构建指纹）
+      const tempBillType = source.value === 'alipay' && parsed.rawPaymentDirection
+        ? inferAlipayBillType(parsed, matchResult.counterpartyAccount).type
+        : inferBillType(matchResult.counterpartyAccount, parsed.direction)
+      const tempDirection = parsed.direction
+      const tempSuggestion = suggestAccountIds(matchResult.counterpartyAccount, matchResult.myAccount, tempDirection, tempBillType)
 
-      if (accountForFingerprint) {
-        const baseFingerprint = buildAccountBaseFingerprint(accountForFingerprint.id, parsed.date, parsed.amount)
-        const count = accountGroupCount.get(baseFingerprint) || 0
-        fingerprintCountMap.set(i, count)
-        accountGroupCount.set(baseFingerprint, count + 1)
-      } else {
-        // 没有匹配到账户，使用基于来源的指纹
-        fingerprintCountMap.set(i, 0)
-      }
+      const fromAccountId = tempSuggestion.fromAccountId || null
+      const toAccountId = tempSuggestion.toAccountId || null
+      const fromAccountType = fromAccountId ? props.accounts.find(a => a.id === fromAccountId)?.type : undefined
+      const toAccountType = toAccountId ? props.accounts.find(a => a.id === toAccountId)?.type : undefined
+
+      // 构建基础指纹（不带序号）
+      const baseFingerprint = buildDuplicateFingerprint(
+        parsed.date,
+        parsed.amount,
+        fromAccountId,
+        toAccountId,
+        fromAccountType,
+        toAccountType
+      )
+
+      const count = baseFingerprintCount.get(baseFingerprint) || 0
+      fingerprintCountMap.set(i, count)
+      baseFingerprintCount.set(baseFingerprint, count + 1)
     }
 
     // 生成导入记录项
@@ -488,22 +490,38 @@ async function handleEmailFileLoaded(data: { name: string; content: ArrayBuffer;
     let items: ImportRecordItem[]
 
     const matchResults = parsedRows.map(row => matchAccount(row))
-    const accountGroupCount = new Map<string, number>()
+    const baseFingerprintCount = new Map<string, number>()
     const fingerprintCountMap = new Map<number, number>()
 
     for (let i = 0; i < matchResults.length; i++) {
       const matchResult = matchResults[i]
       const parsed = parsedRows[i]
-      const accountForFingerprint = matchResult.myAccount || matchResult.counterpartyAccount
 
-      if (accountForFingerprint) {
-        const baseFingerprint = buildAccountBaseFingerprint(accountForFingerprint.id, parsed.date, parsed.amount)
-        const count = accountGroupCount.get(baseFingerprint) || 0
-        fingerprintCountMap.set(i, count)
-        accountGroupCount.set(baseFingerprint, count + 1)
-      } else {
-        fingerprintCountMap.set(i, 0)
-      }
+      // 获取建议的账户 ID（用于构建指纹）
+      const tempBillType = fileSource === 'alipay' && parsed.rawPaymentDirection
+        ? inferAlipayBillType(parsed, matchResult.counterpartyAccount).type
+        : inferBillType(matchResult.counterpartyAccount, parsed.direction)
+      const tempDirection = parsed.direction
+      const tempSuggestion = suggestAccountIds(matchResult.counterpartyAccount, matchResult.myAccount, tempDirection, tempBillType)
+
+      const fromAccountId = tempSuggestion.fromAccountId || null
+      const toAccountId = tempSuggestion.toAccountId || null
+      const fromAccountType = fromAccountId ? props.accounts.find(a => a.id === fromAccountId)?.type : undefined
+      const toAccountType = toAccountId ? props.accounts.find(a => a.id === toAccountId)?.type : undefined
+
+      // 构建基础指纹（不带序号）
+      const baseFingerprint = buildDuplicateFingerprint(
+        parsed.date,
+        parsed.amount,
+        fromAccountId,
+        toAccountId,
+        fromAccountType,
+        toAccountType
+      )
+
+      const count = baseFingerprintCount.get(baseFingerprint) || 0
+      fingerprintCountMap.set(i, count)
+      baseFingerprintCount.set(baseFingerprint, count + 1)
     }
 
     items = parsedRows.map((row, idx) => {

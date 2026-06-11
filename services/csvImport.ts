@@ -412,103 +412,64 @@ export async function parseCmbCreditPdf(buffer: ArrayBuffer): Promise<CsvParsedR
 
 
 /**
- * 是否具有精确时间（支付宝、微信有精确到秒的时间）
+ * 检查账户是否参与重复判断
+ * 空账户、商户、其他类型不参与重复判断
  */
-function hasPreciseTime(source: ImportSource): boolean {
-  return source === 'alipay' || source === 'wechat'
+export function isAccountValidForDuplicate(account: { id?: string | null; type?: string } | null | undefined): boolean {
+  if (!account || !account.id) return false
+  if (account.type === 'merchant' || account.type === 'other') return false
+  return true
 }
 
 /**
- * 基础指纹：来源 + 日期 + 金额
- * 不包含对方字段，因为用户不可能每次都设置对方
+ * 构建重复判断的基础指纹
+ * 格式：date|amount|fromId|toId
+ * 只包含有效的账户（非空、非商户、非其他）
  */
-function buildBaseFingerprint(
-  source: ImportSource,
-  date: string,
-  amount: number
-): string {
-  const dateKey = hasPreciseTime(source) ? date.slice(0, 16) : date.slice(0, 10)
-  return `${source}|${dateKey}|${amount.toFixed(2)}`
-}
-
-/**
- * 精确去重指纹：包含序号，处理同日多笔相同金额的场景
- * 格式：来源|时间|金额|序号
- * 序号从0开始，同日内相同基础指纹的交易递增
- */
-export function buildExactFingerprint(
-  source: ImportSource,
+export function buildDuplicateFingerprint(
   date: string,
   amount: number,
-  index: number = 0
-): string {
-  const base = buildBaseFingerprint(source, date, amount)
-  // 对于有精确时间的来源，序号通常为0（时间已区分）
-  // 对于只有日期的来源，序号用于区分同日多笔
-  if (hasPreciseTime(source) && index === 0) {
-    return base
-  }
-  return `${base}|${index}`
-}
-
-/**
- * 计算导入数据的序号（用于处理同日多笔相同金额）
- * 对相同基础指纹的行进行分组，每组的序号递增
- */
-export function calculateIndexes(rows: Array<{ source: ImportSource; date: string; amount: number }>): Map<number, number> {
-  const indexMap = new Map<number, number>()
-  const groupCount = new Map<string, number>()
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]
-    const base = buildBaseFingerprint(row.source, row.date, row.amount)
-    const count = groupCount.get(base) || 0
-    indexMap.set(i, count)
-    groupCount.set(base, count + 1)
-  }
-
-  return indexMap
-}
-
-/**
- * 基于账户的基础指纹：账户 + 日期 + 金额
- * 用于招商信用卡等需要按账户去重的场景
- */
-export function buildAccountBaseFingerprint(
-  accountId: string,
-  date: string,
-  amount: number
+  fromAccountId: string | null,
+  toAccountId: string | null,
+  fromAccountType?: string,
+  toAccountType?: string
 ): string {
   const dateKey = date.slice(0, 10)
-  return `${accountId}|${dateKey}|${amount.toFixed(2)}`
+  const parts = [dateKey, amount.toFixed(2)]
+
+  // 只添加有效的账户 ID
+  if (fromAccountId && fromAccountType !== 'merchant' && fromAccountType !== 'other') {
+    parts.push(fromAccountId)
+  }
+  if (toAccountId && toAccountType !== 'merchant' && toAccountType !== 'other') {
+    parts.push(toAccountId)
+  }
+
+  return parts.join('|')
 }
 
 /**
- * 基于账户的精确指纹：账户 + 日期 + 金额 + 序号
- * 处理同一天多笔相同金额的情况
+ * 构建精确指纹（包含序号）
+ * 格式：基础指纹|序号
+ * 用于处理同日多笔相同金额的情况
  */
-export function buildAccountExactFingerprint(
-  accountId: string,
+export function buildExactDuplicateFingerprint(
   date: string,
   amount: number,
+  fromAccountId: string | null,
+  toAccountId: string | null,
+  fromAccountType?: string,
+  toAccountType?: string,
   index: number = 0
 ): string {
-  const base = buildAccountBaseFingerprint(accountId, date, amount)
+  const base = buildDuplicateFingerprint(date, amount, fromAccountId, toAccountId, fromAccountType, toAccountType)
   return `${base}|${index}`
 }
 
 /**
- * @deprecated 使用 buildExactFingerprint 替代
+ * @deprecated 使用 buildDuplicateFingerprint 替代
  * 去重指纹:同一日期 + 金额 + 对方 视为重复
  */
 export function dedupeKey(date: string, amount: number, counterparty: string): string {
-  // 保持向后兼容，但不再使用对方字段
-  return `${date.slice(0, 10)}|${amount.toFixed(2)}`
-}
-
-/**
- * @deprecated 已废弃，不再使用对方字段
- */
-export function buildLooseFingerprint(date: string, amount: number, counterparty: string): string {
   return `${date.slice(0, 10)}|${amount.toFixed(2)}`
 }

@@ -155,56 +155,50 @@ function createStore(): ImportRecordsStore {
 
   /**
    * 从数据库加载所有账单的指纹（用于去重判断）
-   * 重新计算指纹为基于账户的格式，确保不同来源的账单能正确匹配
+   * 使用新格式：date|amount|fromId?|toId?|index
+   * 商户/其他/空账户不参与指纹
    */
   async function loadAllBillFingerprints(noteId?: string): Promise<Set<string>> {
     try {
       const db = await getDB()
       const selector: Record<string, unknown> = noteId ? { noteId } : {}
-      // 只查询有 importFingerprint 的账单
+      // 查询所有账单（不仅仅是有 importFingerprint 的）
       const result = await db.bills.find({
-        selector: {
-          ...selector,
-          importFingerprint: { $exists: true }
-        }
+        selector
       }).exec()
 
       const set = new Set<string>()
       for (const doc of result) {
-        const oldFingerprint = doc.get('importFingerprint') as string
-        if (!oldFingerprint) continue
-
         // 获取账单信息
         const date = doc.get('date') as string
         const amount = doc.get('amount') as number
         const fromAccountId = doc.get('fromAccountId') as string
         const toAccountId = doc.get('toAccountId') as string
 
-        if (!date || amount == null) {
-          // 没有日期或金额，使用旧指纹
-          set.add(oldFingerprint)
-          continue
-        }
+        if (!date || amount == null) continue
 
-        // 优先使用出账账户，其次使用入账账户
-        const accountId = fromAccountId || toAccountId
+        // 获取账户类型
+        const fromAccount = fromAccountId ? await db.accounts.findOne(fromAccountId).exec() : null
+        const toAccount = toAccountId ? await db.accounts.findOne(toAccountId).exec() : null
+        const fromAccountType = fromAccount?.get('type') as string | undefined
+        const toAccountType = toAccount?.get('type') as string | undefined
 
-        if (!accountId) {
-          // 没有账户，使用旧指纹
-          set.add(oldFingerprint)
-          continue
-        }
-
-        // 重新计算基于账户的精确指纹
-        // 从旧指纹中提取序号（如果有的话）
-        const parts = oldFingerprint.split('|')
-        const index = parts.length >= 4 ? parseInt(parts[3], 10) : 0
-
-        // date 格式可能是 "2024-01-01T12:00:00.000Z"，需要只取日期部分
+        // 构建指纹
         const datePart = date.slice(0, 10)
+        const parts = [datePart, amount.toFixed(2)]
 
-        // 生成新的精确指纹：accountId|date|amount|index
-        const newFingerprint = `${accountId}|${datePart}|${amount.toFixed(2)}|${index}`
+        // 只添加有效的账户（非商户、非其他、非空）
+        if (fromAccountId && fromAccountType !== 'merchant' && fromAccountType !== 'other') {
+          parts.push(fromAccountId)
+        }
+        if (toAccountId && toAccountType !== 'merchant' && toAccountType !== 'other') {
+          parts.push(toAccountId)
+        }
+
+        // 添加序号（每个账单的序号固定为 0，因为旧账单没有序号概念）
+        parts.push('0')
+
+        const newFingerprint = parts.join('|')
         set.add(newFingerprint)
       }
       return set
@@ -215,30 +209,23 @@ function createStore(): ImportRecordsStore {
   }
 
   /**
-   * 从数据库加载按账户统计的指纹数量（用于招商信用卡去重）
+   * 从数据库加载按基础指纹统计的数量（用于计算序号）
    * 返回 Map<baseFingerprint, count>
-   * baseFingerprint 格式：accountId|date|amount
+   * baseFingerprint 格式：date|amount|fromId?|toId?
    *
-   * 注意：这里需要重新计算指纹，因为旧账单的指纹可能是基于来源的
-   * 新逻辑要求所有账单都使用基于账户的指纹
+   * 商户/其他/空账户不参与指纹
    */
   async function loadAllBillFingerprintCounts(noteId?: string): Promise<Map<string, number>> {
     try {
       const db = await getDB()
       const selector: Record<string, unknown> = noteId ? { noteId } : {}
-      // 查询所有有 importFingerprint 的账单
+      // 查询所有账单
       const result = await db.bills.find({
-        selector: {
-          ...selector,
-          importFingerprint: { $exists: true }
-        }
+        selector
       }).exec()
 
       const countMap = new Map<string, number>()
       for (const doc of result) {
-        const fp = doc.get('importFingerprint') as string
-        if (!fp) continue
-
         // 获取账单信息
         const date = doc.get('date') as string
         const amount = doc.get('amount') as number
@@ -247,25 +234,25 @@ function createStore(): ImportRecordsStore {
 
         if (!date || amount == null) continue
 
-        // 优先使用出账账户，其次使用入账账户
-        const accountId = fromAccountId || toAccountId
+        // 获取账户类型
+        const fromAccount = fromAccountId ? await db.accounts.findOne(fromAccountId).exec() : null
+        const toAccount = toAccountId ? await db.accounts.findOne(toAccountId).exec() : null
+        const fromAccountType = fromAccount?.get('type') as string | undefined
+        const toAccountType = toAccount?.get('type') as string | undefined
 
-        if (!accountId) {
-          // 没有账户，使用旧指纹格式
-          const parts = fp.split('|')
-          if (parts.length >= 3) {
-            const baseFingerprint = parts.slice(0, 3).join('|')
-            const count = countMap.get(baseFingerprint) || 0
-            countMap.set(baseFingerprint, count + 1)
-          }
-          continue
+        // 构建基础指纹（不带序号）
+        const datePart = date.slice(0, 10)
+        const parts = [datePart, amount.toFixed(2)]
+
+        // 只添加有效的账户（非商户、非其他、非空）
+        if (fromAccountId && fromAccountType !== 'merchant' && fromAccountType !== 'other') {
+          parts.push(fromAccountId)
+        }
+        if (toAccountId && toAccountType !== 'merchant' && toAccountType !== 'other') {
+          parts.push(toAccountId)
         }
 
-        // 重新计算基于账户的基础指纹：accountId|date|amount
-        // date 格式可能是 "2024-01-01T12:00:00.000Z"，需要只取日期部分
-        const datePart = date.slice(0, 10)
-        const baseFingerprint = `${accountId}|${datePart}|${amount.toFixed(2)}`
-
+        const baseFingerprint = parts.join('|')
         const count = countMap.get(baseFingerprint) || 0
         countMap.set(baseFingerprint, count + 1)
       }

@@ -350,18 +350,63 @@ export function useBills() {
         continue
       }
 
-      // 精确重复检查：检查数据库中是否有完全相同的账单
-      // 包含：日期、金额、账户、类型（不包含对方，因为用户可能不设置）
-      const existingDuplicate = await db.bills.findOne({
+      // 精确重复检查：检查数据库中是否有相同账单
+      // 规则：日期、金额相同，且账户匹配（商户/其他/空账户不参与比较）
+      const dateKey = item.date.slice(0, 10)
+      const candidateBills = await db.bills.find({
         selector: {
           noteId,
-          date: { $gte: `${item.date.slice(0, 10)}T00:00:00.000Z`, $lt: `${item.date.slice(0, 10)}T23:59:59.999Z` },
-          amount: item.amount,
-          fromAccountId: item.fromAccountId || '',
-          toAccountId: item.toAccountId || '',
-          type: item.type || 'expense'
+          date: { $gte: `${dateKey}T00:00:00.000Z`, $lt: `${dateKey}T23:59:59.999Z` },
+          amount: item.amount
         }
       }).exec()
+
+      // 获取导入项的账户信息（需要查询账户类型）
+      const fromAccount = item.fromAccountId ? await db.accounts.findOne(item.fromAccountId).exec() : null
+      const toAccount = item.toAccountId ? await db.accounts.findOne(item.toAccountId).exec() : null
+      const fromAccountType = fromAccount?.get('type') as string | undefined
+      const toAccountType = toAccount?.get('type') as string | undefined
+
+      // 检查是否有重复
+      let existingDuplicate: any = null
+      for (const billDoc of candidateBills) {
+        const bill = billDoc.toJSON() as any
+        const billFromAccount = bill.fromAccountId ? await db.accounts.findOne(bill.fromAccountId).exec() : null
+        const billToAccount = bill.toAccountId ? await db.accounts.findOne(bill.toAccountId).exec() : null
+        const billFromType = billFromAccount?.get('type') as string | undefined
+        const billToType = billToAccount?.get('type') as string | undefined
+
+        // 检查出账账户
+        let fromMatch = true
+        if (fromAccountType && fromAccountType !== 'merchant' && fromAccountType !== 'other') {
+          // 导入项的出账账户有效，需要比较
+          if (billFromType && billFromType !== 'merchant' && billFromType !== 'other') {
+            // 旧账单的出账账户也有效，必须相同
+            if (item.fromAccountId !== bill.fromAccountId) {
+              fromMatch = false
+            }
+          }
+          // 如果旧账单的出账账户是商户/其他/空，则不比较
+        }
+        // 如果导入项的出账账户是商户/其他/空，则不比较
+
+        // 检查入账账户
+        let toMatch = true
+        if (toAccountType && toAccountType !== 'merchant' && toAccountType !== 'other') {
+          // 导入项的入账账户有效，需要比较
+          if (billToType && billToType !== 'merchant' && billToType !== 'other') {
+            // 旧账单的入账账户也有效，必须相同
+            if (item.toAccountId !== bill.toAccountId) {
+              toMatch = false
+            }
+          }
+        }
+
+        if (fromMatch && toMatch) {
+          existingDuplicate = billDoc
+          break
+        }
+      }
 
       if (existingDuplicate) {
         skippedCount++
