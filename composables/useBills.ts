@@ -78,7 +78,25 @@ export function useBills() {
     }
   }
 
-  async function reloadFromRemote() {
+  async function reloadFromRemote(silent = false) {
+    if (!lastReloadContext) {
+      await loadBills()
+      return
+    }
+    // 静默模式：临时保存并恢复 loading 状态，避免 UI 闪烁
+    if (silent) {
+      const prevLoading = loading.value
+      try {
+        await doReloadFromRemote()
+      } finally {
+        loading.value = prevLoading
+      }
+    } else {
+      await doReloadFromRemote()
+    }
+  }
+
+  async function doReloadFromRemote() {
     if (!lastReloadContext) {
       await loadBills()
       return
@@ -885,6 +903,32 @@ export function useBills() {
   }
 
   /**
+   * 关联退款账单（不创建新账单，只更新退款账单的关联字段）
+   * @param originalBillId 原始账单ID（通常是支出账单）
+   * @param refundBillId 要关联为退款的账单ID（通常是收入账单）
+   */
+  async function linkRefundBill(
+    originalBillId: string,
+    refundBillId: string
+  ): Promise<void> {
+    const db = await getDB()
+    const refundDoc = await db.bills.findOne(refundBillId).exec()
+    if (!refundDoc) throw new Error('退款账单不存在')
+
+    const refundBill = refundDoc.toJSON() as Bill
+    if (refundBill.isRefund && refundBill.originalBillId) {
+      throw new Error('该账单已关联为退款，请先解除关联')
+    }
+    if (originalBillId === refundBillId) throw new Error('不能关联自身')
+
+    await refundDoc.patch({
+      isRefund: true,
+      originalBillId,
+      updatedAt: now(),
+    })
+  }
+
+  /**
    * 获取某账单的所有退款记录
    */
   async function getRefundsForBill(billId: string): Promise<Bill[]> {
@@ -956,7 +1000,7 @@ export function useBills() {
   function startWatching() {
     if (unsubscribe) return
     unsubscribe = onCollectionChange('bills', () => {
-      reloadFromRemote()
+      reloadFromRemote(true)
     })
   }
 
@@ -1029,6 +1073,7 @@ export function useBills() {
     splitBill,
     allocatePeriod,
     createRefundBill,
+    linkRefundBill,
     getRefundsForBill,
     getEffectiveAmount,
     createInstallmentBills,

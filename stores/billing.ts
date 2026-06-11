@@ -118,6 +118,7 @@ export const useBillingStore = defineStore('billing', () => {
   // ========== 筛选状态 ==========
   const billYearFilter = ref<number | null>(new Date().getFullYear())
   const billMonthFilter = ref<number | null>(new Date().getMonth() + 1)
+  const billSearchQuery = ref('')
 
   const billYearOptions = computed<number[]>(() => {
     const current = new Date().getFullYear()
@@ -179,6 +180,7 @@ export const useBillingStore = defineStore('billing', () => {
     // 筛选
     billYearFilter,
     billMonthFilter,
+    billSearchQuery,
     billYearOptions,
     billMonthOptions,
     isDateFiltered,

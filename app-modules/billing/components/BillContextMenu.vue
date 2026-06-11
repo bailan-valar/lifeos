@@ -66,6 +66,28 @@
             <span>退款</span>
           </button>
 
+          <!-- 关联退款（从支出账单出发，选择收入账单关联为退款） -->
+          <button
+            v-if="canLinkRefund"
+            type="button"
+            class="menu-item"
+            @click="handleLinkRefund"
+          >
+            <Icon :name="SOLAR_ICONS.action.link" size="16" />
+            <span>关联退款</span>
+          </button>
+
+          <!-- 关联为退款（从收入账单出发，选择支出账单作为原始账单） -->
+          <button
+            v-if="canLinkAsRefund"
+            type="button"
+            class="menu-item"
+            @click="handleLinkAsRefund"
+          >
+            <Icon :name="SOLAR_ICONS.action.link" size="16" />
+            <span>关联为退款</span>
+          </button>
+
           <div class="menu-divider" />
 
           <!-- 删除 -->
@@ -84,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import type { Bill } from '~/types/bill'
 
@@ -101,11 +124,23 @@ const emit = defineEmits<{
   split: [bill: Bill]
   allocate: [bill: Bill]
   refund: [bill: Bill]
+  'link-refund': [bill: Bill]
+  'link-as-refund': [bill: Bill]
   delete: [bill: Bill]
   reposition: [x: number, y: number]
 }>()
 
 const { isMobile } = useDevice()
+
+const canLinkRefund = computed(() => {
+  const b = props.bill
+  return b && b.type === 'expense' && !b.isRefund && !b.parentId
+})
+
+const canLinkAsRefund = computed(() => {
+  const b = props.bill
+  return b && b.type === 'income' && !b.isRefund && !b.parentId
+})
 
 function close() {
   emit('update:visible', false)
@@ -148,6 +183,20 @@ function handleAllocate() {
 function handleRefund() {
   if (props.bill) {
     emit('refund', props.bill)
+    close()
+  }
+}
+
+function handleLinkRefund() {
+  if (props.bill) {
+    emit('link-refund', props.bill)
+    close()
+  }
+}
+
+function handleLinkAsRefund() {
+  if (props.bill) {
+    emit('link-as-refund', props.bill)
     close()
   }
 }

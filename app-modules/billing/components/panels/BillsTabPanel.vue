@@ -1,18 +1,37 @@
 <template>
   <div class="tab-panel">
     <div class="panel-header bills-header">
-      <!-- 第一行：视图切换 | 日期 -->
+      <!-- 第一行：视图切换 | 搜索 | 日期 -->
       <div class="header-row row-1">
         <BillViewToggle :mode="store.viewMode" @mode-change="store.viewMode = $event" />
+        <div class="search-box">
+          <Icon :name="ICONS.magnifer" class="search-icon" />
+          <input
+            v-model="billSearchQuery"
+            type="text"
+            placeholder="搜索账单..."
+            class="search-input"
+            spellcheck="false"
+          />
+          <button
+            v-if="billSearchQuery"
+            class="search-clear"
+            @click="billSearchQuery = ''"
+            type="button"
+            title="清空"
+          >
+            <Icon :name="ICONS.closeCircleBold" />
+          </button>
+        </div>
         <BillDateFilter />
       </div>
 
       <!-- 第二行：统计 / 批量工具栏 -->
       <BillStatsBar
         v-if="!batchMode"
-        :income="totalIncome"
-        :expense="totalExpense"
-        :balance="netBalance"
+        :income="displayTotalIncome"
+        :expense="displayTotalExpense"
+        :balance="displayNetBalance"
       />
       <BillBatchToolbar
         v-else
@@ -31,7 +50,7 @@
     <div class="list-container">
       <BillCalendar
         v-if="store.viewMode === 'calendar'"
-        :bills="bills"
+        :bills="displayBills"
         :loading="loading"
         @edit="(bill) => billDialogs.openBillDialog(bill)"
         @contextmenu="openBillContextMenu"
@@ -39,7 +58,7 @@
       <BillSkeleton v-else-if="loading && bills.length === 0" />
       <BillList
         v-else-if="store.viewMode === 'card'"
-        :bills="bills"
+        :bills="displayBills"
         :selectable="batchMode"
         :selected-ids="selectedIds"
         @edit="(bill) => billDialogs.openBillDialog(bill)"
@@ -54,7 +73,7 @@
       />
       <BillTable
         v-else
-        :bills="bills"
+        :bills="displayBills"
         :accounts="accounts"
         :categories="categories"
         :selectable="batchMode"
@@ -69,7 +88,7 @@
     </div>
 
     <LoadMoreButton
-      v-if="hasMore && !isDateFiltered && !batchMode"
+      v-if="hasMore && !isDateFiltered && !batchMode && !billSearchQuery"
       :loading="loading"
       @click="handleLoadMore"
     />
@@ -160,7 +179,18 @@
       @split="handleSplitBill"
       @allocate="handleAllocateBill"
       @refund="handleRefundBill"
+      @link-refund="handleLinkRefund"
+      @link-as-refund="handleLinkAsRefund"
       @delete="handleContextMenuDelete"
+    />
+    <BillLinkRefundDialog
+      v-if="linkRefundDialogVisible && linkRefundSourceBill"
+      :visible="linkRefundDialogVisible"
+      :source-bill="linkRefundSourceBill"
+      :mode="linkRefundMode"
+      @select="handleLinkRefundConfirm"
+      @update:visible="linkRefundDialogVisible = $event"
+      @close="linkRefundDialogVisible = false"
     />
   </div>
 </template>
@@ -199,6 +229,7 @@ import { useBillDialogs } from '../../composables/useBillDialogs'
 import BillSplitDialog from '../BillSplitDialog.vue'
 import BillAllocateDialog from '../BillAllocateDialog.vue'
 import BillRefundDialog from '../BillRefundDialog.vue'
+import BillLinkRefundDialog from '../BillLinkRefundDialog.vue'
 import BillContextMenu from '../BillContextMenu.vue'
 
 const props = defineProps<{
@@ -225,7 +256,7 @@ const { success: showSuccess, error: showError } = useToast()
 const { accounts } = useAccounts()
 const { categories } = useBillCategories()
 const { noteOptions } = useNotes()
-const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore, splitBill, allocatePeriod, createRefundBill } = useBills()
+const { createBill, updateBill, deleteBill, deleteBills, updateBills, createBillsBatch, loadMoreBills, hasMore, splitBill, allocatePeriod, createRefundBill, linkRefundBill } = useBills()
 const { records: importRecords, getById, rollback, deleteImportRecord, fingerprintsAcrossRecords, loadAllBillFingerprints, loadAllBillFingerprintCounts } = useImportRecords()
 const { rules: importRules, createImportRule, updateImportRule } = useImportRules()
 
@@ -246,6 +277,11 @@ const allocateDialogVisible = ref(false)
 const allocatingBill = ref<Bill | undefined>(undefined)
 const refundDialogVisible = ref(false)
 const refundingBill = ref<Bill | undefined>(undefined)
+
+// 关联退款状态
+const linkRefundDialogVisible = ref(false)
+const linkRefundSourceBill = ref<Bill | undefined>(undefined)
+const linkRefundMode = ref<'link-refund' | 'link-as-refund'>('link-refund')
 
 // 右键菜单状态
 const billContextMenuVisible = ref(false)
@@ -507,6 +543,48 @@ async function handleRefundConfirm(amount: number, reason: string, date: string,
     showSuccess('退款账单已创建')
     refundDialogVisible.value = false
     refundingBill.value = undefined
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+// 关联退款处理
+function handleLinkRefund(bill: Bill) {
+  linkRefundSourceBill.value = bill
+  linkRefundMode.value = 'link-refund'
+  linkRefundDialogVisible.value = true
+}
+
+function handleLinkAsRefund(bill: Bill) {
+  linkRefundSourceBill.value = bill
+  linkRefundMode.value = 'link-as-refund'
+  linkRefundDialogVisible.value = true
+}
+
+async function handleLinkRefundConfirm(targetBill: Bill) {
+  if (!linkRefundSourceBill.value) return
+
+  const sourceAmount = linkRefundSourceBill.value.amount
+  if (targetBill.amount !== sourceAmount) {
+    const ok = await confirm({
+      message: `退款金额 (¥${targetBill.amount.toFixed(2)}) 与原账单金额 (¥${sourceAmount.toFixed(2)}) 不一致，确定关联？`,
+      title: '金额不一致',
+    })
+    if (!ok) return
+  }
+
+  const originalBillId = linkRefundMode.value === 'link-refund'
+    ? linkRefundSourceBill.value.id
+    : targetBill.id
+  const refundBillId = linkRefundMode.value === 'link-refund'
+    ? targetBill.id
+    : linkRefundSourceBill.value.id
+
+  try {
+    await linkRefundBill(originalBillId, refundBillId)
+    showSuccess('退款关联成功')
+    linkRefundDialogVisible.value = false
+    linkRefundSourceBill.value = undefined
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
