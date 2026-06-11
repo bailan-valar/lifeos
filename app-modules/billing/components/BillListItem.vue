@@ -6,19 +6,31 @@
         `type-${bill.type}`,
         { 'is-child': bill.parentId },
         { 'is-refund': bill.isRefund },
-        { 'has-children': bill.hasChildren && !bill.parentId }
+        { 'has-children': bill.hasChildren && !bill.parentId },
+        { 'is-selected': selected },
+        { 'is-compact': compact }
       ]"
       @click="$emit('click', bill)"
+      @contextmenu.prevent="onContextMenu"
     >
+      <!-- 选择框 -->
+      <div v-if="selectable" class="bill-checkbox">
+        <input
+          type="checkbox"
+          :checked="selected"
+          @change.stop="$emit('select', bill.id)"
+        />
+      </div>
+
       <!-- 展开/收起按钮 -->
       <button
         v-if="bill.hasChildren && !bill.parentId && !bill.isRefund"
         type="button"
         class="expand-btn"
-        :class="{ expanded: isExpanded }"
-        @click.stop="toggleExpand"
+        :class="{ expanded: effectiveExpanded }"
+        @click.stop="onToggleExpand"
       >
-        <Icon :name="isExpanded ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right" size="14" />
+        <Icon :name="effectiveExpanded ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right" size="14" />
       </button>
       <div v-else-if="bill.parentId" class="child-placeholder"></div>
       <div v-else class="expand-placeholder"></div>
@@ -31,7 +43,8 @@
           <!-- 子账单标记 -->
           <span v-if="bill.parentId" class="child-badge">子账单</span>
           <!-- 退款标记 -->
-          <span v-if="bill.isRefund" class="refund-badge">退款</span>
+          <span v-if="refundBadge === 'refund' || (refundBadge === 'auto' && bill.isRefund)" class="refund-badge">退款</span>
+          <span v-if="refundBadge === 'source' && !bill.isRefund" class="refund-badge">已退款</span>
           <!-- 可节省标记 -->
           <span v-if="bill.isSavable && bill.type === 'expense'" class="savable-badge">可节省</span>
           <!-- 分摊月份标记 -->
@@ -43,13 +56,20 @@
           </span>
           <span v-else class="bill-category-empty">未分类</span>
         </div>
-        <div class="bill-secondary-row">
+        <!-- 完整二级信息行 -->
+        <div v-if="!compact" class="bill-secondary-row">
           <span v-if="noteTag" class="bill-note-tag">{{ noteTag }}</span>
           <span class="bill-datetime">{{ formatDateTime(bill.date) }}</span>
           <span class="bill-sep">·</span>
           <span class="bill-account">{{ accountName }}</span>
           <span class="bill-sep">·</span>
           <span class="bill-description">{{ bill.description || '-' }}</span>
+        </div>
+        <!-- 紧凑二级信息行（日历模式） -->
+        <div v-else class="bill-secondary-row">
+          <span class="bill-description">{{ bill.description || '-' }}</span>
+          <span class="bill-sep">·</span>
+          <span class="bill-datetime">{{ formatTime(bill.date) }}</span>
         </div>
       </div>
       <div class="bill-right">
@@ -59,7 +79,16 @@
           </span>
           <span class="bill-currency">{{ bill.currency }}</span>
         </div>
-        <div v-if="showActions" class="bill-actions">
+        <!-- 退款小计 -->
+        <div v-if="refundTotal != null && refundTotal > 0 && !bill.isRefund" class="bill-amount-sub">
+          ({{ amountPrefix(bill) }}{{ bill.amount.toFixed(2) }}-{{ refundTotal.toFixed(2) }})
+        </div>
+        <!-- 运行余额 -->
+        <div v-if="runningBalance != null" class="bill-balance" :class="{ negative: runningBalance < 0 }">
+          余额 {{ runningBalance.toFixed(2) }}
+        </div>
+        <!-- 操作按钮（紧凑模式隐藏） -->
+        <div v-if="showActions && !compact" class="bill-actions">
           <!-- 父账单操作 -->
           <template v-if="!bill.parentId && !bill.isRefund">
             <button
@@ -129,7 +158,7 @@
     </div>
 
     <!-- 子账单列表 -->
-    <div v-if="bill.hasChildren && isExpanded && childBills.length > 0" class="child-bills">
+    <div v-if="showChildren && bill.hasChildren && effectiveExpanded && childBills.length > 0" class="child-bills">
       <BillListItem
         v-for="child in childBills"
         :key="child.id"
@@ -148,19 +177,51 @@
 <script setup lang="ts">
 import type { Bill, BillType } from '~/types/bill'
 import { SOLAR_ICONS } from '~/composables/useIcons'
-import { div } from '~/utils/decimal'
+import { max } from '~/utils/decimal'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useAccounts } from '~/composables/useAccounts'
 
-const props = defineProps<{
+/**
+ * 退款 badge 显示模式
+ * - 'auto': 自动判断（bill.isRefund 时显示"退款"）— 向后兼容默认
+ * - 'source': 对源账单显示"已退款"
+ * - 'refund': 强制显示"退款"
+ * - 'none': 不显示退款 badge
+ */
+type RefundBadgeMode = 'auto' | 'source' | 'refund' | 'none'
+
+const props = withDefaults(defineProps<{
   bill: Bill
   categoryName?: string
   accountName?: string
   noteTag?: string
   refundDeduction?: number
   showActions?: boolean
-  allBills?: Bill[] // 所有账单（用于查找子账单）
-}>()
+  allBills?: Bill[]
+  // 选择模式
+  selectable?: boolean
+  selected?: boolean
+  // 运行余额
+  runningBalance?: number
+  // 退款 badge
+  refundBadge?: RefundBadgeMode
+  refundTotal?: number
+  // 展开/收起（受控模式）
+  expanded?: boolean
+  showChildren?: boolean
+  // 右键菜单
+  contextMenuEnabled?: boolean
+  // 紧凑模式（日历视图）
+  compact?: boolean
+}>(), {
+  selectable: false,
+  selected: false,
+  showActions: true,
+  showChildren: true,
+  contextMenuEnabled: false,
+  compact: false,
+  refundBadge: 'auto'
+})
 
 const emit = defineEmits<{
   (e: 'click', bill: Bill): void
@@ -169,16 +230,26 @@ const emit = defineEmits<{
   (e: 'split', bill: Bill): void
   (e: 'allocate', bill: Bill): void
   (e: 'refund', bill: Bill): void
+  (e: 'select', id: string): void
+  (e: 'toggle-expand', bill: Bill): void
+  (e: 'contextmenu', payload: { bill: Bill; x: number; y: number }): void
 }>()
 
 const { categories } = useBillCategories()
 const { accounts } = useAccounts()
 
-// 展开状态
-const isExpanded = ref(false)
+// 展开状态：受控模式 vs 内部管理
+const internalExpanded = ref(false)
+const effectiveExpanded = computed(() =>
+  props.expanded != null ? props.expanded : internalExpanded.value
+)
 
-function toggleExpand() {
-  isExpanded.value = !isExpanded.value
+function onToggleExpand() {
+  if (props.expanded != null) {
+    emit('toggle-expand', props.bill)
+  } else {
+    internalExpanded.value = !internalExpanded.value
+  }
 }
 
 // 获取子账单
@@ -244,11 +315,26 @@ function formatDateTime(dateStr: string) {
   return `${month}/${day} ${hours}:${minutes}`
 }
 
+function formatTime(dateStr: string) {
+  const d = new Date(dateStr)
+  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function onContextMenu(event: MouseEvent) {
+  if (!props.contextMenuEnabled) return
+  emit('contextmenu', { bill: props.bill, x: event.clientX, y: event.clientY })
+}
+
 // 计算显示金额（减去退款）
 const displayAmount = computed(() => {
   if (props.bill.isRefund) return props.bill.amount
-  if (!props.refundDeduction) return props.bill.amount
-  return Math.max(0, props.bill.amount - props.refundDeduction)
+  // 优先使用 refundTotal（BillList 提供的退款总额）
+  if (props.refundTotal != null && props.refundTotal > 0) {
+    return max(0, props.bill.amount - props.refundTotal)
+  }
+  // 兼容旧的 refundDeduction prop
+  if (props.refundDeduction) return Math.max(0, props.bill.amount - props.refundDeduction)
+  return props.bill.amount
 })
 </script>
 
@@ -300,6 +386,32 @@ const displayAmount = computed(() => {
 
 .bill-item.is-refund:hover {
   background: rgba(255, 149, 0, 0.08);
+}
+
+.bill-item.is-selected {
+  background: rgba(0, 122, 255, 0.08);
+  border-color: rgba(0, 122, 255, 0.25);
+}
+
+/* 紧凑模式 */
+.bill-item.is-compact {
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+/* 选择框 */
+.bill-checkbox {
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+  flex-shrink: 0;
+}
+
+.bill-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: rgb(0, 122, 255);
+  cursor: pointer;
 }
 
 .expand-btn,
@@ -523,10 +635,29 @@ const displayAmount = computed(() => {
   color: rgb(59, 130, 246);
 }
 
+.bill-amount-sub {
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.45);
+  font-weight: 500;
+}
+
 .bill-currency {
   font-size: 11px;
   color: rgba(60, 60, 67, 0.4);
   font-weight: 500;
+}
+
+/* 运行余额 */
+.bill-balance {
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.45);
+  font-weight: 500;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+.bill-balance.negative {
+  color: rgb(239, 68, 68);
 }
 
 .bill-actions {

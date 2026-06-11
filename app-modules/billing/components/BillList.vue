@@ -30,142 +30,31 @@
         </div>
       </div>
 
-      <!-- 账单行 -->
-      <div
+      <!-- 账单行 — 委托给 BillListItem -->
+      <BillListItem
         v-else
-        class="bill-row"
-        :class="[
-          `type-${entry.bill.type}`,
-          { selected: selectable && selectedIds?.includes(entry.bill.id) },
-          { 'is-child': entry.bill.parentId },
-          { 'has-children': entry.bill.hasChildren && !entry.bill.parentId },
-          { 'is-refund': entry.bill.isRefund }
-        ]"
-        :style="{ paddingLeft: entry.bill.parentId ? '32px' : '16px' }"
-        @contextmenu.prevent="emit('contextmenu', { bill: entry.bill, x: $event.clientX, y: $event.clientY })"
-      >
-        <div v-if="selectable" class="bill-checkbox">
-          <input
-            type="checkbox"
-            :checked="selectedIds?.includes(entry.bill.id)"
-            @change="toggleSelect(entry.bill.id)"
-          />
-        </div>
-
-        <!-- 展开/收起按钮 -->
-        <button
-          v-if="entry.bill.hasChildren && !entry.bill.parentId && !entry.bill.isRefund"
-          type="button"
-          class="expand-btn"
-          @click="toggleExpand(entry.bill.id)"
-        >
-          <Icon
-            :name="expandedIds.has(entry.bill.id) ? SOLAR_ICONS.nav.down : SOLAR_ICONS.nav.right"
-            size="14"
-          />
-        </button>
-        <div v-else-if="entry.bill.parentId" class="child-placeholder"></div>
-        <div v-else class="expand-placeholder"></div>
-
-        <div class="bill-left">
-          <div class="bill-primary-row">
-            <span class="bill-type-badge" :class="entry.bill.type">{{ typeLabel(entry.bill.type) }}</span>
-            <span v-if="!entry.bill.isRefund && refundBillsMap.has(entry.bill.id)" class="refund-badge">已退款</span>
-            <span v-if="entry.bill.isRefund" class="refund-badge">退款</span>
-            <span v-if="entry.bill.allocatedMonth && entry.bill.parentId" class="allocate-badge">
-              {{ entry.bill.allocatedMonth }}
-            </span>
-            <span v-if="entry.bill.categoryId && getCategoryName(entry.bill.categoryId)" class="bill-category-primary">
-              {{ getCategoryName(entry.bill.categoryId) }}
-            </span>
-            <span v-else-if="!entry.bill.parentId" class="bill-category-empty">未分类</span>
-          </div>
-          <div class="bill-secondary-row">
-            <span class="bill-datetime">{{ formatDateTime(entry.bill.date) }}</span>
-            <span class="bill-sep">·</span>
-            <span class="bill-account">{{ getAccountName(entry.bill) }}</span>
-            <span class="bill-sep">·</span>
-            <span class="bill-description">{{ entry.bill.description || '-' }}</span>
-          </div>
-        </div>
-        <div class="bill-right">
-          <div class="bill-amount-row">
-            <span class="bill-amount" :class="amountClass(entry.bill)">
-              {{ amountPrefix(entry.bill) }}{{ displayAmount(entry.bill).toFixed(2) }}
-            </span>
-            <span class="bill-currency">{{ entry.bill.currency }}</span>
-          </div>
-          <div v-if="!entry.bill.isRefund && refundTotalMap.has(entry.bill.id)" class="bill-amount-sub">
-            ({{ amountPrefix(entry.bill) }}{{ entry.bill.amount.toFixed(2) }}-{{ refundTotalMap.get(entry.bill.id)!.toFixed(2) }})
-          </div>
-          <!-- 运行余额显示 -->
-          <div v-if="showRunningBalance && entry.balance != null" class="bill-balance" :class="{ negative: entry.balance < 0 }">
-            余额 {{ entry.balance.toFixed(2) }}
-          </div>
-          <div v-if="!selectable && !entry.bill.parentId" class="bill-actions">
-            <button
-              type="button"
-              class="action-btn"
-              title="拆分账单"
-              :disabled="entry.bill.hasChildren"
-              @click="$emit('split', entry.bill)"
-            >
-              <Icon :name="SOLAR_ICONS.action.split" size="14" />
-            </button>
-            <button
-              type="button"
-              class="action-btn"
-              title="分摊到月份"
-              :disabled="entry.bill.hasChildren"
-              @click="$emit('allocate', entry.bill)"
-            >
-              <Icon :name="SOLAR_ICONS.billing.calendar" size="14" />
-            </button>
-            <button
-              type="button"
-              class="action-btn refund"
-              title="退款"
-              @click="$emit('refund', entry.bill)"
-            >
-              <Icon :name="SOLAR_ICONS.action.refresh" size="14" />
-            </button>
-            <button
-              type="button"
-              class="action-btn"
-              title="编辑"
-              @click="$emit('edit', entry.bill)"
-            >
-              <Icon :name="SOLAR_ICONS.action.edit" size="14" />
-            </button>
-            <button
-              type="button"
-              class="action-btn danger"
-              title="删除"
-              @click="$emit('delete', entry.bill.id)"
-            >
-              <Icon :name="ICONS.trashBinMinimalistic" size="14" />
-            </button>
-          </div>
-          <div v-else-if="!selectable && entry.bill.parentId" class="bill-actions">
-            <button
-              type="button"
-              class="action-btn"
-              title="编辑"
-              @click="$emit('edit', entry.bill)"
-            >
-              <Icon :name="SOLAR_ICONS.action.edit" size="14" />
-            </button>
-            <button
-              type="button"
-              class="action-btn danger"
-              title="删除"
-              @click="$emit('delete', entry.bill.id)"
-            >
-              <Icon :name="ICONS.trashBinMinimalistic" size="14" />
-            </button>
-          </div>
-        </div>
-      </div>
+        :bill="entry.bill"
+        :category-name="getCategoryName(entry.bill.categoryId)"
+        :account-name="getAccountName(entry.bill)"
+        :selectable="selectable"
+        :selected="selectable && selectedIds?.includes(entry.bill.id)"
+        :expanded="expandedIds.has(entry.bill.id)"
+        :show-children="false"
+        :show-actions="!selectable"
+        :running-balance="showRunningBalance ? entry.balance : undefined"
+        :refund-badge="getRefundBadgeMode(entry.bill)"
+        :refund-total="getRefundTotal(entry.bill)"
+        :context-menu-enabled="true"
+        @click="() => {}"
+        @select="onSelect"
+        @toggle-expand="onToggleExpand"
+        @edit="$emit('edit', $event)"
+        @delete="$emit('delete', $event)"
+        @split="$emit('split', $event)"
+        @allocate="$emit('allocate', $event)"
+        @refund="$emit('refund', $event)"
+        @contextmenu="$emit('contextmenu', $event)"
+      />
     </template>
 
     <div v-if="flatBills.length === 0 && (!adjustments || adjustments.length === 0)" class="empty">
@@ -179,8 +68,9 @@
 import type { Bill, BillType, BalanceAdjustment } from '~/types/bill'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useAccounts } from '~/composables/useAccounts'
-import { sum, sub, add, max } from '~/utils/decimal'
-import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
+import { sum, sub, add } from '~/utils/decimal'
+import { SOLAR_ICONS } from '~/composables/useIcons'
+import BillListItem from './BillListItem.vue'
 
 type TimelineEntry =
   | { kind: 'bill'; id: string; bill: Bill; balance?: number }
@@ -393,66 +283,39 @@ const timelineEntries = computed((): TimelineEntry[] => {
   return merged
 })
 
-function toggleSelect(id: string) {
+function onSelect(id: string) {
   emit('select', id)
 }
 
-function toggleExpand(id: string) {
+function onToggleExpand(bill: Bill) {
   const next = new Set(expandedIds.value)
-  if (next.has(id)) {
-    next.delete(id)
+  if (next.has(bill.id)) {
+    next.delete(bill.id)
   } else {
-    next.add(id)
+    next.add(bill.id)
   }
   expandedIds.value = next
 }
 
-const typeLabels: Record<BillType, string> = {
-  income: '收入',
-  expense: '支出',
-  transfer: '转账',
-  debt: '债权债务'
+/**
+ * 判断退款 badge 显示模式
+ */
+function getRefundBadgeMode(bill: Bill): 'source' | 'refund' | 'none' {
+  if (bill.isRefund) return 'refund'
+  if (refundBillsMap.value.has(bill.id)) return 'source'
+  return 'none'
 }
 
-function typeLabel(type: BillType) {
-  return typeLabels[type]
-}
-
-function amountClass(bill: Bill) {
-  if (bill.type === 'income') return 'positive'
-  if (bill.type === 'expense') return 'negative'
-  if (bill.type === 'transfer') return 'neutral'
-  if (bill.type === 'debt') return bill.debtSubtype === 'lend' ? 'negative' : 'positive'
-  return ''
-}
-
-function amountPrefix(bill: Bill) {
-  if (bill.type === 'income') return '+';
-  if (bill.type === 'expense') return '-';
-  if (bill.type === 'transfer') return '';
-  if (bill.type === 'debt') return bill.debtSubtype === 'lend' ? '-' : '+';
-  return ''
-}
-
-function formatDateTime(dateStr: string) {
-  const d = new Date(dateStr)
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  return `${month}/${day} ${hours}:${minutes}`
+/**
+ * 获取退款总额（仅对有退款的源账单返回）
+ */
+function getRefundTotal(bill: Bill): number | undefined {
+  return refundTotalMap.value.get(bill.id)
 }
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
   return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
-}
-
-function displayAmount(bill: Bill): number {
-  if (bill.isRefund) return bill.amount
-  const refundTotal = refundTotalMap.value.get(bill.id)
-  if (!refundTotal) return bill.amount
-  return max(0, sub(bill.amount, refundTotal))
 }
 </script>
 
@@ -463,46 +326,7 @@ function displayAmount(bill: Bill): number {
   gap: 8px;
 }
 
-.bill-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 0.5px solid rgba(60, 60, 67, 0.1);
-  border-radius: 12px;
-  transition: all 0.15s ease;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 64px;
-  gap: 8px;
-}
-
-.bill-row:hover {
-  background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(60, 60, 67, 0.15);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.bill-row.is-child {
-  background: rgba(60, 60, 67, 0.03);
-  border-radius: 8px;
-}
-
-.bill-row.is-child:hover {
-  background: rgba(60, 60, 67, 0.06);
-}
-
-.bill-row.is-refund {
-  background: rgba(255, 149, 0, 0.04);
-  border-left: 3px solid rgba(255, 149, 0, 0.4);
-  border-radius: 8px;
-}
-
-.bill-row.is-refund:hover {
-  background: rgba(255, 149, 0, 0.08);
-}
-
-/* 余额调整行 */
+/* 余额调整行 — 仍由 BillList 自行渲染 */
 .adjustment-row {
   display: flex;
   align-items: center;
@@ -539,39 +363,8 @@ function displayAmount(bill: Bill): number {
   white-space: nowrap;
 }
 
-/* 调整 badge */
-.bill-type-badge.adjustment {
-  background: rgba(0, 122, 255, 0.12);
-  color: rgb(0, 122, 255);
-}
-
-.expand-btn,
-.child-placeholder,
-.expand-placeholder {
-  width: 20px;
-  flex-shrink: 0;
-}
-
-.expand-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.5);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.expand-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: rgba(0, 0, 0, 0.78);
-}
-
-.bill-left {
+/* 调整行内共用样式 */
+.adjustment-row .bill-left {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -579,77 +372,13 @@ function displayAmount(bill: Bill): number {
   flex: 1;
 }
 
-.bill-primary-row {
+.adjustment-row .bill-primary-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.bill-type-badge {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
-.bill-type-badge.income {
-  background: rgba(34, 197, 94, 0.12);
-  color: rgb(34, 197, 94);
-}
-
-.bill-type-badge.expense {
-  background: rgba(239, 68, 68, 0.12);
-  color: rgb(239, 68, 68);
-}
-
-.bill-type-badge.transfer {
-  background: rgba(59, 130, 246, 0.12);
-  color: rgb(59, 130, 246);
-}
-
-.bill-type-badge.debt {
-  background: rgba(168, 85, 247, 0.12);
-  color: rgb(168, 85, 247);
-}
-
-.refund-badge {
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  background: rgba(255, 149, 0, 0.12);
-  color: rgb(255, 149, 0);
-  flex-shrink: 0;
-}
-
-.allocate-badge {
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  background: rgba(0, 122, 255, 0.12);
-  color: rgb(0, 122, 255);
-  flex-shrink: 0;
-}
-
-.bill-category-primary {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.88);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bill-category-empty {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(60, 60, 67, 0.4);
-  font-style: italic;
-}
-
-.bill-secondary-row {
+.adjustment-row .bill-secondary-row {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -658,32 +387,18 @@ function displayAmount(bill: Bill): number {
   overflow: hidden;
 }
 
-.bill-datetime {
+.adjustment-row .bill-datetime {
   flex-shrink: 0;
   font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
 }
 
-.bill-sep {
+.adjustment-row .bill-sep {
   flex-shrink: 0;
   color: rgba(60, 60, 67, 0.2);
 }
 
-.bill-account {
-  flex-shrink: 0;
-  color: rgba(60, 60, 67, 0.6);
-}
-
-.bill-description {
-  color: rgba(60, 60, 67, 0.4);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.bill-right {
+.adjustment-row .bill-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -693,13 +408,24 @@ function displayAmount(bill: Bill): number {
   min-width: 100px;
 }
 
-.bill-amount-row {
+.adjustment-row .bill-amount-row {
   display: flex;
   align-items: baseline;
   gap: 2px;
 }
 
-.bill-amount {
+/* 调整 badge */
+.bill-type-badge.adjustment {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0, 122, 255, 0.12);
+  color: rgb(0, 122, 255);
+}
+
+.adjustment-row .bill-amount {
   font-size: 17px;
   font-weight: 600;
   font-feature-settings: 'tnum';
@@ -707,86 +433,8 @@ function displayAmount(bill: Bill): number {
   letter-spacing: -0.3px;
 }
 
-.bill-amount.positive {
-  color: rgb(34, 197, 94);
-}
-
-.bill-amount.negative {
-  color: rgb(239, 68, 68);
-}
-
-.bill-amount.neutral {
+.adjustment-row .bill-amount.neutral {
   color: rgb(59, 130, 246);
-}
-
-.bill-amount-sub {
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.45);
-  font-weight: 500;
-}
-
-.bill-currency {
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.4);
-  font-weight: 500;
-}
-
-/* 运行余额 */
-.bill-balance {
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.45);
-  font-weight: 500;
-  font-feature-settings: 'tnum';
-  font-variant-numeric: tabular-nums;
-}
-
-.bill-balance.negative {
-  color: rgb(239, 68, 68);
-}
-
-.bill-actions {
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.bill-row:hover .bill-actions {
-  opacity: 1;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: rgba(60, 60, 67, 0.4);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.action-btn:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.05);
-  color: rgba(60, 60, 67, 0.7);
-}
-
-.action-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.action-btn.refund:hover:not(:disabled) {
-  background: rgba(255, 149, 0, 0.1);
-  color: rgb(255, 149, 0);
-}
-
-.action-btn.danger:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.1);
-  color: rgb(239, 68, 68);
 }
 
 .empty {
@@ -797,23 +445,5 @@ function displayAmount(bill: Bill): number {
   padding: 32px;
   color: rgba(60, 60, 67, 0.5);
   font-size: 14px;
-}
-
-.bill-checkbox {
-  display: flex;
-  align-items: center;
-  padding-right: 4px;
-}
-
-.bill-checkbox input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: rgb(0, 122, 255);
-  cursor: pointer;
-}
-
-.bill-row.selected {
-  background: rgba(0, 122, 255, 0.08);
-  border-color: rgba(0, 122, 255, 0.25);
 }
 </style>

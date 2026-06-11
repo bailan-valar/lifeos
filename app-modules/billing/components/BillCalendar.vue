@@ -44,26 +44,17 @@
         </span>
       </div>
       <div class="day-bills-list">
-        <div
+        <BillListItem
           v-for="bill in dayBills"
           :key="bill.id"
-          class="day-bill-row"
-          :class="`type-${bill.type}`"
+          :bill="bill"
+          :category-name="getCategoryName(bill.categoryId)"
+          :account-name="getAccountName(bill)"
+          :show-actions="false"
+          compact
           @click="$emit('edit', bill)"
-          @contextmenu.prevent="$emit('contextmenu', { bill, x: $event.clientX, y: $event.clientY })"
-        >
-          <div class="day-bill-left">
-            <div class="day-bill-type" :class="bill.type">{{ typeLabel(bill.type) }}</div>
-            <div class="day-bill-desc">{{ bill.description || '-' }}</div>
-            <div class="day-bill-time">{{ formatTime(bill.date) }}</div>
-          </div>
-          <div class="day-bill-right">
-            <div class="day-bill-amount" :class="amountClass(bill)">
-              {{ amountPrefix(bill) }}{{ bill.amount.toFixed(2) }}
-            </div>
-            <div class="day-bill-currency">{{ bill.currency }}</div>
-          </div>
-        </div>
+          @contextmenu="$emit('contextmenu', $event)"
+        />
         <div v-if="selectedDate && dayBills.length === 0" class="day-empty">
           <Icon name="solar:wallet-money-linear" size="24" />
           <span>当日暂无账单</span>
@@ -78,11 +69,14 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, BillType } from '~/types/bill'
+import type { Bill } from '~/types/bill'
 import { computed, ref, watch, nextTick } from 'vue'
 import { useBillingStore } from '~/stores/billing'
 import { sum, add } from '~/utils/decimal'
 import { storeToRefs } from 'pinia'
+import { useBillCategories } from '~/composables/useBillCategories'
+import { useAccounts } from '~/composables/useAccounts'
+import BillListItem from './BillListItem.vue'
 
 const props = defineProps<{
   bills: Bill[]
@@ -96,6 +90,28 @@ const emit = defineEmits<{
 
 const store = useBillingStore()
 const { billYearFilter, billMonthFilter } = storeToRefs(store)
+
+const { categories } = useBillCategories()
+const { accounts } = useAccounts()
+
+const categoryMap = computed(() =>
+  Object.fromEntries(categories.value.map(c => [c.id, c]))
+)
+
+const accountMap = computed(() =>
+  Object.fromEntries(accounts.value.map(a => [a.id, a]))
+)
+
+function getCategoryName(categoryId: string) {
+  return categoryMap.value[categoryId]?.name || ''
+}
+
+function getAccountName(bill: Bill) {
+  const accountId = bill.type === 'income' || (bill.type === 'debt' && bill.debtSubtype === 'borrow')
+    ? bill.toAccountId
+    : bill.fromAccountId
+  return accountMap.value[accountId]?.name || ''
+}
 
 const fallbackDate = new Date()
 const currentYear = computed(() => billYearFilter.value ?? fallbackDate.getFullYear())
@@ -284,38 +300,6 @@ function formatSelectedDate(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' })
 }
-
-function formatTime(dateStr: string) {
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-}
-
-const typeLabels: Record<BillType, string> = {
-  income: '收入',
-  expense: '支出',
-  transfer: '转账',
-  debt: '债权债务'
-}
-
-function typeLabel(type: BillType) {
-  return typeLabels[type]
-}
-
-function amountClass(bill: Bill) {
-  if (bill.type === 'income') return 'positive'
-  if (bill.type === 'expense') return 'negative'
-  if (bill.type === 'transfer') return 'neutral'
-  if (bill.type === 'debt') return bill.debtSubtype === 'lend' ? 'negative' : 'positive'
-  return ''
-}
-
-function amountPrefix(bill: Bill) {
-  if (bill.type === 'income') return '+';
-  if (bill.type === 'expense') return '-';
-  if (bill.type === 'transfer') return '';
-  if (bill.type === 'debt') return bill.debtSubtype === 'lend' ? '-' : '+';
-  return ''
-}
 </script>
 
 <style scoped>
@@ -488,88 +472,6 @@ function amountPrefix(bill: Bill) {
   gap: 6px;
   max-height: 320px;
   overflow-y: auto;
-}
-
-.day-bill-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.5);
-  border: 0.5px solid rgba(60, 60, 67, 0.12);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-.day-bill-row:hover {
-  background: rgba(255, 255, 255, 0.75);
-}
-
-.day-bill-left {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.day-bill-type {
-  display: inline-flex;
-  align-self: flex-start;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-}
-.day-bill-type.income {
-  background: rgba(52, 199, 89, 0.12);
-  color: rgb(52, 199, 89);
-}
-.day-bill-type.expense {
-  background: rgba(255, 59, 48, 0.12);
-  color: rgb(255, 59, 48);
-}
-.day-bill-type.transfer {
-  background: rgba(0, 122, 255, 0.12);
-  color: rgb(0, 122, 255);
-}
-.day-bill-type.debt {
-  background: rgba(175, 82, 222, 0.12);
-  color: rgb(175, 82, 222);
-}
-
-.day-bill-desc {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.88);
-}
-
-.day-bill-time {
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.5);
-}
-
-.day-bill-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.day-bill-amount {
-  font-size: 15px;
-  font-weight: 700;
-}
-.day-bill-amount.positive {
-  color: rgb(52, 199, 89);
-}
-.day-bill-amount.negative {
-  color: rgb(255, 59, 48);
-}
-.day-bill-amount.neutral {
-  color: rgb(0, 122, 255);
-}
-
-.day-bill-currency {
-  font-size: 11px;
-  color: rgba(60, 60, 67, 0.5);
 }
 
 .day-empty {
