@@ -424,7 +424,7 @@ export function useBills() {
         const billId = generateId()
         const bill: Bill = {
           id: billId,
-          noteId,
+          noteId: item.noteId || noteId,
           type: item.type || 'expense',
           amount: item.amount,
           currency: 'CNY',
