@@ -126,7 +126,7 @@
                 </div>
               </div>
               <div v-else class="year-budget-cell year-budget-cell-no-budget">
-                <div v-if="row.childrenBudgetSum > 0 || row.yearActual > 0" class="cell-content">
+                <div class="cell-content">
                   <div class="cell-sub-sum">子: {{ row.childrenBudgetSum.toFixed(0) }}</div>
                   <div class="cell-divider"></div>
                   <div class="cell-actual">{{ row.yearActual.toFixed(0) }}</div>
