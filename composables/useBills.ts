@@ -352,14 +352,18 @@ export function useBills() {
 
       // 精确重复检查：检查数据库中是否有相同账单
       // 规则：日期、金额相同，且账户匹配（商户/其他/空账户不参与比较）
+      // 排除当前导入批次刚插入的账单，避免同批次内多笔同日同金额交易误判为重复
       const dateKey = item.date.slice(0, 10)
-      const candidateBills = await db.bills.find({
+      const candidateBills = (await db.bills.find({
         selector: {
           noteId,
           date: { $gte: `${dateKey}T00:00:00.000Z`, $lt: `${dateKey}T23:59:59.999Z` },
           amount: item.amount
         }
-      }).exec()
+      }).exec()).filter(doc => {
+        const data = doc.toJSON() as any
+        return data.importBatchId !== record.id
+      })
 
       // 获取导入项的账户信息（需要查询账户类型）
       const fromAccount = item.fromAccountId ? await db.accounts.findOne(item.fromAccountId).exec() : null
