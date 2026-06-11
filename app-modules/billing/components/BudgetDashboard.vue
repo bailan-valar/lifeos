@@ -136,6 +136,7 @@
                     {{ row.yearActual.toFixed(0) }}
                   </div>
                 </div>
+                <div v-else class="cell-empty">—</div>
                 <div
                   v-if="row.childrenBudgetSum > 0"
                   class="cell-percentage-badge"
@@ -914,6 +915,12 @@ function navigateToCategory(categoryId: string) {
 .cell-actual.over {
   color: rgb(255, 59, 48);
   font-weight: 600;
+}
+
+.cell-empty {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.25);
+  text-align: center;
 }
 
 .empty-row {
