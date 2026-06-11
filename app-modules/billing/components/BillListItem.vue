@@ -7,10 +7,14 @@
         { 'is-child': bill.parentId },
         { 'is-refund': bill.isRefund },
         { 'has-children': bill.hasChildren && !bill.parentId },
-        { 'is-selected': selected }
+        { 'is-selected': selected },
+        { 'is-dragging': isDragging }
       ]"
+      :draggable="draggable"
       @click="$emit('click', bill)"
       @contextmenu.prevent="onContextMenu"
+      @dragstart="onDragStart"
+      @dragend="onDragEnd"
     >
       <!-- 选择框 -->
       <div v-if="selectable" class="bill-checkbox">
@@ -204,13 +208,19 @@ const props = withDefaults(defineProps<{
   showChildren?: boolean
   // 右键菜单
   contextMenuEnabled?: boolean
+  // 紧凑模式（日历视图）
+  compact?: boolean
+  // 拖拽模式
+  draggable?: boolean
 }>(), {
   selectable: false,
   selected: false,
   showActions: true,
   showChildren: true,
   contextMenuEnabled: false,
-  refundBadge: 'auto'
+  compact: false,
+  refundBadge: 'auto',
+  draggable: false
 })
 
 const emit = defineEmits<{
@@ -223,6 +233,8 @@ const emit = defineEmits<{
   (e: 'select', id: string): void
   (e: 'toggle-expand', bill: Bill): void
   (e: 'contextmenu', payload: { bill: Bill; x: number; y: number }): void
+  (e: 'dragstart', bill: Bill, event: DragEvent): void
+  (e: 'dragend'): void
 }>()
 
 const { categories } = useBillCategories()
@@ -310,6 +322,20 @@ function onContextMenu(event: MouseEvent) {
   emit('contextmenu', { bill: props.bill, x: event.clientX, y: event.clientY })
 }
 
+// 拖拽状态
+const isDragging = ref(false)
+
+function onDragStart(event: DragEvent) {
+  if (!props.draggable) return
+  isDragging.value = true
+  emit('dragstart', props.bill, event)
+}
+
+function onDragEnd() {
+  isDragging.value = false
+  emit('dragend')
+}
+
 // 计算显示金额（减去退款）
 const displayAmount = computed(() => {
   if (props.bill.isRefund) return props.bill.amount
@@ -376,6 +402,10 @@ const displayAmount = computed(() => {
 .bill-item.is-selected {
   background: rgba(0, 122, 255, 0.08);
   border-color: rgba(0, 122, 255, 0.25);
+}
+
+.bill-item.is-dragging {
+  opacity: 0.4;
 }
 
 /* 选择框 */

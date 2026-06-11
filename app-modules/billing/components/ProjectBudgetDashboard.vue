@@ -102,8 +102,12 @@
           <div class="table-row" :class="{ 'yearly-row': row.cycleType === 'yearly', 'unlinked-row': row.isUnlinked }">
             <div
               class="col-note"
+              :class="{ 'drag-over': isNoteDragOver(row.node.id) }"
               :style="{ paddingLeft: `${row.isUnlinked ? 8 : row.level * 16 + 8}px` }"
               @contextmenu.prevent="onNoteContextMenu($event, row.node)"
+              @dragover="onNoteColDragOver(row.node.id, $event)"
+              @dragleave="onNoteColDragLeave($event)"
+              @drop="onNoteColDrop(row.node.id, $event)"
             >
               <template v-if="!row.isUnlinked">
                 <button
@@ -214,6 +218,7 @@ import type { Bill, BudgetCycleType, NoteTreeNode } from '~/types/block'
 import { div } from '~/utils/decimal'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import { getDB, onCollectionChange } from '~/services/db'
+import type { useBillDragDrop } from '~/composables/useBillDragDrop'
 import NotePicker from './NotePicker.vue'
 
 const props = defineProps<{ year?: number }>()
@@ -222,7 +227,10 @@ const emit = defineEmits<{
   (e: 'edit-cell', payload: { noteId: string; year: number; month: number }): void
   (e: 'note-contextmenu', payload: { node: NoteTreeNode; x: number; y: number }): void
   (e: 'note-click', payload: { noteId: string; year: number; month: number }): void
+  (e: 'bill-drop', payload: { billIds: string[]; targetNoteId: string }): void
 }>()
+
+const billDragDrop = inject<ReturnType<typeof useBillDragDrop>>('billDragDrop', undefined as any)
 
 const { loadBills } = useBills()
 const { loadBudgets, resolveBudget, getMonthlyEquivalent } = useBudgets()
@@ -857,6 +865,26 @@ function onNoteClick(noteId: string) {
     month: new Date().getMonth() + 1
   })
 }
+
+function onNoteColDragOver(noteId: string, event: DragEvent) {
+  if (!billDragDrop?.isDragging.value) return
+  billDragDrop.onNoteDragOver(noteId, event)
+}
+
+function onNoteColDragLeave(event: DragEvent) {
+  billDragDrop?.onNoteDragLeave(event)
+}
+
+function onNoteColDrop(noteId: string, event: DragEvent) {
+  const billIds = billDragDrop?.onNoteDrop(noteId, event)
+  if (billIds && billIds.length > 0) {
+    emit('bill-drop', { billIds, targetNoteId: noteId })
+  }
+}
+
+function isNoteDragOver(noteId: string): boolean {
+  return billDragDrop?.isDraggingOver(noteId) ?? false
+}
 </script>
 
 <style scoped>
@@ -981,6 +1009,12 @@ function onNoteClick(noteId: string) {
   background: rgba(255, 255, 255, 0.95);
   border-right: 0.5px solid rgba(60, 60, 67, 0.08);
   z-index: 1;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.col-note.drag-over {
+  background: rgba(0, 122, 255, 0.12) !important;
+  box-shadow: inset 0 0 0 1.5px rgba(0, 122, 255, 0.25);
 }
 
 .col-year-budget {

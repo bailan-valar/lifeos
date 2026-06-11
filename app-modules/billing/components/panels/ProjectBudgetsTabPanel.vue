@@ -5,6 +5,7 @@
       @edit-cell="openMonthBillsDialog"
       @note-contextmenu="openNoteContextMenu"
       @note-click="onNoteClick"
+      @bill-drop="handleBillDrop"
     />
   </div>
   <NoteContextMenu
@@ -40,7 +41,7 @@
     :history-entries="historyDialogData.historyEntries"
     @cancel="closeBudgetHistory"
   />
-  <NoteMonthBillsDialog
+  <NoteMonthBillsDrawer
     v-model:visible="monthBillsDialogVisible"
     :note-id="monthBillsDialogData.noteId"
     :note-name="monthBillsDialogData.noteName"
@@ -56,15 +57,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, nextTick, provide } from 'vue'
 import { useNotes } from '~/composables/useNotes'
 import { useBudgets } from '~/composables/useBudgets'
+import { useBills } from '~/composables/useBills'
 import { useToast } from '~/composables/useToast'
+import { useBillDragDrop } from '~/composables/useBillDragDrop'
 import type { BudgetFormData, BudgetEntry } from '~/types/bill'
 import ProjectBudgetDashboard from '../ProjectBudgetDashboard.vue'
 import ProjectBudgetDialog from '../ProjectBudgetDialog.vue'
 import ProjectBudgetHistory from '../ProjectBudgetHistory.vue'
-import NoteMonthBillsDialog from '../NoteMonthBillsDialog.vue'
+import NoteMonthBillsDrawer from '../NoteMonthBillsDrawer.vue'
 import NoteContextMenu from '~/components/NoteContextMenu.vue'
 import NoteEditDialog from '~/components/NoteEditDialog.vue'
 import type { Note } from '~/types/block'
@@ -76,6 +79,11 @@ const props = defineProps<{
 const { success: showSuccess, error: showError } = useToast()
 const { noteOptions, notes } = useNotes()
 const { upsertBudget, budgets, getNoteBudgetEntries } = useBudgets()
+const { updateBills } = useBills()
+
+// 账单拖拽状态 —— provide 给 Dashboard 和 Drawer 共享
+const billDragDrop = useBillDragDrop()
+provide('billDragDrop', billDragDrop)
 
 // 右键菜单状态
 const contextMenuVisible = ref(false)
@@ -103,7 +111,7 @@ const noteEditDialogNote = ref<Note | null>(null)
 const noteEditDialogParentId = ref('')
 const noteEditDialogIsCreating = ref(false)
 
-// 月份支出列表对话框状态
+// 月份支出列表抽屉状态
 const monthBillsDialogVisible = ref(false)
 const monthBillsDialogData = ref({
   noteId: '',
@@ -217,6 +225,25 @@ async function handleBudgetConfirm(data: BudgetFormData) {
     await upsertBudget(budgetData)
     showSuccess('预算已保存')
     closeBudgetDialog()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+/**
+ * 处理账单拖放到项目列
+ */
+async function handleBillDrop(payload: { billIds: string[]; targetNoteId: string }) {
+  // __none__ 表示"无关联"，对应空字符串 noteId
+  const targetNoteId = payload.targetNoteId === '__none__' ? '' : payload.targetNoteId
+  const targetName = getNoteName(payload.targetNoteId)
+
+  try {
+    const result = await updateBills(payload.billIds, { noteId: targetNoteId })
+    if (result.failedIds.length > 0) {
+      showError(`${result.failedIds.length} 笔账单关联失败`)
+    }
+    showSuccess(`已将 ${payload.billIds.length} 笔账单关联到「${targetName}」`)
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
