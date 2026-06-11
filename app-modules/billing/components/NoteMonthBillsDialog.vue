@@ -1,60 +1,91 @@
 <template>
-  <BaseDialog
-    v-model:visible="dialogVisible"
-    :title="`${displayNoteName} - ${year}年${month}月账单`"
-    size="medium"
-  >
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>加载中...</p>
-    </div>
+  <Teleport to="body">
+    <BaseDialog
+      v-model:visible="dialogVisible"
+      :title="`${displayNoteName} - ${year}年${month}月账单`"
+      size="medium"
+    >
+      <div v-if="loading" class="loading">
+        <span>加载中...</span>
+      </div>
 
-    <div v-else-if="bills.length === 0" class="empty-state">
-      <Icon :name="SOLAR_ICONS.doc.default" size="48" />
-      <p>该月份暂无账单</p>
-    </div>
+      <div v-else-if="bills.length === 0" class="empty">
+        <Icon :name="SOLAR_ICONS.doc.default" size="32" />
+        <span>该月份暂无账单</span>
+      </div>
 
-    <div v-else class="bills-list">
-      <div v-for="bill in bills" :key="bill.id" class="bill-item" @click="openEditDialog(bill)">
-        <div class="bill-icon" :style="getCategoryIconStyle(bill.categoryId)">
-          <Icon :name="getCategoryIcon(bill.categoryId)" size="18" />
-        </div>
-        <div class="bill-info">
-          <div class="bill-category">{{ getCategoryName(bill.categoryId) }}</div>
-          <div class="bill-meta">
-            <span v-if="bill.noteTag" class="bill-note-tag">{{ bill.noteTag }}</span>
-            {{ formatDate(bill.date) }}
-          </div>
-        </div>
-        <div class="bill-amount" :class="{ expense: bill.type === 'expense', income: bill.type === 'income' }">
-          {{ bill.type === 'expense' ? '-' : '+' }}¥{{ bill.amount.toFixed(2) }}
+      <div v-else class="bills-list">
+        <BillListItem
+          v-for="bill in bills"
+          :key="bill.id"
+          :bill="bill"
+          :all-bills="bills"
+          :category-name="getCategoryName(bill.categoryId)"
+          :account-name="getAccountName(bill)"
+          :note-tag="bill.noteTag"
+          :show-actions="true"
+          @click="openEditDialog(bill)"
+          @edit="openEditDialog(bill)"
+          @delete="handleDelete(bill)"
+          @split="handleSplit(bill)"
+          @allocate="handleAllocate(bill)"
+          @refund="handleRefund(bill)"
+        />
+        <div class="summary-row">
+          <span>合计</span>
+          <span class="summary-amount" :class="{ expense: totalAmount < 0, income: totalAmount >= 0 }">
+            {{ totalAmount >= 0 ? '+' : '' }}¥{{ totalAmount.toFixed(2) }}
+          </span>
         </div>
       </div>
-      <div class="summary-row">
-        <span>合计</span>
-        <span class="summary-amount" :class="{ expense: totalAmount < 0, income: totalAmount >= 0 }">
-          {{ totalAmount >= 0 ? '+' : '' }}¥{{ totalAmount.toFixed(2) }}
-        </span>
-      </div>
-    </div>
 
-    <template #footer>
-      <button class="liquid-glass-button" @click="dialogVisible = false">关闭</button>
-    </template>
-  </BaseDialog>
+      <template #footer>
+        <button class="liquid-glass-button" @click="dialogVisible = false">关闭</button>
+      </template>
+    </BaseDialog>
 
-  <BillDialog
-    v-if="billDialogVisible"
-    :visible="billDialogVisible"
-    :bill="editingBill"
-    :accounts="accounts"
-    :categories="categories"
-    :note-options="noteOptions"
-    @update:visible="billDialogVisible = $event"
-    @confirm="handleBillConfirm"
-    @cancel="billDialogVisible = false"
-    @action-completed="loadBills"
-  />
+    <BillDialog
+      v-if="billDialogVisible"
+      :visible="billDialogVisible"
+      :bill="editingBill"
+      :accounts="accounts"
+      :categories="categories"
+      :note-options="noteOptions"
+      @update:visible="billDialogVisible = $event"
+      @confirm="handleBillConfirm"
+      @cancel="billDialogVisible = false"
+      @action-completed="loadBills"
+    />
+
+    <!-- 拆分对话框 -->
+    <BillSplitDialog
+      v-if="splitDialogVisible && selectedBill"
+      :visible="splitDialogVisible"
+      :bill="selectedBill"
+      :categories="categories"
+      @update:visible="onSplitDialogVisibleChange"
+      @confirm="handleSplitConfirm"
+    />
+
+    <!-- 分摊对话框 -->
+    <BillAllocateDialog
+      v-if="allocateDialogVisible && selectedBill"
+      :visible="allocateDialogVisible"
+      :bill="selectedBill"
+      @update:visible="onAllocateDialogVisibleChange"
+      @confirm="handleAllocateConfirm"
+    />
+
+    <!-- 退款对话框 -->
+    <BillRefundDialog
+      v-if="refundDialogVisible && selectedBill"
+      :visible="refundDialogVisible"
+      :bill="selectedBill"
+      :accounts="accounts"
+      @update:visible="onRefundDialogVisibleChange"
+      @confirm="handleRefundConfirm"
+    />
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -64,8 +95,13 @@ import { useBillCategories } from '~/composables/useBillCategories'
 import { useAccounts } from '~/composables/useAccounts'
 import { useBills } from '~/composables/useBills'
 import { useToast } from '~/composables/useToast'
+import { useConfirm } from '~/composables/useConfirm'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
+import BillListItem from './BillListItem.vue'
 import BillDialog from './BillDialog.vue'
+import BillSplitDialog from './BillSplitDialog.vue'
+import BillAllocateDialog from './BillAllocateDialog.vue'
+import BillRefundDialog from './BillRefundDialog.vue'
 
 interface BillWithNoteTag extends Bill {
   noteTag?: string
@@ -85,13 +121,39 @@ const emit = defineEmits<{
 
 const { categories } = useBillCategories()
 const { accounts } = useAccounts()
-const { updateBill } = useBills()
+const { updateBill, deleteBill, splitBill, allocatePeriod, createRefund } = useBills()
 const { success: showSuccess, error: showError } = useToast()
+const { confirm } = useConfirm()
 const { getDescendantNoteIds, notes, noteOptions } = useNotes()
 
 // 账单编辑弹框状态
 const billDialogVisible = ref(false)
 const editingBill = ref<Bill | undefined>(undefined)
+
+// 拆分、分摊、退款弹框状态
+const splitDialogVisible = ref(false)
+const allocateDialogVisible = ref(false)
+const refundDialogVisible = ref(false)
+const selectedBill = ref<Bill | undefined>(undefined)
+
+const accountMap = computed(() =>
+  Object.fromEntries(accounts.value.map(a => [a.id, a]))
+)
+
+const categoryMap = computed(() =>
+  Object.fromEntries(categories.value.map(c => [c.id, c]))
+)
+
+function getAccountName(bill: Bill) {
+  const accountId = bill.type === 'income' || (bill.type === 'debt' && bill.debtSubtype === 'borrow')
+    ? bill.toAccountId
+    : bill.fromAccountId
+  return accountMap.value[accountId]?.name || ''
+}
+
+function getCategoryName(categoryId: string): string {
+  return categoryMap.value[categoryId]?.name || ''
+}
 
 const dialogVisible = computed({
   get: () => props.visible,
@@ -201,34 +263,6 @@ watch(() => props.visible, (v) => {
   if (v) loadBills()
 })
 
-function getCategoryName(categoryId: string): string {
-  const category = categories.value.find(c => c.id === categoryId)
-  return category?.name || '未分类'
-}
-
-function getCategoryIcon(categoryId: string): string {
-  const category = categories.value.find(c => c.id === categoryId)
-  return category?.icon || 'solar:folder-linear'
-}
-
-function getCategoryColor(categoryId: string): string {
-  const category = categories.value.find(c => c.id === categoryId)
-  return category?.color || 'rgb(0,122,255)'
-}
-
-function getCategoryIconStyle(categoryId: string): Record<string, string> {
-  const color = getCategoryColor(categoryId)
-  return {
-    background: `${color}15`,
-    color
-  }
-}
-
-function formatDate(date: string): string {
-  const d = new Date(date)
-  return `${d.getMonth() + 1}月${d.getDate()}日`
-}
-
 function openEditDialog(bill: BillWithNoteTag) {
   editingBill.value = bill
   billDialogVisible.value = true
@@ -246,47 +280,103 @@ async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: st
     showError(e instanceof Error ? e.message : String(e))
   }
 }
+
+function handleSplit(bill: Bill) {
+  selectedBill.value = bill
+  splitDialogVisible.value = true
+}
+
+function handleAllocate(bill: Bill) {
+  selectedBill.value = bill
+  allocateDialogVisible.value = true
+}
+
+function handleRefund(bill: Bill) {
+  selectedBill.value = bill
+  refundDialogVisible.value = true
+}
+
+function onSplitDialogVisibleChange(visible: boolean) {
+  splitDialogVisible.value = visible
+  if (!visible) selectedBill.value = undefined
+}
+
+function onAllocateDialogVisibleChange(visible: boolean) {
+  allocateDialogVisible.value = visible
+  if (!visible) selectedBill.value = undefined
+}
+
+function onRefundDialogVisibleChange(visible: boolean) {
+  refundDialogVisible.value = visible
+  if (!visible) selectedBill.value = undefined
+}
+
+async function handleSplitConfirm(splitItems: any[]) {
+  if (!selectedBill.value) return
+  try {
+    await splitBill(selectedBill.value.id, splitItems)
+    showSuccess('账单已拆分')
+    splitDialogVisible.value = false
+    selectedBill.value = undefined
+    await loadBills()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleAllocateConfirm(allocateItems: any[]) {
+  if (!selectedBill.value) return
+  try {
+    await allocatePeriod(selectedBill.value.id, allocateItems)
+    showSuccess('账单已分摊')
+    allocateDialogVisible.value = false
+    selectedBill.value = undefined
+    await loadBills()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleRefundConfirm(refundData: any) {
+  if (!selectedBill.value) return
+  try {
+    await createRefund(refundData)
+    showSuccess('退款已创建')
+    refundDialogVisible.value = false
+    selectedBill.value = undefined
+    await loadBills()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleDelete(bill: Bill) {
+  const ok = await confirm({
+    message: `确定要删除这笔账单吗？`,
+    danger: true
+  })
+  if (!ok) return
+
+  try {
+    await deleteBill(bill.id)
+    showSuccess('账单已删除')
+    await loadBills()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
 </script>
 
 <style scoped>
-.loading-state {
+.loading,
+.empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  color: rgba(60, 60, 67, 0.5);
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid rgba(60, 60, 67, 0.15);
-  border-top-color: rgb(0, 122, 255);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-state p {
-  margin-top: 12px;
-  font-size: 14px;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  color: rgba(60, 60, 67, 0.4);
-}
-
-.empty-state p {
-  margin-top: 12px;
+  gap: 8px;
+  padding: 48px 20px;
+  color: var(--liquid-text-secondary);
   font-size: 14px;
 }
 
@@ -294,79 +384,10 @@ async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: st
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.bill-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--liquid-bg-thin);
-  border-radius: 10px;
-  transition: all 0.15s ease;
-  cursor: pointer;
-}
-
-.bill-item:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.bill-icon {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-
-.bill-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.bill-category {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.85);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bill-meta {
-  font-size: 12px;
-  color: rgba(60, 60, 67, 0.5);
-  margin-top: 2px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bill-note-tag {
-  display: inline-flex;
-  padding: 0 6px;
-  font-size: 11px;
-  line-height: 18px;
-  border-radius: 4px;
-  background: rgba(0, 122, 255, 0.1);
-  color: rgb(0, 122, 255);
-  white-space: nowrap;
-}
-
-.bill-amount {
-  font-size: 15px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.bill-amount.expense {
-  color: rgb(255, 59, 48);
-}
-
-.bill-amount.income {
-  color: rgb(52, 199, 89);
+  max-height: calc(60vh - 80px);
+  overflow-y: auto;
+  padding: 4px;
+  padding-bottom: 8px;
 }
 
 .summary-row {

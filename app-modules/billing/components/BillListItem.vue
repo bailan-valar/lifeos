@@ -44,6 +44,7 @@
           <span v-else class="bill-category-empty">未分类</span>
         </div>
         <div class="bill-secondary-row">
+          <span v-if="noteTag" class="bill-note-tag">{{ noteTag }}</span>
           <span class="bill-datetime">{{ formatDateTime(bill.date) }}</span>
           <span class="bill-sep">·</span>
           <span class="bill-account">{{ accountName }}</span>
@@ -155,6 +156,7 @@ const props = defineProps<{
   bill: Bill
   categoryName?: string
   accountName?: string
+  noteTag?: string
   refundDeduction?: number
   showActions?: boolean
   allBills?: Bill[] // 所有账单（用于查找子账单）
@@ -446,6 +448,18 @@ const displayAmount = computed(() => {
   font-size: 12px;
   color: rgba(60, 60, 67, 0.5);
   overflow: hidden;
+}
+
+.bill-note-tag {
+  display: inline-flex;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
+  border-radius: 4px;
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .bill-datetime {
