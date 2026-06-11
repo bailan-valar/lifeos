@@ -202,7 +202,7 @@
 
 <script setup lang="ts">
 import type { Bill, BudgetCycleType, CategoryTreeNode } from '~/types/bill'
-import { getDB } from '~/services/db'
+import { getDB, onCollectionChange } from '~/services/db'
 import { div } from '~/utils/decimal'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import NotePicker from './NotePicker.vue'
@@ -215,8 +215,7 @@ const emit = defineEmits<{
   (e: 'category-click', payload: { categoryId: string; year: number; month: number; noteId: string }): void
 }>()
 
-const { loadBills } = useBills()
-const { loadBudgets, resolveBudget, getMonthlyEquivalent } = useBudgets()
+const { budgets, loadBudgets, resolveBudget, getMonthlyEquivalent } = useBudgets()
 const { loadCategories, buildTree } = useBillCategories()
 const { loadNotes, noteOptions, getDescendantNoteIds } = useNotes()
 
@@ -226,41 +225,62 @@ const currentMonth = new Date().getMonth() + 1
 const expandedIds = ref<Set<string>>(new Set())
 const selectedNoteId = ref('')
 const scopedBills = ref<Bill[]>([])
+const loading = ref(true)
 
 function onCategoryContextMenu(event: MouseEvent, node: CategoryTreeNode) {
   emit('category-contextmenu', { node, x: event.clientX, y: event.clientY })
 }
 
-async function refreshData() {
-  const dbPromise = getDB()
-  const [, db] = await Promise.all([loadBudgets(selectedNoteId.value), dbPromise])
-
-  if (selectedNoteId.value) {
-    const noteIds = getDescendantNoteIds(selectedNoteId.value)
-    const selector: Record<string, unknown> = noteIds.length === 1
-      ? { noteId: noteIds[0] }
-      : { noteId: { $in: noteIds } }
-    const result = await db.bills.find({
-      selector,
-      sort: [{ date: 'desc' }]
-    }).exec()
-    scopedBills.value = result.map((doc: any) => doc.toJSON())
-  } else {
-    const result = await db.bills.find({
-      sort: [{ date: 'desc' }]
-    }).exec()
-    scopedBills.value = result.map((doc: any) => doc.toJSON())
+async function loadScopedBills(silent = false) {
+  if (!silent) loading.value = true
+  try {
+    const db = await getDB()
+    if (selectedNoteId.value) {
+      const noteIds = getDescendantNoteIds(selectedNoteId.value)
+      const selector: Record<string, unknown> = noteIds.length === 1
+        ? { noteId: noteIds[0] }
+        : { noteId: { $in: noteIds } }
+      const result = await db.bills.find({
+        selector,
+        sort: [{ date: 'desc' }]
+      }).exec()
+      scopedBills.value = result.map((doc: any) => doc.toJSON())
+    } else {
+      const result = await db.bills.find({
+        sort: [{ date: 'desc' }]
+      }).exec()
+      scopedBills.value = result.map((doc: any) => doc.toJSON())
+    }
+  } finally {
+    loading.value = false
   }
 }
 
+// 订阅账单和预算变更，自动静默刷新
+const unsubscribers: (() => void)[] = []
+
 onMounted(async () => {
-  await Promise.all([loadCategories(), loadNotes()])
-  await refreshData()
+  // 并行加载所有基础数据
+  await Promise.all([
+    loadCategories(),
+    loadNotes(),
+    loadBudgets(),
+    loadScopedBills()
+  ])
+
+  // 基础数据加载完成后，订阅变更实现响应式更新
+  unsubscribers.push(
+    onCollectionChange('bills', () => loadScopedBills(true)),
+    onCollectionChange('budgets', () => loadBudgets()),
+    onCollectionChange('billCategories', () => loadCategories())
+  )
 })
 
-watch(selectedNoteId, async () => {
-  await refreshData()
+onUnmounted(() => {
+  unsubscribers.forEach(unsub => unsub())
 })
+
+watch(selectedNoteId, () => loadScopedBills())
 
 const expenseTree = computed(() => buildTree('expense'))
 

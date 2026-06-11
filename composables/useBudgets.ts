@@ -1,7 +1,6 @@
 import type { BudgetEntry, BudgetFormData, BudgetCycleType } from '~/types/bill'
 import { getDB, generateId, now, onCollectionChange } from '~/services/db'
 import { div } from '~/utils/decimal'
-import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 interface BudgetsStore {
   budgets: Ref<BudgetEntry[]>
@@ -16,8 +15,6 @@ interface BudgetsStore {
   getMonthlyEquivalent: (categoryId: string, year: number, month: number, noteId?: string) => number
   getCategoryBudgetEntries: (categoryId: string, noteId?: string) => BudgetEntry[]
   getNoteBudgetEntries: (noteId: string) => BudgetEntry[]
-  startWatching: () => void
-  stopWatching: () => void
 }
 
 function createStore(): BudgetsStore {
@@ -25,7 +22,6 @@ function createStore(): BudgetsStore {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  let unsubscribe: (() => void) | null = null
   let lastNoteId: string | undefined = undefined
 
   async function loadBudgets(noteId?: string) {
@@ -74,24 +70,10 @@ function createStore(): BudgetsStore {
     }
   }
 
-  function startWatching() {
-    if (unsubscribe) return
-    unsubscribe = onCollectionChange('budgets', () => {
-      loadBudgets(lastNoteId)
-    })
-  }
-
-  function stopWatching() {
-    if (unsubscribe) {
-      unsubscribe()
-      unsubscribe = null
-    }
-  }
-
-  if (getCurrentInstance()) {
-    onMounted(startWatching)
-    onUnmounted(stopWatching)
-  }
+  // 单例 store 启动时自动订阅变更
+  onCollectionChange('budgets', () => {
+    loadBudgets(lastNoteId)
+  })
 
   async function upsertBudget(data: BudgetFormData): Promise<BudgetEntry> {
     const db = await getDB()
@@ -237,12 +219,15 @@ function createStore(): BudgetsStore {
     getYearCycleType,
     getMonthlyEquivalent,
     getCategoryBudgetEntries,
-    getNoteBudgetEntries,
-    startWatching,
-    stopWatching
+    getNoteBudgetEntries
   }
 }
 
+let _store: BudgetsStore | null = null
+
 export function useBudgets(): BudgetsStore {
-  return createStore()
+  if (!_store) {
+    _store = createStore()
+  }
+  return _store
 }
