@@ -70,7 +70,7 @@
                 @allocate="handleAllocate(bill)"
                 @refund="handleRefund(bill)"
                 @select="toggleSelect(bill.id)"
-                @dragstart="onBillDragStart(bill, $event)"
+                @dragstart="onBillDragStart"
                 @dragend="billDragDrop.endBillDrag()"
               />
             </div>
