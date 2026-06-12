@@ -879,18 +879,17 @@ function navigateToCategory(categoryId: string) {
 }
 
 .year-budget-cell {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
   padding: 2px;
   border-radius: 4px;
+  gap: 2px;
 }
 
 .year-budget-cell .cell-percentage-badge {
-  top: 1px;
-  right: 1px;
+  position: static;
 }
 
 .budget-num {
