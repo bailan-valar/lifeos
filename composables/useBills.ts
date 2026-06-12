@@ -328,6 +328,7 @@ export function useBills() {
       relatedPersonId: data.relatedPersonId || '',
       settledAmount: 0,
       isSavable: data.isSavable || false,
+      savableAmount: data.isSavable ? (data.savableAmount ?? data.amount) : undefined,
       isReimbursable: data.isReimbursable || false,
       createdAt: now(),
       updatedAt: now(),
@@ -531,6 +532,7 @@ export function useBills() {
 
     const patch: Partial<Bill> = {
       ...data,
+      savableAmount: data.isSavable ? (data.savableAmount ?? data.amount) : undefined,
       updatedAt: now()
     }
     await doc.patch(patch)

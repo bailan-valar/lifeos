@@ -98,6 +98,14 @@
         <span>报销</span>
       </label>
     </div>
+    <div v-if="form.type === 'expense' && form.isSavable" class="form-group">
+      <label class="form-label">可节省金额</label>
+      <AmountInput
+        :model-value="form.savableAmount ?? form.amount"
+        :max="form.amount"
+        @update:model-value="onSavableAmountChange"
+      />
+    </div>
   </div>
 </template>
 
@@ -162,7 +170,15 @@ function swapAccounts() {
 
 function onSavableChange(e: Event) {
   const checked = (e.target as HTMLInputElement).checked
-  form.value = { ...form.value, isSavable: checked }
+  form.value = {
+    ...form.value,
+    isSavable: checked,
+    savableAmount: checked ? (form.value.savableAmount || form.value.amount) : undefined
+  }
+}
+
+function onSavableAmountChange(val: number) {
+  form.value = { ...form.value, savableAmount: val }
 }
 
 function onReimbursableChange(e: Event) {

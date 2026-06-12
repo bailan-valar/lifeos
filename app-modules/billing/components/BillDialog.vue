@@ -306,6 +306,7 @@ watch(() => props.visible, (v) => {
       debtSubtype: props.bill.debtSubtype || 'lend',
       relatedPersonId: props.bill.relatedPersonId,
       isSavable: props.bill.isSavable || false,
+      savableAmount: props.bill.isSavable ? (props.bill.savableAmount ?? props.bill.amount) : undefined,
       isReimbursable: props.bill.isReimbursable || false
     }
   } else {
@@ -323,6 +324,7 @@ watch(() => props.visible, (v) => {
       debtSubtype: 'lend',
       relatedPersonId: '',
       isSavable: false,
+      savableAmount: undefined,
       isReimbursable: false
     }
   }

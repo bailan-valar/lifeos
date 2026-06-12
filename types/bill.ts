@@ -110,6 +110,7 @@ export interface Bill {
   originalBillId?: string        // 退款源账单ID
   refundReason?: string          // 退款原因
   isSavable?: boolean            // 可节省（支出标记为可避免的开支）
+  savableAmount?: number         // 可节省金额（默认等于账单金额）
   isReimbursable?: boolean       // 可报销（支出标记为可报销的开销）
   createdAt: string
   updatedAt: string
@@ -139,6 +140,7 @@ export interface BillFormData {
   originalBillId?: string
   refundReason?: string
   isSavable?: boolean
+  savableAmount?: number
   isReimbursable?: boolean
 }
  */
