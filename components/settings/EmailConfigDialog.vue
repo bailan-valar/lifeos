@@ -95,7 +95,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
-import SelectPicker from '~/components/ui/SelectPicker.vue'
+import SelectPicker from '~/components/SelectPicker.vue'
 import type { EmailConfig, EmailConfigFormData, EmailProvider } from '~/types/email'
 import { EMAIL_PROVIDER_CONFIGS } from '~/types/email'
 import { testEmailConnection } from '~/services/emailService'
@@ -106,9 +106,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  close: []
-  save: [data: EmailConfigFormData]
-}()
+  (e: 'close'): void
+  (e: 'save', data: EmailConfigFormData): void
+}>()
 
 const formData = ref<EmailConfigFormData>({
   name: '',
