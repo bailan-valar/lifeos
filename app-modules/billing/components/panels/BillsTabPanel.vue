@@ -103,6 +103,7 @@
       :default-note-id="noteId"
       :default-form-values="(editingBill ? undefined : lastBillDefaults ?? undefined) as Partial<BillFormData> | undefined"
       @confirm="handleBillConfirm"
+      @confirm-and-continue="handleBillConfirmAndContinue"
       @cancel="billDialogs.closeBillDialog"
     />
     <BillBatchEditDialog
@@ -438,6 +439,22 @@ async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: st
       currency: data.currency
     }
     billDialogs.closeBillDialog()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleBillConfirmAndContinue(data: BillFormData) {
+  try {
+    await createBill(data, props.noteId)
+    showSuccess('账单已添加')
+    billDialogs.lastBillDefaults.value = {
+      type: data.type,
+      fromAccountId: data.fromAccountId,
+      toAccountId: data.toAccountId,
+      categoryId: data.categoryId,
+      currency: data.currency
+    }
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }

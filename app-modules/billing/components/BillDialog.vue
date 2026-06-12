@@ -91,6 +91,7 @@
       </div>
       <div class="footer-right">
         <button type="button" class="cancel-btn" @click="onCancel">取消</button>
+        <button v-if="!isEditing" type="button" class="continue-btn" @click="onConfirmAndContinue">继续下一个</button>
         <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
       </div>
     </template>
@@ -158,6 +159,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   confirm: [data: BillFormData, isEditing: boolean, id?: string]
+  'confirm-and-continue': [data: BillFormData]
   cancel: []
   'action-completed': []
 }>()
@@ -362,30 +364,47 @@ watch(() => form.value.categoryId, (newCategoryId, oldCategoryId) => {
   }
 })
 
-function onConfirm() {
+function validateForm(): boolean {
   if (form.value.amount <= 0) {
     showWarning('金额必须大于 0')
-    return
+    return false
   }
   const t = form.value.type
   if (t === 'expense' && !form.value.fromAccountId) {
     showWarning('支出需要选择出账账户')
-    return
+    return false
   }
   if (t === 'income' && !form.value.toAccountId) {
     showWarning('收入需要选择入账账户')
-    return
+    return false
   }
   if (t === 'transfer' && (!form.value.fromAccountId || !form.value.toAccountId)) {
     showWarning('转账需要同时选择出账和入账账户')
-    return
+    return false
   }
   if (form.value.fromAccountId && form.value.toAccountId &&
       form.value.fromAccountId === form.value.toAccountId) {
     showWarning('出账账户与入账账户不能相同')
-    return
+    return false
   }
+  return true
+}
+
+function onConfirm() {
+  if (!validateForm()) return
   emit('confirm', form.value, isEditing.value, props.bill?.id)
+}
+
+function onConfirmAndContinue() {
+  if (!validateForm()) return
+  emit('confirm-and-continue', form.value)
+  // 保留上一次填写的类型、账户、分类、币种，重置金额和描述
+  form.value = {
+    ...form.value,
+    amount: 0,
+    description: '',
+    date: toLocalISO()
+  }
 }
 
 function onCancel() {
@@ -501,6 +520,22 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
 .confirm-btn {
   background: rgb(0, 122, 255);
   color: white;
+}
+
+.continue-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--liquid-radius-button);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: rgba(52, 199, 89, 0.12);
+  color: rgb(52, 199, 89);
+  transition: all 0.15s ease;
+}
+
+.continue-btn:hover {
+  background: rgba(52, 199, 89, 0.2);
 }
 
 /* 底部按钮布局 */
