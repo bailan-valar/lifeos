@@ -95,9 +95,10 @@
         </div>
       </div>
       <div class="dialog-footer">
-        <button type="button" class="cancel-btn" @click="$emit('cancel')">取消</button>
-        <button type="button" class="confirm-btn" :disabled="!hasAnyEdit" @click="handleConfirm">
-          确认修改
+        <button type="button" class="cancel-btn" :disabled="submitting" @click="$emit('cancel')">取消</button>
+        <button type="button" class="confirm-btn" :disabled="!hasAnyEdit || submitting" @click="handleConfirm">
+          <span v-if="submitting" class="btn-loading-spinner" />
+          {{ submitting ? '提交中...' : '确认修改' }}
         </button>
       </div>
     </div>
@@ -127,7 +128,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  confirm: [data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix'; noteId?: string }]
+  confirm: [data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix'; noteId?: string }, done: () => void]
   cancel: []
 }>()
 
@@ -146,6 +147,8 @@ const description = ref('')
 
 const editNote = ref(false)
 const noteId = ref('')
+
+const submitting = ref(false)
 
 const descModes = [
   { value: 'replace' as const, label: '替换' },
@@ -186,6 +189,7 @@ const hasAnyEdit = computed(() => {
 })
 
 function handleConfirm() {
+  if (submitting.value) return
   const result: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix'; noteId?: string } = {}
   if (editCategory.value && categoryId.value) {
     result.categoryId = categoryId.value
@@ -203,7 +207,10 @@ function handleConfirm() {
   if (editNote.value && noteId.value) {
     result.noteId = noteId.value
   }
-  emit('confirm', result)
+  submitting.value = true
+  emit('confirm', result, () => {
+    submitting.value = false
+  })
 }
 </script>
 
@@ -386,6 +393,22 @@ function handleConfirm() {
 .confirm-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-loading-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .dialog-body::-webkit-scrollbar {

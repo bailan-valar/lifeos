@@ -443,9 +443,12 @@ async function handleBillConfirm(data: BillFormData, isEditing: boolean, id?: st
   }
 }
 
-async function handleBatchEditConfirm(data: Partial<BillFormData>) {
+async function handleBatchEditConfirm(data: Partial<BillFormData>, done: () => void) {
   const ids = props.selectedIds
-  if (ids.length === 0) return
+  if (ids.length === 0) {
+    done()
+    return
+  }
   try {
     await updateBills(ids, data)
     showSuccess(`已更新 ${ids.length} 条账单`)
@@ -453,6 +456,8 @@ async function handleBatchEditConfirm(data: Partial<BillFormData>) {
     emit('exit-batch-mode')
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
+  } finally {
+    done()
   }
 }
 

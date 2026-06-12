@@ -380,8 +380,12 @@ function onFilterChange() {
   refreshBills()
 }
 
-async function handleBatchEditConfirm(data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix' }) {
-  await handleBatchEdit(data)
+async function handleBatchEditConfirm(data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix'; noteId?: string }, done: () => void) {
+  try {
+    await handleBatchEdit(data)
+  } finally {
+    done()
+  }
 }
 
 // 右键菜单处理
