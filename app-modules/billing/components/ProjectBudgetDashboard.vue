@@ -26,7 +26,8 @@
           <div class="col-note">项目</div>
           <div class="col-summary">结余</div>
           <div class="col-summary">收入</div>
-          <div class="col-year-budget">年预算/实际</div>
+          <div class="col-year-budget-amount">年支出预算</div>
+          <div class="col-year-expense">支出</div>
           <div
             v-for="m in 12"
             :key="m"
@@ -52,21 +53,21 @@
               {{ totalsRow.yearIncome.toFixed(0) }}
             </span>
           </div>
-          <div class="col-year-budget">
-            <div class="year-budget-cell">
-              <div v-if="totalsRow.yearBudget > 0 || totalsRow.yearActual > 0" class="cell-content">
-                <div class="cell-budget">{{ totalsRow.yearBudget.toFixed(0) }}</div>
-                <div class="cell-divider"></div>
-                <div class="cell-actual" :class="{ over: totalsRow.yearPercentage > 1 }">
-                  {{ totalsRow.yearActual.toFixed(0) }}
-                </div>
-              </div>
+          <div class="col-year-budget-amount">
+            <div v-if="totalsRow.yearBudget > 0" class="year-budget-cell clickable" @click="onYearBudgetClickTotals">
+              <div class="cell-budget">{{ totalsRow.yearBudget.toFixed(0) }}</div>
               <div
-                v-if="totalsRow.yearBudget > 0"
                 class="cell-percentage-badge"
                 :class="{ over: totalsRow.yearPercentage > 1 }"
               >
                 {{ (totalsRow.yearPercentage * 100).toFixed(0) }}%
+              </div>
+            </div>
+          </div>
+          <div class="col-year-expense">
+            <div v-if="totalsRow.yearActual > 0" class="year-budget-cell clickable" @click="onYearExpenseClickTotals">
+              <div class="cell-actual" :class="{ over: totalsRow.yearPercentage > 1 }">
+                {{ totalsRow.yearActual.toFixed(0) }}
               </div>
             </div>
           </div>
@@ -141,15 +142,9 @@
                 {{ row.yearIncome.toFixed(0) }}
               </span>
             </div>
-            <div class="col-year-budget">
-              <div v-if="row.hasOwnBudget" class="year-budget-cell">
-                <div v-if="row.yearBudget > 0 || row.yearActual > 0" class="cell-content">
-                  <div class="cell-budget">{{ row.yearBudget.toFixed(0) }}</div>
-                  <div class="cell-divider"></div>
-                  <div class="cell-actual" :class="{ over: row.yearPercentage > 1 }">
-                    {{ row.yearActual.toFixed(0) }}
-                  </div>
-                </div>
+            <div class="col-year-budget-amount">
+              <div v-if="row.hasOwnBudget" class="year-budget-cell clickable" @click.stop="onYearBudgetClick(row.node.id)">
+                <div v-if="row.yearBudget > 0" class="cell-budget">{{ row.yearBudget.toFixed(0) }}</div>
                 <div
                   v-if="row.yearBudget > 0"
                   class="cell-percentage-badge"
@@ -158,11 +153,14 @@
                   {{ (row.yearPercentage * 100).toFixed(0) }}%
                 </div>
               </div>
-              <div v-else class="year-budget-cell year-budget-cell-no-budget">
-                <div class="cell-content">
-                  <div class="cell-sub-sum">子: {{ row.childrenBudgetSum.toFixed(0) }}</div>
-                  <div class="cell-divider"></div>
-                  <div class="cell-actual">{{ row.yearActual.toFixed(0) }}</div>
+              <div v-else class="year-budget-cell year-budget-cell-no-budget clickable" @click.stop="onYearBudgetClick(row.node.id)">
+                <div class="cell-sub-sum">{{ row.childrenBudgetSum > 0 ? `子: ${row.childrenBudgetSum.toFixed(0)}` : '' }}</div>
+              </div>
+            </div>
+            <div class="col-year-expense">
+              <div v-if="row.yearActual > 0" class="year-budget-cell clickable" @click.stop="onYearExpenseClick(row.node.id)">
+                <div class="cell-actual" :class="{ over: row.yearPercentage > 1 }">
+                  {{ row.yearActual.toFixed(0) }}
                 </div>
               </div>
             </div>
@@ -236,6 +234,8 @@ const emit = defineEmits<{
   (e: 'note-contextmenu', payload: { node: NoteTreeNode; x: number; y: number }): void
   (e: 'note-click', payload: { noteId: string; year: number; month: number }): void
   (e: 'bill-drop', payload: { billIds: string[]; targetNoteId: string }): void
+  (e: 'budget-click', payload: { noteId: string; year: number }): void
+  (e: 'year-expense-click', payload: { noteId: string; year: number }): void
 }>()
 
 const billDragDrop = inject<ReturnType<typeof useBillDragDrop>>('billDragDrop', undefined as any)
@@ -871,7 +871,6 @@ function getCellBg(percentage: number, hasBudget: boolean): string {
 }
 
 function onCellClick(noteId: string, month: number) {
-  console.log('[ProjectBudgetDashboard] onCellClick 被调用:', { noteId, month, year: currentYear.value })
   emit('edit-cell', {
     noteId,
     year: currentYear.value,
@@ -885,6 +884,22 @@ function onNoteClick(noteId: string) {
     year: currentYear.value,
     month: new Date().getMonth() + 1
   })
+}
+
+function onYearBudgetClick(noteId: string) {
+  emit('budget-click', { noteId, year: currentYear.value })
+}
+
+function onYearExpenseClick(noteId: string) {
+  emit('year-expense-click', { noteId, year: currentYear.value })
+}
+
+function onYearBudgetClickTotals() {
+  // 合计行不打开预算弹框
+}
+
+function onYearExpenseClickTotals() {
+  // 合计行不打开账单抽屉
 }
 
 function onNoteColDragOver(noteId: string, event: DragEvent) {
@@ -1038,11 +1053,27 @@ function isNoteDragOver(noteId: string): boolean {
   box-shadow: inset 0 0 0 1.5px rgba(0, 122, 255, 0.25);
 }
 
-.col-year-budget {
-  width: 82px;
+.col-year-budget-amount {
+  width: 62px;
   flex-shrink: 0;
   position: sticky;
   left: 276px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border-right: 0.5px solid rgba(60, 60, 67, 0.08);
+  z-index: 1;
+  font-weight: 500;
+}
+
+.col-year-expense {
+  width: 62px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 338px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1156,6 +1187,15 @@ function isNoteDragOver(noteId: string): boolean {
   border-radius: 4px;
 }
 
+.year-budget-cell.clickable {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.year-budget-cell.clickable:hover {
+  background: rgba(0, 122, 255, 0.08);
+}
+
 .year-budget-cell .cell-percentage-badge {
   top: 1px;
   right: 1px;
@@ -1266,7 +1306,11 @@ function isNoteDragOver(noteId: string): boolean {
   background: rgba(248, 248, 248, 0.95);
 }
 
-.table-footer .col-year-budget {
+.table-footer .col-year-budget-amount {
+  background: rgba(248, 248, 248, 0.95);
+}
+
+.table-footer .col-year-expense {
   background: rgba(248, 248, 248, 0.95);
 }
 
@@ -1300,6 +1344,18 @@ function isNoteDragOver(noteId: string): boolean {
 .col-note + .col-summary + .col-summary {
   position: sticky;
   left: 218px;
+}
+
+/* 年支出预算列 - sticky left: 276px（紧跟收入列） */
+.col-note + .col-summary + .col-summary + .col-year-budget-amount {
+  position: sticky;
+  left: 276px;
+}
+
+/* 支出列 - sticky left: 338px（紧跟年支出预算列） */
+.col-note + .col-summary + .col-summary + .col-year-budget-amount + .col-year-expense {
+  position: sticky;
+  left: 338px;
 }
 
 .table-footer .col-summary {

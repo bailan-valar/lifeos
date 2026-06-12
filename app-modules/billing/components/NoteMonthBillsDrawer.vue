@@ -7,7 +7,7 @@
           <div class="drawer-header">
             <div class="header-info">
               <span class="header-title">{{ displayNoteName }}</span>
-              <span class="header-sub">{{ year }}年{{ month }}月账单</span>
+              <span class="header-sub">{{ year }}年{{ month ? `${month}月` : '全年' }}账单</span>
             </div>
             <button class="close-btn" @click="close">
               <Icon :name="SOLAR_ICONS.action.close" size="18" />
@@ -47,7 +47,7 @@
 
             <div v-else-if="filteredBills.length === 0" class="empty">
               <Icon :name="SOLAR_ICONS.doc.default" size="32" />
-              <span>{{ bills.length === 0 ? '该月份暂无账单' : '无匹配结果' }}</span>
+              <span>{{ bills.length === 0 ? (month ? '该月份暂无账单' : '该年度暂无账单') : '无匹配结果' }}</span>
             </div>
 
             <div v-else class="bills-list">
@@ -159,7 +159,7 @@ const props = defineProps<{
   noteId: string
   noteName: string
   year: number
-  month: number
+  month?: number
 }>()
 
 const emit = defineEmits<{
@@ -313,16 +313,18 @@ function getNoteNameById(noteId: string): string {
 async function loadBills(silent = false) {
   if (!silent) loading.value = true
   try {
-    const prefix = `${props.year}-${String(props.month).padStart(2, '0')}`
     const { getDB } = await import('~/services/db')
     const db = await getDB()
 
     const isUnlinked = props.noteId === '__none__'
     const queryNoteIds = isUnlinked ? [] : getDescendantNoteIds(props.noteId)
 
-    const selector: Record<string, unknown> = {
-      date: { $gte: `${prefix}-01`, $lte: `${prefix}-31` }
-    }
+    const isYearMode = !props.month
+    const yearPrefix = `${props.year}-`
+
+    const selector: Record<string, unknown> = isYearMode
+      ? { date: { $gte: `${props.year}-01-01`, $lte: `${props.year}-12-31` } }
+      : { date: { $gte: `${props.year}-${String(props.month).padStart(2, '0')}-01`, $lte: `${props.year}-${String(props.month).padStart(2, '0')}-31` } }
 
     if (isUnlinked) {
       // 无关联账单：在内存中过滤
@@ -352,9 +354,17 @@ async function loadBills(silent = false) {
       if (!rejected && bill.hasChildren) rejected = true
 
       if (!rejected) {
-        const matchAllocated = bill.allocatedMonth === prefix
-        const matchDate = bill.date.startsWith(prefix)
-        if (!matchAllocated && !matchDate) rejected = true
+        if (isYearMode) {
+          // 全年模式：匹配该年份
+          const matchAllocated = bill.allocatedMonth?.startsWith(yearPrefix)
+          const matchDate = bill.date.startsWith(yearPrefix)
+          if (!matchAllocated && !matchDate) rejected = true
+        } else {
+          const prefix = `${props.year}-${String(props.month).padStart(2, '0')}`
+          const matchAllocated = bill.allocatedMonth === prefix
+          const matchDate = bill.date.startsWith(prefix)
+          if (!matchAllocated && !matchDate) rejected = true
+        }
       }
 
       if (!rejected) {

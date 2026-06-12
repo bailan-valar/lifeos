@@ -6,6 +6,8 @@
       @note-contextmenu="openNoteContextMenu"
       @note-click="onNoteClick"
       @bill-drop="handleBillDrop"
+      @budget-click="onBudgetClick"
+      @year-expense-click="onYearExpenseClick"
     />
   </div>
   <NoteContextMenu
@@ -46,7 +48,7 @@
     :note-id="monthBillsDialogData.noteId"
     :note-name="monthBillsDialogData.noteName"
     :year="monthBillsDialogData.year"
-    :month="monthBillsDialogData.month"
+    :month="monthBillsDialogData.month ?? undefined"
   />
   <NoteEditDialog
     v-model:visible="noteEditDialogVisible"
@@ -117,7 +119,7 @@ const monthBillsDialogData = ref({
   noteId: '',
   noteName: '',
   year: new Date().getFullYear(),
-  month: new Date().getMonth() + 1
+  month: undefined as number | undefined
 })
 
 function getNoteName(noteId: string): string {
@@ -132,6 +134,24 @@ function openMonthBillsDialog(payload: { noteId: string; year: number; month: nu
     noteName: getNoteName(payload.noteId),
     year: payload.year,
     month: payload.month
+  }
+  monthBillsDialogVisible.value = true
+}
+
+function onBudgetClick(payload: { noteId: string; year: number }) {
+  onNoteClick({
+    noteId: payload.noteId,
+    year: payload.year,
+    month: new Date().getMonth() + 1
+  })
+}
+
+function onYearExpenseClick(payload: { noteId: string; year: number }) {
+  monthBillsDialogData.value = {
+    noteId: payload.noteId,
+    noteName: getNoteName(payload.noteId),
+    year: payload.year,
+    month: undefined as any
   }
   monthBillsDialogVisible.value = true
 }
