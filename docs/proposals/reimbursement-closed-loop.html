@@ -19,12 +19,11 @@
       --red: #f87171;
       --blue: #60a5fa;
       --purple: #a78bfa;
+      --cyan: #22d3ee;
       --radius: 16px;
       --radius-sm: 10px;
     }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
       background: var(--bg);
       color: var(--text);
@@ -32,1135 +31,1142 @@
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
-
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 40px 24px 80px;
-    }
+    .container { max-width:1100px; margin:0 auto; padding:40px 24px 80px; }
 
     /* Hero */
-    .hero {
-      text-align: center;
-      padding: 60px 0 48px;
-      position: relative;
-    }
+    .hero { text-align:center; padding:60px 0 48px; position:relative; }
     .hero::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 50%;
-      transform: translateX(-50%);
-      width: 600px; height: 400px;
-      background: radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%);
-      pointer-events: none;
+      content:''; position:absolute; top:0; left:50%; transform:translateX(-50%);
+      width:600px; height:400px;
+      background:radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%);
+      pointer-events:none;
     }
     .hero-tag {
-      display: inline-block;
-      padding: 6px 16px;
-      background: rgba(99,102,241,0.12);
-      border: 1px solid rgba(99,102,241,0.25);
-      border-radius: 20px;
-      font-size: 13px;
-      color: var(--accent-light);
-      margin-bottom: 20px;
+      display:inline-block; padding:6px 16px;
+      background:rgba(99,102,241,0.12); border:1px solid rgba(99,102,241,0.25);
+      border-radius:20px; font-size:13px; color:var(--accent-light); margin-bottom:20px;
     }
     .hero h1 {
-      font-size: clamp(28px, 5vw, 42px);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 12px;
-      background: linear-gradient(135deg, #fff 30%, var(--accent-light));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      font-size:clamp(28px,5vw,42px); font-weight:700; letter-spacing:-0.02em; margin-bottom:12px;
+      background:linear-gradient(135deg,#fff 30%,var(--accent-light));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
     }
-    .hero p {
-      font-size: 16px;
-      color: var(--text-dim);
-      max-width: 560px;
-      margin: 0 auto;
-    }
+    .hero p { font-size:16px; color:var(--text-dim); max-width:600px; margin:0 auto; }
 
     /* Section */
-    .section { margin-top: 48px; }
+    .section { margin-top:48px; }
     .section-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      font-size:22px; font-weight:700; margin-bottom:24px;
+      display:flex; align-items:center; gap:10px;
     }
     .section-title .icon {
-      width: 32px; height: 32px;
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px;
-      flex-shrink: 0;
+      width:32px; height:32px; border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:16px; flex-shrink:0;
     }
 
-    /* Problem Cards */
-    .problem-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
+    /* Distinction Table */
+    .distinction-wrap {
+      overflow-x:auto; border-radius:var(--radius); border:1px solid var(--border);
     }
-    .problem-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      transition: background 0.2s;
+    .distinction {
+      width:100%; border-collapse:collapse; min-width:500px;
     }
-    .problem-card:hover { background: var(--surface-hover); }
-    .problem-card .tag {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 3px 8px;
-      border-radius: 4px;
-      margin-bottom: 10px;
+    .distinction th {
+      padding:14px 20px; font-size:13px; font-weight:600; text-align:left;
+      background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border); color:var(--text-dim);
     }
-    .problem-card .tag.missing { background: rgba(248,113,113,0.15); color: var(--red); }
-    .problem-card .tag.bug { background: rgba(251,146,60,0.15); color: var(--orange); }
-    .problem-card .tag.partial { background: rgba(96,165,250,0.15); color: var(--blue); }
-    .problem-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
-    .problem-card p { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+    .distinction td {
+      padding:14px 20px; font-size:14px; border-bottom:1px solid var(--border); vertical-align:middle;
+    }
+    .distinction tr:last-child td { border-bottom:none; }
+    .tag-refund {
+      display:inline-block; padding:2px 10px; border-radius:6px; font-size:12px; font-weight:600;
+      background:rgba(251,146,60,0.15); color:var(--orange);
+    }
+    .tag-reimburse {
+      display:inline-block; padding:2px 10px; border-radius:6px; font-size:12px; font-weight:600;
+      background:rgba(99,102,241,0.15); color:var(--accent-light);
+    }
 
-    /* Comparison Matrix */
+    /* Scenario Cards */
+    .scenario-grid {
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px;
+    }
+    .scenario-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:20px; transition:background 0.2s;
+    }
+    .scenario-card:hover { background:var(--surface-hover); }
+    .scenario-card .num {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:28px; height:28px; border-radius:8px; font-size:14px; font-weight:700;
+      margin-bottom:12px;
+    }
+    .scenario-card h3 { font-size:15px; font-weight:600; margin-bottom:8px; }
+    .scenario-card p { font-size:13px; color:var(--text-dim); line-height:1.6; }
+    .scenario-card .highlight {
+      color:var(--accent-light); font-weight:600;
+    }
+
+    /* Matrix */
     .matrix-wrap {
-      overflow-x: auto;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
+      overflow-x:auto; border-radius:var(--radius); border:1px solid var(--border);
     }
-    .matrix {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 700px;
-    }
+    .matrix { width:100%; border-collapse:collapse; min-width:700px; }
     .matrix th {
-      padding: 14px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      text-align: left;
-      background: rgba(255,255,255,0.03);
-      border-bottom: 1px solid var(--border);
-      color: var(--text-dim);
-      white-space: nowrap;
+      padding:14px 16px; font-size:13px; font-weight:600; text-align:left;
+      background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border);
+      color:var(--text-dim); white-space:nowrap;
     }
     .matrix td {
-      padding: 14px 16px;
-      font-size: 14px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: middle;
+      padding:14px 16px; font-size:14px; border-bottom:1px solid var(--border); vertical-align:middle;
     }
-    .matrix tr:last-child td { border-bottom: none; }
-    .matrix .plan-name {
-      font-weight: 700;
-      font-size: 15px;
-    }
-    .matrix .rec {
-      color: var(--green);
-      font-weight: 600;
-    }
-    .stars { color: var(--orange); letter-spacing: 2px; }
+    .matrix tr:last-child td { border-bottom:none; }
+    .matrix .plan-name { font-weight:700; font-size:15px; }
+    .stars { color:var(--orange); letter-spacing:2px; }
     .badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
+      display:inline-block; padding:2px 10px; border-radius:6px;
+      font-size:12px; font-weight:600;
     }
-    .badge-green { background: rgba(52,211,153,0.15); color: var(--green); }
-    .badge-blue { background: rgba(96,165,250,0.15); color: var(--blue); }
-    .badge-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+    .badge-green { background:rgba(52,211,153,0.15); color:var(--green); }
+    .badge-blue { background:rgba(96,165,250,0.15); color:var(--blue); }
+    .badge-purple { background:rgba(167,139,250,0.15); color:var(--purple); }
+    .badge-red { background:rgba(248,113,113,0.15); color:var(--red); }
+    .rec { color:var(--green); font-weight:600; }
 
-    /* Flow Diagram */
+    /* Flow */
     .flow-container {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 32px;
-      overflow-x: auto;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:32px; overflow-x:auto;
     }
     .flow {
-      display: flex;
-      align-items: flex-start;
-      gap: 0;
-      min-width: fit-content;
-      justify-content: center;
-      flex-wrap: wrap;
+      display:flex; align-items:flex-start; gap:0; min-width:fit-content;
+      justify-content:center; flex-wrap:wrap;
     }
     .flow-step {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      min-width: 140px;
-      text-align: center;
-      flex-shrink: 0;
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+      min-width:120px; text-align:center; flex-shrink:0;
     }
     .flow-step .circle {
-      width: 56px; height: 56px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px;
-      position: relative;
+      width:56px; height:56px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center; font-size:24px;
     }
-    .flow-step .circle.green { background: rgba(52,211,153,0.15); border: 2px solid rgba(52,211,153,0.3); }
-    .flow-step .circle.blue { background: rgba(96,165,250,0.15); border: 2px solid rgba(96,165,250,0.3); }
-    .flow-step .circle.orange { background: rgba(251,146,60,0.15); border: 2px solid rgba(251,146,60,0.3); }
-    .flow-step .circle.purple { background: rgba(167,139,250,0.15); border: 2px solid rgba(167,139,250,0.3); }
-    .flow-step .circle.accent { background: rgba(99,102,241,0.15); border: 2px solid rgba(99,102,241,0.3); }
-    .flow-step .label {
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .flow-step .desc {
-      font-size: 11px;
-      color: var(--text-dim);
-      max-width: 120px;
-    }
+    .flow-step .circle.green { background:rgba(52,211,153,0.15); border:2px solid rgba(52,211,153,0.3); }
+    .flow-step .circle.blue { background:rgba(96,165,250,0.15); border:2px solid rgba(96,165,250,0.3); }
+    .flow-step .circle.orange { background:rgba(251,146,60,0.15); border:2px solid rgba(251,146,60,0.3); }
+    .flow-step .circle.purple { background:rgba(167,139,250,0.15); border:2px solid rgba(167,139,250,0.3); }
+    .flow-step .circle.accent { background:rgba(99,102,241,0.15); border:2px solid rgba(99,102,241,0.3); }
+    .flow-step .circle.cyan { background:rgba(34,211,238,0.15); border:2px solid rgba(34,211,238,0.3); }
+    .flow-step .label { font-size:13px; font-weight:600; }
+    .flow-step .desc { font-size:11px; color:var(--text-dim); max-width:120px; }
     .flow-arrow {
-      display: flex;
-      align-items: center;
-      padding: 0 8px;
-      font-size: 18px;
-      color: var(--text-dim);
-      margin-top: 18px;
-      flex-shrink: 0;
+      display:flex; align-items:center; padding:0 8px;
+      font-size:18px; color:var(--text-dim); margin-top:18px; flex-shrink:0;
     }
 
-    /* Plan Detail Cards */
-    .plan-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-    }
+    /* Plan Tabs */
+    .plan-tabs { display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
     .plan-tab {
-      padding: 10px 20px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      background: var(--surface);
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-dim);
-      transition: all 0.2s;
-      user-select: none;
+      padding:10px 20px; border-radius:var(--radius-sm);
+      border:1px solid var(--border); background:var(--surface);
+      cursor:pointer; font-size:14px; font-weight:500; color:var(--text-dim);
+      transition:all 0.2s; user-select:none;
     }
-    .plan-tab:hover { background: var(--surface-hover); color: var(--text); }
+    .plan-tab:hover { background:var(--surface-hover); color:var(--text); }
     .plan-tab.active {
-      background: rgba(99,102,241,0.15);
-      border-color: rgba(99,102,241,0.3);
-      color: var(--accent-light);
+      background:rgba(99,102,241,0.15); border-color:rgba(99,102,241,0.3);
+      color:var(--accent-light);
     }
     .plan-tab .rec-dot {
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      margin-left: 6px;
-      vertical-align: middle;
+      display:inline-block; width:6px; height:6px; border-radius:50%;
+      background:var(--green); margin-left:6px; vertical-align:middle;
     }
-
-    .plan-content { display: none; }
-    .plan-content.active { display: block; }
-
+    .plan-content { display:none; }
+    .plan-content.active { display:block; }
     .plan-header {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
+      display:flex; align-items:center; gap:16px; margin-bottom:24px; flex-wrap:wrap;
     }
-    .plan-header h3 { font-size: 20px; font-weight: 700; }
-    .plan-header .meta-tag {
-      padding: 4px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-    }
+    .plan-header h3 { font-size:20px; font-weight:700; }
+    .meta-tag { padding:4px 12px; border-radius:6px; font-size:12px; font-weight:600; }
 
-    /* UI Mockups */
+    /* Mockup */
     .mockup {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      margin: 20px 0;
+      background:rgba(255,255,255,0.03); border:1px solid var(--border);
+      border-radius:var(--radius); overflow:hidden; margin:20px 0;
     }
     .mockup-bar {
-      background: rgba(255,255,255,0.05);
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-      color: var(--text-dim);
+      background:rgba(255,255,255,0.05); padding:10px 16px;
+      display:flex; align-items:center; gap:8px;
+      border-bottom:1px solid var(--border); font-size:13px; color:var(--text-dim);
     }
-    .mockup-bar .dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-    }
-    .mockup-bar .dot.r { background: #f87171; }
-    .mockup-bar .dot.y { background: #fbbf24; }
-    .mockup-bar .dot.g { background: #34d399; }
-    .mockup-body {
-      padding: 24px;
-    }
+    .mockup-bar .dot { width:8px; height:8px; border-radius:50%; }
+    .mockup-bar .dot.r { background:#f87171; }
+    .mockup-bar .dot.y { background:#fbbf24; }
+    .mockup-bar .dot.g { background:#34d399; }
+    .mockup-body { padding:24px; }
 
     /* Stats Row */
     .stats-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+      gap:12px; margin-bottom:20px;
     }
     .stat-box {
-      background: rgba(255,255,255,0.04);
-      border-radius: var(--radius-sm);
-      padding: 16px;
-      text-align: center;
+      background:rgba(255,255,255,0.04); border-radius:var(--radius-sm);
+      padding:16px; text-align:center;
     }
-    .stat-box .value {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .stat-box .label {
-      font-size: 11px;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
+    .stat-box .value { font-size:22px; font-weight:700; margin-bottom:4px; }
+    .stat-box .label { font-size:11px; color:var(--text-dim); letter-spacing:0.04em; }
 
-    /* List Items */
-    .mock-list { display: flex; flex-direction: column; gap: 8px; }
+    /* Mock List */
+    .mock-list { display:flex; flex-direction:column; gap:8px; }
     .mock-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      background: rgba(255,255,255,0.03);
-      border-radius: var(--radius-sm);
-      font-size: 13px;
+      display:flex; align-items:center; gap:12px;
+      padding:12px 16px; background:rgba(255,255,255,0.03);
+      border-radius:var(--radius-sm); font-size:13px;
     }
-    .mock-item .emoji { font-size: 18px; }
-    .mock-item .name { flex: 1; font-weight: 500; }
-    .mock-item .amount { font-weight: 600; font-variant-numeric: tabular-nums; }
-    .mock-item .info { color: var(--text-dim); font-size: 12px; }
-    .mock-item .badge-sm {
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
+    .mock-item .emoji { font-size:18px; }
+    .mock-item .name { flex:1; font-weight:500; }
+    .mock-item .amount { font-weight:600; font-variant-numeric:tabular-nums; }
+    .mock-item .info { color:var(--text-dim); font-size:12px; }
+    .badge-sm { padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+    .badge-pending { background:rgba(251,146,60,0.15); color:var(--orange); }
+    .badge-done { background:rgba(52,211,153,0.15); color:var(--green); }
+    .badge-draft { background:rgba(96,165,250,0.15); color:var(--blue); }
+
+    /* Progress Steps */
+    .progress-steps {
+      display:flex; gap:0; margin:16px 0; padding:0 4px;
     }
-    .badge-pending { background: rgba(251,146,60,0.15); color: var(--orange); }
-    .badge-done { background: rgba(52,211,153,0.15); color: var(--green); }
-    .badge-overdue { background: rgba(248,113,113,0.15); color: var(--red); }
+    .progress-steps .step {
+      flex:1; height:4px; border-radius:2px;
+    }
+    .progress-labels {
+      display:flex; gap:0; font-size:11px; color:var(--text-dim); padding:0 4px;
+    }
+    .progress-labels .step { flex:1; text-align:center; }
 
     /* File List */
     .file-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 10px;
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px;
     }
     .file-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      background: var(--surface);
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      font-size: 13px;
+      display:flex; align-items:center; gap:10px;
+      padding:10px 14px; background:var(--surface);
+      border-radius:var(--radius-sm); border:1px solid var(--border); font-size:13px;
     }
     .file-item .file-icon {
-      width: 28px; height: 28px;
-      border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px;
-      flex-shrink: 0;
+      width:28px; height:28px; border-radius:6px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:700; flex-shrink:0;
     }
-    .file-item .file-icon.vue { background: rgba(52,211,153,0.15); }
-    .file-item .file-icon.ts { background: rgba(96,165,250,0.15); }
-    .file-item .file-icon.new { background: rgba(167,139,250,0.15); }
+    .file-item .file-icon.new { background:rgba(167,139,250,0.15); color:var(--purple); }
+    .file-item .file-icon.mod { background:rgba(96,165,250,0.15); color:var(--blue); }
     .file-item .file-path {
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 12px;
-      color: var(--text-dim);
-      word-break: break-all;
+      font-family:'SF Mono','Fira Code',monospace; font-size:12px;
+      color:var(--text-dim); word-break:break-all;
     }
-    .file-item .file-type {
-      margin-left: auto;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 4px;
-      white-space: nowrap;
+    .file-type {
+      margin-left:auto; font-size:11px; font-weight:600;
+      padding:2px 8px; border-radius:4px; white-space:nowrap;
     }
-    .file-type.new { background: rgba(167,139,250,0.15); color: var(--purple); }
-    .file-type.modify { background: rgba(96,165,250,0.15); color: var(--blue); }
-    .file-type.fix { background: rgba(251,146,60,0.15); color: var(--orange); }
+    .file-type.new { background:rgba(167,139,250,0.15); color:var(--purple); }
+    .file-type.modify { background:rgba(96,165,250,0.15); color:var(--blue); }
 
     /* Timeline */
     .timeline {
-      display: flex;
-      gap: 0;
-      margin: 24px 0;
-      position: relative;
-      justify-content: center;
-      flex-wrap: wrap;
+      display:flex; gap:0; margin:24px 0; position:relative;
+      justify-content:center; flex-wrap:wrap;
     }
     .timeline::before {
-      content: '';
-      position: absolute;
-      top: 24px;
-      left: 10%;
-      right: 10%;
-      height: 2px;
-      background: var(--border);
+      content:''; position:absolute; top:24px; left:10%; right:10%;
+      height:2px; background:var(--border);
     }
     .tl-phase {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      padding: 0 24px;
-      position: relative;
-      min-width: 160px;
+      display:flex; flex-direction:column; align-items:center; gap:8px;
+      padding:0 24px; position:relative; min-width:160px;
     }
-    .tl-phase .dot {
-      width: 12px; height: 12px;
-      border-radius: 50%;
-      z-index: 1;
-    }
-    .tl-phase .dot.p1 { background: var(--orange); box-shadow: 0 0 12px rgba(251,146,60,0.4); }
-    .tl-phase .dot.p2 { background: var(--accent); box-shadow: 0 0 12px rgba(99,102,241,0.4); }
-    .tl-phase .dot.p3 { background: var(--green); box-shadow: 0 0 12px rgba(52,211,153,0.4); }
-    .tl-phase .phase-title { font-size: 14px; font-weight: 700; margin-top: 4px; }
-    .tl-phase .phase-days { font-size: 12px; color: var(--text-dim); }
+    .tl-phase .dot { width:12px; height:12px; border-radius:50%; z-index:1; }
+    .tl-phase .dot.p1 { background:var(--orange); box-shadow:0 0 12px rgba(251,146,60,0.4); }
+    .tl-phase .dot.p2 { background:var(--accent); box-shadow:0 0 12px rgba(99,102,241,0.4); }
+    .tl-phase .dot.p3 { background:var(--green); box-shadow:0 0 12px rgba(52,211,153,0.4); }
+    .tl-phase .phase-title { font-size:14px; font-weight:700; margin-top:4px; }
+    .tl-phase .phase-days { font-size:12px; color:var(--text-dim); }
     .tl-phase .phase-items {
-      font-size: 12px;
-      color: var(--text-dim);
-      text-align: center;
-      line-height: 1.6;
-      max-width: 160px;
+      font-size:12px; color:var(--text-dim); text-align:center;
+      line-height:1.6; max-width:160px;
     }
 
-    /* Footer */
+    /* Callout */
+    .callout {
+      padding:16px 20px; border-radius:var(--radius); font-size:13px; margin:20px 0;
+    }
+    .callout.info { background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2); color:var(--accent-light); }
+    .callout.warn { background:rgba(251,146,60,0.08); border:1px solid rgba(251,146,60,0.2); color:var(--orange); }
+
+    /* Lifecycle */
+    .lifecycle {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      flex-wrap:wrap; margin:16px 0;
+    }
+    .lc-node {
+      padding:8px 16px; border-radius:var(--radius-sm); font-size:13px; font-weight:600;
+      border:1px solid;
+    }
+    .lc-node.draft { background:rgba(96,165,250,0.1); border-color:rgba(96,165,250,0.3); color:var(--blue); }
+    .lc-node.submitted { background:rgba(251,146,60,0.1); border-color:rgba(251,146,60,0.3); color:var(--orange); }
+    .lc-node.approved { background:rgba(167,139,250,0.1); border-color:rgba(167,139,250,0.3); color:var(--purple); }
+    .lc-node.paid { background:rgba(52,211,153,0.1); border-color:rgba(52,211,153,0.3); color:var(--green); }
+    .lc-arrow { color:var(--text-dim); font-size:16px; }
+
+    .sub-title { margin:24px 0 12px; font-size:14px; color:var(--text-dim); font-weight:500; }
+
     .footer {
-      text-align: center;
-      margin-top: 60px;
-      padding-top: 24px;
-      border-top: 1px solid var(--border);
-      font-size: 13px;
-      color: var(--text-dim);
+      text-align:center; margin-top:60px; padding-top:24px;
+      border-top:1px solid var(--border); font-size:13px; color:var(--text-dim);
     }
-    .footer a { color: var(--accent-light); text-decoration: none; }
 
-    /* Responsive */
-    @media (max-width: 640px) {
-      .container { padding: 20px 16px 60px; }
-      .hero { padding: 40px 0 32px; }
-      .flow { gap: 16px; }
-      .flow-step { min-width: 100px; }
-      .flow-arrow { padding: 0 4px; }
-      .timeline::before { left: 5%; right: 5%; }
-      .tl-phase { min-width: 100px; padding: 0 12px; }
+    @media (max-width:640px) {
+      .container { padding:20px 16px 60px; }
+      .hero { padding:40px 0 32px; }
+      .flow { gap:12px; }
+      .flow-step { min-width:80px; }
+      .flow-arrow { padding:0 2px; }
+      .timeline::before { left:5%; right:5%; }
+      .tl-phase { min-width:100px; padding:0 10px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Hero -->
-    <div class="hero">
-      <div class="hero-tag">LifeOS · 记账模块</div>
-      <h1>报销功能流程闭环优化</h1>
-      <p>从「记录退款」到「退款全链路追踪」，<br>让每一笔支出都有始有终。</p>
+<div class="container">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-tag">LifeOS · 记账模块</div>
+    <h1>报销功能闭环优化</h1>
+    <p>垫付 → 归集 → 回款 → 闭环<br>多笔支出，一笔报销，全程可追踪。</p>
+  </div>
+
+  <!-- 报销 ≠ 退款 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(99,102,241,0.15)">💡</span>
+      报销 ≠ 退款
+    </div>
+    <div class="distinction-wrap">
+      <table class="distinction">
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th><span class="tag-refund">退款 Refund</span></th>
+            <th><span class="tag-reimburse">报销 Reimbursement</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600">场景</td>
+            <td>买的东西退了，商家退钱</td>
+            <td>替公司垫付，公司后付款给我</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">示例</td>
+            <td>网购退货 → 商家退款</td>
+            <td>出差打车 ¥30 → 公司报销 ¥30</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">关系</td>
+            <td>1 : 1（一笔支出 ↔ 一笔回款）</td>
+            <td style="color:var(--accent-light);font-weight:600">N : 1（多笔支出 ↔ 一笔回款）</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">现有支持</td>
+            <td><span class="badge badge-green">已实现</span></td>
+            <td><span class="badge badge-red">未实现</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 用户故事 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(52,211,153,0.15)">📝</span>
+      典型场景
+    </div>
+    <div class="scenario-grid">
+      <div class="scenario-card">
+        <div class="num" style="background:rgba(99,102,241,0.15);color:var(--accent-light)">1</div>
+        <h3>日常报销</h3>
+        <p>团建聚餐我垫付了 ¥500，打车 ¥80。<br>月底公司统一报销了 <span class="highlight">¥580</span>。<br><br>→ 多笔支出，一次打款</p>
+      </div>
+      <div class="scenario-card">
+        <div class="num" style="background:rgba(99,102,241,0.15);color:var(--accent-light)">2</div>
+        <h3>差旅报销</h3>
+        <p>出差北京：机票 ¥1,200、酒店 ¥800、打车 ¥150。<br>回来后提交报销单，公司打款 <span class="highlight">¥2,150</span>。<br><br>→ 创建报销单，归集多笔支出</p>
+      </div>
+      <div class="scenario-card">
+        <div class="num" style="background:rgba(99,102,241,0.15);color:var(--accent-light)">3</div>
+        <h3>部分报销</h3>
+        <p>团建花了 ¥500，但公司只能报 ¥300。<br>剩余 ¥200 自己承担。<br><br>→ 支出账单显示 <span class="highlight">已报销 ¥300/¥500</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 核心流程 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(96,165,250,0.15)">🔄</span>
+      核心闭环流程
+    </div>
+    <div class="flow-container">
+      <div class="flow">
+        <div class="flow-step">
+          <div class="circle green">💸</div>
+          <div class="label">垫付支出</div>
+          <div class="desc">正常记录支出账单</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="circle blue">📋</div>
+          <div class="label">创建报销单</div>
+          <div class="desc">多笔支出归集到一个报销单</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="circle orange">⏳</div>
+          <div class="label">等待打款</div>
+          <div class="desc">追踪报销进度</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="circle purple">💰</div>
+          <div class="label">记录回款</div>
+          <div class="desc">公司打款到账</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="circle accent">✅</div>
+          <div class="label">闭环完成</div>
+          <div class="desc">支出显示"已报销"</div>
+        </div>
+      </div>
+    </div>
+    <div class="callout info" style="margin-top:16px">
+      <strong>关键需求：N → 1 关联</strong> — 多笔垫付支出可以合并到一个报销单，公司一次打款即可完成闭环。现有的退款功能（1:1）保持不变，报销是全新概念。
+    </div>
+  </div>
+
+  <!-- 方案对比 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(99,102,241,0.15)">⚖️</span>
+      方案对比
+    </div>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th>A · 轻量标记</th>
+            <th>B · 报销单 <span class="rec">推荐</span></th>
+            <th>C · 完整审批流</th>
+            <th>D · 智能报销</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="plan-name" style="color:var(--text-dim)">核心思路</td>
+            <td>给支出加"待报销"标签</td>
+            <td>新增报销单实体，N:1 关联</td>
+            <td>报销单 + 审批流程</td>
+            <td>方案B + AI匹配</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">N:1 支持</td>
+            <td><span class="badge badge-red">不支持</span></td>
+            <td><span class="badge badge-green">支持</span></td>
+            <td><span class="badge badge-green">支持</span></td>
+            <td><span class="badge badge-green">支持</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">改动范围</td>
+            <td><span class="badge badge-green">小</span></td>
+            <td><span class="badge badge-blue">中</span></td>
+            <td><span class="badge badge-purple">大</span></td>
+            <td><span class="badge badge-purple">大</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">新增页面</td>
+            <td>0</td>
+            <td>1</td>
+            <td>2</td>
+            <td>2</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">新增组件</td>
+            <td>3</td>
+            <td>6</td>
+            <td>9</td>
+            <td>11</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">数据模型</td>
+            <td>Bill 加字段</td>
+            <td>Bill 加字段 + 报销分组</td>
+            <td>新增集合</td>
+            <td>新增集合</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">开发周期</td>
+            <td>1-2 天</td>
+            <td>3-5 天</td>
+            <td>7-10 天</td>
+            <td>10-14 天</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">适用场景</td>
+            <td>偶尔报销</td>
+            <td>规律报销</td>
+            <td>团队报销</td>
+            <td>高频报销</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">推荐度</td>
+            <td class="stars">⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐⭐⭐</td>
+            <td class="stars">⭐⭐⭐</td>
+            <td class="stars">⭐⭐</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 方案详情 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(52,211,153,0.15)">📋</span>
+      方案详情
     </div>
 
-    <!-- Problem Section -->
-    <div class="section">
-      <div class="section-title">
-        <span class="icon" style="background:rgba(248,113,113,0.15)">🔍</span>
-        现状问题
-      </div>
-      <div class="problem-grid">
-        <div class="problem-card">
-          <span class="tag bug">BUG</span>
-          <h3>退款描述逻辑错误</h3>
-          <p>模板字符串永远 truthy，后备值永远不会执行</p>
-        </div>
-        <div class="problem-card">
-          <span class="tag bug">BUG</span>
-          <h3>退款统计不一致</h3>
-          <p>仅预算仪表盘正确扣除退款，分类详情和统计栏均不处理</p>
-        </div>
-        <div class="problem-card">
-          <span class="tag missing">缺失</span>
-          <h3>无退款汇总视图</h3>
-          <p>没有专门页面展示退款总额、笔数、待退/已退等汇总信息</p>
-        </div>
-        <div class="problem-card">
-          <span class="tag missing">缺失</span>
-          <h3>无退款状态追踪</h3>
-          <p>无法标记"待退款"、追踪退款进度、设置预期退款日期</p>
-        </div>
-        <div class="problem-card">
-          <span class="tag missing">缺失</span>
-          <h3>无法解除退款关联</h3>
-          <p>一旦关联退款就无法解除，关联错误只能删除重来</p>
-        </div>
-        <div class="problem-card">
-          <span class="tag partial">部分</span>
-          <h3>累计退款无校验</h3>
-          <p>多次部分退款总额可能超过原账单金额，无上限保护</p>
-        </div>
-      </div>
+    <div class="plan-tabs">
+      <div class="plan-tab" onclick="showPlan('a')">A · 轻量标记</div>
+      <div class="plan-tab active" onclick="showPlan('b')">B · 报销单 <span class="rec-dot"></span></div>
+      <div class="plan-tab" onclick="showPlan('c')">C · 完整审批流</div>
+      <div class="plan-tab" onclick="showPlan('d')">D · 智能报销</div>
     </div>
 
-    <!-- Current Flow -->
-    <div class="section">
-      <div class="section-title">
-        <span class="icon" style="background:rgba(96,165,250,0.15)">📐</span>
-        当前流程（断开的链路）
+    <!-- Plan A -->
+    <div id="plan-a" class="plan-content">
+      <div class="plan-header">
+        <h3>方案A · 轻量标记</h3>
+        <span class="meta-tag" style="background:rgba(96,165,250,0.15);color:var(--blue)">1-2天 · 偶尔报销</span>
       </div>
+
+      <div class="callout warn">
+        ⚠️ 不支持 N:1 关联 — 每笔支出独立标记，无法合并为一个报销单。如需多笔合并报销，请选择方案B。
+      </div>
+
       <div class="flow-container">
         <div class="flow">
           <div class="flow-step">
             <div class="circle green">💸</div>
             <div class="label">记录支出</div>
-            <div class="desc">正常创建支出账单</div>
+            <div class="desc">正常创建</div>
           </div>
           <div class="flow-arrow">→</div>
           <div class="flow-step">
-            <div class="circle blue">🔄</div>
-            <div class="label">手动退款</div>
-            <div class="desc">右键→退款 或 关联</div>
+            <div class="circle blue">🏷️</div>
+            <div class="label">标记待报销</div>
+            <div class="desc">右键菜单操作</div>
           </div>
-          <div class="flow-arrow" style="color:var(--red)">✕</div>
-          <div class="flow-step" style="opacity:0.35">
-            <div class="circle" style="background:rgba(255,255,255,0.05);border:2px dashed rgba(255,255,255,0.15)">📊</div>
-            <div class="label">无汇总</div>
-            <div class="desc">看不到退款全貌</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle orange">💰</div>
+            <div class="label">标记已报销</div>
+            <div class="desc">填写金额/日期</div>
           </div>
-          <div class="flow-arrow" style="color:var(--red)">✕</div>
-          <div class="flow-step" style="opacity:0.35">
-            <div class="circle" style="background:rgba(255,255,255,0.05);border:2px dashed rgba(255,255,255,0.15)">✅</div>
-            <div class="label">无追踪</div>
-            <div class="desc">不知道哪些还没退</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle accent">✅</div>
+            <div class="label">筛选查看</div>
+            <div class="desc">统计栏汇总</div>
           </div>
+        </div>
+      </div>
+
+      <div class="sub-title">Bill 新增字段</div>
+      <div class="mockup">
+        <div class="mockup-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span style="margin-left:8px">types/bill.ts</span>
+        </div>
+        <div class="mockup-body" style="font-family:'SF Mono','Fira Code',monospace;font-size:13px;line-height:1.8">
+          <span style="color:var(--text-dim)">// 报销相关（新增）</span><br>
+          reimburseStatus?: <span style="color:var(--cyan)">'none'</span> | <span style="color:var(--orange)">'pending'</span> | <span style="color:var(--blue)">'partial'</span> | <span style="color:var(--green)">'reimbursed'</span><br>
+          reimburseNote?: <span style="color:var(--cyan)">string</span> &nbsp;&nbsp;<span style="color:var(--text-dim)">// "公司报销"</span><br>
+          reimbursedAmount?: <span style="color:var(--cyan)">number</span> <span style="color:var(--text-dim)">// 已报销金额</span><br>
+          reimbursedDate?: <span style="color:var(--cyan)">string</span> &nbsp;&nbsp;<span style="color:var(--text-dim)">// 到账日期</span>
+        </div>
+      </div>
+
+      <div class="sub-title">关联修改文件</div>
+      <div class="file-list">
+        <div class="file-item">
+          <div class="file-icon mod">TS</div>
+          <div class="file-path">types/bill.ts</div>
+          <div class="file-type modify">修改</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillContextMenu.vue</div>
+          <div class="file-type modify">修改</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillListItem.vue</div>
+          <div class="file-type modify">修改</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillsTabPanel.vue</div>
+          <div class="file-type modify">修改</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillDialog.vue</div>
+          <div class="file-type modify">修改</div>
         </div>
       </div>
     </div>
 
-    <!-- Comparison -->
-    <div class="section">
-      <div class="section-title">
-        <span class="icon" style="background:rgba(99,102,241,0.15)">⚖️</span>
-        方案对比
-      </div>
-      <div class="matrix-wrap">
-        <table class="matrix">
-          <thead>
-            <tr>
-              <th>维度</th>
-              <th>A · 轻量补全</th>
-              <th>B · 标准闭环 <span class="rec">推荐</span></th>
-              <th>C · 完整报销流</th>
-              <th>D · 智能报销</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="plan-name" style="color:var(--text-dim)">核心思路</td>
-              <td>修补缺陷 + 增加汇总</td>
-              <td>退款状态追踪</td>
-              <td>完整审批流程</td>
-              <td>AI辅助匹配</td>
-            </tr>
-            <tr>
-              <td style="color:var(--text-dim)">改动范围</td>
-              <td><span class="badge badge-green">小</span></td>
-              <td><span class="badge badge-blue">中</span></td>
-              <td><span class="badge badge-purple">大</span></td>
-              <td><span class="badge badge-purple">大</span></td>
-            </tr>
-            <tr>
-              <td style="color:var(--text-dim)">新增页面</td>
-              <td>0</td>
-              <td>1</td>
-              <td>2</td>
-              <td>2</td>
-            </tr>
-            <tr>
-              <td style="color:var(--text-dim)">新增组件</td>
-              <td>3</td>
-              <td>5</td>
-              <td>8</td>
-              <td>10</td>
-            </tr>
-            <tr>
-              <td style="color:var(--text-dim)">数据模型</td>
-              <td>无变更</td>
-              <td>小（新增字段）</td>
-              <td>中（新增集合）</td>
-              <td>中（新增集合）</td>
-            </tr>
-            <tr>
-              <td style="color:var(--text-dim)">开发周期</td>
-              <td>1-2 天</td>
-              <td>3-5 天</td>
-              <td>7-10 天</td>
-              <td>10-14 天</td>
-            </tr>
-            <tr>
-              <td style="color:var(--text-dim)">适用场景</td>
-              <td>个人记账</td>
-              <td>个人 + 小团队</td>
-              <td>团队记账</td>
-              <td>高频报销</td>
-            </tr>
-            <tr>
-              <td style="color:var(--text-dim)">推荐度</td>
-              <td class="stars">⭐⭐⭐⭐⭐</td>
-              <td class="stars">⭐⭐⭐⭐</td>
-              <td class="stars">⭐⭐⭐</td>
-              <td class="stars">⭐⭐</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Plan Details -->
-    <div class="section">
-      <div class="section-title">
-        <span class="icon" style="background:rgba(52,211,153,0.15)">📋</span>
-        方案详情
+    <!-- Plan B -->
+    <div id="plan-b" class="plan-content active">
+      <div class="plan-header">
+        <h3>方案B · 报销单</h3>
+        <span class="meta-tag" style="background:rgba(52,211,153,0.15);color:var(--green)">⭐ 推荐</span>
+        <span class="meta-tag" style="background:rgba(96,165,250,0.15);color:var(--blue)">3-5天</span>
       </div>
 
-      <div class="plan-tabs">
-        <div class="plan-tab active" onclick="showPlan('a')">A · 轻量补全 <span class="rec-dot"></span></div>
-        <div class="plan-tab" onclick="showPlan('b')">B · 标准闭环 <span class="rec-dot"></span></div>
-        <div class="plan-tab" onclick="showPlan('c')">C · 完整报销流</div>
-        <div class="plan-tab" onclick="showPlan('d')">D · 智能报销</div>
+      <!-- 报销单生命周期 -->
+      <div class="sub-title">报销单生命周期</div>
+      <div class="lifecycle">
+        <div class="lc-node draft">草稿</div>
+        <span class="lc-arrow">→</span>
+        <div class="lc-node submitted">已提交</div>
+        <span class="lc-arrow">→</span>
+        <div class="lc-node approved">已批准</div>
+        <span class="lc-arrow">→</span>
+        <div class="lc-node paid">已打款 ✅</div>
+      </div>
+      <div class="callout info">
+        💡 个人记账场景下，审批步骤可以跳过，直接 草稿 → 已打款 即可完成闭环。
       </div>
 
-      <!-- Plan A -->
-      <div id="plan-a" class="plan-content active">
-        <div class="plan-header">
-          <h3>方案A · 轻量补全</h3>
-          <span class="meta-tag" style="background:rgba(52,211,153,0.15);color:var(--green)">推荐首选</span>
-          <span class="meta-tag" style="background:rgba(96,165,250,0.15);color:var(--blue)">1-2天</span>
-        </div>
-
-        <div class="flow-container">
-          <div class="flow">
-            <div class="flow-step">
-              <div class="circle green">💸</div>
-              <div class="label">记录支出</div>
-              <div class="desc">正常创建支出账单</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle blue">🔄</div>
-              <div class="label">创建/关联退款</div>
-              <div class="desc">✨ 累计退款校验</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle accent">📊</div>
-              <div class="label">查看退款汇总</div>
-              <div class="desc">✨ 分类页统计卡片</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle orange">🔓</div>
-              <div class="label">解除关联</div>
-              <div class="desc">✨ 右键菜单新选项</div>
-            </div>
+      <!-- 操作流程 -->
+      <div class="sub-title">操作流程</div>
+      <div class="flow-container">
+        <div class="flow">
+          <div class="flow-step">
+            <div class="circle green">💸</div>
+            <div class="label">垫付支出</div>
+            <div class="desc">正常记录支出账单</div>
           </div>
-        </div>
-
-        <h4 style="margin:24px 0 16px;font-size:15px;color:var(--text-dim)">关联修改文件</h4>
-        <div class="file-list">
-          <div class="file-item">
-            <div class="file-icon ts">TS</div>
-            <div class="file-path">composables/useBills.ts</div>
-            <div class="file-type fix">Bug修复 + 校验</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle blue">📋</div>
+            <div class="label">创建报销单</div>
+            <div class="desc">单笔右键 / 批量归集</div>
           </div>
-          <div class="file-item">
-            <div class="file-icon ts">TS</div>
-            <div class="file-path">composables/useBillRefunds.ts</div>
-            <div class="file-type fix">修复空实现</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle purple">📊</div>
+            <div class="label">报销仪表盘</div>
+            <div class="desc">查看待处理/已完成</div>
           </div>
-          <div class="file-item">
-            <div class="file-icon vue">VUE</div>
-            <div class="file-path">BillRefundDialog.vue</div>
-            <div class="file-type modify">样式修复</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle orange">💰</div>
+            <div class="label">记录回款</div>
+            <div class="desc">自动创建收入账单</div>
           </div>
-          <div class="file-item">
-            <div class="file-icon vue">VUE</div>
-            <div class="file-path">BillContextMenu.vue</div>
-            <div class="file-type new">解除退款关联</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon vue">VUE</div>
-            <div class="file-path">BillListItem.vue</div>
-            <div class="file-type modify">退款badge增强</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon vue">VUE</div>
-            <div class="file-path">BillStatsBar.vue</div>
-            <div class="file-type modify">退款统计</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon vue">VUE</div>
-            <div class="file-path">CategoryDetailView.vue</div>
-            <div class="file-type modify">修复统计 + 汇总</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle accent">✅</div>
+            <div class="label">闭环完成</div>
+            <div class="desc">支出显示"已报销"</div>
           </div>
         </div>
       </div>
 
-      <!-- Plan B -->
-      <div id="plan-b" class="plan-content">
-        <div class="plan-header">
-          <h3>方案B · 标准闭环</h3>
-          <span class="meta-tag" style="background:rgba(99,102,241,0.15);color:var(--accent-light)">推荐进阶</span>
-          <span class="meta-tag" style="background:rgba(96,165,250,0.15);color:var(--blue)">3-5天</span>
+      <!-- Mockup: Dashboard -->
+      <div class="sub-title">报销仪表盘（新增页面）</div>
+      <div class="mockup">
+        <div class="mockup-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span style="margin-left:8px">报销管理</span>
         </div>
+        <div class="mockup-body">
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="value">¥3,200</div>
+              <div class="label">垫付总额</div>
+            </div>
+            <div class="stat-box">
+              <div class="value" style="color:var(--green)">¥1,800</div>
+              <div class="label">已报销</div>
+            </div>
+            <div class="stat-box">
+              <div class="value" style="color:var(--orange)">¥1,400</div>
+              <div class="label">待报销</div>
+            </div>
+            <div class="stat-box">
+              <div class="value">2</div>
+              <div class="label">报销单</div>
+            </div>
+          </div>
 
-        <div class="flow-container">
-          <div class="flow">
-            <div class="flow-step">
-              <div class="circle green">💸</div>
-              <div class="label">记录支出</div>
-              <div class="desc">正常创建支出账单</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">── 待处理</div>
+          <div class="mock-list">
+            <div class="mock-item">
+              <span class="emoji">📋</span>
+              <span class="name">6月差旅报销</span>
+              <span class="amount">¥2,150</span>
+              <span class="badge-sm badge-draft">草稿 · 3笔</span>
             </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle orange">🏷️</div>
-              <div class="label">标记待退款</div>
-              <div class="desc">✨ 填写预期金额和日期</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle blue">💰</div>
-              <div class="label">实际退款到账</div>
-              <div class="desc">✨ 自动匹配待退款</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle purple">📊</div>
-              <div class="label">退款仪表盘</div>
-              <div class="desc">✨ 全局退款追踪视图</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle accent">✅</div>
-              <div class="label">闭环确认</div>
-              <div class="desc">状态自动更新</div>
+            <div class="mock-item">
+              <span class="emoji">📋</span>
+              <span class="name">团建费用</span>
+              <span class="amount">¥580</span>
+              <span class="badge-sm badge-pending">已提交 · 2笔</span>
             </div>
           </div>
-        </div>
 
-        <!-- Mockup: Refund Dashboard -->
-        <h4 style="margin:24px 0 16px;font-size:15px;color:var(--text-dim)">退款仪表盘（新增页面）</h4>
-        <div class="mockup">
-          <div class="mockup-bar">
-            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-            <span style="margin-left:8px">退款追踪</span>
-          </div>
-          <div class="mockup-body">
-            <div class="stats-row">
-              <div class="stat-box">
-                <div class="value" style="color:var(--text)">¥3,200</div>
-                <div class="label">总支出</div>
-              </div>
-              <div class="stat-box">
-                <div class="value" style="color:var(--green)">¥1,800</div>
-                <div class="label">已退款</div>
-              </div>
-              <div class="stat-box">
-                <div class="value" style="color:var(--orange)">¥500</div>
-                <div class="label">待退款</div>
-              </div>
-              <div class="stat-box">
-                <div class="value" style="color:var(--red)">3</div>
-                <div class="label">逾期</div>
-              </div>
+          <div style="font-size:13px;color:var(--text-dim);margin:16px 0 10px">── 已完成</div>
+          <div class="mock-list">
+            <div class="mock-item">
+              <span class="emoji">✅</span>
+              <span class="name">5月办公采购</span>
+              <span class="amount" style="color:var(--green)">¥300</span>
+              <span class="badge-sm badge-done">06/08 已打款</span>
             </div>
-
-            <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">── 待退款</div>
-            <div class="mock-list">
-              <div class="mock-item">
-                <span class="emoji">🍽️</span>
-                <span class="name">团建聚餐</span>
-                <span class="amount" style="color:var(--orange)">¥500</span>
-                <span class="info">预期 06/15</span>
-                <span class="badge-sm badge-pending">公司报销</span>
-              </div>
-              <div class="mock-item">
-                <span class="emoji">🚕</span>
-                <span class="name">出差打车</span>
-                <span class="amount" style="color:var(--orange)">¥200</span>
-                <span class="info">预期 06/20</span>
-                <span class="badge-sm badge-pending">公司报销</span>
-              </div>
-              <div class="mock-item">
-                <span class="emoji">📦</span>
-                <span class="name">网购退货</span>
-                <span class="amount" style="color:var(--orange)">¥350</span>
-                <span class="info">预期 06/25</span>
-                <span class="badge-sm badge-pending">商家退款</span>
-              </div>
-            </div>
-
-            <div style="font-size:13px;color:var(--text-dim);margin:16px 0 10px">── 已完成退款</div>
-            <div class="mock-list">
-              <div class="mock-item">
-                <span class="emoji">🏥</span>
-                <span class="name">医保报销</span>
-                <span class="amount" style="color:var(--green)">¥800</span>
-                <span class="info">06/08 已退</span>
-                <span class="badge-sm badge-done">✓ 保险理赔</span>
-              </div>
-              <div class="mock-item">
-                <span class="emoji">🍽️</span>
-                <span class="name">团建聚餐</span>
-                <span class="amount" style="color:var(--green)">¥500</span>
-                <span class="info">06/10 已退</span>
-                <span class="badge-sm badge-done">✓ 公司报销</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h4 style="margin:24px 0 16px;font-size:15px;color:var(--text-dim)">关联修改文件</h4>
-        <div class="file-list">
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">RefundDashboard.vue</div>
-            <div class="file-type new">新页面</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">RefundTrackingDialog.vue</div>
-            <div class="file-type new">新组件</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">RefundStatusBadge.vue</div>
-            <div class="file-type new">新组件</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">RefundSummaryCard.vue</div>
-            <div class="file-type new">新组件</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon ts">TS</div>
-            <div class="file-path">types/bill.ts</div>
-            <div class="file-type modify">新增字段</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon vue">VUE</div>
-            <div class="file-path">BillContextMenu.vue</div>
-            <div class="file-type modify">增加待退款标记</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon vue">VUE</div>
-            <div class="file-path">BillListItem.vue</div>
-            <div class="file-type modify">退款状态badge</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon vue">VUE</div>
-            <div class="file-path">BillingSidebar.vue</div>
-            <div class="file-type modify">退款追踪入口</div>
           </div>
         </div>
       </div>
 
-      <!-- Plan C -->
-      <div id="plan-c" class="plan-content">
-        <div class="plan-header">
-          <h3>方案C · 完整报销流</h3>
-          <span class="meta-tag" style="background:rgba(167,139,250,0.15);color:var(--purple)">团队场景</span>
-          <span class="meta-tag" style="background:rgba(96,165,250,0.15);color:var(--blue)">7-10天</span>
+      <!-- Mockup: Detail -->
+      <div class="sub-title">报销单详情（展开视图）</div>
+      <div class="mockup">
+        <div class="mockup-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span style="margin-left:8px">6月差旅报销</span>
         </div>
+        <div class="mockup-body">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+              <div style="font-size:18px;font-weight:700;margin-bottom:4px">6月差旅报销</div>
+              <div style="font-size:13px;color:var(--text-dim)">状态：<span style="color:var(--purple)">● 已批准</span>　创建时间：2026-06-10</div>
+            </div>
+          </div>
 
-        <div class="flow-container">
-          <div class="flow">
-            <div class="flow-step">
-              <div class="circle green">💸</div>
-              <div class="label">记录支出</div>
-              <div class="desc">标记"可报销"</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle blue">📝</div>
-              <div class="label">创建报销单</div>
-              <div class="desc">多笔支出关联</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle orange">📤</div>
-              <div class="label">提交审批</div>
-              <div class="desc">选择审批人</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle purple">✅</div>
-              <div class="label">审批通过</div>
-              <div class="desc">等待打款</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle accent">💰</div>
-              <div class="label">退款到账</div>
-              <div class="desc">自动创建退款</div>
-            </div>
+          <div class="progress-steps">
+            <div class="step" style="background:var(--blue)"></div>
+            <div class="step" style="background:var(--orange)"></div>
+            <div class="step" style="background:var(--purple)"></div>
+            <div class="step" style="background:var(--border)"></div>
           </div>
-        </div>
+          <div class="progress-labels" style="margin-bottom:20px">
+            <div class="step">草稿</div>
+            <div class="step">提交</div>
+            <div class="step" style="color:var(--purple)">批准</div>
+            <div class="step">打款</div>
+          </div>
 
-        <!-- Mockup: Reimbursement Detail -->
-        <h4 style="margin:24px 0 16px;font-size:15px;color:var(--text-dim)">报销单详情（新增页面）</h4>
-        <div class="mockup">
-          <div class="mockup-bar">
-            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-            <span style="margin-left:8px">报销单详情</span>
-          </div>
-          <div class="mockup-body">
-            <div style="font-size:18px;font-weight:700;margin-bottom:4px">差旅报销 — 北京出差</div>
-            <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px">
-              状态：<span style="color:var(--orange)">● 审批中</span>　提交时间：2026-06-10
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">── 垫付支出（3笔）</div>
+          <div class="mock-list">
+            <div class="mock-item">
+              <span class="emoji">✈️</span>
+              <span class="name">机票</span>
+              <span class="amount">¥1,200</span>
+              <span class="info">06/05</span>
             </div>
+            <div class="mock-item">
+              <span class="emoji">🏨</span>
+              <span class="name">酒店</span>
+              <span class="amount">¥800</span>
+              <span class="info">06/05-07</span>
+            </div>
+            <div class="mock-item">
+              <span class="emoji">🚕</span>
+              <span class="name">打车</span>
+              <span class="amount">¥150</span>
+              <span class="info">06/05</span>
+            </div>
+          </div>
+          <div style="text-align:right;font-size:14px;font-weight:700;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            合计 ¥2,150
+          </div>
 
-            <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">── 进度</div>
-            <div style="display:flex;gap:4px;align-items:center;margin-bottom:20px;padding:0 8px">
-              <div style="flex:1;height:4px;border-radius:2px;background:var(--green)"></div>
-              <div style="flex:1;height:4px;border-radius:2px;background:var(--green)"></div>
-              <div style="flex:1;height:4px;border-radius:2px;background:var(--orange)"></div>
-              <div style="flex:1;height:4px;border-radius:2px;background:var(--border)"></div>
-              <div style="flex:1;height:4px;border-radius:2px;background:var(--border)"></div>
-            </div>
-            <div style="display:flex;gap:4px;font-size:11px;color:var(--text-dim);margin-bottom:20px;padding:0 8px">
-              <div style="flex:1;text-align:center">草稿</div>
-              <div style="flex:1;text-align:center">提交</div>
-              <div style="flex:1;text-align:center;color:var(--orange)">审批</div>
-              <div style="flex:1;text-align:center">通过</div>
-              <div style="flex:1;text-align:center">打款</div>
-            </div>
-
-            <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">── 关联账单</div>
-            <div class="mock-list">
-              <div class="mock-item">
-                <span class="emoji">✈️</span>
-                <span class="name">机票</span>
-                <span class="amount">¥1,200</span>
-                <span class="info">06/05</span>
-              </div>
-              <div class="mock-item">
-                <span class="emoji">🏨</span>
-                <span class="name">酒店</span>
-                <span class="amount">¥800</span>
-                <span class="info">06/05-07</span>
-              </div>
-              <div class="mock-item">
-                <span class="emoji">🚕</span>
-                <span class="name">打车</span>
-                <span class="amount">¥150</span>
-                <span class="info">06/05</span>
-              </div>
-            </div>
-            <div style="text-align:right;font-size:14px;font-weight:700;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-              合计 ¥2,150
-            </div>
-          </div>
-        </div>
-
-        <h4 style="margin:24px 0 16px;font-size:15px;color:var(--text-dim)">关联修改文件</h4>
-        <div class="file-list">
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">ReimbursementList.vue</div>
-            <div class="file-type new">新页面</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">ReimbursementDetail.vue</div>
-            <div class="file-type new">新页面</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">ReimbursementForm.vue</div>
-            <div class="file-type new">新组件</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">ReimbursementTimeline.vue</div>
-            <div class="file-type new">新组件</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon new">NEW</div>
-            <div class="file-path">ReimbursementApproval.vue</div>
-            <div class="file-type new">新组件</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon ts">TS</div>
-            <div class="file-path">types/bill.ts → Reimbursement</div>
-            <div class="file-type new">新类型</div>
-          </div>
-          <div class="file-item">
-            <div class="file-icon ts">TS</div>
-            <div class="file-path">services/db.ts → reimbursements 集合</div>
-            <div class="file-type new">新集合</div>
+          <div style="font-size:13px;color:var(--text-dim);margin:16px 0 10px">── 报销回款</div>
+          <div style="padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;color:var(--text-dim)">尚未记录回款</span>
+            <span style="padding:6px 14px;border-radius:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer">+ 记录回款</span>
           </div>
         </div>
       </div>
 
-      <!-- Plan D -->
-      <div id="plan-d" class="plan-content">
-        <div class="plan-header">
-          <h3>方案D · 智能报销</h3>
-          <span class="meta-tag" style="background:rgba(167,139,250,0.15);color:var(--purple)">AI增强</span>
-          <span class="meta-tag" style="background:rgba(96,165,250,0.15);color:var(--blue)">10-14天</span>
+      <!-- 部分报销 -->
+      <div class="sub-title">部分报销处理</div>
+      <div class="mockup">
+        <div class="mockup-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span style="margin-left:8px">部分报销示例</span>
         </div>
-
-        <div class="flow-container">
-          <div class="flow">
-            <div class="flow-step">
-              <div class="circle green">💸</div>
-              <div class="label">记录支出</div>
-              <div class="desc">正常创建支出</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle accent">🤖</div>
-              <div class="label">智能匹配</div>
-              <div class="desc">✨ 自动推荐关联</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle blue">💰</div>
-              <div class="label">记录收入</div>
-              <div class="desc">系统弹出匹配建议</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle orange">📊</div>
-              <div class="label">来源分析</div>
-              <div class="desc">✨ 饼图统计</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-              <div class="circle purple">🔔</div>
-              <div class="label">逾期提醒</div>
-              <div class="desc">✨ 自动通知</div>
-            </div>
-          </div>
+        <div class="mockup-body" style="font-size:13px;line-height:1.8">
+          场景：团建花了 <strong>¥500</strong>，公司只报 <strong style="color:var(--green)">¥300</strong>，剩余 <strong style="color:var(--orange)">¥200</strong> 自己承担。<br><br>
+          <span style="color:var(--accent-light)">①</span> 创建报销单，关联支出 ¥500<br>
+          <span style="color:var(--accent-light)">②</span> 记录回款 ¥300（部分报销）<br>
+          <span style="color:var(--accent-light)">③</span> 系统自动创建收入账单 ¥300<br>
+          <span style="color:var(--accent-light)">④</span> 报销单显示：垫付 ¥500 / 已报 <span style="color:var(--green)">¥300</span> / 自付 <span style="color:var(--orange)">¥200</span><br>
+          <span style="color:var(--accent-light)">⑤</span> 支出账单 badge：<span class="badge-sm badge-pending">已报销 ¥300/¥500</span>
         </div>
+      </div>
 
-        <div style="background:rgba(251,146,60,0.08);border:1px solid rgba(251,146,60,0.2);border-radius:var(--radius);padding:16px 20px;margin:20px 0;font-size:13px;color:var(--orange)">
-          ⚠️ 此方案匹配精度依赖金额，可能产生误判。开发周期最长，建议在方案B验证用户需求后再考虑。
+      <!-- 文件清单 -->
+      <div class="sub-title">新增文件（8个）</div>
+      <div class="file-list">
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">types/reimbursement.ts</div>
+          <div class="file-type new">新文件</div>
         </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">composables/useReimburse.ts</div>
+          <div class="file-type new">新文件</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">ReimburseDashboard.vue</div>
+          <div class="file-type new">新页面</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">ReimburseGroupDialog.vue</div>
+          <div class="file-type new">新组件</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">ReimburseIncomeDialog.vue</div>
+          <div class="file-type new">新组件</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">ReimburseStatusBadge.vue</div>
+          <div class="file-type new">新组件</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">ReimburseSummaryCard.vue</div>
+          <div class="file-type new">新组件</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">ReimburseGroupItem.vue</div>
+          <div class="file-type new">新组件</div>
+        </div>
+      </div>
 
-        <h4 style="margin:24px 0 16px;font-size:15px;color:var(--text-dim)">智能匹配示意</h4>
-        <div class="mockup">
-          <div class="mockup-bar">
-            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-            <span style="margin-left:8px">智能匹配建议</span>
-          </div>
-          <div class="mockup-body">
-            <div style="font-size:14px;margin-bottom:12px">
-              您创建了一笔收入 <strong style="color:var(--green)">¥500</strong>，系统发现以下可能匹配的待退款支出：
-            </div>
-            <div class="mock-list">
-              <div class="mock-item" style="border:1px solid rgba(52,211,153,0.3);cursor:pointer">
-                <span style="color:var(--green);font-size:18px">✓</span>
-                <span class="name">团建聚餐</span>
-                <span class="amount" style="color:var(--green)">¥500</span>
-                <span class="badge-sm badge-done">金额一致 · 最佳匹配</span>
-              </div>
-              <div class="mock-item" style="cursor:pointer">
-                <span style="color:var(--text-dim);font-size:18px">○</span>
-                <span class="name">出差打车</span>
-                <span class="amount">¥480</span>
-                <span class="badge-sm badge-pending">金额相近</span>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
-              <button style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;cursor:pointer">跳过</button>
-              <button style="padding:8px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:13px;cursor:pointer;font-weight:600">确认关联</button>
-            </div>
-          </div>
+      <div class="sub-title">修改文件（11个）</div>
+      <div class="file-list">
+        <div class="file-item">
+          <div class="file-icon mod">TS</div>
+          <div class="file-path">types/bill.ts</div>
+          <div class="file-type modify">新增字段</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">TS</div>
+          <div class="file-path">composables/useBills.ts</div>
+          <div class="file-type modify">报销查询+回款</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">TS</div>
+          <div class="file-path">stores/billing.ts</div>
+          <div class="file-type modify">导航状态</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillingView.vue</div>
+          <div class="file-type modify">报销面板路由</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillingSidebar.vue</div>
+          <div class="file-type modify">报销入口</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillContextMenu.vue</div>
+          <div class="file-type modify">报销菜单项</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillListItem.vue</div>
+          <div class="file-type modify">报销badge</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillList.vue</div>
+          <div class="file-type modify">报销筛选</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillsTabPanel.vue</div>
+          <div class="file-type modify">筛选+统计</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillDialog.vue</div>
+          <div class="file-type modify">报销关联信息</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon mod">VUE</div>
+          <div class="file-path">BillingMobileTabbar.vue</div>
+          <div class="file-type modify">移动端入口</div>
         </div>
       </div>
     </div>
 
-    <!-- Implementation Path -->
-    <div class="section">
-      <div class="section-title">
-        <span class="icon" style="background:rgba(52,211,153,0.15)">🛤️</span>
-        推荐实施路径
+    <!-- Plan C -->
+    <div id="plan-c" class="plan-content">
+      <div class="plan-header">
+        <h3>方案C · 完整审批流</h3>
+        <span class="meta-tag" style="background:rgba(167,139,250,0.15);color:var(--purple)">团队场景</span>
+        <span class="meta-tag" style="background:rgba(96,165,250,0.15);color:var(--blue)">7-10天</span>
       </div>
-      <div class="timeline">
-        <div class="tl-phase">
-          <div class="dot p1"></div>
-          <div class="phase-title">Phase 1</div>
-          <div class="phase-days">方案A · 1-2天</div>
-          <div class="phase-items">
-            修复 4 个已知 Bug<br>
-            累计退款校验<br>
-            解除退款关联<br>
-            统一退款统计逻辑
+
+      <div class="flow-container">
+        <div class="flow">
+          <div class="flow-step">
+            <div class="circle green">💸</div>
+            <div class="label">垫付支出</div>
+            <div class="desc">标记"可报销"</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle blue">📝</div>
+            <div class="label">创建报销单</div>
+            <div class="desc">上传附件/发票</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle orange">📤</div>
+            <div class="label">提交审批</div>
+            <div class="desc">选择审批人</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle purple">✅</div>
+            <div class="label">审批通过</div>
+            <div class="desc">等待打款</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle accent">💰</div>
+            <div class="label">打款到账</div>
+            <div class="desc">闭环完成</div>
           </div>
         </div>
-        <div class="tl-phase">
-          <div class="dot p2"></div>
-          <div class="phase-title">Phase 2</div>
-          <div class="phase-days">方案B · 3-5天</div>
-          <div class="phase-items">
-            退款状态追踪字段<br>
-            退款仪表盘页面<br>
-            待退款标记功能<br>
-            逾期提醒机制
-          </div>
+      </div>
+
+      <div class="callout warn" style="margin-top:16px">
+        ⚠️ LifeOS 当前是单用户系统，审批人角色需要模拟。附件存储需要额外方案（PouchDB 不适合大文件）。对个人用户来说功能过重。
+      </div>
+
+      <div class="sub-title">方案B基础上额外新增</div>
+      <div class="file-list">
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">ReimburseApprovalDialog.vue</div>
+          <div class="file-type new">审批弹窗</div>
         </div>
-        <div class="tl-phase">
-          <div class="dot p3"></div>
-          <div class="phase-title">Phase 3</div>
-          <div class="phase-days">可选 · 根据反馈</div>
-          <div class="phase-items">
-            需团队功能 → 方案C<br>
-            需智能化 → 方案D<br>
-            基于真实使用数据<br>
-            决定下一步方向
-          </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">ReimburseTimeline.vue</div>
+          <div class="file-type new">审批时间线</div>
+        </div>
+        <div class="file-item">
+          <div class="file-icon new">NEW</div>
+          <div class="file-path">AttachmentUpload.vue</div>
+          <div class="file-type new">附件上传</div>
         </div>
       </div>
     </div>
 
-    <!-- Footer -->
-    <div class="footer">
-      <p>LifeOS · 报销功能闭环优化方案 · 2026-06-12</p>
-      <p style="margin-top:4px">详细方案文档 → <code style="color:var(--accent-light)">docs/proposals/reimbursement-closed-loop.md</code></p>
+    <!-- Plan D -->
+    <div id="plan-d" class="plan-content">
+      <div class="plan-header">
+        <h3>方案D · 智能报销</h3>
+        <span class="meta-tag" style="background:rgba(167,139,250,0.15);color:var(--purple)">AI增强</span>
+        <span class="meta-tag" style="background:rgba(96,165,250,0.15);color:var(--blue)">10-14天</span>
+      </div>
+
+      <div class="flow-container">
+        <div class="flow">
+          <div class="flow-step">
+            <div class="circle green">💸</div>
+            <div class="label">垫付支出</div>
+            <div class="desc">正常记录</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle accent">🤖</div>
+            <div class="label">智能匹配</div>
+            <div class="desc">自动推荐关联</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle blue">💰</div>
+            <div class="label">创建收入</div>
+            <div class="desc">弹出匹配建议</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle purple">📊</div>
+            <div class="label">来源分析</div>
+            <div class="desc">报销统计图表</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="circle orange">🔔</div>
+            <div class="label">逾期提醒</div>
+            <div class="desc">自动通知</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 智能匹配示意 -->
+      <div class="sub-title">智能匹配示意</div>
+      <div class="mockup">
+        <div class="mockup-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span style="margin-left:8px">智能匹配建议</span>
+        </div>
+        <div class="mockup-body">
+          <div style="font-size:14px;margin-bottom:12px">
+            您创建了一笔收入 <strong style="color:var(--green)">¥580</strong>，系统发现以下可匹配的待报销支出：
+          </div>
+          <div class="mock-list">
+            <div class="mock-item" style="border:1px solid rgba(52,211,153,0.3)">
+              <span style="color:var(--green);font-size:18px">✓</span>
+              <span class="name">打车 + 聚餐</span>
+              <span class="amount" style="color:var(--green)">¥580</span>
+              <span class="badge-sm badge-done">金额完美匹配</span>
+            </div>
+            <div class="mock-item">
+              <span style="color:var(--text-dim);font-size:18px">○</span>
+              <span class="name">机票</span>
+              <span class="amount">¥1,200</span>
+              <span class="badge-sm badge-pending">超出金额</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        ⚠️ 匹配精度依赖金额组合，可能有多解。建议在方案B验证用户需求后再考虑此方案。
+      </div>
     </div>
   </div>
 
-  <script>
-    function showPlan(id) {
-      document.querySelectorAll('.plan-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.plan-tab').forEach(el => el.classList.remove('active'));
-      document.getElementById('plan-' + id).classList.add('active');
-      event.currentTarget.classList.add('active');
-    }
-  </script>
+  <!-- 右键菜单共存 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(251,146,60,0.15)">📌</span>
+      与现有退款功能共存
+    </div>
+    <div class="mockup">
+      <div class="mockup-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span style="margin-left:8px">右键菜单（扩展后）</span>
+      </div>
+      <div class="mockup-body" style="font-size:13px;line-height:2">
+        <div style="padding:4px 0">📋 复制账单</div>
+        <div style="padding:4px 0">✏️ 编辑</div>
+        <div style="padding:4px 0">✂️ 拆分账单</div>
+        <div style="padding:4px 0">📅 分摊到月份</div>
+        <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+        <div style="padding:4px 0;color:var(--orange)">🔄 退款（现有）</div>
+        <div style="padding:4px 0;color:var(--orange)">🔗 关联退款（现有）</div>
+        <div style="padding:4px 0;color:var(--orange)">🔗 关联为退款（现有）</div>
+        <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+        <div style="padding:4px 0;color:var(--accent-light)">📋 加入报销单（新增）</div>
+        <div style="padding:4px 0;color:var(--accent-light)">🗑️ 从报销单移除（新增）</div>
+        <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+        <div style="padding:4px 0;color:var(--red)">🗑️ 删除</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 实施路径 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(52,211,153,0.15)">🛤️</span>
+      推荐实施路径
+    </div>
+    <div class="timeline">
+      <div class="tl-phase">
+        <div class="dot p1"></div>
+        <div class="phase-title">Phase 1</div>
+        <div class="phase-days">方案B · 3-5天</div>
+        <div class="phase-items">
+          Bill 新增报销字段<br>
+          报销单 CRUD<br>
+          右键菜单报销操作<br>
+          报销仪表盘页面<br>
+          记录回款功能
+        </div>
+      </div>
+      <div class="tl-phase">
+        <div class="dot p2"></div>
+        <div class="phase-title">Phase 2</div>
+        <div class="phase-days">方案C · 1-2天</div>
+        <div class="phase-items">
+          审批状态流转<br>
+          审批时间线<br>
+          附件上传（可选）
+        </div>
+      </div>
+      <div class="tl-phase">
+        <div class="dot p3"></div>
+        <div class="phase-title">Phase 3</div>
+        <div class="phase-days">方案D · 3-5天</div>
+        <div class="phase-items">
+          智能匹配算法<br>
+          批量归集<br>
+          来源分析<br>
+          逾期提醒
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>LifeOS · 报销功能闭环优化方案 · 2026-06-12</p>
+    <p style="margin-top:4px">详细方案文档 → <code style="color:var(--accent-light)">docs/proposals/reimbursement-closed-loop.md</code></p>
+  </div>
+
+</div>
+
+<script>
+function showPlan(id) {
+  document.querySelectorAll('.plan-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.plan-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('plan-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+</script>
 </body>
 </html>
