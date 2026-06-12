@@ -626,6 +626,7 @@ function handleTaskClick(task: CellTask): void {
   editingTask.value = {
     id: task.id,
     text: task.text,
+    description: task.description,
     completed: task.completed,
     createdAt: task.createdAt || '',
     startDate: task.startDate,
@@ -810,6 +811,7 @@ function handleTaskMenuEdit(task: { id: string; text: string; completed: boolean
   editingTask.value = {
     id: fullTask.id,
     text: fullTask.text,
+    description: fullTask.description,
     completed: fullTask.completed,
     createdAt: fullTask.createdAt || '',
     startDate: fullTask.startDate,

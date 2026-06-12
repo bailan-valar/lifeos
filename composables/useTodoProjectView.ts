@@ -21,6 +21,7 @@ export interface NoteWithLevel extends Note {
 export interface CellTask {
   id: string
   text: string
+  description?: string
   completed: boolean
   priority?: TodoItem['priority']
   typeId?: string
@@ -166,6 +167,7 @@ function calculateTaskLayout(
       task: {
         id: task.id,
         text: task.text,
+        description: task.description,
         completed: task.completed,
         priority: task.priority,
         typeId: task.typeId,
@@ -219,6 +221,7 @@ function calculateTaskLayout(
     task: {
       id: task.id,
       text: task.text,
+      description: task.description,
       completed: task.completed,
       priority: task.priority,
       typeId: task.typeId,
@@ -647,6 +650,7 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
             allTasks.push({
               id: todo.id,
               text: todo.text,
+              description: todo.description,
               completed: todo.completed,
               createdAt: todo.createdAt,
               typeId: todo.typeId,
