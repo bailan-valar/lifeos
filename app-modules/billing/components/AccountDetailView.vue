@@ -206,6 +206,9 @@ const { bills, loadBillsByAccount, createBill, updateBill, deleteBill, splitBill
 const { categories, loadCategories } = useBillCategories()
 const { loadNotes, noteOptions } = useNotes()
 
+// 笔记数据延迟加载标记（仅在打开账单弹框时加载）
+const notesLoaded = ref(false)
+
 const pageLoading = ref(true)
 const adjustments = ref<BalanceAdjustment[]>([])
 const editingBill = ref<Bill | null>(null)
@@ -290,17 +293,17 @@ const monthlyAverage = computed(() => {
 // 加载数据
 async function loadData() {
   pageLoading.value = true
+  // 所有数据并行加载，无需串行等待
   await Promise.all([
     loadAccounts(),
     loadCategories(),
-    loadNotes()
+    loadBillsByAccount(props.accountId),
+    loadBalanceAdjustments(props.accountId).then(result => { adjustments.value = result })
   ])
-  await refreshBills()
   pageLoading.value = false
 }
 
 async function refreshBills() {
-  // 始终加载全部账单（运行余额计算需要完整数据），筛选由 filteredBills 客户端处理
   await Promise.all([
     loadBillsByAccount(props.accountId),
     loadBalanceAdjustments(props.accountId).then(result => { adjustments.value = result })
@@ -378,6 +381,11 @@ function goBack() {
 function openBillDialog(bill?: Bill) {
   editingBill.value = bill ?? null
   billDialogVisible.value = true
+  // 笔记数据延迟加载：仅在首次打开弹框时加载
+  if (!notesLoaded.value) {
+    notesLoaded.value = true
+    loadNotes()
+  }
 }
 
 async function onBillDialogConfirm(data: BillFormData, isEditing: boolean, id?: string) {
