@@ -23,6 +23,7 @@
 
       <TodoView
         v-else-if="activeView === 'todo'"
+        :key="noteId"
         :note-id="noteId"
         :module-data="todoData"
         :on-data-change="saveTodoData"
@@ -30,6 +31,7 @@
 
       <BillingView
         v-else-if="activeView === 'billing'"
+        :key="noteId"
         :note-id="noteId"
         :module-data="billingData"
         :on-data-change="saveBillingData"
@@ -141,9 +143,16 @@ const switchView = async (viewId: string) => {
 
 watch(() => props.noteId, () => {
   // 保持当前视图不变（如用户在账单视图切换笔记，仍停留在账单视图）
-  // 仅清空缓存的模块数据，组件自身会在 props 变化时按需重新加载
+  // 清空缓存，非阻塞按需加载模块数据（.then 不阻塞渲染）
   todoData.value = null
   billingData.value = null
+
+  if (activeView.value === 'todo') {
+    loadModuleData('todo').then(data => { todoData.value = data })
+  }
+  if (activeView.value === 'billing') {
+    loadModuleData('billing').then(data => { billingData.value = data })
+  }
 })
 
 defineExpose({
