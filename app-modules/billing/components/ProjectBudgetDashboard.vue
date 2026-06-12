@@ -123,6 +123,13 @@
                 <span v-else class="expand-placeholder"></span>
               </template>
               <span class="note-name" :class="{ 'unlinked-name': row.isUnlinked }" @click.stop="onNoteClick(row.node.id)">{{ row.node.title }}</span>
+              <span
+                v-if="!row.isUnlinked && noteClassMap[row.node.id]"
+                class="node-class-badge"
+                :style="{ backgroundColor: noteClassMap[row.node.id].color + '20', color: noteClassMap[row.node.id].color }"
+              >
+                {{ noteClassMap[row.node.id].name }}
+              </span>
             </div>
             <div class="col-summary">
               <span v-if="row.yearBalance !== 0" class="summary-balance" :class="{ negative: row.yearBalance < 0 }">
@@ -214,11 +221,12 @@
 </template>
 
 <script setup lang="ts">
-import type { Bill, BudgetCycleType, NoteTreeNode } from '~/types/block'
+import type { Bill, BudgetCycleType, Class, NoteTreeNode } from '~/types/block'
 import { div } from '~/utils/decimal'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import { getDB, onCollectionChange } from '~/services/db'
 import type { useBillDragDrop } from '~/composables/useBillDragDrop'
+import { useNoteClasses } from '~/composables/useNoteClasses'
 import NotePicker from './NotePicker.vue'
 
 const props = defineProps<{ year?: number }>()
@@ -235,6 +243,19 @@ const billDragDrop = inject<ReturnType<typeof useBillDragDrop>>('billDragDrop', 
 const { loadBills } = useBills()
 const { loadBudgets, resolveBudget, getMonthlyEquivalent } = useBudgets()
 const { loadNotes, noteOptions, noteTree, getDescendantNoteIds } = useNotes()
+const { classes, noteBindings, loadClasses, loadBindings } = useNoteClasses()
+
+// 笔记 ID → 笔记类映射
+const noteClassMap = computed<Record<string, Class>>(() => {
+  const map: Record<string, Class> = {}
+  for (const binding of noteBindings.value) {
+    const cls = classes.value.find(c => c.id === binding.classId)
+    if (cls) {
+      map[binding.noteId] = cls
+    }
+  }
+  return map
+})
 
 const thisYear = new Date().getFullYear()
 const currentYear = ref(props.year ?? thisYear)
@@ -278,7 +299,7 @@ async function refreshData() {
 const unsubscribers: (() => void)[] = []
 
 onMounted(async () => {
-  await Promise.all([loadNotes()])
+  await Promise.all([loadNotes(), loadClasses(), loadBindings()])
   await refreshData()
 
   // 订阅数据变更，导入账单后自动静默刷新
@@ -1105,6 +1126,16 @@ function isNoteDragOver(noteId: string): boolean {
 
 .note-name.unlinked-name:hover {
   color: rgba(60, 60, 67, 0.85);
+}
+
+.node-class-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1.4;
 }
 
 .unlinked-row {
