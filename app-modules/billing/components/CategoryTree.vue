@@ -39,6 +39,7 @@
       <CategoryTree
         v-if="node.children.length > 0 && expanded.has(node.id)"
         :nodes="node.children"
+        :note-options="noteOptions"
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"
         @add-child="$emit('add-child', $event)"
