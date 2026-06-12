@@ -90,6 +90,15 @@
         </button>
       </div>
       <div class="footer-right">
+        <button
+          v-if="isEditing"
+          type="button"
+          class="action-btn delete-btn"
+          @click="onDelete"
+        >
+          <Icon :name="SOLAR_ICONS.action.delete" size="16" />
+          删除
+        </button>
         <button type="button" class="cancel-btn" @click="onCancel">取消</button>
         <button v-if="!isEditing" type="button" class="continue-btn" @click="onConfirmAndContinue">继续下一个</button>
         <button type="button" class="confirm-btn" @click="onConfirm">保存</button>
@@ -165,7 +174,8 @@ const emit = defineEmits<{
 }>()
 
 const { warning: showWarning, success: showSuccess, error: showError } = useToast()
-const { splitBill, allocatePeriod, createRefundBill } = useBills()
+const { confirm } = useConfirm()
+const { splitBill, allocatePeriod, createRefundBill, deleteBill } = useBills()
 
 // 功能对话框状态
 const splitDialogVisible = ref(false)
@@ -408,6 +418,20 @@ function onConfirmAndContinue() {
   }
 }
 
+async function onDelete() {
+  if (!props.bill) return
+  const ok = await confirm({ message: '确定删除此账单？此操作不可恢复。', danger: true })
+  if (!ok) return
+  try {
+    await deleteBill(props.bill.id)
+    showSuccess('账单已删除')
+    emit('update:visible', false)
+    emit('action-completed')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
 function onCancel() {
   emit('update:visible', false)
   emit('cancel')
@@ -589,5 +613,15 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
 .refund-btn:hover:not(:disabled) {
   background: rgba(255, 149, 0, 0.1);
   color: rgb(255, 149, 0);
+}
+
+.delete-btn {
+  background: rgba(255, 59, 48, 0.08);
+  color: rgba(255, 59, 48, 0.7);
+}
+
+.delete-btn:hover {
+  background: rgba(255, 59, 48, 0.15);
+  color: rgb(255, 59, 48);
 }
 </style>
