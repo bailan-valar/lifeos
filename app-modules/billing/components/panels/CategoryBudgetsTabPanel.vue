@@ -2,9 +2,10 @@
   <div class="tab-panel">
     <BudgetDashboard
       :year="budgetYear"
-      @edit-cell="openMonthBillsDialog"
+      @edit-cell="openMonthBillsDrawer"
       @category-contextmenu="openCategoryContextMenu"
       @category-click="onCategoryClick"
+      @year-actual-click="onYearActualClick"
     />
   </div>
   <BudgetDialog
@@ -32,15 +33,13 @@
     :history-entries="historyDialogData.historyEntries"
     @cancel="closeBudgetHistory"
   />
-  <CategoryMonthBillsDialog
-    v-if="monthBillsDialogVisible"
-    :visible="monthBillsDialogVisible"
-    :category-id="monthBillsDialogData.categoryId"
-    :category-name="monthBillsDialogData.categoryName"
-    :year="monthBillsDialogData.year"
-    :month="monthBillsDialogData.month"
-    :note-id="monthBillsDialogData.noteId"
-    @cancel="closeMonthBillsDialog"
+  <CategoryMonthBillsDrawer
+    v-model:visible="billsDrawerVisible"
+    :category-id="billsDrawerData.categoryId"
+    :category-name="billsDrawerData.categoryName"
+    :year="billsDrawerData.year"
+    :month="billsDrawerData.month"
+    :note-id="billsDrawerData.noteId"
   />
   <CategoryDialog
     v-if="categoryDialogVisible"
@@ -78,7 +77,7 @@ import BudgetDashboard from '../BudgetDashboard.vue'
 import BudgetDialog from '../BudgetDialog.vue'
 import BudgetHistory from '../BudgetHistory.vue'
 import CategoryContextMenu from '../layout/CategoryContextMenu.vue'
-import CategoryMonthBillsDialog from '../CategoryMonthBillsDialog.vue'
+import CategoryMonthBillsDrawer from '../CategoryMonthBillsDrawer.vue'
 import CategoryDialog from '../CategoryDialog.vue'
 
 const props = defineProps<{
@@ -111,13 +110,13 @@ const historyDialogData = ref({
   historyEntries: [] as BudgetEntry[]
 })
 
-// 月份支出列表对话框状态
-const monthBillsDialogVisible = ref(false)
-const monthBillsDialogData = ref({
+// 账单列表抽屉状态
+const billsDrawerVisible = ref(false)
+const billsDrawerData = ref({
   categoryId: '',
   categoryName: '',
   year: new Date().getFullYear(),
-  month: new Date().getMonth() + 1,
+  month: undefined as number | undefined,
   noteId: ''
 })
 
@@ -163,23 +162,33 @@ const {
   }
 })
 
-function openMonthBillsDialog(payload: { categoryId: string; year: number; month: number; noteId: string }) {
+function openMonthBillsDrawer(payload: { categoryId: string; year: number; month: number; noteId: string }) {
   // 查找分类名称
   const category = categories.value.find(c => c.id === payload.categoryId)
   if (!category) return
 
-  monthBillsDialogData.value = {
+  billsDrawerData.value = {
     categoryId: payload.categoryId,
     categoryName: category.name,
     year: payload.year,
     month: payload.month,
     noteId: payload.noteId
   }
-  monthBillsDialogVisible.value = true
+  billsDrawerVisible.value = true
 }
 
-function closeMonthBillsDialog() {
-  monthBillsDialogVisible.value = false
+function onYearActualClick(payload: { categoryId: string; year: number; noteId: string }) {
+  const category = categories.value.find(c => c.id === payload.categoryId)
+  if (!category) return
+
+  billsDrawerData.value = {
+    categoryId: payload.categoryId,
+    categoryName: category.name,
+    year: payload.year,
+    month: undefined,
+    noteId: payload.noteId
+  }
+  billsDrawerVisible.value = true
 }
 
 function closeCategoryDialog() {

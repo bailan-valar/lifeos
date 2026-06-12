@@ -24,7 +24,8 @@
       <div class="budget-table">
         <div class="table-header">
           <div class="col-category">分类</div>
-          <div class="col-year-budget">年预算/实际</div>
+          <div class="col-year-budget">年预算</div>
+          <div class="col-year-actual">实际</div>
           <div
             v-for="m in 12"
             :key="m"
@@ -42,12 +43,8 @@
           </div>
           <div class="col-year-budget">
             <div class="year-budget-cell">
-              <div v-if="totalsRow.yearBudget > 0 || totalsRow.yearActual > 0" class="cell-content">
+              <div v-if="totalsRow.yearBudget > 0" class="cell-content">
                 <div class="cell-budget">{{ totalsRow.yearBudget.toFixed(0) }}</div>
-                <div class="cell-divider"></div>
-                <div class="cell-actual" :class="{ over: totalsRow.yearPercentage > 1 }">
-                  {{ totalsRow.yearActual.toFixed(0) }}
-                </div>
               </div>
               <div
                 v-if="totalsRow.yearBudget > 0"
@@ -56,6 +53,11 @@
               >
                 {{ (totalsRow.yearPercentage * 100).toFixed(0) }}%
               </div>
+            </div>
+          </div>
+          <div class="col-year-actual" @click="onYearActualClick(totalsRow)">
+            <div v-if="totalsRow.yearActual > 0" class="actual-value" :class="{ over: totalsRow.yearPercentage > 1 }">
+              {{ totalsRow.yearActual.toFixed(0) }}
             </div>
           </div>
           <div
@@ -106,14 +108,10 @@
               <span v-else class="expand-placeholder"></span>
               <span class="category-name" @click.stop="onCategoryClick(row.node.id)">{{ row.node.name }}</span>
             </div>
-            <div class="col-year-budget">
+            <div class="col-year-budget" @click.stop="onCategoryClick(row.node.id)">
               <div v-if="row.hasOwnBudget" class="year-budget-cell">
-                <div v-if="row.yearBudget > 0 || row.yearActual > 0" class="cell-content">
+                <div v-if="row.yearBudget > 0" class="cell-content">
                   <div class="cell-budget">{{ row.yearBudget.toFixed(0) }}</div>
-                  <div class="cell-divider"></div>
-                  <div class="cell-actual" :class="{ over: row.yearPercentage > 1 }">
-                    {{ row.yearActual.toFixed(0) }}
-                  </div>
                 </div>
                 <div
                   v-if="row.yearBudget > 0"
@@ -126,15 +124,6 @@
               <div v-else class="year-budget-cell">
                 <div v-if="row.childrenBudgetSum > 0" class="cell-content">
                   <div class="cell-budget">{{ row.childrenBudgetSum.toFixed(0) }}</div>
-                  <div class="cell-divider"></div>
-                  <div class="cell-actual" :class="{ over: row.yearActual > row.childrenBudgetSum }">
-                    {{ row.yearActual.toFixed(0) }}
-                  </div>
-                </div>
-                <div v-else-if="row.yearActual > 0" class="cell-content">
-                  <div class="cell-actual" :class="{ over: true }">
-                    {{ row.yearActual.toFixed(0) }}
-                  </div>
                 </div>
                 <div v-else class="cell-empty">—</div>
                 <div
@@ -144,6 +133,11 @@
                 >
                   {{ (row.yearActual / row.childrenBudgetSum * 100).toFixed(0) }}%
                 </div>
+              </div>
+            </div>
+            <div class="col-year-actual" @click.stop="onYearActualClick(row)">
+              <div v-if="row.yearActual > 0" class="actual-value" :class="{ over: row.yearPercentage > 1 }">
+                {{ row.yearActual.toFixed(0) }}
               </div>
             </div>
             <template v-if="row.cycleType === 'yearly'">
@@ -213,6 +207,7 @@ const emit = defineEmits<{
   (e: 'edit-cell', payload: { categoryId: string; year: number; month: number; noteId: string }): void
   (e: 'category-contextmenu', payload: { node: CategoryTreeNode; x: number; y: number }): void
   (e: 'category-click', payload: { categoryId: string; year: number; month: number; noteId: string }): void
+  (e: 'year-actual-click', payload: { categoryId: string; year: number; noteId: string }): void
 }>()
 
 const { budgets, loadBudgets, resolveBudget, getMonthlyEquivalent } = useBudgets()
@@ -638,6 +633,15 @@ function onCategoryClick(categoryId: string) {
   })
 }
 
+function onYearActualClick(row: TableRow | null) {
+  if (!row) return
+  emit('year-actual-click', {
+    categoryId: row.node.id,
+    year: currentYear.value,
+    noteId: selectedNoteId.value
+  })
+}
+
 function navigateToCategory(categoryId: string) {
   navigateTo('/billing/categories/' + categoryId)
 }
@@ -768,7 +772,7 @@ function navigateToCategory(categoryId: string) {
 }
 
 .col-year-budget {
-  width: 82px;
+  width: 72px;
   flex-shrink: 0;
   position: sticky;
   left: 160px;
@@ -781,6 +785,33 @@ function navigateToCategory(categoryId: string) {
   border-right: 0.5px solid rgba(60, 60, 67, 0.08);
   z-index: 1;
   font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.col-year-budget:hover {
+  background: rgba(0, 122, 255, 0.04);
+}
+
+.col-year-actual {
+  width: 62px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 232px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border-right: 0.5px solid rgba(60, 60, 67, 0.08);
+  z-index: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.col-year-actual:hover {
+  background: rgba(0, 122, 255, 0.04);
 }
 
 .col-month-header,
@@ -930,6 +961,17 @@ function navigateToCategory(categoryId: string) {
   font-weight: 600;
 }
 
+.actual-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.actual-value.over {
+  color: rgb(255, 59, 48);
+  font-weight: 600;
+}
+
 .cell-empty {
   font-size: 12px;
   color: rgba(60, 60, 67, 0.25);
@@ -967,6 +1009,10 @@ function navigateToCategory(categoryId: string) {
 }
 
 .table-footer .col-year-budget {
+  background: rgba(248, 248, 248, 0.95);
+}
+
+.table-footer .col-year-actual {
   background: rgba(248, 248, 248, 0.95);
 }
 
