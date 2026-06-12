@@ -233,16 +233,9 @@ export async function parseCmbPdf(buffer: ArrayBuffer): Promise<CsvParsedRow[]> 
       const counterpartyLines = g.slice(5)
       const meaningful = counterpartyLines.filter(l => {
         const t = l.trim()
-        if (!t) return false
-        if (/^\d+$/.test(t.replace(/\s/g, ''))) return false
-        return true
+        return !!t
       })
-      let counterparty = meaningful.join(' ').trim()
-      // 去掉末尾的银行账号（如 "王晨佳 4392260799762255" → "王晨佳"）
-      const cpParts = counterparty.split(/\s+/)
-      if (cpParts.length >= 2 && /^\d{10,}$/.test(cpParts[cpParts.length - 1])) {
-        counterparty = cpParts.slice(0, -1).join(' ')
-      }
+      const counterparty = meaningful.join(' ').trim()
 
       const signedAmount = cleanAmount(amountRaw)
       const direction: 'in' | 'out' = signedAmount >= 0 ? 'in' : 'out'
