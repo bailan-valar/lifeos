@@ -317,10 +317,11 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
   const weekRows = computed(() => {
     const rows: WeekRow[] = []
 
-    // 聚焦模式下，只显示聚焦笔记及其子笔记
-    const visibleNoteIds = focusedNoteId.value
-      ? new Set([focusedNoteId.value, ...getDescendantNoteIds(focusedNoteId.value)])
+    // 聚焦模式下，只显示聚焦笔记的子笔记（不显示聚焦笔记本身）
+    const childNoteIds = focusedNoteId.value
+      ? getDescendantNoteIds(focusedNoteId.value)
       : null
+    const visibleNoteIds = childNoteIds ? new Set(childNoteIds) : null
 
     // 构建笔记ID到展开状态的映射（用于快速查找祖先折叠状态）
     const noteExpandedMap = new Map<string, boolean>()
@@ -339,13 +340,10 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
 
     // 检查笔记是否有被折叠的祖先笔记
     function hasCollapsedAncestor(noteId: string): boolean {
-      // 聚焦模式下，聚焦笔记本身始终可见
-      if (focusedNoteId.value && noteId === focusedNoteId.value) return false
-
       const note = notes.value.find(n => n.id === noteId)
       if (!note || !note.parentId) return false
 
-      // 聚焦模式下，到达聚焦笔记时停止向上查找
+      // 聚焦模式下，到达聚焦笔记时停止向上查找（聚焦笔记不在可见列表中，但它是子树的根）
       if (focusedNoteId.value && note.parentId === focusedNoteId.value) return false
 
       const parentExpanded = noteExpandedMap.get(note.parentId)
@@ -354,19 +352,19 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
       return hasCollapsedAncestor(note.parentId)
     }
 
-    // 聚焦模式下，计算层级偏移，使聚焦笔记作为 level 0 显示
+    // 聚焦模式下，计算层级偏移：子笔记从 level 0 开始
     const focusedNoteLevel = focusedNoteId.value
-      ? notesWithLevel.value.find(n => n.id === focusedNoteId.value)?.level ?? 0
+      ? (notesWithLevel.value.find(n => n.id === focusedNoteId.value)?.level ?? 0) + 1
       : 0
 
     for (const note of notesWithLevel.value) {
-      // 聚焦模式：如果不是聚焦笔记或其子笔记，跳过
+      // 聚焦模式：只显示子笔记
       if (visibleNoteIds && !visibleNoteIds.has(note.id)) continue
 
       // 如果有被折叠的祖先笔记，跳过（不显示）
       if (hasCollapsedAncestor(note.id)) continue
 
-      // 聚焦模式下，调整层级使聚焦笔记从 level 0 开始
+      // 聚焦模式下，调整层级使子笔记从 level 0 开始
       const displayLevel = focusedNoteId.value ? note.level - focusedNoteLevel : note.level
 
       // 获取该笔记的所有待办任务
