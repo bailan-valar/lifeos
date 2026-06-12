@@ -83,40 +83,55 @@
           v-for="row in weekRows"
           :key="row.noteId"
           class="table-row"
+          :class="{ 'focused-row': row.isFocusedRow }"
         >
           <!-- 笔记列 -->
           <div
             class="row-cell cell-note"
-            :class="{ 'has-children': hasChildren(row.noteId), ...getNoteDragClass(row) }"
-            draggable="true"
-            @dragstart="handleNoteDragStart(row, $event)"
+            :class="{ 'has-children': !row.isFocusedRow && hasChildren(row.noteId), ...getNoteDragClass(row) }"
+            :draggable="!row.isFocusedRow"
+            @dragstart="!row.isFocusedRow && handleNoteDragStart(row, $event)"
             @dragend="dragDrop.resetDragState"
             @contextmenu.prevent="handleNoteContextMenu($event, row)"
           >
-            <!-- 缩进占位 -->
-            <span
-              class="note-indent"
-              :style="{ width: `${row.level * 16}px` }"
-            />
-            <!-- 展开按钮或占位符，保持对齐 -->
-            <button
-              v-if="hasChildren(row.noteId)"
-              class="expand-btn"
-              @click.stop="toggleNote(row.noteId)"
-            >
-              <Icon
-                :name="row.expanded ? ICONS.altArrowDown : ICONS.altArrowRight"
-                size="14"
+            <!-- 聚焦行：无缩进和展开按钮，显示聚焦标记 -->
+            <template v-if="row.isFocusedRow">
+              <span class="focused-label">聚焦</span>
+              <button
+                class="note-title focused-title"
+                :title="row.title"
+                @click.stop
+              >
+                {{ row.title }}
+              </button>
+            </template>
+            <!-- 普通行：显示缩进和展开按钮 -->
+            <template v-else>
+              <!-- 缩进占位 -->
+              <span
+                class="note-indent"
+                :style="{ width: `${row.level * 16}px` }"
               />
-            </button>
-            <span v-else class="expand-spacer" />
-            <button
-              class="note-title"
-              :title="row.title"
-              @click.stop="handleNoteClick(row.noteId)"
-            >
-              {{ row.title }}
-            </button>
+              <!-- 展开按钮或占位符，保持对齐 -->
+              <button
+                v-if="hasChildren(row.noteId)"
+                class="expand-btn"
+                @click.stop="toggleNote(row.noteId)"
+              >
+                <Icon
+                  :name="row.expanded ? ICONS.altArrowDown : ICONS.altArrowRight"
+                  size="14"
+                />
+              </button>
+              <span v-else class="expand-spacer" />
+              <button
+                class="note-title"
+                :title="row.title"
+                @click.stop="handleNoteClick(row.noteId)"
+              >
+                {{ row.title }}
+              </button>
+            </template>
             <span v-if="row.noteClass" class="note-class" :style="{ color: row.noteClass.color }">
               {{ row.noteClass.name }}
             </span>
@@ -1427,6 +1442,32 @@ onUnmounted(() => {
   background: rgba(60, 60, 67, 0.03);
 }
 
+/* 聚焦项目行 */
+.table-row.focused-row {
+  background: rgba(0, 122, 255, 0.04);
+  border-bottom: 1px solid rgba(0, 122, 255, 0.12);
+}
+
+.table-row.focused-row:hover {
+  background: rgba(0, 122, 255, 0.07);
+}
+
+.focused-label {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(0, 122, 255);
+  background: rgba(0, 122, 255, 0.1);
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.note-title.focused-title {
+  font-weight: 600;
+  color: rgba(60, 60, 67, 0.9);
+}
+
 .row-cell {
   flex-shrink: 0;
   padding: 8px;
@@ -1995,6 +2036,23 @@ onUnmounted(() => {
 
   .table-row:hover {
     background: rgba(255, 255, 255, 0.03);
+  }
+
+  .table-row.focused-row {
+    background: rgba(0, 122, 255, 0.08);
+    border-bottom-color: rgba(0, 122, 255, 0.2);
+  }
+
+  .table-row.focused-row:hover {
+    background: rgba(0, 122, 255, 0.12);
+  }
+
+  .focused-label {
+    background: rgba(0, 122, 255, 0.2);
+  }
+
+  .note-title.focused-title {
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .loading-state,

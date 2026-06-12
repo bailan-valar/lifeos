@@ -59,6 +59,7 @@ export interface WeekRow {
     [dateStr: string]: number // 折叠时，每天子笔记的待办合计数
   }
   noteClass?: Class // 笔记类
+  isFocusedRow?: boolean // 聚焦项目行标记（平铺显示聚焦笔记自身待办）
 }
 
 export interface ProjectViewConfig {
@@ -357,6 +358,77 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
       ? (notesWithLevel.value.find(n => n.id === focusedNoteId.value)?.level ?? 0) + 1
       : 0
 
+    // ========== 聚焦项目行：显示聚焦笔记自身的待办，平铺展示 ==========
+    if (focusedNoteId.value) {
+      const focusedNote = notes.value.find(n => n.id === focusedNoteId.value)
+      if (focusedNote) {
+        const focusedTasks = tasks.value.filter(t => t.noteId === focusedNoteId.value)
+        const focusedLayouts: TaskLayout[] = []
+        const fColRowCounts = new Map<string, number>()
+
+        const fPending: TodoWithMeta[] = []
+        const fCompleted: TodoWithMeta[] = []
+        for (const task of focusedTasks) {
+          if (task.completed || task.statusIsCompleted) {
+            fCompleted.push(task)
+          } else {
+            fPending.push(task)
+          }
+        }
+
+        const sortFocused = (taskList: TodoWithMeta[]): TodoWithMeta[] => {
+          const taskMap = new Map(taskList.map(t => [t.id, t]))
+          const sorted: TodoWithMeta[] = []
+          const visited = new Set<string>()
+          const visit = (tid: string | undefined) => {
+            if (!tid || visited.has(tid)) return
+            visited.add(tid)
+            const t = taskMap.get(tid)
+            if (t) {
+              sorted.push(t)
+              for (const c of taskList) {
+                if (c.parentId === tid && !visited.has(c.id)) visit(c.id)
+              }
+            }
+          }
+          for (const t of taskList) { if (!t.parentId) visit(t.id) }
+          for (const t of taskList) { if (!visited.has(t.id)) visit(t.id) }
+          return sorted
+        }
+
+        for (const task of [...sortFocused(fPending), ...sortFocused(fCompleted)]) {
+          const layout = calculateTaskLayout(task, weekDates.value, focusedTasks)
+          if (layout) {
+            let maxRow = 0
+            for (let i = layout.colIndex; i < layout.colIndex + layout.colSpan; i++) {
+              maxRow = Math.max(maxRow, fColRowCounts.get(`col-${i}`) || 0)
+            }
+            layout.rowIndex = maxRow + 1
+            for (let i = layout.colIndex; i < layout.colIndex + layout.colSpan; i++) {
+              fColRowCounts.set(`col-${i}`, layout.rowIndex)
+            }
+            focusedLayouts.push(layout)
+          }
+        }
+
+        focusedLayouts.sort((a, b) => a.colIndex - b.colIndex)
+
+        const fBinding = noteBindings.value.find(b => b.noteId === focusedNoteId.value)
+        const fClass = fBinding ? classes.value.find(c => c.id === fBinding.classId) : undefined
+
+        rows.push({
+          noteId: focusedNote.id,
+          title: focusedNote.title || '未命名笔记',
+          level: 0,
+          expanded: true,
+          taskLayouts: focusedLayouts,
+          isFocusedRow: true,
+          noteClass: fClass
+        })
+      }
+    }
+
+    // ========== 子笔记树形结构 ==========
     for (const note of notesWithLevel.value) {
       // 聚焦模式：只显示子笔记
       if (visibleNoteIds && !visibleNoteIds.has(note.id)) continue
