@@ -218,6 +218,8 @@ export function useStatements(): StatementsStore {
   if (!_store) {
     _store = createStore()
     startWatchingStatements()
+    // 首次创建时自动加载，组件无需手动调 loadStatements()
+    _store.loadStatements()
   }
   return _store
 }

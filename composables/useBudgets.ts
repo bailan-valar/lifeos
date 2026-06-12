@@ -228,6 +228,8 @@ let _store: BudgetsStore | null = null
 export function useBudgets(): BudgetsStore {
   if (!_store) {
     _store = createStore()
+    // 首次创建时自动加载，组件无需手动调 loadBudgets()
+    _store.loadBudgets()
   }
   return _store
 }

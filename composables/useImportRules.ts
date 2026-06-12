@@ -383,6 +383,8 @@ function createStore(): ImportRulesStore {
 export function useImportRules(): ImportRulesStore {
   if (!_store) {
     _store = createStore()
+    // 首次创建时自动加载，组件无需手动调 loadImportRules()
+    _store.loadImportRules()
   }
   startWatchingImportRules()
   return _store

@@ -139,6 +139,8 @@ function createStore(): EmailConfigsStore {
 export function useEmailConfigs(): EmailConfigsStore {
   if (!_store) {
     _store = createStore()
+    // 首次创建时自动加载，组件无需手动调 loadEmailConfigs()
+    _store.loadEmailConfigs()
   }
   startWatchingEmailConfigs()
   return _store

@@ -294,6 +294,8 @@ function createStore(): ImportRecordsStore {
 export function useImportRecords(): ImportRecordsStore {
   if (!_store) {
     _store = createStore()
+    // 首次创建时自动加载，组件无需手动调 loadImportRecords()
+    _store.loadImportRecords()
   }
   startWatchingImportRecords()
   return _store
