@@ -31,7 +31,7 @@ export const useTodoStore = defineStore('todo', () => {
   const typesLoading = ref(false)
 
   // 视图状态
-  const viewMode = ref<ViewMode>('all')
+  const viewMode = ref<ViewMode>('project')
   const groupBy = ref<GroupBy>('none')
   const sortBy = ref<SortBy>('created')
   const filters = reactive<ViewFilters>({
