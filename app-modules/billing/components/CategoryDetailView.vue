@@ -6,10 +6,16 @@
         <Icon name="solar:alt-arrow-left-linear" size="18" />
         <span>返回账单</span>
       </button>
-      <button type="button" class="add-btn" @click="openBillDialog()">
-        <Icon name="solar:add-circle-linear" size="18" />
-        记一笔
-      </button>
+      <div class="header-actions">
+        <button v-if="!batchMode" type="button" class="batch-enter-btn" @click="enterBatchMode">
+          <Icon name="solar:checklist-linear" size="18" />
+          批量
+        </button>
+        <button type="button" class="add-btn" @click="openBillDialog()">
+          <Icon name="solar:add-circle-linear" size="18" />
+          记一笔
+        </button>
+      </div>
     </div>
 
     <!-- 加载中 -->
@@ -96,8 +102,8 @@
         </div>
       </div>
 
-      <!-- 筛选工具栏 -->
-      <div class="filter-bar">
+      <!-- 筛选工具栏 / 批量工具栏 -->
+      <div v-if="!batchMode" class="filter-bar">
         <div class="filter-group">
           <select v-model="yearFilter" class="filter-select" @change="onFilterChange">
             <option :value="null">全部年份</option>
@@ -110,13 +116,25 @@
         </div>
         <span class="filter-result">共 {{ filteredBills.length }} 笔</span>
       </div>
+      <BillBatchToolbar
+        v-else
+        :selected-count="selectedIds.length"
+        :total-count="filteredBills.length"
+        @toggle-select-all="handleToggleSelectAll"
+        @batch-delete="handleBatchDelete"
+        @batch-edit="batchEditVisible = true"
+        @exit="exitBatchMode"
+      />
 
       <!-- 账单列表 -->
       <div class="list-wrapper">
         <BillList
           :bills="filteredBills"
+          :selectable="batchMode"
+          :selected-ids="selectedIds"
           @edit="openBillDialog"
           @delete="handleDeleteBill"
+          @select="toggleBillSelect"
           @contextmenu="openBillContextMenu"
         />
       </div>
@@ -133,6 +151,16 @@
       :default-form-values="{ categoryId: categoryId }"
       @confirm="onBillDialogConfirm"
       @cancel="billDialogVisible = false; editingBill = null"
+    />
+
+    <!-- 批量编辑弹框 -->
+    <BillBatchEditDialog
+      v-if="batchEditVisible"
+      :selected-bills="selectedBills"
+      :accounts="accounts"
+      :categories="allCategories"
+      @confirm="handleBatchEditConfirm"
+      @cancel="batchEditVisible = false"
     />
 
     <!-- 右键菜单 -->
@@ -158,9 +186,12 @@ import { toLocalISO } from '~/services/db'
 import { sum, div, mul } from '~/utils/decimal'
 import { useToast } from '~/composables/useToast'
 import { useConfirm } from '~/composables/useConfirm'
+import { useBillingBatch } from '../composables/useBillingBatch'
 import BillList from './BillList.vue'
 import BillDialog from './BillDialog.vue'
 import BillContextMenu from './BillContextMenu.vue'
+import BillBatchToolbar from './BillBatchToolbar.vue'
+import BillBatchEditDialog from './BillBatchEditDialog.vue'
 
 const props = defineProps<{
   categoryId: string
@@ -177,7 +208,7 @@ const router = useRouter()
 
 // 数据 store
 const { categories, loadCategories, buildTree } = useBillCategories()
-const { bills, loadBillsByCategory, createBill, deleteBill } = useBills()
+const { bills, loadBillsByCategory, createBill, deleteBill, updateBills, deleteBills } = useBills()
 const { accounts, loadAccounts } = useAccounts()
 const { budgets, loadBudgets, resolveBudget, getMonthlyEquivalent } = useBudgets()
 const { loadNotes, noteOptions } = useNotes()
@@ -191,6 +222,14 @@ const ctxMenuVisible = ref(false)
 const ctxMenuBill = ref<Bill | null>(null)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
+
+// 批量操作状态
+const batchMode = ref(false)
+const selectedIds = ref<string[]>([])
+const batchEditVisible = ref(false)
+
+const { success: showSuccess, error: showError } = useToast()
+const { confirm } = useConfirm()
 
 // 筛选
 const yearFilter = ref<number | null>(null)
@@ -241,6 +280,34 @@ const filteredBills = computed(() => {
     list = list.filter(b => new Date(b.date).getMonth() + 1 === monthFilter.value)
   }
   return list
+})
+
+// 批量操作
+const selectedBills = computed(() =>
+  filteredBills.value.filter(b => selectedIds.value.includes(b.id))
+)
+
+const {
+  enterBatchMode,
+  exitBatchMode,
+  toggleBillSelect,
+  handleToggleSelectAll,
+  handleBatchDelete,
+  handleBatchEdit
+} = useBillingBatch({
+  batchMode,
+  selectedIds,
+  batchEditVisible,
+  bills: filteredBills,
+  deleteBills,
+  updateBill: async () => {},
+  updateBills,
+  confirm: (msg) => {
+    if (typeof msg === 'string') return confirm({ message: msg, danger: true })
+    return confirm(msg)
+  },
+  showSuccess,
+  showError
 })
 
 // 统计
@@ -312,8 +379,9 @@ function onFilterChange() {
   refreshBills()
 }
 
-const { success: showSuccess, error: showError } = useToast()
-const { confirm } = useConfirm()
+async function handleBatchEditConfirm(data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix' }) {
+  await handleBatchEdit(data)
+}
 
 // 右键菜单处理
 function openBillContextMenu(payload: { bill: Bill; x: number; y: number }) {
@@ -396,6 +464,7 @@ onMounted(() => {
 watch(() => props.categoryId, () => {
   yearFilter.value = null
   monthFilter.value = null
+  exitBatchMode()
   loadData()
 })
 </script>
@@ -415,6 +484,30 @@ watch(() => props.categoryId, () => {
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-enter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(0, 0, 0, 0.78);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.batch-enter-btn:hover {
+  background: rgba(60, 60, 67, 0.14);
 }
 
 .back-btn {
