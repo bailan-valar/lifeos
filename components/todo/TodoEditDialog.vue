@@ -21,6 +21,16 @@
           />
         </div>
 
+        <div class="form-group">
+          <label class="form-label">描述</label>
+          <textarea
+            v-model="form.description"
+            class="liquid-glass-input description-textarea"
+            rows="4"
+            placeholder="添加详细描述（可选）..."
+          />
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">待办类型</label>
@@ -219,6 +229,7 @@ const textInput = ref<HTMLTextAreaElement | null>(null)
 
 const form = reactive<{
   text: string
+  description: string
   typeId: string | null
   priority: string | null
   startDate: string | null
@@ -228,6 +239,7 @@ const form = reactive<{
   parentId: string | null
 }>({
   text: '',
+  description: '',
   typeId: null,
   priority: 'none',
   startDate: null,
@@ -336,6 +348,7 @@ const initForm = () => {
   if (props.todo) {
     // 编辑模式
     form.text = props.todo.text || ''
+    form.description = props.todo.description || ''
     form.typeId = props.todo.typeId || null
     form.priority = props.todo.priority || 'none'
     form.startDate = toPickerFormat(props.todo.startDate) || null
@@ -346,6 +359,7 @@ const initForm = () => {
   } else {
     // 新建模式
     form.text = ''
+    form.description = ''
     form.typeId = null
     // 使用 initialData 中的优先级，否则默认为 'none'
     form.priority = props.initialData?.priority || 'none'
@@ -382,6 +396,7 @@ const onConfirm = async () => {
       const updatedTodo: TodoItem = {
         ...props.todo,
         text: form.text.trim(),
+        description: form.description.trim() || undefined,
         typeId: form.typeId || undefined,
         priority: (form.priority || undefined) as TodoItem['priority'],
         startDate: formatDateTime(form.startDate),
@@ -397,6 +412,7 @@ const onConfirm = async () => {
       const newTodo: TodoItem = {
         id: generateId(),
         text: form.text.trim(),
+        description: form.description.trim() || undefined,
         completed: false,
         typeId: form.typeId || undefined,
         priority: (form.priority || undefined) as TodoItem['priority'],
@@ -544,6 +560,14 @@ watch(() => props.visible, async (visible) => {
   resize: vertical;
   min-height: 80px;
   font-family: inherit;
+}
+
+.description-textarea {
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 /* 选择器选项样式 */

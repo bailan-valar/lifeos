@@ -25,6 +25,7 @@ export interface TodoStatus {
 export interface TodoItem {
   id: string
   text: string
+  description?: string // 详细描述
   completed: boolean
   createdAt: string
   startDate?: string // 开始时间，格式: "YYYY-MM-DD" 或 "YYYY-MM-DDTHH:mm:ss"

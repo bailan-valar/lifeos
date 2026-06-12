@@ -63,6 +63,12 @@
           <Icon :name="SOLAR_ICONS.doc.notebook || 'solar:notebook-linear'" :size="14" />
           <span>绑定笔记：{{ noteInfo }}</span>
         </div>
+
+        <!-- 描述 -->
+        <div v-if="todo.description" class="detail-description">
+          <Icon :name="SOLAR_ICONS.doc.text || 'solar:document-text-linear'" :size="14" />
+          <p class="description-content">{{ todo.description }}</p>
+        </div>
       </div>
 
       <!-- 分隔线 -->
@@ -388,6 +394,30 @@ onUnmounted(() => {
   color: rgba(60, 60, 67, 0.65);
 }
 
+.detail-description {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(60, 60, 67, 0.03);
+  border-radius: 8px;
+}
+
+.detail-description > .iconify {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: rgba(60, 60, 67, 0.5);
+}
+
+.description-content {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(60, 60, 67, 0.75);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .detail-divider {
   height: 0.5px;
   background: rgba(60, 60, 67, 0.1);
@@ -459,6 +489,18 @@ onUnmounted(() => {
 
   .detail-note {
     color: rgba(255, 255, 255, 0.65);
+  }
+
+  .detail-description {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .detail-description > .iconify {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .description-content {
+    color: rgba(255, 255, 255, 0.75);
   }
 
   .detail-divider {
