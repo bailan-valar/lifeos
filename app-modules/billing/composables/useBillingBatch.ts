@@ -60,13 +60,14 @@ export function useBillingBatch(options: UseBillingBatchOptions) {
     }
   }
 
-  async function handleBatchEdit(data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix' }) {
+  async function handleBatchEdit(data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix'; noteId?: string }) {
     if (options.selectedIds.value.length === 0) return
 
     const patch: Partial<BillFormData> = {}
     if (data.categoryId) patch.categoryId = data.categoryId
     if (data.fromAccountId) patch.fromAccountId = data.fromAccountId
     if (data.toAccountId) patch.toAccountId = data.toAccountId
+    if (data.noteId) patch.noteId = data.noteId
 
     try {
       if (data.description && data.descMode) {

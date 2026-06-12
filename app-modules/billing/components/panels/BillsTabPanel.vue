@@ -110,6 +110,7 @@
       :selected-bills="selectedBills"
       :accounts="accounts"
       :categories="categories"
+      :note-options="noteOptions"
       @confirm="handleBatchEditConfirm"
       @cancel="batchEditVisible = false"
     />

@@ -80,6 +80,19 @@
             />
           </template>
         </div>
+
+        <div class="edit-field">
+          <label class="field-toggle">
+            <input v-model="editNote" type="checkbox" />
+            <span>修改绑定笔记</span>
+          </label>
+          <NotePicker
+            v-if="editNote"
+            v-model="noteId"
+            :options="noteOptions"
+            placeholder="选择笔记"
+          />
+        </div>
       </div>
       <div class="dialog-footer">
         <button type="button" class="cancel-btn" @click="$emit('cancel')">取消</button>
@@ -97,6 +110,7 @@ import type { Bill, BillCategory, Account } from '~/types/bill'
 import { getNextZIndex } from '~/composables/useZIndex'
 import CategoryPicker from './CategoryPicker.vue'
 import AccountPicker from './AccountPicker.vue'
+import NotePicker from './NotePicker.vue'
 
 const { isMobile } = useDevice()
 
@@ -109,10 +123,11 @@ const props = defineProps<{
   selectedBills: Bill[]
   accounts: Account[]
   categories: BillCategory[]
+  noteOptions: { id: string; title: string; level: number }[]
 }>()
 
 const emit = defineEmits<{
-  confirm: [data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix' }]
+  confirm: [data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix'; noteId?: string }]
   cancel: []
 }>()
 
@@ -128,6 +143,9 @@ const toAccountId = ref('')
 const editDescription = ref(false)
 const descMode = ref<'replace' | 'prefix' | 'suffix'>('replace')
 const description = ref('')
+
+const editNote = ref(false)
+const noteId = ref('')
 
 const descModes = [
   { value: 'replace' as const, label: '替换' },
@@ -163,11 +181,12 @@ const hasAnyEdit = computed(() => {
   if (editFromAccount.value && fromAccountId.value) return true
   if (editToAccount.value && toAccountId.value) return true
   if (editDescription.value && description.value) return true
+  if (editNote.value && noteId.value) return true
   return false
 })
 
 function handleConfirm() {
-  const result: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix' } = {}
+  const result: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix'; noteId?: string } = {}
   if (editCategory.value && categoryId.value) {
     result.categoryId = categoryId.value
   }
@@ -180,6 +199,9 @@ function handleConfirm() {
   if (editDescription.value && description.value) {
     result.description = description.value
     result.descMode = descMode.value
+  }
+  if (editNote.value && noteId.value) {
+    result.noteId = noteId.value
   }
   emit('confirm', result)
 }
