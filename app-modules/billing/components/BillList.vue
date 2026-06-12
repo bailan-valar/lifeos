@@ -198,7 +198,6 @@ const flatBills = computed(() => {
  * 计算每笔账单对账户的余额变化量（正向：余额增加）
  */
 function getBillDelta(bill: Bill, accountId: string): number {
-  if (bill.type === 'debt') return 0
   let delta = 0
   if (bill.fromAccountId === accountId) delta = sub(delta, bill.amount)
   if (bill.toAccountId === accountId) delta = add(delta, bill.amount)

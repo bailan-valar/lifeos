@@ -25,7 +25,6 @@ async function getNetChangeAfter(accountId: string, date: string): Promise<numbe
   const changes: number[] = []
   for (const doc of result) {
     const bill = doc.toJSON() as Bill
-    if (bill.type === 'debt') continue
     if (bill.fromAccountId === accountId) changes.push(-bill.amount)
     if (bill.toAccountId === accountId) changes.push(bill.amount)
   }

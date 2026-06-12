@@ -332,13 +332,13 @@ const {
 // 统计
 const totalIncome = computed(() =>
   sum(filteredBills.value
-    .filter(b => b.toAccountId === props.accountId && (b.type === 'income' || b.type === 'transfer') && b.status === 'completed')
+    .filter(b => b.toAccountId === props.accountId && (b.type === 'income' || b.type === 'transfer' || (b.type === 'debt' && b.debtSubtype === 'borrow')) && b.status === 'completed')
     .map(b => b.amount))
 )
 
 const totalExpense = computed(() =>
   sum(filteredBills.value
-    .filter(b => b.fromAccountId === props.accountId && (b.type === 'expense' || b.type === 'transfer') && b.status === 'completed')
+    .filter(b => b.fromAccountId === props.accountId && (b.type === 'expense' || b.type === 'transfer' || (b.type === 'debt' && b.debtSubtype === 'lend')) && b.status === 'completed')
     .map(b => b.amount))
 )
 

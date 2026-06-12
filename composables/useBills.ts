@@ -29,7 +29,6 @@ async function updateAccountBalance(id: string, delta: number) {
 }
 
 async function applyBalanceChange(bill: Bill, reverse = false) {
-  if (bill.type === 'debt') return
   const m = reverse ? -1 : 1
   if (bill.fromAccountId) await updateAccountBalance(bill.fromAccountId, mul(bill.amount, -m))
   if (bill.toAccountId) await updateAccountBalance(bill.toAccountId, mul(bill.amount, m))
