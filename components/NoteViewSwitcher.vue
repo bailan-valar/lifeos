@@ -139,20 +139,12 @@ const switchView = async (viewId: string) => {
   }
 }
 
-watch(() => props.noteId, async () => {
+watch(() => props.noteId, () => {
   // 保持当前视图不变（如用户在账单视图切换笔记，仍停留在账单视图）
-  // 仅清理笔记关联的模块数据，切换回来时按需重新加载
+  // 仅清空缓存的模块数据，组件自身会在 props 变化时按需重新加载
   todoData.value = null
   billingData.value = null
-
-  // 如果当前视图非 content，按需加载对应模块数据
-  if (activeView.value === 'todo') {
-    todoData.value = await loadModuleData('todo')
-  }
-  if (activeView.value === 'billing') {
-    billingData.value = await loadModuleData('billing')
-  }
-}, { immediate: false })
+})
 
 defineExpose({
   get activeView() { return activeView.value },
