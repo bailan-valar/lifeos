@@ -162,8 +162,9 @@
         :bill="child"
         :category-name="getCategoryName(child.categoryId)"
         :account-name="getAccountName(child)"
+        :note-tag="noteTag"
         :show-actions="showActions"
-        @click="$emit('click', $event)"
+        @click="$emit('edit', $event)"
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"
       />
@@ -346,7 +347,8 @@ function onItemClick(event: MouseEvent) {
     emit('select', props.bill.id, { shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey })
     return
   }
-  emit('click', props.bill)
+  // 默认点击触发编辑
+  emit('edit', props.bill)
 }
 
 // 计算显示金额（减去退款）

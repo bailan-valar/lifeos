@@ -36,6 +36,7 @@
         :bill="entry.bill"
         :category-name="getCategoryName(entry.bill.categoryId)"
         :account-name="getAccountName(entry.bill)"
+        :note-tag="getNoteTitle(entry.bill.noteId)"
         :selectable="selectable"
         :selected="selectable && selectedIds?.includes(entry.bill.id)"
         :expanded="expandedIds.has(entry.bill.id)"
@@ -44,7 +45,7 @@
         :running-balance="showRunningBalance ? entry.balance : undefined"
         :refund-badge="getRefundBadgeMode(entry.bill)"
         :refund-total="getRefundTotal(entry.bill)"
-        @click="() => {}"
+        @click="$emit('edit', $event)"
         @select="onSelect"
         @toggle-expand="onToggleExpand"
         @edit="$emit('edit', $event)"
@@ -67,6 +68,7 @@
 import type { Bill, BillType, BalanceAdjustment } from '~/types/bill'
 import { useBillCategories } from '~/composables/useBillCategories'
 import { useAccounts } from '~/composables/useAccounts'
+import { useNotes } from '~/composables/useNotes'
 import { sum, sub, add } from '~/utils/decimal'
 import { SOLAR_ICONS } from '~/composables/useIcons'
 import BillListItem from './BillListItem.vue'
@@ -99,6 +101,7 @@ const emit = defineEmits<{
 
 const { categories } = useBillCategories()
 const { accounts } = useAccounts()
+const { noteOptions } = useNotes()
 
 const categoryMap = computed(() =>
   Object.fromEntries(categories.value.map(c => [c.id, c]))
@@ -107,6 +110,15 @@ const categoryMap = computed(() =>
 const accountMap = computed(() =>
   Object.fromEntries(accounts.value.map(a => [a.id, a]))
 )
+
+const noteMap = computed(() =>
+  Object.fromEntries(noteOptions.value.map(n => [n.id, n.title]))
+)
+
+function getNoteTitle(noteId: string): string | undefined {
+  if (!noteId) return undefined
+  return noteMap.value[noteId] || undefined
+}
 
 function getCategoryName(categoryId: string) {
   return categoryMap.value[categoryId]?.name || ''
