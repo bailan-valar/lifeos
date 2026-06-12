@@ -69,7 +69,7 @@
                 @split="handleSplit(bill)"
                 @allocate="handleAllocate(bill)"
                 @refund="handleRefund(bill)"
-                @select="toggleSelect(bill.id)"
+                @select="onSelect"
                 @dragstart="onBillDragStart"
                 @dragend="billDragDrop.endBillDrag()"
               />
@@ -180,19 +180,51 @@ const billSearchQuery = ref('')
 
 // 选择状态
 const selectedBillIds = ref<Set<string>>(new Set())
+const lastSelectedIndex = ref(-1) // 上次选中的索引，用于 Shift 范围选
 
 const isAllSelected = computed(() =>
   filteredBills.value.length > 0 && selectedBillIds.value.size === filteredBills.value.length
 )
 
-function toggleSelect(billId: string) {
-  const next = new Set(selectedBillIds.value)
-  if (next.has(billId)) {
-    next.delete(billId)
+/**
+ * 处理选择事件
+ * - Ctrl/Cmd：切换当前项
+ * - Shift：范围选中（从上次选中到当前项）
+ * - 普通：仅选中/取消当前项
+ */
+function onSelect(billId: string, meta?: { shiftKey: boolean; ctrlKey: boolean }) {
+  const currentIndex = filteredBills.value.findIndex(b => b.id === billId)
+  const shiftKey = meta?.shiftKey ?? false
+  const ctrlKey = meta?.ctrlKey ?? false
+
+  if (shiftKey && lastSelectedIndex.value >= 0) {
+    // Shift 范围选：选中从上次到当前之间的所有项
+    const start = Math.min(lastSelectedIndex.value, currentIndex)
+    const end = Math.max(lastSelectedIndex.value, currentIndex)
+    const next = new Set(selectedBillIds.value)
+    for (let i = start; i <= end; i++) {
+      next.add(filteredBills.value[i].id)
+    }
+    selectedBillIds.value = next
+  } else if (ctrlKey) {
+    // Ctrl 切换选：保留已选中的其他项，切换当前项
+    const next = new Set(selectedBillIds.value)
+    if (next.has(billId)) {
+      next.delete(billId)
+    } else {
+      next.add(billId)
+    }
+    selectedBillIds.value = next
+    lastSelectedIndex.value = currentIndex
   } else {
-    next.add(billId)
+    // 普通点击：仅切换当前项，清除其他选择
+    if (selectedBillIds.value.has(billId) && selectedBillIds.value.size === 1) {
+      selectedBillIds.value = new Set()
+    } else {
+      selectedBillIds.value = new Set([billId])
+    }
+    lastSelectedIndex.value = currentIndex
   }
-  selectedBillIds.value = next
 }
 
 function selectAll() {
@@ -205,6 +237,7 @@ function selectAll() {
 
 function clearSelection() {
   selectedBillIds.value = new Set()
+  lastSelectedIndex.value = -1
 }
 
 // 拖拽

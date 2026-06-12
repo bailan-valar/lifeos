@@ -21,7 +21,7 @@
         <input
           type="checkbox"
           :checked="selected"
-          @change="$emit('select', bill.id)"
+          @click.stop="onCheckboxClick($event)"
         />
       </div>
 
@@ -230,7 +230,7 @@ const emit = defineEmits<{
   (e: 'split', bill: Bill): void
   (e: 'allocate', bill: Bill): void
   (e: 'refund', bill: Bill): void
-  (e: 'select', id: string): void
+  (e: 'select', id: string, meta?: { shiftKey: boolean; ctrlKey: boolean }): void
   (e: 'toggle-expand', bill: Bill): void
   (e: 'contextmenu', payload: { bill: Bill; x: number; y: number }): void
   (e: 'dragstart', bill: Bill, event: DragEvent): void
@@ -334,6 +334,10 @@ function onDragStart(event: DragEvent) {
 function onDragEnd() {
   isDragging.value = false
   emit('dragend')
+}
+
+function onCheckboxClick(event: MouseEvent) {
+  emit('select', props.bill.id, { shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey })
 }
 
 // 计算显示金额（减去退款）
