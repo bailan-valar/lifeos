@@ -563,33 +563,346 @@ BillContextMenu 完整菜单项（扩展后）：
 
 ---
 
-## 十、附录
+## 十、详细功能点分解（方案B）
 
-### 10.1 新增文件清单（方案B）
+> 以下按每个页面/组件拆分具体的新增或调整功能点，明确用户可感知的行为变化。
+
+### 10.1 新增文件 — 功能点明细
+
+#### `types/reimbursement.ts`（新文件）
+
+| 功能点 | 说明 |
+|--------|------|
+| `ReimbursementGroup` 接口 | 报销单虚拟实体：id、title、description、status、noteId、createdAt、updatedAt |
+| `ReimbursementStatus` 类型 | `'draft' \| 'submitted' \| 'approved' \| 'paid' \| 'cancelled'` |
+| 运行时聚合字段 | expenses、income、totalExpense、totalIncome（由 composable 查询时填充） |
+
+#### `types/bill.ts`（修改）
+
+| 功能点 | 说明 |
+|--------|------|
+| 新增 `reimbursementId?: string` | 关联的报销单ID，为空表示未归入任何报销单 |
+| 新增 `reimbursementRole?: 'expense' \| 'income'` | 此账单在报销单中的角色：expense=垫付支出，income=回款收入 |
+
+#### `composables/useReimburse.ts`（新文件）
+
+| 功能点 | 说明 |
+|--------|------|
+| `loadReimbursements(noteId?)` | 查询所有报销单（从 module_data），聚合关联账单 |
+| `createReimbursement(data)` | 创建报销单元数据（存 module_data `reimbursement/{id}`） |
+| `updateReimbursement(id, patch)` | 更新报销单标题/备注/状态 |
+| `deleteReimbursement(id)` | 删除报销单，同时清除关联账单的 reimbursementId |
+| `addBillToReimbursement(billId, reimbursementId)` | 将一笔支出加入报销单（patch bill） |
+| `removeBillFromReimbursement(billId)` | 将一笔支出从报销单移除 |
+| `recordReimbursementIncome(reimbursementId, data)` | 记录报销回款：创建收入账单 + 更新报销单状态为 paid |
+| `getBillsByReimbursement(reimbursementId)` | 查询报销单关联的所有账单（支出+收入） |
+| `getUnreimbursedExpenses(noteId?)` | 查询所有未归入报销单的支出账单 |
+| `getReimburseStats(noteId?)` | 统计：垫付总额、已报销、待报销、报销单数量 |
+
+#### `composables/useBills.ts`（修改）
+
+| 功能点 | 说明 |
+|--------|------|
+| `loadBillsByReimbursement(reimbursementId)` | 新增：按 reimbursementId 查询关联账单 |
+| `createReimbursementIncome(data)` | 新增：创建报销回款收入账单（type=income，设置 reimbursementRole='income'） |
+
+#### `ReimburseDashboard.vue`（新页面 — 报销仪表盘）
+
+| 功能点 | 说明 |
+|--------|------|
+| 统计卡片区域 | 显示：垫付总额、已报销、待报销、报销单数量 |
+| 待处理列表 | 按 status=draft/submitted/approved 过滤，按创建时间倒序 |
+| 已完成列表 | 按 status=paid 过滤，按打款时间倒序 |
+| 新建报销单按钮 | 打开 ReimburseGroupDialog |
+| 报销单卡片点击 | 展开详情（关联支出列表 + 记录回款入口） |
+| 记录回款按钮 | 打开 ReimburseIncomeDialog |
+| 编辑/删除操作 | 编辑报销单信息 / 删除报销单（确认后执行） |
+| 状态流转按钮 | 草稿→提交→批准→打款（简化流转，审批可跳过） |
+| 空状态提示 | "还没有报销单，从账单列表右键创建" |
+
+#### `ReimburseGroupDialog.vue`（新组件 — 创建/编辑报销单）
+
+| 功能点 | 说明 |
+|--------|------|
+| 标题输入 | 报销单名称（如"6月差旅报销"） |
+| 备注输入 | 可选的补充说明 |
+| 关联支出选择 | 使用 BillPicker 选择要纳入的支出账单（已选中的预填） |
+| 已关联支出列表 | 显示已选中的支出账单，支持移除 |
+| 自动计算总额 | 实时显示选中支出的金额合计 |
+| 创建/保存按钮 | 创建新报销单或更新已有报销单 |
+
+#### `ReimburseIncomeDialog.vue`（新组件 — 记录报销回款）
+
+| 功能点 | 说明 |
+|--------|------|
+| 报销单信息 | 只读显示报销单标题和垫付总额 |
+| 回款金额输入 | 默认=垫付总额，支持部分报销 |
+| 到账账户选择 | 使用 AccountPicker，选择回款到哪个账户 |
+| 到账日期选择 | 默认今天 |
+| 回款备注 | 可选 |
+| 确认后自动创建收入账单 | type=income, reimbursementRole='income', reimbursementId=报销单ID |
+| 确认后更新报销单状态 | status → paid（或 partial 如果金额 < 总额） |
+
+#### `ReimburseStatusBadge.vue`（新组件 — 报销状态徽章）
+
+| 功能点 | 说明 |
+|--------|------|
+| 待报销（pending） | 橙色标签 "待报销" |
+| 已报销（reimbursed） | 绿色标签 "已报销 ¥300" |
+| 部分报销（partial） | 蓝色标签 "部分报销 ¥300/¥500" |
+| 报销回款（income role） | 紫色标签 "报销回款" |
+
+#### `ReimburseSummaryCard.vue`（新组件 — 报销汇总卡片）
+
+| 功能点 | 说明 |
+|--------|------|
+| 垫付总额 | 关联报销的所有支出之和 |
+| 已报销 | 已打款的报销金额 |
+| 待报销 | 尚未打款的报销金额 |
+| 报销单数 | 报销单总数 |
+
+#### `ReimburseGroupItem.vue`（新组件 — 报销单列表项）
+
+| 功能点 | 说明 |
+|--------|------|
+| 报销单标题 + 状态标签 | 草稿(灰)/已提交(蓝)/已批准(紫)/已打款(绿) |
+| 垫付总额 | 关联支出金额之和 |
+| 关联支出摘要 | 前 2-3 笔支出的描述 + 金额 |
+| 操作按钮 | 记录回款 / 编辑 / 删除 |
+
+---
+
+### 10.2 修改文件 — 功能点明细
+
+#### `BillContextMenu.vue`
+
+| 功能点 | 操作 | 说明 |
+|--------|------|------|
+| 新增"加入报销单"菜单项 | 右键 → 加入报销单 | 条件：`type==='expense' && !reimbursementId && !isRefund`；弹出报销单选择器（已有报销单列表 + 新建选项） |
+| 新增"从报销单移除"菜单项 | 右键 → 从报销单移除 | 条件：`reimbursementId && reimbursementRole==='expense'`；确认后移除，patch bill 清空 reimbursementId |
+| 新增分隔线 | — | 在退款菜单项和报销菜单项之间加分隔线 |
+
+#### `BillListItem.vue`
+
+| 功能点 | 说明 |
+|--------|------|
+| 报销状态徽章渲染 | 引入 ReimburseStatusBadge 组件，根据 reimbursementId/reimbursementRole 显示对应标签 |
+| 报销信息展示 | 已在报销单中的支出：显示报销单标题（如"6月差旅报销"）；报销回款收入：显示"报销回款"标签 |
+
+#### `BillList.vue`
+
+| 功能点 | 说明 |
+|--------|------|
+| 报销状态筛选 | 新增筛选按钮：全部 / 待报销 / 已报销 / 报销回款；过滤 displayBills |
+| 批量创建报销单 | 批量选择模式下，底部工具栏新增"创建报销单"按钮，将选中的多笔支出合入一个报销单 |
+
+#### `BillsTabPanel.vue`
+
+| 功能点 | 说明 |
+|--------|------|
+| 报销筛选入口 | 在筛选栏区域新增报销状态筛选按钮（与搜索、日期筛选并列） |
+| 统计栏报销统计 | BillStatsBar 新增一行：待报销 ¥XX / 已报销 ¥XX |
+| 报销单相关对话框状态 | 新增 showReimburseGroupDialog / showReimburseIncomeDialog 等响应式状态 |
+| 事件处理 | 新增 handleAddToReimbursement / handleRemoveFromReimbursement / handleRecordIncome 事件处理函数 |
+
+#### `BillDialog.vue`（账单编辑弹窗）
+
+| 功能点 | 说明 |
+|--------|------|
+| 报销关联信息展示 | 编辑模式：如果账单有 reimbursementId，显示"所属报销单：{标题}"，可点击跳转 |
+| 报销状态只读展示 | 不在弹窗中修改报销关联（通过右键菜单操作更直观） |
+
+#### `BillingView.vue`
+
+| 功能点 | 说明 |
+|--------|------|
+| 新增报销Tab路由 | 支持 `?tab=reimburse` 参数路由到报销仪表盘 |
+| ReimburseDashboard 组件挂载 | 在 Tab 面板区域条件渲染 ReimburseDashboard |
+
+#### `BillingSidebar.vue`（桌面端侧边栏）
+
+| 功能点 | 说明 |
+|--------|------|
+| 新增"报销"导航项 | 图标使用 `SOLAR_ICONS.billing.receipt` 或类似，点击跳转 `?tab=reimburse` |
+| 导航项位置 | 放在"账单"和"账户"之间，或"预算"之后 |
+
+#### `BillingMobileTabbar.vue`（移动端底部栏）
+
+| 功能点 | 说明 |
+|--------|------|
+| 新增"报销"Tab | 底部导航栏增加报销入口（如空间不够可替换不常用的Tab） |
+
+#### `stores/billing.ts`
+
+| 功能点 | 说明 |
+|--------|------|
+| TabId 类型扩展 | 新增 `'reimburse'` 到 TabId 联合类型 |
+| 报销相关状态（可选） | 如 `reimburseStatusFilter` 筛选状态（也可放在组件本地） |
+
+---
+
+## 十一、用户闭环操作手册（方案B）
+
+### 11.1 完整闭环流程（用户视角）
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        报销闭环操作流程                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Step 1: 记录垫付支出                                            │
+│  ─────────────────                                              │
+│  入口：记账页面 → + 新建账单                                     │
+│  操作：                                                          │
+│    ① 选择类型"支出"                                              │
+│    ② 填写金额、分类、账户、描述                                   │
+│    ③ 保存 → 账单出现在列表中                                     │
+│  状态：正常支出账单，无特殊标记                                    │
+│                                                                 │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│                                                                 │
+│  Step 2: 创建报销单（关联多笔支出）                               │
+│  ────────────────────────────────                                │
+│  入口 A（单笔）：支出账单右键 → "加入报销单"                      │
+│  入口 B（批量）：勾选多笔支出 → 底部"创建报销单"按钮              │
+│  操作：                                                          │
+│    ① 弹出报销单对话框                                            │
+│    ② 填写报销单标题（如"6月差旅报销"）                            │
+│    ③ 确认关联的支出列表（可增减）                                 │
+│    ④ 保存 → 报销单创建成功                                       │
+│  状态：报销单 = draft（草稿）                                    │
+│        支出账单显示 [待报销] badge                                │
+│                                                                 │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│                                                                 │
+│  Step 3: 追踪报销进度                                            │
+│  ──────────────────                                              │
+│  入口：侧边栏/底部栏 → "报销" Tab                                │
+│  操作：                                                          │
+│    ① 查看报销仪表盘                                              │
+│    ② 在"待处理"区域看到报销单卡片                                │
+│    ③ 可点击展开查看关联的支出明细                                 │
+│    ④ 可手动推进状态：草稿 → 提交 → 批准                          │
+│  状态：报销单从 draft → submitted → approved                     │
+│        （个人记账可跳过审批，直接到打款步骤）                      │
+│                                                                 │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│                                                                 │
+│  Step 4: 记录报销回款（闭环关键步骤）                             │
+│  ────────────────────────────────                                │
+│  入口：报销仪表盘 → 报销单卡片 → "记录回款"按钮                   │
+│  操作：                                                          │
+│    ① 弹出回款对话框                                              │
+│    ② 系统自动填入回款金额 = 垫付总额（可改为部分金额）            │
+│    ③ 选择到账账户（如"微信钱包"）                                │
+│    ④ 选择到账日期                                                │
+│    ⑤ 确认                                                       │
+│  系统自动执行：                                                   │
+│    → 创建一笔收入账单（type=income, 金额=回款金额,               │
+│      reimbursementRole='income', reimbursementId=报销单ID）      │
+│    → 更新报销单状态 → paid                                       │
+│  结果：支出账单 badge 变为 [已报销 ¥2,150]                       │
+│        收入账单显示 [报销回款] badge                              │
+│        报销单移入"已完成"区域                                    │
+│        账户余额自动增加（收入账单触发余额更新）                    │
+│                                                                 │
+│  ═══════════════════════════════════════════════════════════════ │
+│                        ✅ 闭环完成                               │
+│  ═══════════════════════════════════════════════════════════════ │
+│                                                                 │
+│  验证闭环完整性：                                                 │
+│    支出侧：垫付 ¥2,150 → 已报销 ¥2,150 → badge 绿色             │
+│    收入侧：报销回款 ¥2,150 → 进入微信钱包                        │
+│    报销单：状态 = paid，可在"已完成"区域查看                      │
+│    净影响：实际自付 = 0（全额报销时）                              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 部分报销的闭环操作
+
+```
+场景：团建花费 ¥500，公司只报 ¥300
+
+Step 1: 记录支出 ¥500（正常创建）
+Step 2: 创建报销单，关联此支出
+Step 3: 公司打款 ¥300
+Step 4: 记录回款 → 金额改为 ¥300
+
+结果：
+  支出账单 badge: [部分报销 ¥300/¥500]
+  收入账单 badge: [报销回款 ¥300]
+  报销单显示: 垫付 ¥500 / 已报 ¥300 / 自付 ¥200
+  净影响: 自付 ¥200
+```
+
+### 11.3 追加支出到已有报销单
+
+```
+场景：已创建"6月差旅报销"（机票+酒店），又发现一笔打车费
+
+Step 1: 记录打车支出 ¥150
+Step 2: 右键打车账单 → "加入报销单"
+Step 3: 从列表中选择"6月差旅报销"
+Step 4: 报销单总额自动更新为 ¥2,150
+
+注意：报销单状态为 paid 后，不允许再追加支出（需先取消打款状态）
+```
+
+### 11.4 修正操作
+
+| 修正场景 | 操作路径 |
+|---------|---------|
+| 加错了报销单 | 右键该支出 → "从报销单移除" → 加入正确的报销单 |
+| 回款金额填错 | 删除报销回款的收入账单 → 报销单回到 approved → 重新记录回款 |
+| 报销单创建错误 | 报销仪表盘 → 删除报销单（关联的支出账单恢复为未关联状态） |
+| 整笔取消报销 | 报销仪表盘 → 取消报销单（状态变 cancelled，支出账单 badge 消失） |
+
+### 11.5 操作入口汇总表
+
+| 用户操作 | 入口位置 | 触发条件 |
+|---------|---------|---------|
+| 记录垫付支出 | 账单列表 → + 新建 | 无限制 |
+| 单笔加入报销单 | 支出账单右键 → 加入报销单 | `type=expense && !reimbursementId` |
+| 批量创建报销单 | 账单列表 → 批量选择 → 创建报销单 | 选中 ≥1 笔支出 |
+| 查看报销仪表盘 | 侧边栏/底部栏 → 报销 Tab | 无限制 |
+| 推进报销状态 | 报销仪表盘 → 报销单卡片 → 状态按钮 | 报销单未 paid |
+| 记录回款 | 报销仪表盘 → 报销单 → 记录回款 | 报销单非 paid/cancelled |
+| 从报销单移除 | 支出账单右键 → 从报销单移除 | `reimbursementId && role=expense` |
+| 删除报销单 | 报销仪表盘 → 报销单 → 删除 | 报销单非 paid（paid 需先删除回款） |
+| 查看报销关联 | 账单编辑弹窗 → 报销信息区域 | 账单有 reimbursementId |
+| 筛选待报销支出 | 账单列表 → 报销筛选按钮 | 无限制 |
+| 查看报销统计 | 账单统计栏 / 报销仪表盘顶部 | 无限制 |
+
+---
+
+## 十二、附录
+
+### 12.1 新增文件清单（方案B）
 
 | 文件路径 | 用途 |
 |---------|------|
 | `types/reimbursement.ts` | 报销单类型定义 |
 | `composables/useReimburse.ts` | 报销单 CRUD 和聚合查询 |
 | `app-modules/billing/components/ReimburseDashboard.vue` | 报销仪表盘页面 |
-| `app-modules/billing/components/ReimburseGroupDialog.vue` | 创建/编辑报销单 |
-| `app-modules/billing/components/ReimburseIncomeDialog.vue` | 记录报销回款 |
-| `app-modules/billing/components/ReimburseStatusBadge.vue` | 报销状态徽章 |
-| `app-modules/billing/components/ReimburseSummaryCard.vue` | 报销汇总卡片 |
-| `app-modules/billing/components/ReimburseGroupItem.vue` | 报销单列表项 |
+| `app-modules/billing/components/ReimburseGroupDialog.vue` | 创建/编辑报销单对话框 |
+| `app-modules/billing/components/ReimburseIncomeDialog.vue` | 记录报销回款对话框 |
+| `app-modules/billing/components/ReimburseStatusBadge.vue` | 报销状态徽章组件 |
+| `app-modules/billing/components/ReimburseSummaryCard.vue` | 报销汇总统计卡片 |
+| `app-modules/billing/components/ReimburseGroupItem.vue` | 报销单列表项组件 |
 
-### 10.2 修改文件清单（方案B）
+### 12.2 修改文件清单（方案B）
 
 | 文件路径 | 修改内容 |
 |---------|---------|
 | `types/bill.ts` | 新增 reimbursementId, reimbursementRole 字段 |
 | `composables/useBills.ts` | 新增按报销ID查询、创建回款账单方法 |
-| `stores/billing.ts` | 新增报销Tab导航状态 |
-| `app-modules/billing/BillingView.vue` | 新增报销面板路由 |
-| `app-modules/billing/components/layout/BillingSidebar.vue` | 新增报销入口 |
+| `stores/billing.ts` | TabId 类型扩展，新增 'reimburse' |
+| `app-modules/billing/BillingView.vue` | 新增报销面板路由和组件渲染 |
+| `app-modules/billing/components/layout/BillingSidebar.vue` | 新增"报销"导航项 |
 | `app-modules/billing/components/layout/BillingMobileTabbar.vue` | 移动端报销入口 |
-| `app-modules/billing/components/panels/BillsTabPanel.vue` | 新增报销筛选和统计 |
-| `app-modules/billing/components/BillContextMenu.vue` | 新增报销菜单项 |
-| `app-modules/billing/components/BillListItem.vue` | 新增报销 badge |
-| `app-modules/billing/components/BillList.vue` | 报销筛选支持 |
-| `app-modules/billing/components/BillDialog.vue` | 显示报销关联信息 |
+| `app-modules/billing/components/panels/BillsTabPanel.vue` | 新增报销筛选、统计、对话框状态和事件处理 |
+| `app-modules/billing/components/BillContextMenu.vue` | 新增"加入报销单"/"从报销单移除"菜单项 |
+| `app-modules/billing/components/BillListItem.vue` | 新增报销状态 ReimburseStatusBadge |
+| `app-modules/billing/components/BillList.vue` | 报销状态筛选；批量模式新增"创建报销单" |
+| `app-modules/billing/components/BillDialog.vue` | 编辑模式展示报销关联信息 |

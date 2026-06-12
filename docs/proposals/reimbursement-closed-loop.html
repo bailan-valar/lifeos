@@ -326,6 +326,69 @@
       border-top:1px solid var(--border); font-size:13px; color:var(--text-dim);
     }
 
+    /* Detail Grid */
+    .detail-grid {
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px;
+    }
+    .detail-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:20px; transition:background 0.2s;
+    }
+    .detail-card:hover { background:var(--surface-hover); }
+    .detail-header {
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;
+    }
+    .detail-file {
+      font-family:'SF Mono','Fira Code',monospace; font-size:13px; font-weight:600; color:var(--text);
+    }
+    .detail-list { list-style:none; padding:0; margin:0; }
+    .detail-list li {
+      font-size:13px; color:var(--text-dim); line-height:1.6; padding-left:16px; position:relative;
+    }
+    .detail-list li::before {
+      content:''; position:absolute; left:0; top:10px;
+      width:6px; height:6px; border-radius:50%; background:var(--cyan);
+    }
+
+    /* Loop Steps */
+    .loop-steps {
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:32px; display:flex; flex-direction:column; gap:0;
+    }
+    .loop-step { display:flex; gap:16px; align-items:flex-start; }
+    .loop-num {
+      width:36px; height:36px; border-radius:50%; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      font-size:16px; font-weight:700;
+      background:rgba(99,102,241,0.15); color:var(--accent-light);
+      border:2px solid rgba(99,102,241,0.3);
+    }
+    .loop-step-key .loop-num {
+      background:rgba(52,211,153,0.15); color:var(--green);
+      border-color:rgba(52,211,153,0.3);
+    }
+    .loop-content { flex:1; }
+    .loop-content h4 { font-size:15px; font-weight:600; margin-bottom:8px; }
+    .loop-detail {
+      display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--text-dim);
+    }
+    .loop-entry::before { content:'入口：'; color:var(--blue); font-weight:600; }
+    .loop-action::before { content:'操作：'; color:var(--orange); font-weight:600; }
+    .loop-result::before { content:'结果：'; color:var(--green); font-weight:600; }
+    .result-key { color:var(--green) !important; font-weight:500; }
+    .loop-connector {
+      text-align:center; font-size:20px; color:var(--text-dim); padding:8px 0 8px 8px;
+    }
+
+    /* Callout */
+    .callout {
+      background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.15);
+      border-radius:var(--radius-sm); padding:16px 20px;
+    }
+    .callout.warn {
+      background:rgba(251,146,60,0.06); border-color:rgba(251,146,60,0.15);
+    }
+
     @media (max-width:640px) {
       .container { padding:20px 16px 60px; }
       .hero { padding:40px 0 32px; }
@@ -334,6 +397,7 @@
       .flow-arrow { padding:0 2px; }
       .timeline::before { left:5%; right:5%; }
       .tl-phase { min-width:100px; padding:0 10px; }
+      .detail-grid { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -1106,6 +1170,320 @@
         <div style="border-top:1px solid var(--border);margin:8px 0"></div>
         <div style="padding:4px 0;color:var(--red)">🗑️ 删除</div>
       </div>
+    </div>
+  </div>
+
+  <!-- 功能点分解 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(34,211,238,0.15)">🔧</span>
+      功能点分解（方案B）
+    </div>
+
+    <!-- 新增文件 -->
+    <h4 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--cyan)">新增文件</h4>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">ReimburseDashboard.vue</span>
+          <span class="badge badge-green">新页面</span>
+        </div>
+        <ul class="detail-list">
+          <li>统计卡片：垫付总额 / 已报销 / 待报销 / 报销单数量</li>
+          <li>待处理列表：status=draft/submitted/approved，按时间倒序</li>
+          <li>已完成列表：status=paid，按打款时间倒序</li>
+          <li>新建报销单按钮 → 打开 ReimburseGroupDialog</li>
+          <li>报销单卡片展开 → 显示关联支出 + 记录回款入口</li>
+          <li>状态流转按钮：草稿→提交→批准→打款</li>
+          <li>编辑 / 删除操作</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">ReimburseGroupDialog.vue</span>
+          <span class="badge badge-green">新组件</span>
+        </div>
+        <ul class="detail-list">
+          <li>标题输入（如"6月差旅报销"）</li>
+          <li>备注输入（可选）</li>
+          <li>BillPicker 选择关联支出（已选预填）</li>
+          <li>已关联支出列表，支持移除</li>
+          <li>实时计算选中支出总额</li>
+          <li>创建 / 保存按钮</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">ReimburseIncomeDialog.vue</span>
+          <span class="badge badge-green">新组件</span>
+        </div>
+        <ul class="detail-list">
+          <li>只读显示报销单标题和垫付总额</li>
+          <li>回款金额输入（默认=垫付总额，支持部分报销）</li>
+          <li>AccountPicker 选择到账账户</li>
+          <li>DateTimePicker 选择到账日期</li>
+          <li>确认后自动创建收入账单（type=income, role=income）</li>
+          <li>确认后更新报销单状态 → paid</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">useReimburse.ts</span>
+          <span class="badge badge-green">新composable</span>
+        </div>
+        <ul class="detail-list">
+          <li>loadReimbursements(noteId?) — 查询+聚合</li>
+          <li>createReimbursement(data) — 存 module_data</li>
+          <li>updateReimbursement(id, patch) — 更新元数据/状态</li>
+          <li>deleteReimbursement(id) — 删除+清除关联</li>
+          <li>addBillToReimbursement / removeBill</li>
+          <li>recordReimbursementIncome — 创建回款+更新状态</li>
+          <li>getUnreimbursedExpenses — 未归集支出查询</li>
+          <li>getReimburseStats — 统计汇总</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 修改文件 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">修改文件</h4>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>文件</th>
+            <th>功能点</th>
+            <th>用户感知</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;white-space:nowrap">BillContextMenu.vue</td>
+            <td>新增"加入报销单"菜单项<br>新增"从报销单移除"菜单项<br>新增分隔线</td>
+            <td>支出账单右键可看到报销选项<br>已关联的支出可移除</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">BillListItem.vue</td>
+            <td>渲染 ReimburseStatusBadge<br>展示报销单标题</td>
+            <td>列表中看到 [待报销] / [已报销 ¥300] / [报销回款] 标签</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">BillList.vue</td>
+            <td>新增报销状态筛选按钮<br>批量模式新增"创建报销单"按钮</td>
+            <td>可按报销状态过滤账单<br>勾选多笔支出后可合并创建报销单</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">BillsTabPanel.vue</td>
+            <td>报销筛选入口<br>统计栏报销统计<br>对话框状态和事件处理</td>
+            <td>账单页看到"待报销 ¥XX / 已报销 ¥XX"<br>报销相关弹窗正常弹出</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">BillDialog.vue</td>
+            <td>编辑模式展示报销关联信息</td>
+            <td>编辑已关联账单时看到"所属报销单：xxx"</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">BillingView.vue</td>
+            <td>新增 ?tab=reimburse 路由<br>挂载 ReimburseDashboard</td>
+            <td>点击报销Tab可进入报销仪表盘</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">BillingSidebar.vue</td>
+            <td>新增"报销"导航项</td>
+            <td>桌面端侧边栏可看到报销入口</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">BillingMobileTabbar.vue</td>
+            <td>新增"报销"Tab</td>
+            <td>移动端底部栏可看到报销入口</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">types/bill.ts</td>
+            <td>新增 reimbursementId 字段<br>新增 reimbursementRole 字段</td>
+            <td>—（底层数据模型，用户不直接感知）</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">useBills.ts</td>
+            <td>新增 loadBillsByReimbursement<br>新增 createReimbursementIncome</td>
+            <td>—（底层数据查询，支撑上层功能）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 闭环操作流程 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(52,211,153,0.15)">🔄</span>
+      用户闭环操作流程
+    </div>
+
+    <!-- 4步闭环 -->
+    <div class="loop-steps">
+      <div class="loop-step">
+        <div class="loop-num">1</div>
+        <div class="loop-content">
+          <h4>记录垫付支出</h4>
+          <div class="loop-detail">
+            <span class="loop-entry">入口：账单列表 → + 新建账单</span>
+            <span class="loop-action">选择"支出" → 填写金额/分类/账户 → 保存</span>
+            <span class="loop-result">结果：正常支出账单，无特殊标记</span>
+          </div>
+        </div>
+      </div>
+      <div class="loop-connector">↓</div>
+      <div class="loop-step">
+        <div class="loop-num">2</div>
+        <div class="loop-content">
+          <h4>创建报销单（N:1 归集）</h4>
+          <div class="loop-detail">
+            <span class="loop-entry">入口A：支出账单右键 → 加入报销单</span>
+            <span class="loop-entry">入口B：勾选多笔支出 → 创建报销单</span>
+            <span class="loop-action">填写报销单标题 → 确认关联支出列表 → 保存</span>
+            <span class="loop-result">结果：报销单=draft，支出显示 [待报销] badge</span>
+          </div>
+        </div>
+      </div>
+      <div class="loop-connector">↓</div>
+      <div class="loop-step">
+        <div class="loop-num">3</div>
+        <div class="loop-content">
+          <h4>追踪报销进度</h4>
+          <div class="loop-detail">
+            <span class="loop-entry">入口：侧边栏 → "报销" Tab</span>
+            <span class="loop-action">查看报销仪表盘 → 手动推进状态：草稿→提交→批准</span>
+            <span class="loop-result">结果：报销单状态更新，可在仪表盘看到进度</span>
+          </div>
+        </div>
+      </div>
+      <div class="loop-connector">↓</div>
+      <div class="loop-step loop-step-key">
+        <div class="loop-num">4</div>
+        <div class="loop-content">
+          <h4>记录报销回款 ✅ 闭环</h4>
+          <div class="loop-detail">
+            <span class="loop-entry">入口：报销仪表盘 → 报销单 → 记录回款</span>
+            <span class="loop-action">系统自动填入回款金额 → 选择到账账户/日期 → 确认</span>
+            <span class="loop-result result-key">
+              自动创建收入账单（type=income, role=income）<br>
+              支出 badge → [已报销 ¥2,150]<br>
+              收入 badge → [报销回款]<br>
+              报销单状态 → paid，移入"已完成"<br>
+              账户余额自动增加
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 部分报销 -->
+    <div class="callout" style="margin-top:24px">
+      <div style="font-weight:600;margin-bottom:6px">💡 部分报销场景</div>
+      <div style="font-size:13px;color:var(--text-dim)">
+        团建花费 ¥500，公司只报 ¥300 → 记录回款时金额改为 ¥300<br>
+        支出 badge 显示 [部分报销 ¥300/¥500] · 报销单显示 自付 ¥200
+      </div>
+    </div>
+
+    <!-- 操作入口汇总 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">操作入口汇总</h4>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>用户操作</th>
+            <th>入口位置</th>
+            <th>触发条件</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>记录垫付支出</td>
+            <td>账单列表 → + 新建</td>
+            <td>无限制</td>
+          </tr>
+          <tr>
+            <td>单笔加入报销单</td>
+            <td>支出账单右键 → 加入报销单</td>
+            <td><code>type=expense && !reimbursementId</code></td>
+          </tr>
+          <tr>
+            <td>批量创建报销单</td>
+            <td>账单列表 → 勾选 → 创建报销单</td>
+            <td>选中 ≥1 笔支出</td>
+          </tr>
+          <tr>
+            <td>查看报销仪表盘</td>
+            <td>侧边栏/底部栏 → 报销 Tab</td>
+            <td>无限制</td>
+          </tr>
+          <tr>
+            <td>推进报销状态</td>
+            <td>报销仪表盘 → 状态按钮</td>
+            <td>报销单未 paid</td>
+          </tr>
+          <tr>
+            <td>记录回款（闭环）</td>
+            <td>报销仪表盘 → 记录回款</td>
+            <td>报销单非 paid/cancelled</td>
+          </tr>
+          <tr>
+            <td>从报销单移除</td>
+            <td>支出账单右键 → 从报销单移除</td>
+            <td><code>reimbursementId && role=expense</code></td>
+          </tr>
+          <tr>
+            <td>删除报销单</td>
+            <td>报销仪表盘 → 删除</td>
+            <td>非 paid（paid需先删回款）</td>
+          </tr>
+          <tr>
+            <td>筛选待报销支出</td>
+            <td>账单列表 → 报销筛选按钮</td>
+            <td>无限制</td>
+          </tr>
+          <tr>
+            <td>查看报销关联</td>
+            <td>账单编辑弹窗 → 报销信息区</td>
+            <td>账单有 reimbursementId</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 修正操作 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">修正操作</h4>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>修正场景</th>
+            <th>操作路径</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>加错了报销单</td>
+            <td>右键该支出 → "从报销单移除" → 加入正确的报销单</td>
+          </tr>
+          <tr>
+            <td>回款金额填错</td>
+            <td>删除回款收入账单 → 报销单回到 approved → 重新记录回款</td>
+          </tr>
+          <tr>
+            <td>报销单创建错误</td>
+            <td>报销仪表盘 → 删除报销单（关联的支出恢复为未关联状态）</td>
+          </tr>
+          <tr>
+            <td>整笔取消报销</td>
+            <td>报销仪表盘 → 取消报销单（状态→cancelled，支出 badge 消失）</td>
+          </tr>
+          <tr>
+            <td>追加漏掉的支出</td>
+            <td>右键新支出 → "加入报销单" → 选择已有报销单（paid 状态不允许追加）</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
