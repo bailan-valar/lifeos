@@ -619,8 +619,14 @@ export function useBills() {
 
     if (validBills.length === 0) return { deletedCount: 0 }
 
-    await Promise.all(validBills.map(bill => applyBalanceChange(bill, true)))
-    await Promise.all(docs.map((doc: any) => doc.remove()))
+    // 串行执行余额变更，避免并行修改同一账户文档导致 PouchDB 冲突
+    for (const bill of validBills) {
+      await applyBalanceChange(bill, true)
+    }
+    // 串行删除文档，避免并发 remove 冲突
+    for (const doc of docs) {
+      await (doc as any).remove()
+    }
 
     const affectedAccountIds = new Set<string>()
     for (const bill of validBills) {
