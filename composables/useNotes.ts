@@ -111,6 +111,9 @@ function createStore(): NotesStore {
     // 收集所有需要删除的笔记 ID（含子孙）
     const idsToDelete = new Set<string>(getDescendantNoteIds(noteId))
 
+    // 乐观更新：立即从本地状态移除，不等 onCollectionChange debounce
+    notes.value = notes.value.filter(n => !idsToDelete.has(n.id))
+
     // 删除笔记文档
     for (const id of idsToDelete) {
       const doc = await db.notes.findOne(id).exec()
