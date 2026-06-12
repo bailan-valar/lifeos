@@ -217,7 +217,7 @@ const props = withDefaults(defineProps<{
   selected: false,
   showActions: true,
   showChildren: true,
-  contextMenuEnabled: false,
+  contextMenuEnabled: true,
   compact: false,
   refundBadge: 'auto',
   draggable: false

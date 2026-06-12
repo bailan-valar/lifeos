@@ -44,7 +44,6 @@
         :running-balance="showRunningBalance ? entry.balance : undefined"
         :refund-badge="getRefundBadgeMode(entry.bill)"
         :refund-total="getRefundTotal(entry.bill)"
-        :context-menu-enabled="true"
         @click="() => {}"
         @select="onSelect"
         @toggle-expand="onToggleExpand"
