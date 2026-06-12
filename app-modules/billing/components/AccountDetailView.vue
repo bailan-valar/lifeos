@@ -402,9 +402,8 @@ async function handleCopyBill(bill: Bill) {
       debtSubtype: bill.debtSubtype || 'lend',
       relatedPersonId: bill.relatedPersonId
     }
-    await createBill(formData)
-    showSuccess('账单已复制')
-    await refreshBills()
+    const newBill = await createBill(formData)
+    openBillDialog(newBill)
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e))
   }
