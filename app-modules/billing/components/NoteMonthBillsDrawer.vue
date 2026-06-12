@@ -400,6 +400,15 @@ watch(() => props.visible, (v) => {
   }
 })
 
+// 抽屉打开期间，切换月份/项目时重新加载账单
+watch([() => props.year, () => props.month, () => props.noteId], () => {
+  if (props.visible) {
+    clearSelection()
+    billSearchQuery.value = ''
+    loadBills()
+  }
+})
+
 onUnmounted(() => {
   unsubscribers.forEach(unsub => unsub())
   unsubscribers.length = 0
