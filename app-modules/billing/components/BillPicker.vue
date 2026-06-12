@@ -57,6 +57,7 @@ import { useBillCategories } from '~/composables/useBillCategories'
 import { useAccounts } from '~/composables/useAccounts'
 import { getDB } from '~/services/db'
 import type { Bill, BillType } from '~/types/bill'
+import BillListItem from './BillListItem.vue'
 
 export interface BillPickerFilter {
   noteId?: string
