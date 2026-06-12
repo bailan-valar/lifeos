@@ -79,7 +79,8 @@ const props = defineProps<{
 }>()
 
 const { success: showSuccess, error: showError } = useToast()
-const { noteOptions, notes } = useNotes()
+const { confirm } = useConfirm()
+const { noteOptions, notes, deleteNote } = useNotes()
 const { upsertBudget, budgets, getNoteBudgetEntries } = useBudgets()
 const { updateBills } = useBills()
 
@@ -320,14 +321,23 @@ function handleContextMenuAddChild() {
   noteEditDialogVisible.value = true
 }
 
-function handleContextMenuDelete() {
+async function handleContextMenuDelete() {
   if (!contextMenuNote.value) return
-  // 删除笔记 - 导航到笔记页面
-  const noteId = contextMenuNote.value.id
+  const note = contextMenuNote.value
   contextMenuVisible.value = false
 
-  const router = useRouter()
-  router.push(`/notes?id=${noteId}`)
+  const ok = await confirm({
+    message: `确定要删除笔记「${note.title}」吗？其子笔记也会一并删除。`,
+    danger: true
+  })
+  if (!ok) return
+
+  try {
+    await deleteNote(note.id)
+    showSuccess('笔记已删除')
+  } catch (e) {
+    showError(e instanceof Error ? e.message : '删除失败')
+  }
 }
 </script>
 

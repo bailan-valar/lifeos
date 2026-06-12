@@ -42,6 +42,7 @@ interface NotesStore {
   loadNotes: () => Promise<void>
   buildNoteTree: (parentId?: string, level?: number) => NoteTreeNode[]
   getDescendantNoteIds: (noteId: string) => string[]
+  deleteNote: (noteId: string) => Promise<string[]>
 }
 
 function createStore(): NotesStore {
@@ -104,6 +105,29 @@ function createStore(): NotesStore {
     return options
   })
 
+  async function deleteNote(noteId: string): Promise<string[]> {
+    const db = await getDB()
+
+    // 收集所有需要删除的笔记 ID（含子孙）
+    const idsToDelete = new Set<string>(getDescendantNoteIds(noteId))
+
+    // 删除笔记文档
+    for (const id of idsToDelete) {
+      const doc = await db.notes.findOne(id).exec()
+      if (doc) await doc.remove()
+    }
+
+    // 删除关联的 blocks
+    const allBlocks = await db.blocks.find().exec()
+    for (const block of allBlocks) {
+      if (idsToDelete.has(block.noteId)) {
+        await block.remove()
+      }
+    }
+
+    return [...idsToDelete]
+  }
+
   return {
     notes,
     loading,
@@ -112,7 +136,8 @@ function createStore(): NotesStore {
     noteOptions,
     loadNotes,
     buildNoteTree,
-    getDescendantNoteIds
+    getDescendantNoteIds,
+    deleteNote
   }
 }
 
