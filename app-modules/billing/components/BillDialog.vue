@@ -402,8 +402,7 @@ function onConfirmAndContinue() {
   form.value = {
     ...form.value,
     amount: 0,
-    description: '',
-    date: toLocalISO()
+    description: ''
   }
 }
 
