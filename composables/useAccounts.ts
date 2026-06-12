@@ -215,6 +215,8 @@ export function useAccounts(): AccountsStore {
   if (!_store) {
     _store = createStore()
     startWatchingAccounts()
+    // 首次创建时自动加载，组件无需手动调 loadAccounts()
+    _store.loadAccounts()
   }
   return _store
 }

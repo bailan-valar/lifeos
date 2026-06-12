@@ -200,10 +200,10 @@ onMounted(() => {
 // 路由与状态
 const router = useRouter()
 
-// 数据 store
-const { accounts, loadAccounts, updateAccount } = useAccounts()
+// 数据 store（accounts/categories 自动初始加载 + onCollectionChange 响应式更新）
+const { accounts, updateAccount } = useAccounts()
 const { bills, loadBillsByAccount, createBill, updateBill, deleteBill, splitBill, allocatePeriod, createRefundBill } = useBills()
-const { categories, loadCategories } = useBillCategories()
+const { categories } = useBillCategories()
 const { loadNotes, noteOptions } = useNotes()
 
 // 笔记数据延迟加载标记（仅在打开账单弹框时加载）
@@ -293,10 +293,9 @@ const monthlyAverage = computed(() => {
 // 加载数据
 async function loadData() {
   pageLoading.value = true
-  // 所有数据并行加载，无需串行等待
+  // accounts/categories 由 store 自动初始加载 + onCollectionChange 响应式更新
+  // 此处仅需加载账户维度的账单和调整数据
   await Promise.all([
-    loadAccounts(),
-    loadCategories(),
     loadBillsByAccount(props.accountId),
     loadBalanceAdjustments(props.accountId).then(result => { adjustments.value = result })
   ])
@@ -370,8 +369,8 @@ async function handleContextMenuDelete(bill: Bill) {
   })
   if (!ok) return
   await deleteBill(bill.id)
+  // accounts/bills 由 onCollectionChange 自动刷新
   await refreshBills()
-  await loadAccounts()
 }
 
 function goBack() {
@@ -397,8 +396,8 @@ async function onBillDialogConfirm(data: BillFormData, isEditing: boolean, id?: 
     }
     billDialogVisible.value = false
     editingBill.value = null
+    // accounts/bills 由 onCollectionChange 自动刷新
     await refreshBills()
-    await loadAccounts()
   } catch (e) {
     console.error('Failed to save bill:', e)
   }
@@ -413,8 +412,8 @@ async function handleDeleteBill(id: string) {
   })
   if (!ok) return
   await deleteBill(id)
+  // accounts/bills 由 onCollectionChange 自动刷新
   await refreshBills()
-  await loadAccounts()
 }
 
 function openAccountDialog() {
@@ -426,7 +425,7 @@ async function onAccountDialogConfirm(data: any, isEditing: boolean, id?: string
     await updateAccount(id, data)
   }
   accountDialogVisible.value = false
-  await loadAccounts()
+  // accounts 由 onCollectionChange 自动刷新
 }
 
 // 辅助函数

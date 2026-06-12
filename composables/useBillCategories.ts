@@ -495,6 +495,8 @@ export function useBillCategories(): BillCategoriesStore {
   if (!_store) {
     _store = createStore()
     startWatchingCategories()
+    // 首次创建时自动加载，组件无需手动调 loadCategories()
+    _store.loadCategories()
   }
   return _store
 }
