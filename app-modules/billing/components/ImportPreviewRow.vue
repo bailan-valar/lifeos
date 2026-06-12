@@ -135,6 +135,14 @@
           />
           <span>可节省</span>
         </label>
+        <label v-if="row.type === 'expense'" class="savable-check" @click.stop>
+          <input
+            type="checkbox"
+            :checked="row.isReimbursable"
+            @change="updateField('isReimbursable', ($event.target as HTMLInputElement).checked)"
+          />
+          <span>报销</span>
+        </label>
       </div>
     </template>
 
@@ -164,6 +172,7 @@
           <span v-if="categoryName" class="mobile-category-tag">{{ categoryName }}</span>
           <span v-if="debtSubtypeLabel" class="mobile-subtype-tag">{{ debtSubtypeLabel }}</span>
           <span v-if="row.isSavable && row.type === 'expense'" class="mobile-savable-tag">可节省</span>
+          <span v-if="row.isReimbursable && row.type === 'expense'" class="mobile-reimbursable-tag">报销</span>
         </div>
 
         <div v-if="fromAccountName || toAccountName" class="mobile-line mobile-line-accounts">
@@ -740,6 +749,14 @@ function formatAmount(n: number): string {
   border-radius: 4px;
   background: rgba(255, 149, 0, 0.12);
   color: rgb(255, 149, 0);
+}
+.mobile-reimbursable-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
 }
 
 .mobile-line-accounts {

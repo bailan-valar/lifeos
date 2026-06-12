@@ -52,7 +52,7 @@ const progress = computed(() => {
   }
 
   const actualExpense = sum(bills.value
-    .filter(b => b.type === 'expense' && b.status === 'completed' && b.date.startsWith(prefix))
+    .filter(b => b.type === 'expense' && b.status === 'completed' && !b.isReimbursable && b.date.startsWith(prefix))
     .map(b => b.amount))
 
   const hasBudget = totalBudget > 0

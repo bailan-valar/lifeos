@@ -328,6 +328,7 @@ export function useBills() {
       relatedPersonId: data.relatedPersonId || '',
       settledAmount: 0,
       isSavable: data.isSavable || false,
+      isReimbursable: data.isReimbursable || false,
       createdAt: now(),
       updatedAt: now(),
     }
@@ -468,6 +469,7 @@ export function useBills() {
           importFingerprint: fingerprint,
           counterpartyRaw: item.counterparty,
           isSavable: item.isSavable || false,
+          isReimbursable: item.isReimbursable || false,
           createdAt: now(),
           updatedAt: now(),
         }

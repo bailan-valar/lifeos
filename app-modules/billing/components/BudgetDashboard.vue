@@ -309,13 +309,15 @@ function toggleExpand(id: string) {
 function getDirectActual(categoryId: string, year: number, month: number): number {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
 
-  // 1. 统计该分类的支出账单（排除有子账单的父账单）
+  // 1. 统计该分类的支出账单（排除有子账单的父账单、报销账单）
   const expenses = scopedBills.value
     .filter(b => {
       // 只统计叶子节点账单（排除有子账单的父账单）
       if (b.hasChildren) return false
       // 只统计支出类型
       if (b.type !== 'expense') return false
+      // 排除报销账单（报销支出不计入预算）
+      if (b.isReimbursable) return false
       // 分类匹配
       if (b.categoryId !== categoryId) return false
 

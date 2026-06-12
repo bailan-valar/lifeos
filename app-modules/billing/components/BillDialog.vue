@@ -295,7 +295,8 @@ watch(() => props.visible, (v) => {
       date: props.bill.date?.slice(0, 16) || toLocalISO(),
       debtSubtype: props.bill.debtSubtype || 'lend',
       relatedPersonId: props.bill.relatedPersonId,
-      isSavable: props.bill.isSavable || false
+      isSavable: props.bill.isSavable || false,
+      isReimbursable: props.bill.isReimbursable || false
     }
   } else {
     const defaults = props.defaultFormValues || {}
@@ -311,7 +312,8 @@ watch(() => props.visible, (v) => {
       date: toLocalISO(),
       debtSubtype: 'lend',
       relatedPersonId: '',
-      isSavable: false
+      isSavable: false,
+      isReimbursable: false
     }
   }
 }, { immediate: true })

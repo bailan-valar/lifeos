@@ -93,6 +93,10 @@
         <input type="checkbox" :checked="form.isSavable" @change="onSavableChange" />
         <span>可节省</span>
       </label>
+      <label class="form-checkbox-label">
+        <input type="checkbox" :checked="form.isReimbursable" @change="onReimbursableChange" />
+        <span>报销</span>
+      </label>
     </div>
   </div>
 </template>
@@ -159,6 +163,11 @@ function swapAccounts() {
 function onSavableChange(e: Event) {
   const checked = (e.target as HTMLInputElement).checked
   form.value = { ...form.value, isSavable: checked }
+}
+
+function onReimbursableChange(e: Event) {
+  const checked = (e.target as HTMLInputElement).checked
+  form.value = { ...form.value, isReimbursable: checked }
 }
 </script>
 

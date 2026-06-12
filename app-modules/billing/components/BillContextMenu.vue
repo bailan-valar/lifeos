@@ -95,7 +95,7 @@
             class="menu-item"
             @click="handleToggleReimbursable"
           >
-            <Icon :name="bill.isReimbursable ? SOLAR_ICONS.status.success : SOLAR_ICONS.billing.receipt" size="16" />
+            <Icon :name="bill.isReimbursable ? SOLAR_ICONS.status.success : SOLAR_ICONS.billing.money" size="16" />
             <span>{{ bill.isReimbursable ? '取消报销' : '标记报销' }}</span>
           </button>
 

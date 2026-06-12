@@ -1668,6 +1668,201 @@
     </div>
   </div>
 
+  <!-- 预算排除规则 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(248,113,113,0.15)">📊</span>
+      预算排除规则
+    </div>
+
+    <div class="callout" style="margin-bottom:20px;border-color:rgba(248,113,113,0.2);background:rgba(248,113,113,0.06)">
+      <div style="font-weight:600;margin-bottom:6px;color:var(--red)">核心需求</div>
+      <div style="font-size:13px;color:var(--text-dim)">
+        <strong style="color:var(--text)">报销的支出不计入项目预算和分类预算。退款同样不计入。</strong><br>
+        已由公司报销或商家退款的支出，不应消耗预算额度。
+      </div>
+    </div>
+
+    <!-- 现有统计口径 -->
+    <h4 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--cyan)">现有统计口径</h4>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>组件</th>
+            <th>排除父账单</th>
+            <th>扣除退款</th>
+            <th>排除报销</th>
+            <th>过滤status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600">BudgetDashboard<br><span style="font-weight:400;color:var(--text-dim)">分类预算</span></td>
+            <td style="color:var(--green)">✅</td>
+            <td style="color:var(--green)">✅</td>
+            <td style="color:var(--red)">❌</td>
+            <td style="color:var(--red)">❌</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">ProjectBudgetDashboard<br><span style="font-weight:400;color:var(--text-dim)">项目预算</span></td>
+            <td style="color:var(--green)">✅</td>
+            <td style="color:var(--green)">✅</td>
+            <td style="color:var(--red)">❌</td>
+            <td style="color:var(--red)">❌</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">CategoryDetailView<br><span style="font-weight:400;color:var(--text-dim)">分类详情</span></td>
+            <td style="color:var(--red)">❌ <span style="font-size:11px">(金额重复)</span></td>
+            <td style="color:var(--red)">❌ <span style="font-size:11px">(统计虚高)</span></td>
+            <td style="color:var(--red)">❌</td>
+            <td style="color:var(--green)">✅</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 排除规则 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">排除规则</h4>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>账单状态</th>
+            <th>是否计入预算</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>普通支出</td>
+            <td><span class="badge badge-green">计入</span></td>
+            <td>正常消耗预算</td>
+          </tr>
+          <tr>
+            <td>父账单（hasChildren）</td>
+            <td><span class="badge badge-red">排除</span></td>
+            <td>只计子账单，避免重复</td>
+          </tr>
+          <tr>
+            <td>退款账单（isRefund=true）</td>
+            <td><span class="badge badge-red">排除</span></td>
+            <td>已退回，不消耗预算</td>
+          </tr>
+          <tr>
+            <td>已退款的原账单</td>
+            <td><span class="badge badge-green">计入</span> <span style="color:var(--orange)">但减退款额</span></td>
+            <td>原支出仍消耗，退款部分冲回</td>
+          </tr>
+          <tr>
+            <td>待报销支出（报销单未 paid）</td>
+            <td><span class="badge badge-green">计入</span></td>
+            <td>还没拿到钱，仍消耗预算</td>
+          </tr>
+          <tr>
+            <td style="color:var(--accent-light)">已报销支出（报销单 = paid）</td>
+            <td><span class="badge badge-red">排除</span></td>
+            <td style="color:var(--accent-light)">公司已付款，不消耗我的预算</td>
+          </tr>
+          <tr>
+            <td>部分报销支出</td>
+            <td><span class="badge badge-green">计入差额</span></td>
+            <td>只计自付部分（支出 - 已报销）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 计算公式 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">计算公式</h4>
+    <div class="mockup">
+      <div class="mockup-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span style="margin-left:8px">实际预算消耗</span>
+      </div>
+      <div class="mockup-body" style="font-family:'SF Mono','Fira Code',monospace;font-size:14px;line-height:2.2">
+        <div style="color:var(--text)">实际预算消耗 =</div>
+        <div style="padding-left:20px;color:var(--green)">+ 全部子支出（排除 hasChildren）</div>
+        <div style="padding-left:20px;color:var(--red)">- 退款总额（isRefund=true 的收入）</div>
+        <div style="padding-left:20px;color:var(--accent-light)">- 已报销总额（报销单=paid 的支出）</div>
+      </div>
+    </div>
+
+    <!-- 关联修改 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">关联修改文件</h4>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>文件</th>
+            <th>修改内容</th>
+            <th>用户感知</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;white-space:nowrap">BudgetDashboard.vue</td>
+            <td>getDirectActual() 增加报销扣除</td>
+            <td>分类预算"实际支出"扣除已报销</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">ProjectBudgetDashboard.vue</td>
+            <td>getDirectActual() 增加报销扣除</td>
+            <td>项目预算"实际支出"扣除已报销</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">CategoryDetailView.vue</td>
+            <td>totalAmount/budgetUsage 增加：排除父账单 + 扣除退款 + 扣除报销</td>
+            <td>分类统计与 Dashboard 口径一致</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600"><span class="badge badge-green">新增</span> utils/budgetCalc.ts</td>
+            <td>提取共享 calcBudgetActual() 函数</td>
+            <td>—（消除三处重复逻辑）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 用户体验变化 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">用户体验变化</h4>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">分类预算仪表盘</span>
+          <span class="badge badge-blue">修改</span>
+        </div>
+        <ul class="detail-list">
+          <li>变化前：实际支出 = 支出 - 退款</li>
+          <li>变化后：实际支出 = 支出 - 退款 - 已报销</li>
+          <li>效果：已报销的支出不再消耗预算进度条</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">项目预算仪表盘</span>
+          <span class="badge badge-blue">修改</span>
+        </div>
+        <ul class="detail-list">
+          <li>变化前：实际支出 = 支出 - 退款</li>
+          <li>变化后：实际支出 = 支出 - 退款 - 已报销</li>
+          <li>效果：项目维度的预算准确反映自付部分</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">分类详情页</span>
+          <span class="badge badge-blue">修改</span>
+        </div>
+        <ul class="detail-list">
+          <li>变化前：总支出含父账单重复 + 含退款 + 含报销</li>
+          <li>变化后：子账单支出 - 退款 - 已报销（修复三个问题）</li>
+          <li>效果：统计口径与 Dashboard 完全一致</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <!-- 实施路径 -->
   <div class="section">
     <div class="section-title">
