@@ -311,10 +311,11 @@ const {
   showError
 })
 
-// 统计
+// 统计（排除报销账单，与 Dashboard 口径对齐）
 const totalAmount = computed(() =>
   sum(filteredBills.value
     .filter(b => b.type === category.value?.type && b.status === 'completed')
+    .filter(b => !b.isReimbursable && !b.reimbursementId)
     .map(b => b.amount))
 )
 
@@ -342,6 +343,7 @@ const budgetUsage = computed(() => {
   if (monthlyBudget <= 0) return null
   const actual = sum(filteredBills.value
     .filter(b => b.type === 'expense' && b.status === 'completed')
+    .filter(b => !b.isReimbursable && !b.reimbursementId)
     .map(b => b.amount))
   return mul(div(actual, monthlyBudget), 100)
 })

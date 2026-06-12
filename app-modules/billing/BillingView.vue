@@ -48,6 +48,11 @@
       <div v-show="activeTab === 'rules'" class="tab-panel-wrapper">
         <RulesTabPanel :import-rules="importRules" />
       </div>
+
+      <!-- 报销Tab -->
+      <div v-show="activeTab === 'reimburse'" class="tab-panel-wrapper">
+        <ReimburseDashboard :note-id="noteId" />
+      </div>
     </div>
 
     <!-- 移动端Tab栏 -->
@@ -90,6 +95,7 @@ import CategoriesTabPanel from './components/panels/CategoriesTabPanel.vue'
 import CategoryBudgetsTabPanel from './components/panels/CategoryBudgetsTabPanel.vue'
 import ProjectBudgetsTabPanel from './components/panels/ProjectBudgetsTabPanel.vue'
 import RulesTabPanel from './components/panels/RulesTabPanel.vue'
+import ReimburseDashboard from './components/ReimburseDashboard.vue'
 
 
 const props = defineProps<{ noteId: string; moduleData?: unknown; onDataChange?: (data: unknown) => void }>()
@@ -111,7 +117,7 @@ const { billYearFilter, billMonthFilter, isDateFiltered, currentBudgetYear, curr
 // 根据路由查询参数计算当前活跃的Tab
 const activeTab = computed(() => {
   const tab = route.query.tab as string
-  const validTabs = ['bills', 'accounts', 'categories', 'budgets', 'rules']
+  const validTabs = ['bills', 'accounts', 'categories', 'budgets', 'rules', 'reimburse']
   return validTabs.includes(tab) ? tab as BillingTabId : 'bills'
 })
 

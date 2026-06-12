@@ -26,7 +26,7 @@ const store = useBillingStore()
 // 从当前路由查询参数确定活跃的Tab
 const activeTab = computed(() => {
   const tab = route.query.tab as string
-  const validTabs = ['bills', 'accounts', 'categories', 'budgets']
+  const validTabs = ['bills', 'accounts', 'categories', 'budgets', 'reimburse']
   return validTabs.includes(tab) ? tab : 'bills'
 })
 

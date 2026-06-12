@@ -99,6 +99,28 @@
             <span>{{ bill.isReimbursable ? '取消报销' : '标记报销' }}</span>
           </button>
 
+          <!-- 加入报销单（未关联的支出账单） -->
+          <button
+            v-if="canAddToReimburse"
+            type="button"
+            class="menu-item"
+            @click="handleAddToReimburse"
+          >
+            <Icon :name="SOLAR_ICONS.action.link" size="16" />
+            <span>加入报销单</span>
+          </button>
+
+          <!-- 从报销单移除 -->
+          <button
+            v-if="canRemoveFromReimburse"
+            type="button"
+            class="menu-item"
+            @click="handleRemoveFromReimburse"
+          >
+            <Icon :name="SOLAR_ICONS.action.unlink" size="16" />
+            <span>从报销单移除</span>
+          </button>
+
           <div class="menu-divider" />
 
           <!-- 删除 -->
@@ -138,6 +160,8 @@ const emit = defineEmits<{
   'link-refund': [bill: Bill]
   'link-as-refund': [bill: Bill]
   'toggle-reimbursable': [bill: Bill]
+  'add-to-reimburse': [bill: Bill]
+  'remove-from-reimburse': [bill: Bill]
   delete: [bill: Bill]
   reposition: [x: number, y: number]
 }>()
@@ -152,6 +176,16 @@ const canLinkRefund = computed(() => {
 const canLinkAsRefund = computed(() => {
   const b = props.bill
   return b && b.type === 'income' && !b.isRefund && !b.parentId
+})
+
+const canAddToReimburse = computed(() => {
+  const b = props.bill
+  return b && b.type === 'expense' && !b.reimbursementId && !b.isRefund
+})
+
+const canRemoveFromReimburse = computed(() => {
+  const b = props.bill
+  return b && b.reimbursementId && b.reimbursementRole === 'expense'
 })
 
 function close() {
@@ -216,6 +250,20 @@ function handleLinkAsRefund() {
 function handleToggleReimbursable() {
   if (props.bill) {
     emit('toggle-reimbursable', props.bill)
+    close()
+  }
+}
+
+function handleAddToReimburse() {
+  if (props.bill) {
+    emit('add-to-reimburse', props.bill)
+    close()
+  }
+}
+
+function handleRemoveFromReimburse() {
+  if (props.bill) {
+    emit('remove-from-reimburse', props.bill)
     close()
   }
 }

@@ -109,7 +109,7 @@ const COLLECTION_INDEXES: Record<string, string[][]> = {
   goal_progress_logs: [['goalId', 'date'], ['goalId'], ['date']],
   accounts: [['createdAt']],
   billCategories: [['order']],
-  bills: [['date'], ['noteId', 'date'], ['status', 'date']],
+  bills: [['date'], ['noteId', 'date'], ['status', 'date'], ['reimbursementId']],
   budgets: [['createdAt']],
   statements: [['year', 'month'], ['accountId', 'year', 'month']],
   importRules: [['priority']],

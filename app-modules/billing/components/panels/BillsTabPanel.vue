@@ -184,6 +184,8 @@
       @link-refund="handleLinkRefund"
       @link-as-refund="handleLinkAsRefund"
       @toggle-reimbursable="handleToggleReimbursable"
+      @add-to-reimburse="handleAddToReimburse"
+      @remove-from-reimburse="handleRemoveFromReimburse"
       @delete="handleContextMenuDelete"
     />
     <BillLinkRefundDialog
@@ -195,12 +197,24 @@
       @update:visible="linkRefundDialogVisible = $event"
       @close="linkRefundDialogVisible = false"
     />
+    <ReimburseGroupDialog
+      :visible="reimburseGroupDialogVisible"
+      @confirm="handleReimburseGroupConfirm"
+      @update:visible="reimburseGroupDialogVisible = $event"
+    />
+    <ReimburseIncomeDialog
+      :visible="reimburseIncomeDialogVisible"
+      :group="reimburseIncomeGroup"
+      @confirm="handleReimburseIncomeConfirm"
+      @update:visible="reimburseIncomeDialogVisible = $event"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, toRefs, onMounted } from 'vue'
 import type { Bill, BillFormData, ImportRecord, ImportRule, ImportRuleFormData, BillSplitItem, BillAllocateItem, RefundFormData } from '~/types/bill'
+import type { ReimbursementGroupFormData, ReimbursementIncomeFormData, ReimbursementGroupView } from '~/types/reimbursement'
 import { toLocalISO } from '~/services/db'
 import { useBillingStore } from '~/stores/billing'
 import { useBills } from '~/composables/useBills'
@@ -210,6 +224,7 @@ import { useBillCategories } from '~/composables/useBillCategories'
 import { useNotes } from '~/composables/useNotes'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useImportRules } from '~/composables/useImportRules'
+import { useReimburse } from '~/composables/useReimburse'
 import { useConfirm } from '~/composables/useConfirm'
 import { useToast } from '~/composables/useToast'
 import { ICONS } from '~/composables/useIcons'
@@ -641,6 +656,62 @@ async function handleToggleReimbursable(bill: Bill) {
     await updateBill(bill.id, { isReimbursable: !bill.isReimbursable })
   } catch (err) {
     console.error('切换报销标记失败:', err)
+  }
+}
+
+// ========== 报销单操作 ==========
+const reimburseGroupDialogVisible = ref(false)
+const reimburseIncomeDialogVisible = ref(false)
+const reimburseIncomeGroupId = ref<string | undefined>(undefined)
+const reimburseIncomeGroup = ref<ReimbursementGroupView | null>(null)
+const reimburseTargetBill = ref<Bill | undefined>(undefined)
+
+const { groups: reimburseGroups, loadGroups: loadReimburseGroups, createGroup: createReimburseGroup, addBillsToGroup: addBillsToReimburseGroup, removeBillFromGroup, getGroupView: getReimburseGroupView, createIncomeForGroup } = useReimburse()
+
+function handleAddToReimburse(bill: Bill) {
+  reimburseTargetBill.value = bill
+  reimburseGroupDialogVisible.value = true
+}
+
+async function handleReimburseGroupConfirm(data: ReimbursementGroupFormData) {
+  const bill = reimburseTargetBill.value
+  if (!bill) return
+
+  try {
+    const noteId = bill.noteId
+    const group = await createReimburseGroup(noteId, data)
+    await addBillsToReimburseGroup([bill.id], group.id)
+    showSuccess('已加入报销单')
+    reimburseTargetBill.value = undefined
+  } catch (err) {
+    showError(err instanceof Error ? err.message : String(err))
+  }
+}
+
+async function handleRemoveFromReimburse(bill: Bill) {
+  try {
+    const ok = await confirm({ message: '确定从报销单中移除？', danger: true })
+    if (!ok) return
+    await removeBillFromGroup(bill.id)
+    showSuccess('已从报销单移除')
+  } catch (err) {
+    showError(err instanceof Error ? err.message : String(err))
+  }
+}
+
+async function handleReimburseIncomeConfirm(data: ReimbursementIncomeFormData) {
+  const groupId = reimburseIncomeGroupId.value
+  if (!groupId) return
+
+  try {
+    const group = reimburseGroups.value.find(g => g.id === groupId)
+    if (!group) return
+    await createIncomeForGroup(groupId, group.noteId, data)
+    showSuccess('报销回款已记录')
+    reimburseIncomeGroupId.value = undefined
+    reimburseIncomeGroup.value = null
+  } catch (err) {
+    showError(err instanceof Error ? err.message : String(err))
   }
 }
 

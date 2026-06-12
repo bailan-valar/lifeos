@@ -158,6 +158,20 @@ const refundTotalMap = computed(() => {
   return map
 })
 
+// 报销单映射：reimbursementId -> 关联账单列表
+const reimbursementBillsMap = computed(() => {
+  const map = new Map<string, Bill[]>()
+  for (const bill of props.bills) {
+    if (bill.reimbursementId) {
+      if (!map.has(bill.reimbursementId)) {
+        map.set(bill.reimbursementId, [])
+      }
+      map.get(bill.reimbursementId)!.push(bill)
+    }
+  }
+  return map
+})
+
 // 构建扁平化账单列表（退款账单作为独立项显示，不折叠在源账单下）
 const flatBills = computed(() => {
   const result: Bill[] = []
@@ -207,6 +221,7 @@ function getBillDelta(bill: Bill, accountId: string): number {
 /**
  * 运行余额 Map：billId → 该账单处理后的余额
  * 从 currentBalance 出发，按日期倒序撤销每笔账单的 delta
+ * 调整作为时间线上的校准点：bill.date <= adj.date 时切换到 balanceBefore 基线
  */
 const billBalanceMap = computed(() => {
   if (!props.showRunningBalance || !props.accountId || props.currentBalance == null) {
@@ -219,25 +234,18 @@ const billBalanceMap = computed(() => {
   // 所有账单按日期倒序（与显示顺序一致）
   const sorted = [...props.bills].sort((a, b) => b.date.localeCompare(a.date))
 
-  // 调整按日期倒序索引，用于校准
-  const adjMap = new Map<string, BalanceAdjustment>()
-  if (props.adjustments) {
-    const sortedAdj = [...props.adjustments].sort((a, b) => b.date.localeCompare(a.date))
-    for (const adj of sortedAdj) {
-      const dateKey = adj.date.slice(0, 10)
-      if (!adjMap.has(dateKey)) {
-        adjMap.set(dateKey, adj)
-      }
-    }
-  }
+  // 调整按日期倒序排列，用指针逐个消费
+  const sortedAdj = props.adjustments
+    ? [...props.adjustments].sort((a, b) => b.date.localeCompare(a.date))
+    : []
+  let adjIdx = 0
 
   for (const bill of sorted) {
-    // 如果当天有调整，使用调整的 balanceBefore 校准
-    const dateKey = bill.date.slice(0, 10)
-    const adj = adjMap.get(dateKey)
-    if (adj) {
-      running = adj.balanceBefore
-      adjMap.delete(dateKey)
+    // 当账单日期 <= 调整日期时，说明账单在调整之前或同时
+    // 需要校准：调整前的余额路径与调整后独立
+    while (adjIdx < sortedAdj.length && bill.date <= sortedAdj[adjIdx].date) {
+      running = sortedAdj[adjIdx].balanceBefore
+      adjIdx++
     }
 
     balances.set(bill.id, running)

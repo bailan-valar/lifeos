@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-export type BillingTabId = 'bills' | 'accounts' | 'categories' | 'budgets' | 'rules'
+export type BillingTabId = 'bills' | 'accounts' | 'categories' | 'budgets' | 'rules' | 'reimburse'
 export type BillingViewMode = 'card' | 'table' | 'calendar'
 export type BillingAccountType = 'personal' | 'contact' | 'merchant' | 'other'
 export type BillingCategoryType = 'income' | 'expense'
@@ -37,14 +37,15 @@ export const useBillingStore = defineStore('billing', () => {
     { id: 'accounts' as BillingTabId, name: '账户', icon: 'solar:wallet-linear' },
     { id: 'categories' as BillingTabId, name: '分类', icon: 'solar:folder-linear' },
     { id: 'budgets' as BillingTabId, name: '预算', icon: 'solar:chart-linear' },
-    { id: 'rules' as BillingTabId, name: '规则', icon: 'solar:filter-linear' }
+    { id: 'rules' as BillingTabId, name: '规则', icon: 'solar:filter-linear' },
+    { id: 'reimburse' as BillingTabId, name: '报销', icon: 'solar:hand-money-linear' }
   ]
 
   const mobileTabs = [
     { id: 'bills' as BillingTabId, name: '账单', icon: 'solar:wallet-money-linear' },
     { id: 'accounts' as BillingTabId, name: '账户', icon: 'solar:wallet-linear' },
     { id: 'budgets' as BillingTabId, name: '预算', icon: 'solar:chart-linear' },
-    { id: 'categories' as BillingTabId, name: '分类', icon: 'solar:folder-linear' }
+    { id: 'reimburse' as BillingTabId, name: '报销', icon: 'solar:hand-money-linear' }
   ]
 
   const accountSubTabs = [

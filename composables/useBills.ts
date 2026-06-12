@@ -329,6 +329,8 @@ export function useBills() {
       isSavable: data.isSavable || false,
       savableAmount: data.isSavable ? (data.savableAmount ?? data.amount) : undefined,
       isReimbursable: data.isReimbursable || false,
+      reimbursementId: data.reimbursementId || undefined,
+      reimbursementRole: data.reimbursementRole || undefined,
       createdAt: now(),
       updatedAt: now(),
     }

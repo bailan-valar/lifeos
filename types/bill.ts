@@ -112,6 +112,9 @@ export interface Bill {
   isSavable?: boolean            // 可节省（支出标记为可避免的开支）
   savableAmount?: number         // 可节省金额（默认等于账单金额）
   isReimbursable?: boolean       // 可报销（支出标记为可报销的开销）
+  // 报销单关联
+  reimbursementId?: string       // 所属报销单ID
+  reimbursementRole?: 'expense' | 'income'  // 角色：expense=垫付支出, income=回款收入
   createdAt: string
   updatedAt: string
 }
@@ -142,6 +145,9 @@ export interface BillFormData {
   isSavable?: boolean
   savableAmount?: number
   isReimbursable?: boolean
+  // 报销单关联
+  reimbursementId?: string
+  reimbursementRole?: 'expense' | 'income'
 }
  */
 export interface BalanceAdjustment {
