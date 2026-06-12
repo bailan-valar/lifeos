@@ -135,6 +135,18 @@
         <span class="sidebar-btn-text">{{ tab.name }}</span>
       </button>
     </template>
+
+    <!-- 导入账单 -->
+    <div class="sidebar-divider" />
+    <button
+      type="button"
+      class="sidebar-btn sidebar-action"
+      :title="store.sidebarCollapsed ? '导入账单' : ''"
+      @click="emit('openImport')"
+    >
+      <Icon name="solar:upload-linear" size="18" />
+      <span class="sidebar-btn-text">导入账单</span>
+    </button>
   </div>
 </template>
 
@@ -142,6 +154,8 @@
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useBillingStore, type BillingAccountType, type BillingCategoryType, type BillingBudgetType } from '~/stores/billing'
+
+const emit = defineEmits<{ (e: 'openImport'): void }>()
 
 const router = useRouter()
 const route = useRoute()
@@ -368,5 +382,19 @@ function handleBudgetSubTabClick(type: BillingBudgetType) {
 
 .sub-dot.expense {
   background: rgb(255, 59, 48);
+}
+
+.sidebar-divider {
+  height: 1px;
+  margin: 8px 10px;
+  background: rgba(60, 60, 67, 0.08);
+}
+
+.sidebar-action {
+  color: rgba(60, 60, 67, 0.5);
+}
+
+.sidebar-action:hover {
+  color: rgba(60, 60, 67, 0.7);
 }
 </style>

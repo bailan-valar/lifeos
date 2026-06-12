@@ -1,7 +1,7 @@
 <template>
   <div class="billing-view" :class="{ mobile: isMobile }">
     <!-- 侧边栏（桌面端） -->
-    <BillingSidebar v-if="!isMobile" />
+    <BillingSidebar v-if="!isMobile" @open-import="billDialogs.openImportDialog()" />
 
     <!-- 内容区域 -->
     <div class="content" :class="{ mobile: isMobile }">
@@ -236,7 +236,6 @@ const BILLING_MODULE_KEY = 'billing'
 function registerHeaderActions() {
   pageHeaderStore.setActions(BILLING_MODULE_KEY, [
     { icon: 'solar:checklist-minimalistic-linear', label: '批量操作', handler: enterBatchMode },
-    { icon: 'solar:upload-linear', label: '导入账单', handler: () => billDialogs.openImportDialog() },
     { icon: 'solar:download-linear', label: '导出账单', handler: io.handleExportBills }
   ])
 }
