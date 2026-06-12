@@ -50,6 +50,8 @@
           <span v-if="refundBadge === 'source' && !bill.isRefund" class="refund-badge">已退款</span>
           <!-- 可节省标记 -->
           <span v-if="bill.isSavable && bill.type === 'expense'" class="savable-badge">可节省</span>
+          <!-- 报销标记 -->
+          <span v-if="bill.isReimbursable && bill.type === 'expense'" class="reimbursable-badge">报销</span>
           <!-- 分摊月份标记 -->
           <span v-if="bill.allocatedMonth" class="allocate-badge">
             {{ bill.allocatedMonth }}
@@ -548,6 +550,16 @@ const displayAmount = computed(() => {
   font-weight: 500;
   background: rgba(52, 199, 89, 0.12);
   color: rgb(52, 199, 89);
+  flex-shrink: 0;
+}
+
+.reimbursable-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(0, 122, 255, 0.1);
+  color: rgb(0, 122, 255);
   flex-shrink: 0;
 }
 

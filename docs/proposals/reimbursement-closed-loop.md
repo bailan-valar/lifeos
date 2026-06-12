@@ -906,3 +906,114 @@ Step 4: 报销单总额自动更新为 ¥2,150
 | `app-modules/billing/components/BillListItem.vue` | 新增报销状态 ReimburseStatusBadge |
 | `app-modules/billing/components/BillList.vue` | 报销状态筛选；批量模式新增"创建报销单" |
 | `app-modules/billing/components/BillDialog.vue` | 编辑模式展示报销关联信息 |
+
+---
+
+## 十三、导入场景补充
+
+### 13.1 现状
+
+`Bill` 类型上已有 `isReimbursable?: boolean` 字段（`types/bill.ts:113`），但**导入流程完全没有使用此字段**：
+
+- `ImportRecordItem` 类型中无 `isReimbursable`
+- `ImportPreviewRow.vue` 无"可报销"选项（仅有"可节省" `isSavable`）
+- `MobileImportItemEditor.vue` 无"可报销"选项
+- `createBillsBatch()` 构建 Bill 时不设置 `isReimbursable`
+- `ImportRule` 和 `ImportRuleFormData` 中无 `isReimbursable`
+
+> **参照实现**：`isSavable`（可节省）有完整的导入链路，可完全对齐其模式。
+
+### 13.2 导入中支持报销标记
+
+#### 需要修改的文件
+
+| 文件 | 修改内容 | 类型 |
+|------|---------|------|
+| `types/bill.ts` | `ImportRecordItem` 接口新增 `isReimbursable?: boolean` | 修改 |
+| `services/csvImport.ts` | `buildImportRecordItem()` 默认设置 `isReimbursable`（可通过规则覆盖） | 修改 |
+| `app-modules/billing/components/ImportPreviewRow.vue` | 新增"可报销" checkbox（参照 `isSavable` 实现） | 修改 |
+| `app-modules/billing/components/MobileImportItemEditor.vue` | 新增"可报销"开关（移动端） | 修改 |
+| `composables/useBills.ts` | `createBillsBatch()` 构建 Bill 时传递 `isReimbursable` 字段 | 修改 |
+| `types/bill.ts` | `ImportRule` / `ImportRuleFormData` 新增 `isReimbursable?: boolean` | 修改 |
+| `composables/useImportRules.ts` | `applyRules()` / `buildRuleUpdates()` 传递 `isReimbursable` | 修改 |
+| `app-modules/billing/components/ImportRuleForm.vue` | 规则表单新增"可报销"开关 | 修改 |
+
+#### 导入规则扩展
+
+用户可配置规则自动标记可报销支出：
+
+```
+规则示例：
+  当交易对方 = "滴滴出行" → isReimbursable = true, categoryId = "交通出行"
+  当说明包含 "出差"     → isReimbursable = true
+  当付款方式 = "公司卡" → isReimbursable = false（公司卡非垫付）
+```
+
+#### 导入预览行 UI
+
+```
+现有 ImportPreviewRow：
+  [分类选择] [账户选择] [可节省☑]
+
+扩展后：
+  [分类选择] [账户选择] [可节省☑] [可报销☑]   ← 新增
+```
+
+### 13.3 导入后的报销操作
+
+导入完成后，标记为 `isReimbursable` 的支出账单会出现在账单列表中，用户可通过以下方式纳入报销单：
+
+| 操作方式 | 说明 |
+|---------|------|
+| 批量筛选 + 创建 | 账单列表筛选"可报销" → 批量勾选 → "创建报销单" |
+| 单笔右键 | 右键"可报销"的支出 → "加入报销单" |
+| 导入后自动归集 | 导入完成确认后弹出提示："发现 N 笔可报销支出，是否创建报销单？" |
+
+### 13.4 `isReimbursable` 与 `reimbursementId` 的关系
+
+```
+isReimbursable = true  →  此支出"可以"被报销（标记性质）
+reimbursementId = "xxx" → 此支出"已经"归入某个报销单（关联性质）
+
+状态流转：
+  普通支出 → isReimbursable=true（标记可报销）→ reimbursementId="xxx"（加入报销单）→ 回款到账
+
+两者独立：
+  isReimbursable=true 但无 reimbursementId → 待报销但还没创建报销单
+  isReimbursable=false 但有 reimbursementId → 不可报销但意外加入了（应提醒）
+  isReimbursable=true 且有 reimbursementId → 正常报销流程中
+```
+
+### 13.5 闭环流程（含导入场景）
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    含导入的完整闭环                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  方式一：手动记账                                                 │
+│  记录支出 → 右键"加入报销单" → 记录回款 → 闭环                    │
+│                                                                 │
+│  方式二：CSV/微信/支付宝导入（新增）                               │
+│  ─────────────────────────────────────                           │
+│  ① 导入文件                                                     │
+│     └→ 解析为 ImportRecord                                      │
+│                                                                 │
+│  ② 预览编辑                                                     │
+│     ├→ 规则自动标记"可报销"（如交易对方=滴滴）                     │
+│     ├→ 用户手动勾选"可报销" checkbox                             │
+│     └→ isReimbursable = true                                    │
+│                                                                 │
+│  ③ 确认导入                                                     │
+│     ├→ 创建 Bill（isReimbursable=true）                         │
+│     └→ 支出出现在账单列表，显示 [可报销] 标记                     │
+│                                                                 │
+│  ④ 创建报销单                                                   │
+│     ├→ 筛选"可报销" → 批量勾选 → 创建报销单                     │
+│     └→ 或导入完成后弹窗提示"发现 N 笔可报销，创建报销单？"        │
+│                                                                 │
+│  ⑤ 记录回款 → 闭环                                              │
+│     └→ 与手动记账流程一致                                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```

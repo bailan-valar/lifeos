@@ -1487,6 +1487,187 @@
     </div>
   </div>
 
+  <!-- 导入场景 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="icon" style="background:rgba(34,211,238,0.15)">📥</span>
+      导入场景补充
+    </div>
+
+    <div class="callout" style="margin-bottom:20px">
+      <div style="font-weight:600;margin-bottom:6px">💡 关键发现</div>
+      <div style="font-size:13px;color:var(--text-dim)">
+        <code>Bill</code> 类型已有 <code style="color:var(--cyan)">isReimbursable</code> 字段，但导入流程完全没有使用它。<br>
+        可参照 <code>isSavable</code>（可节省）的完整导入链路对齐实现。
+      </div>
+    </div>
+
+    <!-- 导入闭环流程 -->
+    <h4 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--cyan)">含导入的完整闭环</h4>
+    <div class="flow-container">
+      <div class="flow">
+        <div class="flow-step">
+          <div class="circle cyan">📥</div>
+          <div class="label">导入文件</div>
+          <div class="desc">CSV/微信/支付宝</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="circle blue">✏️</div>
+          <div class="label">预览编辑</div>
+          <div class="desc">✨ 规则自动标记"可报销"<br>✨ 手动勾选可报销</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="circle orange">📋</div>
+          <div class="label">确认导入</div>
+          <div class="desc">创建 Bill<br>isReimbursable=true</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="circle purple">📊</div>
+          <div class="label">创建报销单</div>
+          <div class="desc">筛选"可报销"<br>批量归集</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="circle accent">💰</div>
+          <div class="label">记录回款</div>
+          <div class="desc">闭环完成 ✅</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导入修改文件 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">导入流程修改文件</h4>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>文件</th>
+            <th>修改内容</th>
+            <th>用户感知</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;white-space:nowrap">ImportPreviewRow.vue</td>
+            <td>新增"可报销" checkbox（参照 isSavable）</td>
+            <td>导入预览行可勾选"可报销"</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">MobileImportItemEditor.vue</td>
+            <td>新增"可报销"开关（移动端）</td>
+            <td>移动端编辑弹框可标记可报销</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">ImportRecordItem 类型</td>
+            <td>新增 isReimbursable? 字段</td>
+            <td>—（底层数据结构）</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">createBillsBatch()</td>
+            <td>构建 Bill 时传递 isReimbursable</td>
+            <td>导入的账单正确标记可报销</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">ImportRule 类型</td>
+            <td>新增 isReimbursable? 字段</td>
+            <td>—（底层数据结构）</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">useImportRules.ts</td>
+            <td>applyRules() 传递 isReimbursable</td>
+            <td>规则自动标记可报销支出</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">ImportRuleForm.vue</td>
+            <td>规则表单新增"可报销"开关</td>
+            <td>编辑规则时可设置自动标记</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 规则示例 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">导入规则示例</h4>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">按交易对方</span>
+          <span class="badge badge-blue">自动规则</span>
+        </div>
+        <ul class="detail-list">
+          <li>交易对方 = "滴滴出行" → 可报销 ✓ + 分类=交通</li>
+          <li>交易对方 = "美团外卖" → 可报销 ✓ + 分类=餐饮</li>
+          <li>交易对方 = "中国国航" → 可报销 ✓ + 分类=交通</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">按说明关键词</span>
+          <span class="badge badge-blue">自动规则</span>
+        </div>
+        <ul class="detail-list">
+          <li>说明包含 "出差" → 可报销 ✓</li>
+          <li>说明包含 "机票" → 可报销 ✓</li>
+          <li>说明包含 "酒店" → 可报销 ✓</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <div class="detail-header">
+          <span class="detail-file">排除规则</span>
+          <span class="badge badge-purple">反向规则</span>
+        </div>
+        <ul class="detail-list">
+          <li>付款方式 = "公司卡" → 可报销 ✗（非垫付）</li>
+          <li>分类 = "娱乐" → 可报销 ✗（非工作支出）</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- isReimbursable 关系 -->
+    <h4 style="font-size:16px;font-weight:600;margin:32px 0 16px;color:var(--cyan)">字段关系说明</h4>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>isReimbursable</th>
+            <th>reimbursementId</th>
+            <th>含义</th>
+            <th>badge 显示</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-green">true</span></td>
+            <td><span style="color:var(--text-dim)">空</span></td>
+            <td>可报销，还没创建报销单</td>
+            <td style="color:var(--orange)">[可报销]</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-green">true</span></td>
+            <td><span class="badge badge-blue">有值</span></td>
+            <td>正常报销流程中</td>
+            <td style="color:var(--blue)">[待报销]</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim)">false/空</td>
+            <td style="color:var(--text-dim)">空</td>
+            <td>普通支出，无报销需求</td>
+            <td style="color:var(--text-dim)">—</td>
+          </tr>
+          <tr>
+            <td style="color:var(--red)">false</td>
+            <td><span class="badge badge-blue">有值</span></td>
+            <td>异常：不可报销但加入了报销单</td>
+            <td style="color:var(--red)">[⚠️ 异常]</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- 实施路径 -->
   <div class="section">
     <div class="section-title">

@@ -110,6 +110,7 @@ export interface Bill {
   originalBillId?: string        // 退款源账单ID
   refundReason?: string          // 退款原因
   isSavable?: boolean            // 可节省（支出标记为可避免的开支）
+  isReimbursable?: boolean       // 可报销（支出标记为可报销的开销）
   createdAt: string
   updatedAt: string
 }
@@ -138,10 +139,8 @@ export interface BillFormData {
   originalBillId?: string
   refundReason?: string
   isSavable?: boolean
+  isReimbursable?: boolean
 }
-
-/**
- * 余额调整记录
  */
 export interface BalanceAdjustment {
   id: string
@@ -367,10 +366,8 @@ export interface ImportPreviewRow extends CsvParsedRow {
   noteId: string
   remark?: string
   isSavable?: boolean
-}
-
-/**
- * 从 ImportPreviewRow 构建 ImportRecordItem（pending 状态）
+  isReimbursable?: boolean
+}（pending 状态）
  */
 export function previewRowToRecordItem(row: ImportPreviewRow): ImportRecordItem {
   return {
@@ -399,7 +396,8 @@ export function previewRowToRecordItem(row: ImportPreviewRow): ImportRecordItem 
     paymentMethod: row.paymentMethod,
     rawType: row.rawType,
     noteId: row.noteId,
-    isSavable: row.isSavable
+    isSavable: row.isSavable,
+    isReimbursable: row.isReimbursable
   }
 }
 
@@ -458,6 +456,7 @@ export interface ImportRecordItem {
   noteId?: string
   remark?: string
   isSavable?: boolean
+  isReimbursable?: boolean
   // --- post-import 字段 ---
   billId?: string
   errorMessage?: string

@@ -183,6 +183,7 @@
       @refund="handleRefundBill"
       @link-refund="handleLinkRefund"
       @link-as-refund="handleLinkAsRefund"
+      @toggle-reimbursable="handleToggleReimbursable"
       @delete="handleContextMenuDelete"
     />
     <BillLinkRefundDialog
@@ -633,6 +634,14 @@ function handleLinkAsRefund(bill: Bill) {
   linkRefundSourceBill.value = bill
   linkRefundMode.value = 'link-as-refund'
   linkRefundDialogVisible.value = true
+}
+
+async function handleToggleReimbursable(bill: Bill) {
+  try {
+    await updateBill(bill.id, { isReimbursable: !bill.isReimbursable })
+  } catch (err) {
+    console.error('切换报销标记失败:', err)
+  }
 }
 
 async function handleLinkRefundConfirm(targetBill: Bill) {

@@ -88,6 +88,17 @@
             <span>关联为退款</span>
           </button>
 
+          <!-- 报销标记（仅支出账单） -->
+          <button
+            v-if="bill?.type === 'expense'"
+            type="button"
+            class="menu-item"
+            @click="handleToggleReimbursable"
+          >
+            <Icon :name="bill.isReimbursable ? SOLAR_ICONS.status.success : SOLAR_ICONS.billing.receipt" size="16" />
+            <span>{{ bill.isReimbursable ? '取消报销' : '标记报销' }}</span>
+          </button>
+
           <div class="menu-divider" />
 
           <!-- 删除 -->
@@ -126,6 +137,7 @@ const emit = defineEmits<{
   refund: [bill: Bill]
   'link-refund': [bill: Bill]
   'link-as-refund': [bill: Bill]
+  'toggle-reimbursable': [bill: Bill]
   delete: [bill: Bill]
   reposition: [x: number, y: number]
 }>()
@@ -197,6 +209,13 @@ function handleLinkRefund() {
 function handleLinkAsRefund() {
   if (props.bill) {
     emit('link-as-refund', props.bill)
+    close()
+  }
+}
+
+function handleToggleReimbursable() {
+  if (props.bill) {
+    emit('toggle-reimbursable', props.bill)
     close()
   }
 }
