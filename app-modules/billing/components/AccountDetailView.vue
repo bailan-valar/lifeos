@@ -7,7 +7,11 @@
         <span>返回账单</span>
       </button>
       <div class="header-actions">
-        <button type="button" class="action-text-btn" @click="openAccountDialog">
+        <button v-if="!batchMode" type="button" class="batch-enter-btn" @click="enterBatchModeWithNotes">
+          <Icon name="solar:checklist-linear" size="18" />
+          批量
+        </button>
+        <button v-if="!batchMode" type="button" class="action-text-btn" @click="openAccountDialog">
           <Icon name="solar:pen-linear" size="16" />
           编辑
         </button>
@@ -105,8 +109,8 @@
         </div>
       </div>
 
-      <!-- 筛选工具栏 -->
-      <div class="filter-bar">
+      <!-- 筛选工具栏 / 批量工具栏 -->
+      <div v-if="!batchMode" class="filter-bar">
         <div class="filter-group">
           <select v-model="yearFilter" class="filter-select" @change="onFilterChange">
             <option :value="null">全部年份</option>
@@ -119,6 +123,15 @@
         </div>
         <span class="filter-result">共 {{ filteredBills.length }} 笔{{ filteredAdjustments.length > 0 ? ` · ${filteredAdjustments.length} 次调整` : '' }}</span>
       </div>
+      <BillBatchToolbar
+        v-else
+        :selected-count="selectedIds.length"
+        :total-count="filteredBills.length"
+        @toggle-select-all="handleToggleSelectAll"
+        @batch-delete="handleBatchDelete"
+        @batch-edit="batchEditVisible = true"
+        @exit="exitBatchMode"
+      />
 
       <!-- 账单列表 -->
       <div class="list-wrapper">
@@ -128,9 +141,12 @@
           :account-id="accountId"
           :current-balance="account?.balance"
           :show-running-balance="true"
+          :selectable="batchMode"
+          :selected-ids="selectedIds"
           @edit="openBillDialog"
           @delete="handleDeleteBill"
           @contextmenu="openBillContextMenu"
+          @select="toggleBillSelect"
         />
       </div>
     </template>
@@ -172,6 +188,17 @@
       @refund="handleRefundBill"
       @delete="handleContextMenuDelete"
     />
+
+    <!-- 批量编辑弹框 -->
+    <BillBatchEditDialog
+      v-if="batchEditVisible"
+      :selected-bills="selectedBills"
+      :accounts="accounts"
+      :categories="categories"
+      :note-options="noteOptions"
+      @confirm="handleBatchEditConfirm"
+      @cancel="batchEditVisible = false"
+    />
   </div>
 </template>
 
@@ -182,7 +209,10 @@ import { sum, sub, div } from '~/utils/decimal'
 import { useToast } from '~/composables/useToast'
 import { useConfirm } from '~/composables/useConfirm'
 import { loadBalanceAdjustments } from '~/composables/useBalanceAdjustments'
+import { useBillingBatch } from '../composables/useBillingBatch'
 import BillList from './BillList.vue'
+import BillBatchToolbar from './BillBatchToolbar.vue'
+import BillBatchEditDialog from './BillBatchEditDialog.vue'
 import BillDialog from './BillDialog.vue'
 import AccountDialog from './AccountDialog.vue'
 import BillContextMenu from './BillContextMenu.vue'
@@ -202,7 +232,7 @@ const router = useRouter()
 
 // 数据 store（accounts/categories 自动初始加载 + onCollectionChange 响应式更新）
 const { accounts, updateAccount } = useAccounts()
-const { bills, loadBillsByAccount, createBill, updateBill, deleteBill, splitBill, allocatePeriod, createRefundBill } = useBills()
+const { bills, loadBillsByAccount, createBill, updateBill, deleteBill, updateBills, deleteBills, splitBill, allocatePeriod, createRefundBill } = useBills()
 const { categories } = useBillCategories()
 const { loadNotes, noteOptions } = useNotes()
 
@@ -220,6 +250,11 @@ const ctxMenuVisible = ref(false)
 const ctxMenuBill = ref<Bill | null>(null)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
+
+// 批量操作状态
+const batchMode = ref(false)
+const selectedIds = ref<string[]>([])
+const batchEditVisible = ref(false)
 
 // 筛选
 const yearFilter = ref<number | null>(null)
@@ -261,6 +296,37 @@ const filteredAdjustments = computed(() => {
     list = list.filter(a => new Date(a.date).getMonth() + 1 === monthFilter.value)
   }
   return list
+})
+
+// 批量操作
+const selectedBills = computed(() =>
+  filteredBills.value.filter(b => selectedIds.value.includes(b.id))
+)
+
+const { success: showSuccess, error: showError } = useToast()
+const { confirm } = useConfirm()
+
+const {
+  enterBatchMode,
+  exitBatchMode,
+  toggleBillSelect,
+  handleToggleSelectAll,
+  handleBatchDelete,
+  handleBatchEdit
+} = useBillingBatch({
+  batchMode,
+  selectedIds,
+  batchEditVisible,
+  bills: filteredBills,
+  deleteBills,
+  updateBill,
+  updateBills,
+  confirm: (msg) => {
+    if (typeof msg === 'string') return confirm({ message: msg, danger: true })
+    return confirm(msg)
+  },
+  showSuccess,
+  showError
 })
 
 // 统计
@@ -312,9 +378,6 @@ async function refreshBills() {
 function onFilterChange() {
   // 筛选由客户端 computed 处理，无需重新加载
 }
-
-const { success: showSuccess, error: showError } = useToast()
-const { confirm } = useConfirm()
 
 // 右键菜单处理
 function openBillContextMenu(payload: { bill: Bill; x: number; y: number }) {
@@ -384,6 +447,22 @@ function openBillDialog(bill?: Bill) {
   if (!notesLoaded.value) {
     notesLoaded.value = true
     loadNotes()
+  }
+}
+
+function enterBatchModeWithNotes() {
+  if (!notesLoaded.value) {
+    notesLoaded.value = true
+    loadNotes()
+  }
+  enterBatchMode()
+}
+
+async function handleBatchEditConfirm(data: { categoryId?: string; fromAccountId?: string; toAccountId?: string; description?: string; descMode?: 'replace' | 'prefix' | 'suffix'; noteId?: string }, done: () => void) {
+  try {
+    await handleBatchEdit(data)
+  } finally {
+    done()
   }
 }
 
@@ -464,6 +543,7 @@ onMounted(() => {
 watch(() => props.accountId, () => {
   yearFilter.value = null
   monthFilter.value = null
+  exitBatchMode()
   loadData()
 })
 </script>
@@ -489,6 +569,24 @@ watch(() => props.accountId, () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.batch-enter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(60, 60, 67, 0.08);
+  color: rgba(0, 0, 0, 0.78);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.batch-enter-btn:hover {
+  background: rgba(60, 60, 67, 0.14);
 }
 
 .back-btn {
