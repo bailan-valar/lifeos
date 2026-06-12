@@ -339,8 +339,14 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
 
     // 检查笔记是否有被折叠的祖先笔记
     function hasCollapsedAncestor(noteId: string): boolean {
+      // 聚焦模式下，聚焦笔记本身始终可见
+      if (focusedNoteId.value && noteId === focusedNoteId.value) return false
+
       const note = notes.value.find(n => n.id === noteId)
       if (!note || !note.parentId) return false
+
+      // 聚焦模式下，到达聚焦笔记时停止向上查找
+      if (focusedNoteId.value && note.parentId === focusedNoteId.value) return false
 
       const parentExpanded = noteExpandedMap.get(note.parentId)
       if (parentExpanded === false) return true
@@ -348,12 +354,20 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
       return hasCollapsedAncestor(note.parentId)
     }
 
+    // 聚焦模式下，计算层级偏移，使聚焦笔记作为 level 0 显示
+    const focusedNoteLevel = focusedNoteId.value
+      ? notesWithLevel.value.find(n => n.id === focusedNoteId.value)?.level ?? 0
+      : 0
+
     for (const note of notesWithLevel.value) {
       // 聚焦模式：如果不是聚焦笔记或其子笔记，跳过
       if (visibleNoteIds && !visibleNoteIds.has(note.id)) continue
 
       // 如果有被折叠的祖先笔记，跳过（不显示）
       if (hasCollapsedAncestor(note.id)) continue
+
+      // 聚焦模式下，调整层级使聚焦笔记从 level 0 开始
+      const displayLevel = focusedNoteId.value ? note.level - focusedNoteLevel : note.level
 
       // 获取该笔记的所有待办任务
       const noteTasks = tasks.value.filter(t => t.noteId === note.id)
@@ -504,7 +518,7 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
         rows.push({
           noteId: note.id,
           title: note.title || '未命名笔记',
-          level: note.level,
+          level: displayLevel,
           expanded: note.expanded,
           taskLayouts, // 只显示该笔记自己的任务
           collapsedCount, // 子笔记的合计数
@@ -515,7 +529,7 @@ export function useTodoProjectView(config?: Partial<ProjectViewConfig>) {
         rows.push({
           noteId: note.id,
           title: note.title || '未命名笔记',
-          level: note.level,
+          level: displayLevel,
           expanded: note.expanded,
           taskLayouts,
           noteClass: noteClassMap.get(note.id)
