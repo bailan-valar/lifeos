@@ -541,7 +541,7 @@ async function handleDelete(bill: Bill) {
 }
 
 .drawer-panel {
-  width: 380px;
+  width: 460px;
   height: 100%;
   display: flex;
   flex-direction: column;
