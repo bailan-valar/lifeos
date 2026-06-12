@@ -199,41 +199,45 @@
             </div>
           </div>
 
-          <!-- 应用规则确认弹框（保存规则后） -->
-          <div v-if="applyRuleConfirm.visible" class="remark-overlay" @click="onApplyRuleCancel">
-            <div class="remark-card" @click.stop>
-              <div class="remark-header">
-                <span>应用规则</span>
-                <button type="button" class="close-btn" @click="onApplyRuleCancel">
-                  <Icon name="solar:close-circle-linear" size="16" />
-                </button>
-              </div>
-              <p class="confirm-message-text">规则已保存，是否立即应用？</p>
-              <div class="remark-footer three-actions">
-                <button type="button" class="cancel-btn" @click="onApplyRuleCancel">不应用</button>
-                <button type="button" class="secondary-btn" @click="onApplyRuleCurrent">仅应用当前</button>
-                <button type="button" class="confirm-btn" @click="onApplyRuleAll">应用全部</button>
+          <!-- 应用规则确认弹框（保存规则后）- Teleport to body 确保层级最高 -->
+          <Teleport to="body">
+            <div v-if="applyRuleConfirm.visible" class="apply-rule-overlay" :style="applyRuleZStyle" @click="onApplyRuleCancel">
+              <div class="remark-card" @click.stop>
+                <div class="remark-header">
+                  <span>应用规则</span>
+                  <button type="button" class="close-btn" @click="onApplyRuleCancel">
+                    <Icon name="solar:close-circle-linear" size="16" />
+                  </button>
+                </div>
+                <p class="confirm-message-text">规则已保存，是否立即应用？</p>
+                <div class="remark-footer three-actions">
+                  <button type="button" class="cancel-btn" @click="onApplyRuleCancel">不应用</button>
+                  <button type="button" class="secondary-btn" @click="onApplyRuleCurrent">仅应用当前</button>
+                  <button type="button" class="confirm-btn" @click="onApplyRuleAll">应用全部</button>
+                </div>
               </div>
             </div>
-          </div>
+          </Teleport>
 
-          <!-- 应用全部规则确认弹框 -->
-          <div v-if="applyAllRulesConfirm" class="remark-overlay" @click="onApplyAllRulesCancel">
-            <div class="remark-card" @click.stop>
-              <div class="remark-header">
-                <span>应用规则</span>
-                <button type="button" class="close-btn" @click="onApplyAllRulesCancel">
-                  <Icon name="solar:close-circle-linear" size="16" />
-                </button>
-              </div>
-              <p class="confirm-message-text">选择应用范围</p>
-              <div class="remark-footer three-actions">
-                <button type="button" class="cancel-btn" @click="onApplyAllRulesCancel">取消</button>
-                <button type="button" class="secondary-btn" @click="() => onApplyAllRulesConfirm(false)">仅未完善</button>
-                <button type="button" class="confirm-btn" @click="() => onApplyAllRulesConfirm(true)">应用全部</button>
+          <!-- 应用全部规则确认弹框 - Teleport to body 确保层级最高 -->
+          <Teleport to="body">
+            <div v-if="applyAllRulesConfirm" class="apply-rule-overlay" :style="applyAllRulesZStyle" @click="onApplyAllRulesCancel">
+              <div class="remark-card" @click.stop>
+                <div class="remark-header">
+                  <span>应用规则</span>
+                  <button type="button" class="close-btn" @click="onApplyAllRulesCancel">
+                    <Icon name="solar:close-circle-linear" size="16" />
+                  </button>
+                </div>
+                <p class="confirm-message-text">选择应用范围</p>
+                <div class="remark-footer three-actions">
+                  <button type="button" class="cancel-btn" @click="onApplyAllRulesCancel">取消</button>
+                  <button type="button" class="secondary-btn" @click="() => onApplyAllRulesConfirm(false)">仅未完善</button>
+                  <button type="button" class="confirm-btn" @click="() => onApplyAllRulesConfirm(true)">应用全部</button>
+                </div>
               </div>
             </div>
-          </div>
+          </Teleport>
         </div>
       </div>
     </Transition>
@@ -328,9 +332,13 @@ const applyRuleConfirm = ref<{
   rule: ImportRule | null
   targetItem: ImportRecordItem | null
 }>({ visible: false, rule: null, targetItem: null })
+const applyRuleZIndex = useZIndexOnOpen(() => applyRuleConfirm.value.visible)
+const applyRuleZStyle = computed(() => applyRuleZIndex.value ? { zIndex: applyRuleZIndex.value } : undefined)
 
 // 应用全部规则确认弹框
 const applyAllRulesConfirm = ref(false)
+const applyAllRulesZIndex = useZIndexOnOpen(() => applyAllRulesConfirm.value)
+const applyAllRulesZStyle = computed(() => applyAllRulesZIndex.value ? { zIndex: applyAllRulesZIndex.value } : undefined)
 
 // 备注编辑弹框
 const remarkEditor = ref<{
@@ -1360,6 +1368,17 @@ function itemStatusLabel(s: ImportRecordItem['status']): string {
   justify-content: center;
   padding: 20px;
   border-radius: 16px;
+}
+.apply-rule-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-nested);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 .remark-card {
   width: 100%;
