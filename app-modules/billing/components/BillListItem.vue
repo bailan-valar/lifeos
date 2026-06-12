@@ -17,11 +17,11 @@
       @dragend="onDragEnd"
     >
       <!-- 选择框 -->
-      <div v-if="selectable" class="bill-checkbox">
+      <div v-if="selectable" class="bill-checkbox" @click.stop>
         <input
           type="checkbox"
           :checked="selected"
-          @change.stop="$emit('select', bill.id)"
+          @change="$emit('select', bill.id)"
         />
       </div>
 
