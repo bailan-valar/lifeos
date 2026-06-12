@@ -75,6 +75,8 @@ const props = withDefaults(defineProps<{
   filter?: BillPickerFilter
   /** 空状态文案 */
   emptyText?: string
+  /** 默认搜索内容 */
+  defaultSearch?: string
 }>(), {
   modelValue: null,
   emptyText: '没有可选择的账单',
@@ -141,7 +143,7 @@ function onSelect(bill: Bill) {
 async function loadBills() {
   if (!props.filter) return
   loading.value = true
-  searchQuery.value = ''
+  searchQuery.value = props.defaultSearch || ''
 
   try {
     const db = await getDB()

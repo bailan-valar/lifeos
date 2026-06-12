@@ -10,6 +10,7 @@
       ref="pickerRef"
       :model-value="selectedBillId"
       :filter="pickerFilter"
+      :default-search="sourceBill?.amount.toFixed(2) ?? ''"
       empty-text="没有可关联的账单"
       @select="onPickerSelect"
     />
