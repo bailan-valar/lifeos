@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
     <Transition name="drawer">
-      <div v-if="visible" class="drawer-overlay" @click.stop>
-        <div class="drawer-panel" @click.stop>
+      <div v-if="visible" class="drawer-overlay">
+        <div class="drawer-panel">
           <!-- 头部 -->
           <div class="drawer-header">
             <div class="header-info">
@@ -518,7 +518,7 @@ async function handleDelete(bill: Bill) {
   z-index: 200;
   display: flex;
   justify-content: flex-end;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .drawer-panel {
@@ -531,6 +531,7 @@ async function handleDelete(bill: Bill) {
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-left: 0.5px solid rgba(255, 255, 255, 0.4);
   box-shadow: -8px 0 40px rgba(0, 0, 0, 0.12);
+  pointer-events: auto;
 }
 
 .drawer-header {

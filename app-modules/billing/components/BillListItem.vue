@@ -11,7 +11,7 @@
         { 'is-dragging': isDragging }
       ]"
       :draggable="draggable"
-      @click="$emit('click', bill)"
+      @click="onItemClick"
       @contextmenu.prevent="onContextMenu"
       @dragstart="onDragStart"
       @dragend="onDragEnd"
@@ -338,6 +338,15 @@ function onDragEnd() {
 
 function onCheckboxClick(event: MouseEvent) {
   emit('select', props.bill.id, { shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey })
+}
+
+function onItemClick(event: MouseEvent) {
+  // Shift/Ctrl + 点击：触发选择而非编辑
+  if (props.selectable && (event.shiftKey || event.ctrlKey || event.metaKey)) {
+    emit('select', props.bill.id, { shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey })
+    return
+  }
+  emit('click', props.bill)
 }
 
 // 计算显示金额（减去退款）
