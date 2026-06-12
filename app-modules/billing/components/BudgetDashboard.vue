@@ -885,11 +885,12 @@ function navigateToCategory(categoryId: string) {
   width: 100%;
   padding: 2px;
   border-radius: 4px;
-  gap: 2px;
 }
 
 .year-budget-cell .cell-percentage-badge {
-  position: static;
+  position: absolute;
+  top: 2px;
+  right: 2px;
 }
 
 .budget-num {
