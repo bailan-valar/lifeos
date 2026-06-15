@@ -117,7 +117,7 @@
             class="menu-item"
             @click="handleRemoveFromReimburse"
           >
-            <Icon :name="SOLAR_ICONS.action.unlink" size="16" />
+            <Icon :name="SOLAR_ICONS.action.link" size="16" />
             <span>从报销单移除</span>
           </button>
 

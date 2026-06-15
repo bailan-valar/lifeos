@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { ReimbursementGroupView } from '~/types/reimbursement'
+import ReimburseGroupDialog from './ReimburseGroupDialog.vue'
+import ReimburseIncomeDialog from './ReimburseIncomeDialog.vue'
 
 const props = defineProps<{
   noteId: string

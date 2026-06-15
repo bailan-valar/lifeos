@@ -2,6 +2,8 @@
 import type { ReimbursementGroupView } from '~/types/reimbursement'
 import type { ReimbursementIncomeFormData } from '~/types/reimbursement'
 import { toLocalISO } from '~/services/db'
+import BaseDialog from '~/components/ui/BaseDialog.vue'
+import AccountPicker from './AccountPicker.vue'
 
 const props = defineProps<{
   visible: boolean

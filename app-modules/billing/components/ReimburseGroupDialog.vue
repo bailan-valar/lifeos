@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ReimbursementGroupFormData } from '~/types/reimbursement'
+import BaseDialog from '~/components/ui/BaseDialog.vue'
 
 const props = defineProps<{
   visible: boolean

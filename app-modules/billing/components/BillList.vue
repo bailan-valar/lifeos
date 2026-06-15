@@ -218,17 +218,31 @@ function getBillDelta(bill: Bill, accountId: string): number {
   return delta
 }
 
+interface BalanceTraceStep {
+  step: string           // 步骤描述
+  date: string           // 发生时间
+  detail: string         // 明细文案
+  delta: number          // 对账户的余额变化量（正向增加）
+  balance: number        // 该步骤结束后的余额
+  calibratedBy?: string  // 若被调整校准，记录调整时间
+}
+
 /**
- * 运行余额 Map：billId → 该账单处理后的余额
- * 从 currentBalance 出发，按日期倒序撤销每笔账单的 delta
- * 调整作为时间线上的校准点：bill.date <= adj.date 时切换到 balanceBefore 基线
+ * 余额计算核心：一次遍历同时产出
+ * - balances: billId → 该账单处理后的余额（供 UI 使用）
+ * - trace: 计算过程追踪（供调试输出）
+ *
+ * 从 currentBalance 出发，按日期倒序撤销每笔账单的 delta。
+ * 调整作为时间线上的校准点：bill.date <= adj.date 时切换到 balanceBefore 基线。
  */
-const billBalanceMap = computed(() => {
+function computeBalances(): { balances: Map<string, number>; trace: BalanceTraceStep[] } {
+  const balances = new Map<string, number>()
+  const trace: BalanceTraceStep[] = []
+
   if (!props.showRunningBalance || !props.accountId || props.currentBalance == null) {
-    return new Map<string, number>()
+    return { balances, trace }
   }
 
-  const balances = new Map<string, number>()
   let running = props.currentBalance
 
   // 所有账单按日期倒序（与显示顺序一致）
@@ -240,20 +254,75 @@ const billBalanceMap = computed(() => {
     : []
   let adjIdx = 0
 
+  trace.push({
+    step: '起点',
+    date: '-',
+    detail: `当前余额 = ${props.currentBalance}`,
+    delta: 0,
+    balance: running
+  })
+
   for (const bill of sorted) {
+    let calibratedBy: string | undefined
     // 当账单日期 <= 调整日期时，说明账单在调整之前或同时
     // 需要校准：调整前的余额路径与调整后独立
     while (adjIdx < sortedAdj.length && bill.date <= sortedAdj[adjIdx].date) {
       running = sortedAdj[adjIdx].balanceBefore
+      calibratedBy = sortedAdj[adjIdx].date
+      trace.push({
+        step: '调整校准',
+        date: sortedAdj[adjIdx].date,
+        detail: `切换基线 → balanceBefore = ${sortedAdj[adjIdx].balanceBefore}`,
+        delta: 0,
+        balance: running
+      })
       adjIdx++
     }
 
+    const delta = getBillDelta(bill, props.accountId)
     balances.set(bill.id, running)
+    trace.push({
+      step: '账单',
+      date: bill.date,
+      detail: `${bill.type} ¥${bill.amount}（${bill.description || '无描述'}）`,
+      delta,
+      balance: running,
+      calibratedBy
+    })
     // 撤销该账单的 delta，得到之前的余额
-    running = sub(running, getBillDelta(bill, props.accountId))
+    running = sub(running, delta)
   }
 
-  return balances
+  trace.push({
+    step: '终点',
+    date: '-',
+    detail: `时间线最早端 running = ${running}`,
+    delta: 0,
+    balance: running
+  })
+
+  return { balances, trace }
+}
+
+const balanceResult = computed(() => computeBalances())
+
+/**
+ * 运行余额 Map：billId → 该账单处理后的余额
+ */
+const billBalanceMap = computed(() => balanceResult.value.balances)
+
+/**
+ * 调试输出：余额计算过程追踪。
+ * 仅在账户详情页（showRunningBalance）启用，便于验证每笔账单余额的推导。
+ */
+watch(() => balanceResult.value.trace, (trace) => {
+  if (!props.showRunningBalance || trace.length === 0) return
+  console.groupCollapsed(
+    `%c[余额计算追踪] accountId=${props.accountId} 当前余额=${props.currentBalance}`,
+    'color:#0a7aff;font-weight:600'
+  )
+  console.table(trace)
+  console.groupEnd()
 })
 
 /**

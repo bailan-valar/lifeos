@@ -252,6 +252,8 @@ import BillAllocateDialog from '../BillAllocateDialog.vue'
 import BillRefundDialog from '../BillRefundDialog.vue'
 import BillLinkRefundDialog from '../BillLinkRefundDialog.vue'
 import BillContextMenu from '../BillContextMenu.vue'
+import ReimburseGroupDialog from '../ReimburseGroupDialog.vue'
+import ReimburseIncomeDialog from '../ReimburseIncomeDialog.vue'
 
 const props = defineProps<{
   bills: Bill[]
