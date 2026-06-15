@@ -47,7 +47,12 @@
       :accounts="accounts"
       :categories="categories"
       :note-options="noteOptions"
+      :can-manage-reimburse="canManageReimburse"
+      :reimburse-association="reimburseAssociation"
       @keydown="onKeyDown"
+      @reimburse-join="handleReimburseJoin"
+      @reimburse-create="handleReimburseCreate"
+      @reimburse-remove="handleReimburseRemove"
     />
 
     <template #footer>
@@ -134,20 +139,60 @@
     @update:visible="refundDialogVisible = $event"
     @confirm="handleRefundConfirm"
   />
+
+  <!-- 加入报销单选择器 -->
+  <BaseDialog
+    v-if="reimburseJoinDialogVisible"
+    :visible="reimburseJoinDialogVisible"
+    title="加入报销单"
+    size="small"
+    @update:visible="reimburseJoinDialogVisible = $event"
+  >
+    <div class="reimburse-join-list">
+      <p v-if="reimburseJoinOptions.length === 0" class="reimburse-empty-hint">
+        当前笔记下没有可加入的报销单，请先"新建报销单"。
+      </p>
+      <button
+        v-for="g in reimburseJoinOptions"
+        :key="g.id"
+        type="button"
+        class="reimburse-join-item"
+        @click="handleReimburseJoinConfirm(g.id)"
+      >
+        <span class="reimburse-join-title">{{ g.title }}</span>
+        <span class="reimburse-status-badge" :class="g.statusClass">{{ g.statusLabel }}</span>
+      </button>
+    </div>
+    <template #footer>
+      <button class="liquid-glass-button" @click="reimburseJoinDialogVisible = false">关闭</button>
+    </template>
+  </BaseDialog>
+
+  <!-- 新建报销单 -->
+  <ReimburseGroupDialog
+    v-if="reimburseCreateDialogVisible"
+    :visible="reimburseCreateDialogVisible"
+    title="新建报销单"
+    @update:visible="reimburseCreateDialogVisible = $event"
+    @confirm="handleReimburseCreateConfirm"
+  />
 </template>
 
 <script setup lang="ts">
 import type { Bill, BillFormData, Account, BillCategory, ImportRecordItem, BillSplitItem, BillAllocateItem } from '~/types/bill'
+import type { ReimbursementGroupView, ReimbursementGroupFormData, BillReimburseAssociation } from '~/types/reimbursement'
 import { toLocalISO } from '~/services/db'
 import { useImportRecords } from '~/composables/useImportRecords'
 import { useToast } from '~/composables/useToast'
 import { useBills } from '~/composables/useBills'
+import { useReimburse, reimburseStatusLabel, reimburseStatusClass } from '~/composables/useReimburse'
 import { ICONS, SOLAR_ICONS } from '~/composables/useIcons'
 import BillForm from './BillForm.vue'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import BillSplitDialog from './BillSplitDialog.vue'
 import BillAllocateDialog from './BillAllocateDialog.vue'
 import BillRefundDialog from './BillRefundDialog.vue'
+import ReimburseGroupDialog from './ReimburseGroupDialog.vue'
 
 interface NoteOption {
   id: string
@@ -176,11 +221,123 @@ const emit = defineEmits<{
 const { warning: showWarning, success: showSuccess, error: showError } = useToast()
 const { confirm } = useConfirm()
 const { splitBill, allocatePeriod, createRefundBill, deleteBill } = useBills()
+const reimburseStore = useReimburse()
 
 // 功能对话框状态
 const splitDialogVisible = ref(false)
 const allocateDialogVisible = ref(false)
 const refundDialogVisible = ref(false)
+const reimburseJoinDialogVisible = ref(false)
+const reimburseCreateDialogVisible = ref(false)
+
+/* ---------- 报销单 ---------- */
+// 本地追踪当前账单的报销单关联（props.bill 为稳定引用，join/remove 后不会响应式刷新）
+const reimburseGroupView = ref<ReimbursementGroupView | null>(null)
+const currentReimburseId = ref<string | undefined>(undefined)
+const currentReimburseRole = ref<'expense' | 'income' | undefined>(undefined)
+
+const canManageReimburse = computed(() =>
+  isEditing.value
+  && !!props.bill
+  && (props.bill.type === 'expense' || currentReimburseRole.value === 'income')
+)
+
+const reimburseAssociation = computed<BillReimburseAssociation | null>(() => {
+  const view = reimburseGroupView.value
+  if (!currentReimburseId.value || !view) return null
+  // 从视图账单推导角色，避免依赖 props.bill 的响应式刷新
+  const isIncome = !!view.income && props.bill?.id === view.income.id
+  return {
+    title: view.title,
+    status: view.status,
+    role: isIncome ? 'income' : 'expense',
+    statusLabel: reimburseStatusLabel(view.status),
+    statusClass: reimburseStatusClass(view.status),
+    totalExpense: view.totalExpense,
+    totalIncome: view.totalIncome,
+  }
+})
+
+const reimburseJoinOptions = computed(() => {
+  const noteId = props.bill?.noteId
+  if (!noteId) return []
+  return reimburseStore.groups.value
+    .filter(g => g.noteId === noteId && g.status !== 'paid' && g.status !== 'cancelled')
+    .map(g => ({
+      id: g.id,
+      title: g.title,
+      statusLabel: reimburseStatusLabel(g.status),
+      statusClass: reimburseStatusClass(g.status),
+    }))
+})
+
+async function refreshReimburseView() {
+  const id = currentReimburseId.value
+  if (!id) {
+    reimburseGroupView.value = null
+    return
+  }
+  reimburseGroupView.value = await reimburseStore.getGroupView(id)
+}
+
+async function syncReimburse() {
+  await reimburseStore.loadGroups()
+  currentReimburseId.value = props.bill?.reimbursementId
+  currentReimburseRole.value = props.bill?.reimbursementRole
+  await refreshReimburseView()
+}
+
+function handleReimburseJoin() {
+  reimburseJoinDialogVisible.value = true
+}
+
+async function handleReimburseJoinConfirm(groupId: string) {
+  if (!props.bill || !groupId) return
+  try {
+    await reimburseStore.addBillsToGroup([props.bill.id], groupId)
+    currentReimburseId.value = groupId
+    currentReimburseRole.value = 'expense'
+    showSuccess('已加入报销单')
+    reimburseJoinDialogVisible.value = false
+    await refreshReimburseView()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+function handleReimburseCreate() {
+  reimburseCreateDialogVisible.value = true
+}
+
+async function handleReimburseCreateConfirm(data: ReimbursementGroupFormData) {
+  if (!props.bill) return
+  try {
+    const group = await reimburseStore.createGroup(props.bill.noteId, data)
+    await reimburseStore.addBillsToGroup([props.bill.id], group.id)
+    currentReimburseId.value = group.id
+    currentReimburseRole.value = 'expense'
+    showSuccess('已创建报销单并加入')
+    reimburseCreateDialogVisible.value = false
+    await refreshReimburseView()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleReimburseRemove() {
+  if (!props.bill) return
+  const ok = await confirm({ message: '确定从报销单中移除？', danger: true })
+  if (!ok) return
+  try {
+    await reimburseStore.removeBillFromGroup(props.bill.id)
+    currentReimburseId.value = undefined
+    currentReimburseRole.value = undefined
+    showSuccess('已从报销单移除')
+    await refreshReimburseView()
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e))
+  }
+}
 
 const form = ref<BillFormData>({
   noteId: '', type: 'expense', amount: 0, currency: 'CNY',
@@ -346,6 +503,11 @@ watch(() => form.value.type, (newType, oldType) => {
   if (newType === 'transfer' || newType === 'debt') {
     form.value.categoryId = ''
   }
+})
+
+/* ---------- 报销单：打开弹框时同步关联状态 ---------- */
+watch(() => props.visible, (v) => {
+  if (v) syncReimburse()
 })
 
 /* ---------- 分类切换时自动更新绑定笔记 ---------- */
@@ -627,5 +789,87 @@ defineExpose({ setCategoryId, setFromAccountId, setToAccountId })
 .delete-btn:hover {
   background: rgba(255, 59, 48, 0.15);
   color: rgb(255, 59, 48);
+}
+
+/* ========== 加入报销单选择器 ========== */
+.reimburse-join-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.reimburse-empty-hint {
+  margin: 0;
+  padding: 16px 8px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(60, 60, 67, 0.55);
+}
+
+.reimburse-join-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0.5px solid rgba(60, 60, 67, 0.16);
+  border-radius: var(--liquid-radius-button, 14px);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.86);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.reimburse-join-item:hover {
+  background: rgba(0, 122, 255, 0.06);
+  border-color: rgba(0, 122, 255, 0.3);
+}
+
+.reimburse-join-title {
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* 报销单状态徽章 */
+.reimburse-status-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.reimburse-status-draft {
+  background: rgba(60, 60, 67, 0.1);
+  color: rgba(60, 60, 67, 0.7);
+}
+.reimburse-status-submitted {
+  background: rgba(96, 165, 250, 0.15);
+  color: rgb(96, 165, 250);
+}
+.reimburse-status-approved {
+  background: rgba(167, 139, 250, 0.15);
+  color: rgb(167, 139, 250);
+}
+.reimburse-status-paid {
+  background: rgba(52, 211, 153, 0.15);
+  color: rgb(52, 211, 153);
+}
+.reimburse-status-cancelled {
+  background: rgba(248, 113, 113, 0.15);
+  color: rgb(248, 113, 113);
+}
+
+@media (prefers-color-scheme: dark) {
+  .reimburse-join-item {
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.86);
+  }
+  .reimburse-empty-hint {
+    color: rgba(255, 255, 255, 0.45);
+  }
 }
 </style>

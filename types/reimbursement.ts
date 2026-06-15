@@ -37,3 +37,17 @@ export interface ReimbursementGroupView extends ReimbursementGroup {
   totalExpense: number
   totalIncome: number
 }
+
+/**
+ * 账单编辑弹框中展示的报销单关联视图（只读 + 预计算标签/样式）
+ * 由 BillDialog 聚合报销单视图后传给 BillForm 展示
+ */
+export interface BillReimburseAssociation {
+  title: string
+  status: ReimbursementStatus
+  role: 'expense' | 'income'
+  statusLabel: string
+  statusClass: string
+  totalExpense: number
+  totalIncome: number
+}

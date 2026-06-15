@@ -13,6 +13,30 @@ import { onMounted, onUnmounted, getCurrentInstance } from 'vue'
 
 const MODULE_ID = 'reimbursement'
 
+/** 报销单状态 → 中文标签 */
+export function reimburseStatusLabel(status: ReimbursementStatus): string {
+  const map: Record<ReimbursementStatus, string> = {
+    draft: '草稿',
+    submitted: '已提交',
+    approved: '已批准',
+    paid: '已打款',
+    cancelled: '已取消',
+  }
+  return map[status] || status
+}
+
+/** 报销单状态 → 样式类名 */
+export function reimburseStatusClass(status: ReimbursementStatus): string {
+  const map: Record<ReimbursementStatus, string> = {
+    draft: 'reimburse-status-draft',
+    submitted: 'reimburse-status-submitted',
+    approved: 'reimburse-status-approved',
+    paid: 'reimburse-status-paid',
+    cancelled: 'reimburse-status-cancelled',
+  }
+  return map[status] || ''
+}
+
 export interface ReimburseStore {
   groups: Ref<ReimbursementGroup[]>
   loading: Ref<boolean>
