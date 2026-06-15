@@ -307,7 +307,8 @@ watch(() => props.visible, (v) => {
       relatedPersonId: props.bill.relatedPersonId,
       isSavable: props.bill.isSavable || false,
       savableAmount: props.bill.isSavable ? (props.bill.savableAmount ?? props.bill.amount) : undefined,
-      isReimbursable: props.bill.isReimbursable || false
+      isReimbursable: props.bill.isReimbursable || false,
+      reimbursableAmount: props.bill.isReimbursable ? (props.bill.reimbursableAmount ?? props.bill.amount) : undefined
     }
   } else {
     const defaults = props.defaultFormValues || {}
@@ -325,7 +326,8 @@ watch(() => props.visible, (v) => {
       relatedPersonId: '',
       isSavable: false,
       savableAmount: undefined,
-      isReimbursable: false
+      isReimbursable: false,
+      reimbursableAmount: undefined
     }
   }
 }, { immediate: true })

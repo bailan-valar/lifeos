@@ -106,6 +106,14 @@
         @update:model-value="onSavableAmountChange"
       />
     </div>
+    <div v-if="form.type === 'expense' && form.isReimbursable" class="form-group">
+      <label class="form-label">可报销金额</label>
+      <AmountInput
+        :model-value="form.reimbursableAmount ?? form.amount"
+        :max="form.amount"
+        @update:model-value="onReimbursableAmountChange"
+      />
+    </div>
   </div>
 </template>
 
@@ -183,7 +191,15 @@ function onSavableAmountChange(val: number) {
 
 function onReimbursableChange(e: Event) {
   const checked = (e.target as HTMLInputElement).checked
-  form.value = { ...form.value, isReimbursable: checked }
+  form.value = {
+    ...form.value,
+    isReimbursable: checked,
+    reimbursableAmount: checked ? (form.value.reimbursableAmount || form.value.amount) : undefined
+  }
+}
+
+function onReimbursableAmountChange(val: number) {
+  form.value = { ...form.value, reimbursableAmount: val }
 }
 </script>
 

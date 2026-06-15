@@ -51,7 +51,12 @@
           <!-- 可节省标记 -->
           <span v-if="bill.isSavable && bill.type === 'expense'" class="savable-badge">可节省</span>
           <!-- 报销标记 -->
-          <span v-if="bill.isReimbursable && bill.type === 'expense' && !bill.reimbursementId" class="reimbursable-badge">报销</span>
+          <span v-if="bill.isReimbursable && bill.type === 'expense' && !bill.reimbursementId" class="reimbursable-badge">
+            <template v-if="bill.reimbursableAmount != null && bill.reimbursableAmount < bill.amount">
+              报销 ¥{{ bill.reimbursableAmount.toFixed(2) }}
+            </template>
+            <template v-else>报销</template>
+          </span>
           <!-- 报销单关联标记 -->
           <span v-if="bill.reimbursementId && bill.reimbursementRole === 'expense'" class="reimburse-group-badge">待报销</span>
           <span v-if="bill.reimbursementId && bill.reimbursementRole === 'income'" class="reimburse-income-badge">报销回款</span>

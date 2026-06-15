@@ -329,6 +329,7 @@ export function useBills() {
       isSavable: data.isSavable || false,
       savableAmount: data.isSavable ? (data.savableAmount ?? data.amount) : undefined,
       isReimbursable: data.isReimbursable || false,
+      reimbursableAmount: data.isReimbursable ? (data.reimbursableAmount ?? data.amount) : undefined,
       reimbursementId: data.reimbursementId || undefined,
       reimbursementRole: data.reimbursementRole || undefined,
       createdAt: now(),
@@ -534,6 +535,7 @@ export function useBills() {
     const patch: Partial<Bill> = {
       ...data,
       savableAmount: data.isSavable ? (data.savableAmount ?? data.amount) : undefined,
+      reimbursableAmount: data.isReimbursable ? (data.reimbursableAmount ?? data.amount) : undefined,
       updatedAt: now()
     }
     await doc.patch(patch)
