@@ -85,6 +85,13 @@ export default defineNuxtConfig({
       'import.meta.env.NUXT_PUBLIC_COUCHDB_PREFIX': JSON.stringify(process.env.NUXT_PUBLIC_COUCHDB_PREFIX || ''),
     }
   },
+  // ssr:false 下 nitro 动态渲染 HTML，无静态 index.html，导致 PWA 断网时 SW 无 HTML 可回退。
+  // 预渲染 '/' 生成静态 SPA shell，供 Workbox 预缓存，实现离线首屏。
+  nitro: {
+    prerender: {
+      routes: ['/']
+    }
+  },
   pwa: {
     // generateSW：由 Workbox 自动生成 Service Worker，无需手写 SW 脚本
     strategies: 'generateSW',
@@ -107,12 +114,17 @@ export default defineNuxtConfig({
       ],
     },
     workbox: {
-      // SPA 离线导航回退到 index.html，这是离线可用的核心
-      navigateFallback: '/',
+      // SPA 离线导航回退：必须对应预缓存中的静态 HTML（nitro.prerender 生成的 index.html）。
+      // 注意：用 'index.html'（预缓存中的实际文件名），而非 '/'（路由），否则预缓存命中失败导致断网白屏。
+      navigateFallback: 'index.html',
       // /api/* 请求不回退为 HTML，离线时让其正常失败
       navigateFallbackDenylist: [/^\/api\//],
       // 预缓存构建产物（含 SVG 图标）
       globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+      // nitro.prerender 生成的 index.html 时序晚于 vite-plugin-pwa 的 glob 扫描，
+      // globPatterns 扫不到，这里显式补充进预缓存清单，供离线导航回退使用。
+      // revision 随每次构建变化，确保新 SPA shell（含新 _nuxt hash）被重新缓存。
+      additionalManifestEntries: [{ url: 'index.html', revision: String(Date.now()) }],
       // 放宽默认 2MB 限制，避免 pdfjs/xlsx 等大 chunk 被跳过
       maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       cleanupOutdatedCaches: true,
