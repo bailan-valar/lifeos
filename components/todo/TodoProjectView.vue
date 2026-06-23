@@ -262,6 +262,7 @@
       :todo="editingTask"
       :is-creating="isCreating"
       :initial-data="initialTaskData"
+      :parent-id="initialTaskData?.parentId"
       :available-parent-todos="availableParentTodos"
       @save="handleSaveTask"
       @create="handleCreateTask"
@@ -346,7 +347,6 @@ import { useTodoProjectView, type WeekRow, type CellTask, type TaskLayout } from
 import { useDragDrop, type NoteDragData } from '~/composables/useDragDrop'
 import { getDB, generateId, now } from '~/services/db'
 import { useConfirm } from '~/composables/useConfirm'
-import { useTodoStatus } from '~/composables/useTodoStatus'
 import type { TodoItem } from '~/types/todo'
 import type { Note } from '~/types/block'
 import TodoEditDialog from './TodoEditDialog.vue'
@@ -441,19 +441,19 @@ const availableParentTodos = computed(() => {
       completed: t.completed
     }))
 
-  // 如果正在编辑任务，确保其父任务在列表中（即使已完成）
-  if (editingTask.value?.parentId) {
-    const parentId = editingTask.value.parentId
-    if (!baseList.some(t => t.id === parentId)) {
-      const parentTask = tasks.value.find(t => t.id === parentId)
-      if (parentTask) {
-        baseList.push({
-          id: parentTask.id,
-          text: parentTask.text,
-          parentId: parentTask.parentId,
-          completed: parentTask.completed
-        })
-      }
+  // 确保目标父任务在列表中（即使已完成）：
+  // - 编辑模式：editingTask.parentId
+  // - 新建模式（通过"添加子任务"）：initialTaskData.parentId
+  const ensuredParentId = editingTask.value?.parentId || initialTaskData.value?.parentId
+  if (ensuredParentId && !baseList.some(t => t.id === ensuredParentId)) {
+    const parentTask = tasks.value.find(t => t.id === ensuredParentId)
+    if (parentTask) {
+      baseList.push({
+        id: parentTask.id,
+        text: parentTask.text,
+        parentId: parentTask.parentId,
+        completed: parentTask.completed
+      })
     }
   }
 
@@ -827,42 +827,15 @@ function handleTaskMenuEdit(task: { id: string; text: string; completed: boolean
   showEditDialog.value = true
 }
 
-// 任务右键菜单 - 添加子任务
-async function handleTaskMenuAddChild(task: { id: string; noteId: string }) {
-  try {
-    const db = await getDB()
-    const moduleDataList = await db.module_data.find({
-      selector: { moduleId: 'todo', noteId: task.noteId }
-    }).exec()
-
-    if (moduleDataList.length > 0) {
-      const doc = moduleDataList[0]
-      const data = doc.get('data') as { todos: TodoItem[] } | undefined
-      const todos = data?.todos || []
-
-      // 获取默认状态
-      const { statuses } = useTodoStatus()
-      const defaultStatus = statuses.value.find(s => s.isDefault) || statuses.value[0]
-
-      const newTask: TodoItem = {
-        id: generateId(),
-        text: '',
-        completed: false,
-        parentId: task.id,
-        createdAt: now()
-      }
-
-      if (defaultStatus) {
-        newTask.statusId = defaultStatus.id
-      }
-
-      todos.push(newTask)
-      await doc.patch({ data: { todos } })
-      // 不需要手动调用 loadData，onCollectionChange 会自动静默刷新
-    }
-  } catch (err) {
-    console.error('添加子任务失败:', err)
+// 任务右键菜单 - 添加子任务（打开新建弹框，父任务默认为当前任务）
+function handleTaskMenuAddChild(task: { id: string; noteId: string }) {
+  isCreating.value = true
+  editingTask.value = null
+  initialTaskData.value = {
+    parentId: task.id,
+    noteId: task.noteId
   }
+  showEditDialog.value = true
 }
 
 // 任务右键菜单 - 查看详情
