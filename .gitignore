@@ -35,3 +35,8 @@ prisma/migrations/*_*/migration.sql
 .playwright-mcp
 test-results
 .claude/settings.local.json
+.claude/worktrees/
+
+# Local agent/Codex configuration and generated skills
+.agents/
+.codex/
