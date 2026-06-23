@@ -5,90 +5,121 @@
     size="small"
     @update:visible="onClose"
   >
-    <div v-if="bill" class="refund-info">
-      <div class="info-row">
-        <span class="label">原账单</span>
-        <span class="value">{{ bill.description || '未命名账单' }}</span>
-      </div>
-      <div class="info-row">
-        <span class="label">原金额</span>
-        <span class="amount">{{ formatAmount(bill.amount) }}</span>
-      </div>
-      <div class="info-row">
-        <span class="label">日期</span>
-        <span class="value">{{ formatDate(bill.date) }}</span>
-      </div>
-    </div>
-
-    <div class="refund-form">
-      <div class="form-section">
-        <label class="section-label">退款方式</label>
-        <div class="radio-group">
-          <label class="radio-option">
-            <input
-              type="radio"
-              :value="'full'"
-              v-model="refundMode"
-            />
-            <span>全额退款</span>
-          </label>
-          <label class="radio-option">
-            <input
-              type="radio"
-              :value="'partial'"
-              v-model="refundMode"
-            />
-            <span>部分退款</span>
-          </label>
+    <div v-if="bill" class="refund-content">
+      <!-- 原账单信息 -->
+      <div class="liquid-glass-card original-bill-info">
+        <div class="info-row">
+          <span class="label">原账单</span>
+          <span class="value">{{ bill.description || '未命名账单' }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">原金额</span>
+          <span class="amount amount-original">{{ formatAmount(bill.amount) }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">已退款</span>
+          <span class="amount amount-refunded">{{ formatAmount(totalRefunded) }}</span>
+        </div>
+        <div class="info-row highlight">
+          <span class="label">可退余额</span>
+          <span class="amount amount-remaining">{{ formatAmount(remainingAmount) }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">日期</span>
+          <span class="value">{{ formatDate(bill.date) }}</span>
         </div>
       </div>
 
-      <div v-if="refundMode === 'partial'" class="form-section">
-        <label class="section-label">退款金额</label>
-        <div class="amount-input-wrapper">
-          <span class="currency-symbol">¥</span>
-          <input
-            type="number"
-            class="amount-input"
-            v-model.number="refundAmount"
-            min="0.01"
-            :max="maxRefundAmount"
-            step="0.01"
+      <!-- 退款历史 -->
+      <div v-if="refundHistory.length > 0" class="refund-history">
+        <div class="history-header">退款记录</div>
+        <div class="history-list">
+          <div
+            v-for="refund in refundHistory"
+            :key="refund.id"
+            class="history-item liquid-glass-card"
+          >
+            <div class="history-left">
+              <span class="history-date">{{ formatDate(refund.date) }}</span>
+              <span v-if="refund.refundReason" class="history-reason">{{ refund.refundReason }}</span>
+            </div>
+            <span class="history-amount">{{ formatAmount(refund.amount) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 退款表单 -->
+      <div class="refund-form">
+        <div class="form-section">
+          <label class="section-label">退款方式</label>
+          <div class="radio-group">
+            <label class="radio-option" :class="{ active: refundMode === 'full' }">
+              <input
+                type="radio"
+                value="full"
+                v-model="refundMode"
+              />
+              <span>全额退款</span>
+            </label>
+            <label class="radio-option" :class="{ active: refundMode === 'partial' }">
+              <input
+                type="radio"
+                value="partial"
+                v-model="refundMode"
+              />
+              <span>部分退款</span>
+            </label>
+          </div>
+        </div>
+
+        <div v-if="refundMode === 'partial'" class="form-section">
+          <label class="section-label">退款金额</label>
+          <div class="amount-input-wrapper">
+            <span class="currency-symbol">¥</span>
+            <input
+              type="number"
+              class="liquid-glass-input amount-input"
+              v-model.number="refundAmount"
+              min="0.01"
+              :max="remainingAmount"
+              step="0.01"
+              placeholder="请输入退款金额"
+            />
+          </div>
+          <span class="hint">最大可退金额: {{ formatAmount(remainingAmount) }}</span>
+        </div>
+
+        <div class="form-section">
+          <label class="section-label">退款账户</label>
+          <AccountPicker
+            v-model="refundAccountId"
+            :accounts="accounts"
+            placeholder="请选择退款账户"
           />
         </div>
-        <span class="hint">最大可退金额: {{ formatAmount(maxRefundAmount) }}</span>
-      </div>
 
-      <div class="form-section">
-        <label class="section-label">退款账户</label>
-        <AccountPicker
-          v-model="refundAccountId"
-          :accounts="accounts"
-          placeholder="请选择退款账户"
-        />
-      </div>
+        <div class="form-section">
+          <label class="section-label">退款日期</label>
+          <DateTimePicker v-model="refundDate" />
+        </div>
 
-      <div class="form-section">
-        <label class="section-label">退款日期</label>
-        <DateTimePicker v-model="refundDate" />
-      </div>
-
-      <div class="form-section">
-        <label class="section-label">退款原因</label>
-        <textarea
-          class="reason-input"
-          v-model="refundReason"
-          rows="3"
-          placeholder="请输入退款原因..."
-        ></textarea>
+        <div class="form-section">
+          <label class="section-label">退款原因</label>
+          <textarea
+            class="liquid-glass-input reason-input"
+            v-model="refundReason"
+            rows="3"
+            placeholder="请输入退款原因..."
+          ></textarea>
+        </div>
       </div>
     </div>
 
     <template #footer>
-      <button type="button" class="cancel-btn" @click="onClose">取消</button>
+      <button type="button" class="liquid-glass-button cancel-btn" @click="onClose">取消</button>
       <button
         type="button"
-        class="confirm-btn"
+        class="liquid-glass-button liquid-glass-button-primary confirm-btn"
         :disabled="!isValid"
         @click="onConfirm"
       >
@@ -105,6 +136,7 @@ import { useToast } from '~/composables/useToast'
 import BaseDialog from '~/components/ui/BaseDialog.vue'
 import DateTimePicker from './DateTimePicker.vue'
 import AccountPicker from './AccountPicker.vue'
+import { useBillRefunds } from '~/composables/useBillRefunds'
 
 const { warning: showWarning } = useToast()
 
@@ -119,25 +151,42 @@ const emit = defineEmits<{
   confirm: [amount: number, reason: string, date: string, accountId: string]
 }>()
 
+const { getRefundsForBill } = useBillRefunds()
+
 const refundMode = ref<'full' | 'partial'>('full')
 const refundAmount = ref(0)
 const refundReason = ref('')
 const refundDate = ref('')
 const refundAccountId = ref('')
+const refundHistory = ref<Bill[]>([])
+const totalRefunded = ref(0)
 
-const maxRefundAmount = computed(() => props.bill?.amount || 0)
+// 计算可退余额
+const remainingAmount = computed(() => {
+  if (!props.bill) return 0
+  return Math.max(0, props.bill.amount - totalRefunded.value)
+})
 
 const isValid = computed(() => {
   if (!props.bill) return false
   if (!refundAccountId.value) return false
+  if (remainingAmount.value <= 0) return false
   if (refundMode.value === 'full') return true
-  return refundAmount.value > 0 && refundAmount.value <= maxRefundAmount.value
+  return refundAmount.value > 0 && refundAmount.value <= remainingAmount.value
 })
 
 const finalAmount = computed(() => {
   if (!props.bill) return 0
-  return refundMode.value === 'full' ? props.bill.amount : refundAmount.value
+  if (refundMode.value === 'full') return remainingAmount.value
+  return refundAmount.value
 })
+
+// 加载退款历史
+async function loadRefundHistory() {
+  if (!props.bill) return
+  refundHistory.value = await getRefundsForBill(props.bill.id)
+  totalRefunded.value = refundHistory.value.reduce((sum, r) => sum + r.amount, 0)
+}
 
 function formatAmount(amount: number) {
   return `¥${amount.toFixed(2)}`
@@ -167,36 +216,43 @@ function onConfirm() {
   emit('update:visible', false)
 }
 
-watch(() => props.visible, (visible) => {
+watch(() => props.visible, async (visible) => {
   if (visible && props.bill) {
-    refundMode.value = 'full'
+    refundMode.value = remainingAmount.value > 0 ? 'full' : 'partial'
     refundAmount.value = 0
     refundReason.value = ''
     refundDate.value = toLocalISO()
     refundAccountId.value = getDefaultAccountId(props.bill)
+    await loadRefundHistory()
   }
 }, { immediate: true })
 
 watch(refundMode, (mode) => {
   if (mode === 'full' && props.bill) {
-    refundAmount.value = props.bill.amount
+    refundAmount.value = remainingAmount.value
   }
 })
 </script>
 
 <style scoped>
-.refund-info {
-  padding: var(--space-sm, 12px);
-  background: rgba(255, 149, 0, 0.08);
-  border-radius: var(--liquid-radius-button, 14px);
-  margin-bottom: var(--space-md, 16px);
+.refund-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg, 20px);
+}
+
+/* 原账单信息卡片 */
+.original-bill-info {
+  padding: var(--space-md, 16px);
+  background: rgba(255, 149, 0, 0.06);
+  border: 1px solid rgba(255, 149, 0, 0.15);
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
+  padding: 6px 0;
 }
 
 .info-row .label {
@@ -210,11 +266,83 @@ watch(refundMode, (mode) => {
 }
 
 .info-row .amount {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-original {
+  color: var(--color-text, rgba(0, 0, 0, 0.85));
+}
+
+.amount-refunded {
+  color: rgb(34, 197, 94);
+}
+
+.amount-remaining {
   color: rgb(255, 149, 0);
 }
 
+.info-row.highlight {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 149, 0, 0.25);
+}
+
+/* 退款历史 */
+.refund-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 12px);
+}
+
+.history-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.6);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 8px);
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm, 12px);
+  background: rgba(34, 197, 94, 0.04);
+  border: 1px solid rgba(34, 197, 94, 0.12);
+}
+
+.history-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-date {
+  font-size: 13px;
+  color: rgba(60, 60, 67, 0.7);
+}
+
+.history-reason {
+  font-size: 12px;
+  color: rgba(60, 60, 67, 0.5);
+}
+
+.history-amount {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgb(34, 197, 94);
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+/* 退款表单 */
 .refund-form {
   display: flex;
   flex-direction: column;
@@ -224,7 +352,7 @@ watch(refundMode, (mode) => {
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .section-label {
@@ -235,49 +363,54 @@ watch(refundMode, (mode) => {
 
 .radio-group {
   display: flex;
-  gap: 16px;
+  gap: var(--space-sm, 12px);
 }
 
 .radio-option {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid rgba(60, 60, 67, 0.15);
+  border-radius: var(--liquid-radius-button, 14px);
   font-size: 14px;
   color: rgba(0, 0, 0, 0.85);
   cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--liquid-bg);
+}
+
+.radio-option:hover {
+  background: var(--liquid-bg-thick);
+  border-color: rgba(60, 60, 67, 0.25);
+}
+
+.radio-option.active {
+  background: rgba(255, 149, 0, 0.1);
+  border-color: rgba(255, 149, 0, 0.4);
+  color: rgb(255, 149, 0);
 }
 
 .radio-option input[type="radio"] {
-  accent-color: rgb(255, 149, 0);
-  width: 16px;
-  height: 16px;
+  display: none;
 }
 
 .amount-input-wrapper {
-  display: flex;
-  align-items: center;
   position: relative;
 }
 
 .currency-symbol {
   position: absolute;
-  left: 12px;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 14px;
   color: rgba(60, 60, 67, 0.5);
+  z-index: 1;
 }
 
 .amount-input {
-  width: 100%;
-  padding: 10px 12px 10px 28px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.amount-input:focus {
-  outline: none;
-  border-color: rgb(255, 149, 0);
+  padding-left: 36px !important;
 }
 
 .hint {
@@ -286,53 +419,13 @@ watch(refundMode, (mode) => {
 }
 
 .reason-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: inherit;
-  background: rgba(255, 255, 255, 0.9);
-  color: rgba(0, 0, 0, 0.85);
-  transition: border-color 0.15s ease;
-}
-
-.reason-input:focus {
-  outline: none;
-  border-color: rgb(255, 149, 0);
-}
-
-.reason-input::placeholder {
-  color: rgba(60, 60, 67, 0.4);
+  min-height: 80px;
+  resize: vertical;
 }
 
 .cancel-btn,
 .confirm-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: var(--liquid-radius-button, 14px);
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.cancel-btn {
-  background: rgba(60, 60, 67, 0.08);
-  color: rgba(60, 60, 67, 0.85);
-}
-
-.cancel-btn:hover {
-  background: rgba(60, 60, 67, 0.15);
-}
-
-.confirm-btn {
-  background: rgb(255, 149, 0);
-  color: white;
-}
-
-.confirm-btn:hover:not(:disabled) {
-  background: rgb(230, 134, 0);
+  min-width: 80px;
 }
 
 .confirm-btn:disabled {
